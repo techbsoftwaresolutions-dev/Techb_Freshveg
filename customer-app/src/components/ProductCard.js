@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius, rupees, spacing, type, unitSuffix } from "../theme";
+import { colors, fontFamily, radius, rupees, spacing, type, unitSuffix } from "../theme";
 import { Pill } from "./ui";
 import QtyStepper from "./QtyStepper";
 
@@ -38,7 +38,9 @@ export default function ProductCard({ product, variant, quantity, busy, onPress,
 
         {outOfStock ? (
           <View style={styles.outOverlay}>
-            <Pill tone="danger">Out of stock</Pill>
+            <Pill tone="danger" style={styles.outOfStockPill}>
+              Out of stock
+            </Pill>
           </View>
         ) : null}
       </View>
@@ -108,20 +110,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 2,
   },
-  discountText: { color: "#fff", fontSize: 9, fontWeight: "800", lineHeight: 11, textAlign: "center" },
+  discountText: {
+    color: "#fff",
+    fontSize: 9,
+    fontFamily: fontFamily.extrabold,
+    lineHeight: 11,
+    textAlign: "center",
+  },
 
   outOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.78)",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 30,
   },
+  outOfStockPill: { paddingVertical: 6 },
 
-  name: { ...type.body, fontWeight: "600", fontSize: 13, minHeight: 34, lineHeight: 17 },
+  name: {
+    ...type.body,
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    minHeight: 34,
+    lineHeight: 17,
+  },
   pack: { ...type.tiny, marginTop: 1, marginBottom: spacing.sm },
 
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
   priceBox: { flexShrink: 1 },
-  price: { fontSize: 14, fontWeight: "800", color: colors.text },
-  mrp: { fontSize: 11, color: colors.textFaint, textDecorationLine: "line-through" },
+  price: { fontSize: 14, fontFamily: fontFamily.extrabold, color: colors.text },
+  mrp: {
+    fontSize: 11,
+    fontFamily: fontFamily.regular,
+    color: colors.textFaint,
+    textDecorationLine: "line-through",
+  },
 });

@@ -46,7 +46,15 @@
 
 * { box-sizing: border-box; }
 
-html, body { padding: 0; margin: 0; }
+/* A single element pushed wider than the viewport (a long order's item
+   list, a flex row that doesn't wrap) makes the whole page horizontally
+   scrollable on a phone-width screen, and the most common way a shopper
+   hits that is accidentally, by a sideways swipe — the page then sits
+   shifted with content clipped at both edges. html/body hides any stray
+   horizontal overflow instead of letting it leak out to the whole page;
+   it never affects a component's own deliberate horizontal scrolling
+   (the category bar, the PDP tabs), which scroll inside their own box. */
+html, body { padding: 0; margin: 0; overflow-x: hidden; }
 
 body {
   background: var(--bg);

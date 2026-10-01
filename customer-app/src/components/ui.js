@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { colors, radius, shadow, spacing, type } from "../theme";
+import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
 
 export function Button({ title, onPress, variant = "primary", size = "md", disabled, loading, style }) {
   const isPrimary = variant === "primary";
@@ -154,13 +154,27 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
 
+  // No fixed height here — Abhi's phone runs a decorative/script system
+  // font whose glyphs sit taller than a normal font's at the same
+  // fontSize, and a hard height clipped the top/bottom off every letter.
+  // Let the pill grow to fit whatever the active font needs instead; where
+  // it's used (ProductCard's out-of-stock overlay) the surrounding image
+  // box already has overflow:"hidden", so an oversized pill still can't
+  // bleed into the title text below it.
   pill: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 8,
     borderRadius: radius.pill,
-    alignSelf: "flex-start",
+    alignSelf: "center",
+    justifyContent: "center",
   },
-  pillText: { fontSize: 11, fontWeight: "700" },
+  pillText: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: fontFamily.bold,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
 
   centre: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
 

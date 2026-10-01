@@ -85,10 +85,15 @@ export default function ProductListScreen({ route, navigation }) {
       .finally(() => setLoadingMore(false));
   };
 
+  // One pick per filter group ("1 kg" vs "2 kg", "Hosur" vs "Mysuru") rather
+  // than a checkbox list — tapping a chip replaces whatever else was picked
+  // in its own group, tapping the same chip again clears it. Different
+  // groups still combine (pick a weight AND a store), just not two values
+  // inside the same group at once.
   const toggle = (code, value) => {
     setSelected((current) => {
       const values = current[code] || [];
-      const next = values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
+      const next = values.includes(value) ? [] : [value];
       return { ...current, [code]: next };
     });
   };
@@ -99,7 +104,7 @@ export default function ProductListScreen({ route, navigation }) {
     <View style={styles.screen}>
       {/* Subcategories */}
       {landing?.children?.length ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
           <Chip label="All" active={!subcategory} onPress={() => setSubcategory(null)} />
           {landing.children.map((child) => (
             <Chip
@@ -113,7 +118,7 @@ export default function ProductListScreen({ route, navigation }) {
       ) : null}
 
       {/* Sort */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
         {SORTS.map((option) => (
           <Chip
             key={option.key || "relevance"}
@@ -129,7 +134,7 @@ export default function ProductListScreen({ route, navigation }) {
           that would return nothing. Falls back to the plain schema list on an
           API from before facets existed. */}
       {(landing?.facets || landing?.filters)?.length ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
           {(landing.facets || landing.filters).map((filter) =>
             filter.inputType === "boolean" ? (
               <Chip
@@ -242,7 +247,12 @@ function Chip({ label, active, onPress, swatch, tone }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  chipRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
+  // A fixed height on the ScrollView itself, not just its content — a
+  // horizontal ScrollView with no height of its own can measure taller than
+  // one pill row needs (a wide system font's line-height is enough to do
+  // it), which shows up as a dead gap below a perfectly normal-looking row.
+  chipScroll: { flexGrow: 0, height: 48 },
+  chipRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm, alignItems: "center" },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -255,7 +265,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   chipActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  chipText: { fontSize: 12.5, color: colors.textMuted, fontWeight: "600" },
+  chipText: { fontSize: 12.5, lineHeight: 15, color: colors.textMuted, fontWeight: "600", includeFontPadding: false },
   chipTextActive: { color: colors.primaryDark },
   swatch: { width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.border },
   count: { ...type.small, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
