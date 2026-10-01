@@ -32,7 +32,7 @@ export default function ProductCard({ product, variant, quantity, busy, onPress,
 
         {discount > 0 && !outOfStock ? (
           <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>{discount}%{"\n"}OFF</Text>
+            <Text style={styles.discountText} numberOfLines={1}>{discount}% OFF</Text>
           </View>
         ) : null}
 

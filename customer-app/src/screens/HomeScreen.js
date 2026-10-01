@@ -105,20 +105,27 @@ export default function HomeScreen({ navigation }) {
         >
           {data.offers.map((offer) => (
             <Card key={offer.id} style={styles.offerCard}>
-              <Text style={styles.offerBadge}>{offer.badge || "OFFER"}</Text>
-              <Text style={styles.offerTitle} numberOfLines={2}>
-                {offer.title}
-              </Text>
-              <Text style={styles.offerDesc} numberOfLines={2}>
-                {offer.description}
-              </Text>
-              {offer.code ? (
-                <View style={styles.codeChip}>
-                  <Text style={styles.codeText}>Code {offer.code}</Text>
+              <View style={styles.offerRowInner}>
+                <View style={styles.offerText}>
+                  <Text style={styles.offerBadge}>{offer.badge || "OFFER"}</Text>
+                  <Text style={styles.offerTitle} numberOfLines={2}>
+                    {offer.title}
+                  </Text>
+                  <Text style={styles.offerDesc} numberOfLines={2}>
+                    {offer.description}
+                  </Text>
+                  {offer.code ? (
+                    <View style={styles.codeChip}>
+                      <Text style={styles.codeText}>Code {offer.code}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.autoApplied}>Applied automatically</Text>
+                  )}
                 </View>
-              ) : (
-                <Text style={styles.autoApplied}>Applied automatically</Text>
-              )}
+                {offer.image ? (
+                  <Image source={{ uri: offer.image }} style={styles.offerImage} resizeMode="contain" />
+                ) : null}
+              </View>
             </Card>
           ))}
         </ScrollView>
@@ -127,7 +134,11 @@ export default function HomeScreen({ navigation }) {
       {/* Categories — the six departments, straight from the engine. Add a
           seventh in the admin and it appears here on the next pull. */}
       <SectionHeader title="Shop by category" actionLabel="See all" onAction={() => navigation.navigate("CategoriesTab")} />
-      <View style={styles.categoryGrid}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryGrid}
+      >
         {(data?.categories || []).map((category) => (
           <Pressable
             key={category.id}
@@ -137,14 +148,18 @@ export default function HomeScreen({ navigation }) {
             }
           >
             <View style={[styles.categoryIcon, { backgroundColor: category.color || colors.primarySoft }]}>
-<Text style={{ fontSize: 26}}>{category.icon ||""}</Text>
+              {category.image ? (
+                <Image source={{ uri: category.image }} style={styles.categoryImage} resizeMode="cover" />
+              ) : (
+                <Text style={{ fontSize: 26 }}>{category.icon || ""}</Text>
+              )}
             </View>
             <Text style={styles.categoryName} numberOfLines={2}>
               {category.name}
             </Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       {/* Featured */}
       {data?.featured?.length ? (
@@ -251,6 +266,9 @@ const styles = StyleSheet.create({
 
   offerRow: { paddingHorizontal: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
   offerCard: { width: 230, padding: spacing.md },
+  offerRowInner: { flexDirection: "row", alignItems: "center" },
+  offerText: { flex: 1 },
+  offerImage: { width: 56, height: 56, marginLeft: spacing.sm },
   offerBadge: { color: colors.save, fontWeight: "800", fontSize: 13, marginBottom: 4 },
   offerTitle: { ...type.h3, marginBottom: 2 },
   offerDesc: { ...type.small, minHeight: 32 },
@@ -269,11 +287,10 @@ const styles = StyleSheet.create({
 
   categoryGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.xl,
   },
-  categoryTile: { width: "25%", alignItems: "center", marginBottom: spacing.lg },
+  categoryTile: { width: 78, alignItems: "center", marginRight: spacing.md },
   categoryIcon: {
     width: 58,
     height: 58,
@@ -281,6 +298,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 6,
+    overflow: "hidden",
+  },
+  categoryImage: {
+    width: "100%",
+    height: "100%",
   },
   categoryName: { ...type.tiny, textAlign: "center", color: colors.text, fontWeight: "600", paddingHorizontal: 2 },
 });
