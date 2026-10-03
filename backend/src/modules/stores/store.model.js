@@ -70,6 +70,16 @@ const storeSchema = new mongoose.Schema(
       // and it is the only figure the partner app's earnings are built from —
       // nothing is estimated.
       partnerFeePerDelivery: money(2500), // ₹25
+
+      // Manual UPI collection: no payment gateway, just a VPA (or UPI-linked
+      // mobile number) the customer pays from their own UPI app. The order is
+      // created with payment pending, same as cash on delivery, and staff
+      // confirm it once the money actually lands — see payment.service.js.
+      upi: {
+        enabled: { type: Boolean, default: false },
+        vpa: { type: String, default: "", trim: true },
+        payeeName: { type: String, default: "", trim: true },
+      },
     },
 
     status: { type: String, enum: ["active", "paused", "closed"], default: "active", index: true },

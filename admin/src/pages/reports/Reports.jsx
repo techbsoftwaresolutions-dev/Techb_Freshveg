@@ -124,6 +124,7 @@ function Products({ range }) {
   return (
     <Card title="Best sellers" tight>
       <Table
+        title="Best sellers"
         columns={[
           { key: "name", label: "Product", render: (row) => <span className="row-title">{row.name}</span> },
           { key: "units", label: "Units", align: "right" },
@@ -149,6 +150,7 @@ function Categories({ range }) {
     <div className="grid split">
       <Card title="Revenue by department" tight>
         <Table
+          title="Revenue by department"
           columns={[
             {
               key: "name",
@@ -206,6 +208,7 @@ function CustomersReport({ range }) {
 
       <Card title="Top customers" tight>
         <Table
+          title="Top customers"
           columns={[
             {
               key: "name",
@@ -236,6 +239,7 @@ function Payments({ range }) {
   return (
     <Card title="How people paid" tight>
       <Table
+        title="Payment methods"
         columns={[
           { key: "method", label: "Method", render: (row) => <span className="row-title">{row.method.toUpperCase()}</span> },
           { key: "count", label: "Attempts", align: "right" },

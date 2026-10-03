@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import FormRoute from "../components/FormRoute";
 import { useAuth } from "../context/AuthContext";
-import { Banner, Card, Empty, Field, Loading, Modal, Pill, Table, rupees } from "../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, rupees } from "../components/ui";
 
 // One screen covers both auto-applied offers and coupons, because the engine
 // treats them as one thing — the only difference is whether a code is needed.
@@ -46,12 +46,13 @@ export default function Offers() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [meta, setMeta] = useState(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const load = () =>
     api
-      .get("/marketing/offers", { limit: 50 })
+      .get("/marketing/offers", { limit: 20, page })
       .then((data) => {
         setItems(data.items);
         setMeta(data.meta);
@@ -60,8 +61,10 @@ export default function Offers() {
       .finally(() => setLoading(false));
 
   useEffect(() => {
+    setLoading(true);
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   if (loading) return <div className="page"><Loading /></div>;
 
@@ -82,6 +85,7 @@ export default function Offers() {
 
       <Card tight>
         <Table
+          title="Offers"
           columns={[
             {
               key: "title",
@@ -139,9 +143,8 @@ export default function Offers() {
           onRowClick={editable ? (row) => navigate(`/marketing/offers/${row.id}`) : undefined}
           empty={<Empty title="No offers yet" hint="Create one to start discounting." />}
         />
+        <Pagination meta={meta} onPage={setPage} />
       </Card>
-
-      {meta && <p className="faint" style={{ fontSize: 12 }}>{meta.total} total</p>}
 
     </div>
   );

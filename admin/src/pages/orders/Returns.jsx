@@ -101,6 +101,7 @@ export default function Returns() {
         ) : (
           <>
             <Table
+              title="Returns"
               columns={[
                 {
                   key: "code",
@@ -306,6 +307,7 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
 
       <div className="section-label">Lines coming back</div>
       <Table
+        title="Return items"
         columns={[
           {
             key: "name",

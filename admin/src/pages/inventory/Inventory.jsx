@@ -109,6 +109,7 @@ export default function Inventory() {
         ) : (
           <>
             <Table
+              title="Stock levels"
               columns={[
                 {
                   key: "product",
@@ -189,6 +190,7 @@ export default function Inventory() {
 function MovementTable({ rows }) {
   return (
     <Table
+      title="Stock movements"
       columns={[
         { key: "createdAt", label: "When", render: (row) => when(row.createdAt) },
         {
@@ -247,6 +249,7 @@ function ExpiringTable({ rows }) {
 
   return (
     <Table
+      title="Expiring stock"
       columns={[
         {
           key: "product",

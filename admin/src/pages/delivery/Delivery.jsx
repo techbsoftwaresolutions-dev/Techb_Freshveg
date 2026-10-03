@@ -103,6 +103,7 @@ function Report() {
         ) : (
           <>
             <Table
+              title="Delivery report"
               columns={[
                 {
                   key: "code",
@@ -196,6 +197,7 @@ function Partners() {
           <Loading />
         ) : (
           <Table
+            title="Delivery partners"
             columns={[
               {
                 key: "partner",
@@ -288,6 +290,7 @@ function Zones() {
           <Loading />
         ) : (
           <Table
+            title="Delivery zones"
             columns={[
               {
                 key: "name",
@@ -546,6 +549,7 @@ function Slots() {
           <Loading />
         ) : (
           <Table
+            title="Delivery slots"
             columns={[
               {
                 key: "label",

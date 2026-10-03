@@ -64,6 +64,7 @@ export default function Customers() {
         ) : (
           <>
             <Table
+              title="Customers"
               columns={[
                 {
                   key: "name",
@@ -199,6 +200,7 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
 
       {tab === "orders" ? (
         <Table
+          title="Customer orders"
           columns={[
             {
               key: "code",
@@ -229,6 +231,7 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
 
       {tab === "wallet" ? (
         <Table
+          title="Wallet ledger"
           columns={[
             { key: "when", label: "When", render: (row) => when(row.createdAt) },
             { key: "reason", label: "Reason", render: (row) => <span className="muted">{row.reason.replace(/_/g, " ")}</span> },
@@ -252,6 +255,7 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
 
       {tab === "loyalty" ? (
         <Table
+          title="Loyalty points"
           columns={[
             { key: "when", label: "When", render: (row) => when(row.createdAt) },
             { key: "reason", label: "Reason", render: (row) => <span className="muted">{row.reason}</span> },

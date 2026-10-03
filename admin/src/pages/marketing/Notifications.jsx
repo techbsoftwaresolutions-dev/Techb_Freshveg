@@ -138,6 +138,7 @@ function Group({ title, rows, canManage, onEdit }) {
   return (
     <Card title={title} tight style={{ marginBottom: 14 }}>
       <Table
+        title={title}
         columns={[
           {
             key: "name",
@@ -596,6 +597,7 @@ function DeliveryLog() {
         ) : (
           <>
             <Table
+              title="Delivery log"
               columns={[
                 { key: "when", label: "When", render: (row) => <span className="muted">{when(row.createdAt)}</span> },
                 {

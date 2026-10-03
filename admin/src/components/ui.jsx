@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect } from "react";
+import { createContext, isValidElement, useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Sparkline from "./Sparkline";
 
@@ -203,23 +203,174 @@ export function Field({ label, help, error, children, inherited }) {
   );
 }
 
-export function Table({ columns, rows, empty, onRowClick, keyOf }) {
+// Pulls the plain text out of whatever a column's render() produced — a
+// string, a number, or a tree of elements (a Pill, a stacked name+phone) —
+// so sorting and exporting have something to compare and print even for a
+// column that renders markup instead of a bare value.
+function textOf(node) {
+  if (node === null || node === undefined || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).filter(Boolean).join(" ");
+  if (isValidElement(node)) return textOf(node.props?.children);
+  return "";
+}
+
+// What a column sorts and exports by: the row's own field when the column
+// reads straight off it (the common case — "totalSpend", "lastOrderAt" — so
+// numbers and ISO dates sort correctly, not as display strings), falling
+// back to whatever render() displays for a column that's computed rather
+// than stored.
+function valueOf(row, col) {
+  const raw = row[col.key];
+  if (raw !== undefined && raw !== null) return raw;
+  return col.render ? textOf(col.render(row)) : "";
+}
+
+function compareValues(a, b) {
+  const aEmpty = a === null || a === undefined || a === "";
+  const bEmpty = b === null || b === undefined || b === "";
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;
+  if (bEmpty) return -1;
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  const an = Number(a);
+  const bn = Number(b);
+  if (!Number.isNaN(an) && !Number.isNaN(bn)) return an - bn;
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
+  ));
+}
+
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// CSV and Word both download straight away. PDF has no reliable dependency-
+// free way to generate a file client-side, so it opens a print-formatted
+// window instead and lets the browser's own "Save as PDF" do the encoding —
+// the standard zero-dependency way to offer a PDF export from the browser.
+function exportRows(columns, rows, format, title) {
+  const cols = columns.filter((c) => c.exportable !== false);
+  const headers = cols.map((c) => c.label);
+  const lines = rows.map((row) => cols.map((c) => textOf(c.render ? c.render(row) : row[c.key])));
+  const base = (title || "export").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "") || "export";
+  const heading = escapeHtml(title || "Export");
+
+  if (format === "csv") {
+    const esc = (v) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headers, ...lines].map((row) => row.map(esc).join(",")).join("\r\n");
+    downloadBlob(csv, `${base}.csv`, "text/csv;charset=utf-8;");
+    return;
+  }
+
+  const tableHtml = `
+    <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:12px;">
+      <thead><tr>${headers.map((h) => `<th style="background:#f1f5f9;text-align:left;padding:6px 10px;">${escapeHtml(h)}</th>`).join("")}</tr></thead>
+      <tbody>${lines.map((row) => `<tr>${row.map((cell) => `<td style="padding:6px 10px;">${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody>
+    </table>`;
+
+  if (format === "word") {
+    const doc = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"><title>${heading}</title></head>
+      <body><h2 style="font-family:Arial,sans-serif;">${heading}</h2>${tableHtml}</body></html>`;
+    // Word opens an HTML document saved with a .doc extension natively —
+    // the standard way to hand Word a file with no docx-building library.
+    downloadBlob(doc, `${base}.doc`, "application/msword");
+    return;
+  }
+
+  if (format === "pdf") {
+    const win = window.open("", "_blank");
+    if (!win) return; // pop-up blocked — nothing to export into
+    win.document.write(`<html><head><title>${heading}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+        h2 { margin: 0 0 16px; }
+        @media print { @page { margin: 16mm; } }
+      </style></head>
+      <body><h2>${heading}</h2>${tableHtml}</body></html>`);
+    win.document.close();
+    win.focus();
+    // The print dialog needs the page actually painted first — closing the
+    // write stream alone isn't enough on a slower machine and can print a
+    // blank sheet.
+    setTimeout(() => win.print(), 300);
+  }
+}
+
+function ExportBar({ columns, rows, title }) {
+  if (!rows.length) return null;
+  return (
+    <div className="table-export-bar">
+      <span className="faint" style={{ fontSize: 12 }}>Export:</span>
+      <button type="button" className="btn ghost sm" onClick={() => exportRows(columns, rows, "csv", title)}>CSV</button>
+      <button type="button" className="btn ghost sm" onClick={() => exportRows(columns, rows, "word", title)}>Word</button>
+      <button type="button" className="btn ghost sm" onClick={() => exportRows(columns, rows, "pdf", title)}>PDF</button>
+    </div>
+  );
+}
+
+// `title` names the export (filename + heading) — any page can pass one,
+// but every page works without it (falls back to "export"), so adding
+// sorting and download buttons here reaches every list in the app without
+// having to touch each page's own columns.
+export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
+  const [sort, setSort] = useState({ key: null, dir: 1 });
+
+  const sortedRows = useMemo(() => {
+    if (!sort.key) return rows;
+    const col = columns.find((c) => c.key === sort.key);
+    if (!col) return rows;
+    return [...rows].sort((a, b) => compareValues(valueOf(a, col), valueOf(b, col)) * sort.dir);
+  }, [rows, sort, columns]);
+
+  function toggleSort(key) {
+    setSort((current) => (current.key === key ? { key, dir: -current.dir } : { key, dir: 1 }));
+  }
+
   if (!rows.length) return empty || <Empty title="Nothing here yet" />;
 
   return (
     <div className="table-wrap">
+      <ExportBar columns={columns} rows={sortedRows} title={title} />
       <table className="data">
         <thead>
           <tr>
-            {columns.map((col) => (
-              <th key={col.key} className={col.align === "right" ? "num" : ""} style={col.width ? { width: col.width } : undefined}>
-                {col.label}
-              </th>
-            ))}
+            {columns.map((col) => {
+              const sortable = col.sortable !== false;
+              return (
+                <th
+                  key={col.key}
+                  className={[col.align === "right" ? "num" : "", sortable ? "sortable" : ""].filter(Boolean).join(" ")}
+                  style={col.width ? { width: col.width } : undefined}
+                  onClick={sortable ? () => toggleSort(col.key) : undefined}
+                >
+                  {col.label}
+                  {sortable && sort.key === col.key ? (
+                    <span className="sort-arrow">{sort.dir === 1 ? " ▲" : " ▼"}</span>
+                  ) : null}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, index) => (
+          {sortedRows.map((row, index) => (
             <tr
               key={keyOf ? keyOf(row) : row.id || index}
               onClick={onRowClick ? () => onRowClick(row) : undefined}

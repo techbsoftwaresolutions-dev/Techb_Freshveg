@@ -99,6 +99,7 @@ export default function Banners() {
         ) : (
           <>
             <Table
+              title="Banners"
               columns={[
                 {
                   key: "title",

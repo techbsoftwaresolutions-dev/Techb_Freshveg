@@ -89,6 +89,7 @@ export default function AuditLog() {
         ) : (
           <>
             <Table
+              title="Audit log"
               columns={[
                 { key: "when", label: "When", render: (row) => <span className="muted">{when(row.createdAt)}</span> },
                 {

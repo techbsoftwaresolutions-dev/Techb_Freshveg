@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Field, Loading, Modal, Pill, Table, rupees } from "../../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, rupees } from "../../components/ui";
 
 // Commercial rules are per store — a city branch can carry a higher free
 // delivery threshold than a small-town one without any code change.
@@ -12,17 +12,23 @@ export default function Stores() {
   const editable = can("settings.manage");
 
   const [items, setItems] = useState([]);
+  const [meta, setMeta] = useState(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
+    setLoading(true);
     api
-      .get("/stores", { limit: 50 })
-      .then(({ items: list }) => setItems(list))
+      .get("/stores", { limit: 20, page })
+      .then((data) => {
+        setItems(data.items);
+        setMeta(data.meta);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   if (loading) return <div className="page"><Loading /></div>;
 
@@ -38,6 +44,7 @@ export default function Stores() {
 
       <Card tight>
         <Table
+          title="Stores"
           columns={[
             {
               key: "name",
@@ -98,6 +105,7 @@ export default function Stores() {
           onRowClick={editable ? (row) => navigate(`/settings/stores/${row.id}`) : undefined}
           empty={<Empty title="No stores" hint="Seed the backend or create one via the API." />}
         />
+        <Pagination meta={meta} onPage={setPage} />
       </Card>
     </div>
   );
@@ -150,6 +158,8 @@ function StoreModal({ value, saving, onClose, onSave }) {
   const [pincodeText, setPincodeText] = useState((value.servicePincodes || []).join(", "));
   const badPincodes = parsePincodes(pincodeText).invalid;
   const setSetting = (key, next) => setForm((f) => ({ ...f, settings: { ...f.settings, [key]: next } }));
+  const setUpi = (key, next) =>
+    setForm((f) => ({ ...f, settings: { ...f.settings, upi: { ...f.settings?.upi, [key]: next } } }));
   const money = (key) => (e) => setSetting(key, Math.round(Number(e.target.value || 0) * 100));
 
   return (
@@ -271,6 +281,38 @@ function StoreModal({ value, saving, onClose, onSave }) {
         Unticking “accepting orders” stops checkout at this store immediately — the kill switch for a
         power cut or a rush.
       </p>
+
+      <div className="section-label">UPI payment</div>
+      <p className="faint" style={{ fontSize: 12, marginTop: -8 }}>
+        No payment gateway is wired up — this just shows the customer where to pay. Orders are created
+        awaiting payment and you confirm them yourself once the money lands.
+      </p>
+      <label className="checkbox" style={{ marginBottom: 10 }}>
+        <input
+          type="checkbox"
+          checked={Boolean(form.settings?.upi?.enabled)}
+          onChange={(e) => setUpi("enabled", e.target.checked)}
+        />
+        Show UPI as a payment option at checkout
+      </label>
+      <div className="grid cols-2">
+        <Field label="UPI ID or mobile number" help="e.g. yourstore@okaxis or 98765 43210@ybl">
+          <input
+            type="text"
+            value={form.settings?.upi?.vpa || ""}
+            onChange={(e) => setUpi("vpa", e.target.value)}
+            disabled={!form.settings?.upi?.enabled}
+          />
+        </Field>
+        <Field label="Payee name shown to customer" help="Defaults to the store name if left blank">
+          <input
+            type="text"
+            value={form.settings?.upi?.payeeName || ""}
+            onChange={(e) => setUpi("payeeName", e.target.value)}
+            disabled={!form.settings?.upi?.enabled}
+          />
+        </Field>
+      </div>
     </Modal>
   );
 }

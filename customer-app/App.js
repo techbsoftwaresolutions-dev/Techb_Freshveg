@@ -14,6 +14,7 @@ import {
 import { AuthProvider } from "./src/context/AuthContext";
 import { StoreProvider } from "./src/context/StoreContext";
 import { CartProvider } from "./src/context/CartContext";
+import { WishlistProvider } from "./src/context/WishlistContext";
 import RootNavigator from "./src/navigation/RootNavigator";
 
 // Android lets a person pick a decorative/script system font in Settings ->
@@ -47,8 +48,10 @@ export default function App() {
       <AuthProvider>
         <StoreProvider>
           <CartProvider>
-            <StatusBar style="light" />
-            <RootNavigator />
+            <WishlistProvider>
+              <StatusBar style="light" />
+              <RootNavigator />
+            </WishlistProvider>
           </CartProvider>
         </StoreProvider>
       </AuthProvider>

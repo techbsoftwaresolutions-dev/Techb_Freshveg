@@ -33,7 +33,10 @@ async function initiate(order, { method, customer, idempotencyKey } = {}) {
   }
 
   const attempts = await Payment.countDocuments({ order: order._id });
-  const provider = method === "cod" ? gateways.manual : await providerFor();
+  // UPI here is manual collection (a VPA shown to the customer, no gateway
+  // round-trip) — same as cash on delivery, never routed through an online
+  // provider even if one happens to be configured.
+  const provider = method === "cod" || method === "upi" ? gateways.manual : await providerFor();
 
   const payment = new Payment({
     order: order._id,
@@ -226,7 +229,6 @@ async function refund(order, { amount, reason, destination, items, actor } = {})
 /** What the checkout screen should offer, given the store and the cart. */
 async function availableMethods({ store, total, hasPhysicalItems = true }) {
   const settings = await Settings.load();
-  const provider = await providerFor();
   const methods = [];
 
   if (settings.payment.codEnabled && store?.settings?.codEnabled && hasPhysicalItems) {
@@ -241,17 +243,22 @@ async function availableMethods({ store, total, hasPhysicalItems = true }) {
     });
   }
 
-  const online = settings.payment.onlineEnabled && provider.name !== "none";
-  for (const [key, label] of [["upi", "UPI"], ["card", "Card"], ["netbanking", "Net banking"]]) {
+  // UPI is manual collection, not a gateway integration: a store sets its own
+  // VPA in Admin → Stores, and it shows up here the moment that's saved. No
+  // online provider needs to be configured for this to work.
+  const upi = store?.settings?.upi;
+  if (upi?.enabled && upi?.vpa) {
     methods.push({
-      key,
-      label,
-      available: online,
-      reason: online ? null : "Online payment is not set up yet",
+      key: "upi",
+      label: "UPI",
+      available: true,
+      vpa: upi.vpa,
+      payeeName: upi.payeeName || store.name,
+      reason: null,
     });
   }
 
-  return { methods, provider: provider.name, online };
+  return { methods };
 }
 
 module.exports = {

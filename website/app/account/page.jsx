@@ -12,10 +12,27 @@ export default function AccountPage() {
   const router = useRouter();
   const { user, ready, signedIn, signOut } = useAuth();
   const { store, pincode } = useStore();
+  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     if (ready && !signedIn) router.replace("/login?next=/account");
   }, [ready, signedIn, router]);
+
+  async function shareReferral(code) {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const text = `Use my FreshMart referral code ${code} and get a discount on your first order!`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "FreshMart referral", text, url: origin });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(`${text} ${origin}`);
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      }
+    } catch {
+      // Share sheet dismissed — nothing to do.
+    }
+  }
 
   const [recentOrders, setRecentOrders] = useState(null);
   useEffect(() => {
@@ -56,6 +73,9 @@ export default function AccountPage() {
             +91 {user.phone}
             {user.email ? ` · ${user.email}` : ""}
           </span>
+          <Link href="/account/edit" className="account-hero-edit">
+            Edit profile
+          </Link>
         </div>
         <button
           type="button"
@@ -82,7 +102,12 @@ export default function AccountPage() {
         {user.referralCode ? (
           <div className="stat-tile">
             <span>Refer a friend</span>
-            <strong className="stat-code">{user.referralCode}</strong>
+            <div className="stat-tile-row">
+              <strong className="stat-code">{user.referralCode}</strong>
+              <button type="button" className="stat-share-btn" onClick={() => shareReferral(user.referralCode)}>
+                {shared ? "Copied!" : "Share"}
+              </button>
+            </div>
           </div>
         ) : null}
         <div className="stat-tile">
@@ -150,6 +175,25 @@ export default function AccountPage() {
           )}
         </section>
       </div>
+
+      <section className="panel account-more">
+        <div className="panel-head">
+          <h3>More</h3>
+        </div>
+        <div className="list-rows">
+          <Link href="/account/edit" className="list-row">
+            <span className="list-row-main">
+              <strong>Edit profile</strong>
+              <span>Update your name and email</span>
+            </span>
+          </Link>
+          <Link href="/terms" className="list-row">
+            <span className="list-row-main">
+              <strong>Terms &amp; Conditions</strong>
+            </span>
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }
