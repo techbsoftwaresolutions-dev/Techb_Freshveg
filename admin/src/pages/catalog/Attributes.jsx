@@ -231,7 +231,6 @@ function AttributeModal({ value, saving, onClose, onSave }) {
         </Field>
         <Field
           label="Code"
-          help={isNew ? "Machine name used in the API." : "Fixed once created — product values are stored under it."}
         >
           <input type="text" value={form.code} onChange={set("code")} disabled={!isNew} className="mono" />
         </Field>
@@ -247,10 +246,10 @@ function AttributeModal({ value, saving, onClose, onSave }) {
             ))}
           </select>
         </Field>
-        <Field label="Group" help="Sections the product form is split into.">
+        <Field label="Group" >
           <input type="text" value={form.group} onChange={set("group")} />
         </Field>
-        <Field label="Unit" help="For number fields, e.g. g, ml.">
+        <Field label="Unit" >
           <input type="text" value={form.unit} onChange={set("unit")} />
         </Field>
       </div>
@@ -311,7 +310,7 @@ function AttributeModal({ value, saving, onClose, onSave }) {
         </label>
       </div>
 
-      <Field label="Help text" help="Shown under the input on the product form.">
+      <Field label="Help text" >
         <input type="text" value={form.helpText} onChange={set("helpText")} />
       </Field>
     </Modal>

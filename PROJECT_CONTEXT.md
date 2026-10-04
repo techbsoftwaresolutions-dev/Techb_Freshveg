@@ -46,7 +46,7 @@ delivery-app/  Expo / React Native rider app
 | State management | React Context only (no Redux/Zustand/React Query) | all frontends |
 | Styling | Admin: hand-written CSS with design tokens + dark mode (`admin/src/styles/index.css`). Website: one 2.9k-line `app/globals.css`. Apps: `StyleSheet` + `theme/index.js`. No Tailwind / UI kit anywhere. | |
 | Maps | **None.** (Distance maths is a hand-rolled haversine in `delivery.service.js`; no map SDK in any app.) | |
-| Storage | Local disk (`uploads/`, served at `/uploads`) or Cloudinary via raw REST | `backend/src/modules/storage` |
+| Storage | **Cloudinary only** (signed raw REST, no SDK). No local-disk storage; uploads return 503 if Cloudinary keys are missing | `backend/src/modules/storage` |
 | Payments | Razorpay (REST, hand-written) + a `manual` provider; `stripe` appears only in a settings enum | `payments/gateways.js` |
 | Notifications | Template engine + channel stubs (push/SMS/email/WhatsApp **not implemented**); in-app works | `notifications/` |
 | Jobs | In-process `setInterval` scheduler | `backend/src/jobs` |
@@ -66,7 +66,7 @@ Techb_Freshveg/
 │   ├── .env.example
 │   └── src/
 │       ├── server.js              # entry: connectDb → scheduler.start → listen
-│       ├── app.js                 # express app, helmet/cors, /api/health, /uploads static, mounts router
+│       ├── app.js                 # express app, helmet/cors, /api/health, mounts router
 │       ├── config/                # index.js (env + dev fallbacks), db.js (mongoose connect)
 │       ├── core/                  # ApiError, asyncHandler, cache, money (paise helpers), query (paginate),
 │       │                          #   schemaBase (shared schema opts + money()/percent()/objectId()), sequence (atomic counters), slugify
@@ -124,8 +124,7 @@ flowchart LR
     CUST -- "API_BASE_URL" --> API
     RIDER -- "API_BASE_URL" --> API
     API[Express API :5055<br/>/api/v1] --> DB[(MongoDB)]
-    API --> FS[/uploads on disk/]
-    API -. optional .-> CLD[Cloudinary]
+    API --> CLD[Cloudinary]
     API -. optional .-> RZP[Razorpay]
     API -. optional .-> REDIS[(Redis)]
     JOBS[in-process scheduler] --> API
@@ -160,7 +159,7 @@ Staff: `POST /auth/staff/login {phone,password}` (admin app only).
 `Cart (intent only) → cartService.summarise → pricing.priceCart → orderService.placeOrder → Inventory.reserve → Order saved → wallet/loyalty debited → paymentService.initiate → Offer usage++ → cart "converted" → notify → COD: ORDER_CONFIRMED, online: PAYMENT_PENDING`.
 
 ### File upload flow
-`POST /uploads?folder=…` with the **raw image bytes as body** and `Content-Type: image/*` (not multipart). Server sniffs magic bytes (JPEG/PNG/GIF/WEBP only, default 5 MB cap `MAX_UPLOAD_BYTES`), stores via provider (`local` → `${PUBLIC_URL}/uploads/<folder>/<name>` or Cloudinary), returns `{url, path, bytes, provider}`. Only the admin app calls it (`api.upload`).
+`POST /api/v1/uploads?folder=…` with the **raw image bytes as body** and `Content-Type: image/*` (not multipart). Server sniffs magic bytes (JPEG/PNG/GIF/WEBP only, 5 MB cap `MAX_UPLOAD_BYTES`) and uploads to Cloudinary under `CLOUDINARY_FOLDER/<folder>`, returning `{url (secure_url), path (public_id), bytes, width, height}`. Nothing is written to or served from the API's disk. Only the admin app calls it (`api.upload`).
 
 ---
 
@@ -458,14 +457,13 @@ MaintenanceAsset · MaintenanceRequest       Settings (single doc key:"global") 
 | `PORT` | API port (default 5055 — **not 6000**, blocked by browsers) | No | backend `config` |
 | `NODE_ENV` | `production` disables dev fallbacks, `devCode`, morgan, stack traces | No | backend |
 | `API_PREFIX` | Route prefix (default `/api/v1`) | No | backend |
-| `PUBLIC_URL` | API public origin used to build upload URLs | Prod | backend `config`, storage |
 | `MONGODB_URI` | Mongo connection (needs DB name for Atlas) | **Prod yes** | backend |
 | `JWT_SECRET`, `JWT_REFRESH_SECRET` | Token signing | **Prod yes** | backend |
 | `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN` | Token lifetimes (7d / 30d) | No | backend |
 | `REDIS_URL` | Enable Redis cache (needs `redis` package installed) | No | `core/cache.js` |
 | `DEFAULT_CURRENCY`, `DEFAULT_COUNTRY` | INR / IN | No | `config` |
-| `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET/FOLDER`, `STORAGE_PROVIDER` | Cloudinary vs local disk | No | `storage/providers.js` |
-| `UPLOAD_DIR`, `MAX_UPLOAD_BYTES` | Local upload dir / size cap (5 MB) | No | storage |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (+ optional `CLOUDINARY_FOLDER`) | Image storage — all three required for uploads | **Yes (uploads)** | `storage/providers.js` |
+| `MAX_UPLOAD_BYTES` | Upload size cap (5 MB) | No | storage |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Razorpay | Only for online pay | `gateways.js` |
 | `FCM_SERVER_KEY`, `SMS_API_KEY`, `SMTP_URL`, `WHATSAPP_TOKEN` | Channel credentials (adapters not implemented) | No | `notifications/channels.js` |
 | `DISABLE_JOBS` | `"true"` stops scheduler | No | `jobs/scheduler.js` |
@@ -483,7 +481,7 @@ Only `*.env.example` files and `website/.env.local` (**tracked in git**, contain
 | --- | --- | --- |
 | MongoDB | `config/db.js` | 8 s server selection timeout; process exits if unreachable at boot. |
 | Razorpay | `payments/gateways.js` (REST, no SDK) | Unconfigured provider silently **falls back to `manual`** (instant success). `verify` checks HMAC then fetches the payment from Razorpay. Branding `name: "Samagra Mart"` hard-coded in checkout payload. |
-| Cloudinary | `storage/providers.js` (signed REST) | Falls back to local disk when keys absent / `STORAGE_PROVIDER=local`. |
+| Cloudinary | `storage/providers.js` (signed REST) | The only image store. Missing keys ⇒ `POST /uploads` 503 naming them, warning at boot, `GET /uploads/config` reports `configured`/`missing`. Legacy disk images: `npm run migrate:images [-- --dry-run]`. |
 | Redis | `core/cache.js` | Optional, lazy; degrades to in-memory with a warning. |
 | FCM / SMS / SMTP / WhatsApp | `notifications/channels.js` | **Stubs.** Return `skipped` (no key) or `failed: not implemented`. |
 | Google Fonts | website `next/font` (self-hosted at build), customer app `@expo-google-fonts/inter` | |
@@ -506,7 +504,7 @@ Common to all four frontends: **Context providers, hand-rolled `api` client (get
 ## 14. Backend Architecture
 
 - **Entry:** `server.js` → `connectDb()` (exit on failure) → `scheduler.start()` → `app.listen` → graceful SIGINT/SIGTERM.
-- **`app.js`:** `trust proxy`, helmet, cors, compression, `express.json(2mb)`, urlencoded, morgan (non-prod), `/api/health`, `/uploads` static with `Cross-Origin-Resource-Policy: cross-origin`, `routes`, `notFound`, `errorHandler`.
+- **`app.js`:** `trust proxy`, helmet, cors, compression, `express.json(2mb)`, urlencoded, morgan (non-prod), `/api/health`, `routes`, `notFound`, `errorHandler`.
 - **Layering:** `*.routes.js` (HTTP + permission gates, mostly thin but several contain real logic: returns, delivery queue, reports, storefront) → `*.service.js` (business rules) → Mongoose models. Not every module has a service (e.g. `reviews`, `support`, `customers` do logic in routes).
 - **Validation:** mostly manual checks + Mongoose schema validation; `middleware/validate.js` (zod) exists but **no route imports it** (confirmed by grep).
 - **Errors:** throw `ApiError.<kind>()`; `errorHandler` maps Mongoose `ValidationError`→422 (field map), duplicate key→409, bad ObjectId→404, JWT errors→401. `asyncHandler` wraps handlers.
@@ -669,7 +667,7 @@ Note: `redis` is required lazily but **not declared** as a dependency; payment/s
 ## 23. Deployment
 
 **Not configured in this repo.** Implied production requirements from code comments/config:
-- API: `NODE_ENV=production`, `npm start` (needs `MONGODB_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET`; set `PUBLIC_URL`; run `npm run sync-indexes` once; Atlas IP allow-list; persist `UPLOAD_DIR` or use Cloudinary). Runs jobs in-process.
+- API: `NODE_ENV=production`, `npm start` (needs `MONGODB_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET`; set the Cloudinary keys; run `npm run sync-indexes` once; Atlas IP allow-list; persist `UPLOAD_DIR` or use Cloudinary). Runs jobs in-process.
 - Website: `next build` / `next start -p 3100`; set `API_BASE_URL`, `SITE_URL`.
 - Admin: `vite build` (static `dist/`); set `VITE_API_BASE_URL` at build time (or reverse-proxy `/api`).
 - Apps: set `API_BASE_URL`; no EAS/build config exists.
