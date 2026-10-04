@@ -98,7 +98,7 @@ export default function HomeCartSidebar() {
               </p>
             ) : null}
 
-            {!cart.cart?.couponCode ? (
+            {!cart.offers.applied.some((o) => o.code) ? (
               <form onSubmit={applyCoupon} className="mini-cart-coupon">
                 <input
                   type="text"

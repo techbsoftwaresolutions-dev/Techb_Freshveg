@@ -47,6 +47,8 @@ const config = {
   publicUrl: (process.env.PUBLIC_URL || `http://localhost:${port}`).replace(/\/+$/, ""),
 
   mongoUri: required("MONGODB_URI", "mongodb://127.0.0.1:27017/commerce_engine"),
+  // Optional, comma-separated, e.g. "8.8.8.8,1.1.1.1" — see config/db.js.
+  dnsServers: (process.env.DNS_SERVERS || "").split(",").map((s) => s.trim()).filter(Boolean),
 
   jwt: {
     secret: required("JWT_SECRET", "dev-only-insecure-secret"),

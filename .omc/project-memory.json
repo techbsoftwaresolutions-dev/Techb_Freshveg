@@ -1,0 +1,246 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1791046694798,
+  "projectRoot": "D:\\TechB\\fresh market\\Techb_Freshveg",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "admin": {
+      "path": "admin",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1791046694682,
+      "keyFiles": [
+        "index.html",
+        "package-lock.json",
+        "package.json",
+        "vite.config.js"
+      ]
+    },
+    "backend": {
+      "path": "backend",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1791046694684,
+      "keyFiles": [
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "customer-app": {
+      "path": "customer-app",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1791046694685,
+      "keyFiles": [
+        "app.config.js",
+        "App.js",
+        "babel.config.js",
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "delivery-app": {
+      "path": "delivery-app",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1791046694686,
+      "keyFiles": [
+        "app.config.js",
+        "App.js",
+        "babel.config.js",
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "website": {
+      "path": "website",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1791046694687,
+      "keyFiles": [
+        "jsconfig.json",
+        "next.config.mjs",
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "admin\\node_modules": {
+      "path": "admin\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1791046694688,
+      "keyFiles": []
+    },
+    "admin\\src": {
+      "path": "admin\\src",
+      "purpose": "Source code",
+      "fileCount": 2,
+      "lastAccessed": 1791046694691,
+      "keyFiles": [
+        "App.jsx",
+        "main.jsx"
+      ]
+    },
+    "backend\\node_modules": {
+      "path": "backend\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 0,
+      "lastAccessed": 1791046694694,
+      "keyFiles": []
+    },
+    "backend\\src": {
+      "path": "backend\\src",
+      "purpose": "Source code",
+      "fileCount": 2,
+      "lastAccessed": 1791046694696,
+      "keyFiles": [
+        "app.js",
+        "server.js"
+      ]
+    },
+    "customer-app\\node_modules": {
+      "path": "customer-app\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1791046694698,
+      "keyFiles": []
+    },
+    "customer-app\\src": {
+      "path": "customer-app\\src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1791046694703,
+      "keyFiles": []
+    },
+    "delivery-app\\node_modules": {
+      "path": "delivery-app\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1791046694705,
+      "keyFiles": []
+    },
+    "delivery-app\\src": {
+      "path": "delivery-app\\src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1791046694706,
+      "keyFiles": []
+    },
+    "website\\app": {
+      "path": "website\\app",
+      "purpose": "Application code",
+      "fileCount": 9,
+      "lastAccessed": 1791046694709,
+      "keyFiles": [
+        "apple-icon.jsx",
+        "globals.css",
+        "icon.svg"
+      ]
+    },
+    "website\\components": {
+      "path": "website\\components",
+      "purpose": "UI components",
+      "fileCount": 25,
+      "lastAccessed": 1791046694710,
+      "keyFiles": [
+        "AddToCart.jsx",
+        "BannerCarousel.jsx",
+        "Carousel.jsx"
+      ]
+    },
+    "website\\lib": {
+      "path": "website\\lib",
+      "purpose": "Library code",
+      "fileCount": 4,
+      "lastAccessed": 1791046694712,
+      "keyFiles": [
+        "api.js",
+        "app-icon.jsx",
+        "client-api.js"
+      ]
+    },
+    "website\\node_modules": {
+      "path": "website\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1791046694715,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "backend/src/config/db.js",
+      "accessCount": 3,
+      "lastAccessed": 1791077683499,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/config/index.js",
+      "accessCount": 1,
+      "lastAccessed": 1791077684625,
+      "type": "file"
+    },
+    {
+      "path": "backend/.env.example",
+      "accessCount": 1,
+      "lastAccessed": 1791077685776,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/pricing/pricing.service.js",
+      "accessCount": 1,
+      "lastAccessed": 1791078556873,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/pricing/offer.model.js",
+      "accessCount": 1,
+      "lastAccessed": 1791078558395,
+      "type": "file"
+    },
+    {
+      "path": "website/app/cart/page.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791078559795,
+      "type": "file"
+    },
+    {
+      "path": "website/components/HomeCartSidebar.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791078561104,
+      "type": "file"
+    },
+    {
+      "path": "customer-app/src/screens/CartScreen.js",
+      "accessCount": 1,
+      "lastAccessed": 1791078562342,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

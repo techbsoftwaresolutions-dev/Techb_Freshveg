@@ -91,6 +91,12 @@ offerSchema.index({ code: 1 }, { unique: true, sparse: true });
 offerSchema.index({ status: 1, requiresCode: 1, "schedule.endsAt": 1 });
 offerSchema.index({ "conditions.categories": 1, status: 1 });
 
+// An auto offer has no code. Stored as "" it would count as a value under the
+// unique sparse index, so the second auto offer would clash with the first.
+offerSchema.pre("validate", function dropEmptyCode() {
+  if (!this.requiresCode || !this.code) this.code = undefined;
+});
+
 offerSchema.statics.TYPES = OFFER_TYPES;
 
 // Live right now: active, inside its date range, and inside its day/hour

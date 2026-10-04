@@ -127,7 +127,9 @@ export default function CartScreen({ navigation }) {
             </View>
           ) : null}
 
-          {!cart.cart?.couponCode ? (
+          {/* A stored coupon that no longer qualifies is not in `applied`,
+              so the box must stay open to replace it. */}
+          {!cart.offers.applied.some((o) => o.code) ? (
             <View style={styles.couponRow}>
               <TextInput
                 value={code}

@@ -214,7 +214,8 @@ async function priceCart(context) {
   const candidates = await Offer.find({
     status: "active",
     $or: [{ requiresCode: false }, ...(couponCode ? [{ code: couponCode.toUpperCase() }] : [])],
-  }).sort({ priority: -1 });
+    // On equal priority a coupon the customer typed beats an automatic offer.
+  }).sort({ priority: -1, requiresCode: -1 });
 
   const evalContext = { lines, subtotal, customer, store, paymentMethod, at };
 
@@ -243,7 +244,6 @@ async function priceCart(context) {
       }
       continue;
     }
-    if (offer.combinable === false && applied.length && !offer.requiresCode) continue;
 
     const reward = computeReward(offer, match);
     if (!reward.discount && !reward.freeDelivery && !reward.cashback) continue;
