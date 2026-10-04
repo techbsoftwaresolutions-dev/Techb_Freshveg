@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import MobileNav from "@/components/MobileNav";
 import PwaSupport from "@/components/PwaSupport";
+import ReviewPrompt from "@/components/ReviewPrompt";
 import { getCategories, SITE_URL } from "@/lib/api";
 
 export const metadata = {
@@ -72,6 +73,7 @@ export default async function RootLayout({ children }) {
             <MobileNav />
           </Suspense>
           <PwaSupport />
+          <ReviewPrompt />
         </Providers>
       </body>
     </html>

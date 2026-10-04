@@ -70,6 +70,9 @@ router.use(requireAuth);
 router.get(
   "/pending",
   asyncHandler(async (req, res) => {
+    // Nothing to prompt for when reviews are switched off — POST would refuse.
+    if (!(await Settings.load()).app.reviewsEnabled) return res.json({ success: true, pending: [] });
+
     const delivered = await Order.find({ customer: req.user.id, status: "DELIVERED" })
       .sort({ "delivery.deliveredAt": -1 })
       .limit(10);
