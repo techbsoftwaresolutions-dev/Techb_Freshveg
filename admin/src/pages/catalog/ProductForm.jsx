@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Field, Loading, Pill } from "../../components/ui";
@@ -24,12 +24,49 @@ const emptyProduct = {
   media: [],
 };
 
+// What "Duplicate product" carries over: everything the admin typed, none of
+// what the system generated. Ids, slug, SKU and barcode are left out so the
+// create API issues fresh ones; stock lives in its own collection and is never
+// part of this payload, so the copy starts with none.
+const VARIANT_SYSTEM_FIELDS = [
+  "id", "_id", "product", "category", "categoryPath", "sku", "barcode", "axisKey",
+  "totalStock", "inStock", "createdAt", "updatedAt", "discountPct", "savings", "unitPrice",
+];
+
+function duplicateOf({ product, variants }) {
+  const copy = {
+    ...emptyProduct,
+    name: product.name,
+    category: product.category?.id || product.category,
+    brand: product.brand?.id || product.brand || "",
+    shortDescription: product.shortDescription || "",
+    description: product.description || "",
+    tags: product.tags || [],
+    isFeatured: Boolean(product.isFeatured),
+    attributes: product.attributes || {},
+    media: (product.media || []).map((m) => ({ ...m })),
+  };
+  const copiedVariants = variants.map((v, i) => {
+    const rest = { ...v };
+    VARIANT_SYSTEM_FIELDS.forEach((key) => delete rest[key]);
+    return {
+      ...rest,
+      _key: `new-${Date.now()}-${i}`,
+      axis: Object.fromEntries((v.axisValues || []).map((a) => [a.code, a.value])),
+    };
+  });
+  return { copy, copiedVariants };
+}
+
 export default function ProductForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { can } = useAuth();
   const editable = can("catalog.manage");
   const isNew = id === "new";
+  const [searchParams] = useSearchParams();
+  const fromId = isNew ? searchParams.get("from") : null;
+  const [basedOn, setBasedOn] = useState("");
 
   const [product, setProduct] = useState(emptyProduct);
   const [variants, setVariants] = useState([]);
@@ -46,12 +83,18 @@ export default function ProductForm() {
     Promise.all([
       api.get("/catalog/categories/tree", { status: "active" }),
       api.get("/catalog/brands", { limit: 100 }),
-      isNew ? Promise.resolve(null) : api.get(`/catalog/products/${id}`),
+      isNew && !fromId ? Promise.resolve(null) : api.get(`/catalog/products/${fromId || id}`),
     ])
       .then(([tree, brandData, detail]) => {
         setCategories(flatten(tree.tree));
         setBrands(brandData.items);
-        if (detail) {
+        if (detail && fromId) {
+          const { copy, copiedVariants } = duplicateOf(detail);
+          setProduct(copy);
+          setVariants(copiedVariants);
+          setSchema(detail.schema);
+          setBasedOn(detail.product.name);
+        } else if (detail) {
           setProduct({
             ...emptyProduct,
             ...detail.product,
@@ -64,7 +107,7 @@ export default function ProductForm() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [id, isNew]);
+  }, [id, isNew, fromId]);
 
   // Changing the category swaps the entire field set. Values whose field no
   // longer exists are dropped rather than sent to a schema that would reject
@@ -181,11 +224,17 @@ export default function ProductForm() {
       <div className="page-head">
         <div>
           <h1>{isNew ? "New product" : product.name || "Product"}</h1>
+          {basedOn && <span className="faint" style={{ fontSize: 12 }}>Based on: {basedOn}</span>}
         </div>
         <div className="inline">
           <button className="btn" onClick={() => navigate("/catalog/products")}>
             Back
           </button>
+          {editable && !isNew && (
+            <button className="btn ghost" onClick={() => navigate(`/catalog/products/new?from=${id}`)}>
+              Duplicate product
+            </button>
+          )}
           {editable && (
             <>
               <button className="btn" disabled={saving || !product.category} onClick={() => save()}>

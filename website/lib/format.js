@@ -32,3 +32,11 @@ export const when = (value) =>
         minute: "2-digit",
       })
     : "\u2014";
+
+// Images live on Cloudinary only. Asking it for f_auto (WebP/AVIF) + q_auto at
+// the width actually shown turns a multi-MB original into a few KB.
+// Anything that isn't a Cloudinary upload URL is returned unchanged.
+export function img(url, width = 600) {
+  if (typeof url !== "string" || !url.includes("res.cloudinary.com") || !url.includes("/image/upload/")) return url;
+  return url.replace("/image/upload/", `/image/upload/f_auto,q_auto,w_${width}/`);
+}

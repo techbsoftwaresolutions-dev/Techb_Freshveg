@@ -8,7 +8,6 @@ const mongoose = require("mongoose");
 const config = require("./config");
 const routes = require("./routes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
-const localizeUploadUrls = require("./middleware/localizeUploadUrls");
 
 const app = express();
 

@@ -7,7 +7,6 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Offers, { OfferFormPage } from "./pages/Offers";
 import Categories, { CategoryFormPage } from "./pages/catalog/Categories";
-import Attributes, { AttributeFormPage } from "./pages/catalog/Attributes";
 import Products from "./pages/catalog/Products";
 import ProductForm from "./pages/catalog/ProductForm";
 import Brands, { BrandFormPage } from "./pages/catalog/Brands";
@@ -64,10 +63,6 @@ function Shell() {
           element={<Guard permission="catalog.view"><Categories /></Guard>}
         />
         <Route
-          path="catalog/attributes"
-          element={<Guard permission="catalog.view"><Attributes /></Guard>}
-        />
-        <Route
           path="catalog/products"
           element={<Guard permission="catalog.view"><Products /></Guard>}
         />
@@ -112,7 +107,6 @@ function Shell() {
         {/* Add / edit / detail pages — each form on its own URL, guarded by
             the permission its save needs ("new" is matched as the id). */}
         <Route path="catalog/categories/new" element={<Guard permission="catalog.manage"><CategoryFormPage /></Guard>} />
-        <Route path="catalog/attributes/:id" element={<Guard permission="catalog.manage"><AttributeFormPage /></Guard>} />
         <Route path="catalog/brands/:id" element={<Guard permission="catalog.manage"><BrandFormPage /></Guard>} />
         <Route path="returns/:id" element={<Guard permission="orders.view"><ReturnPage /></Guard>} />
         <Route path="delivery/zones/:id" element={<Guard permission="settings.manage"><ZoneFormPage /></Guard>} />

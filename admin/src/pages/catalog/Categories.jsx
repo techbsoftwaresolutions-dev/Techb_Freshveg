@@ -485,14 +485,6 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
             {uploadError}
           </span>
         ) : null}
-        <input
-          type="text"
-          value={form.image}
-          onChange={set("image")}
-          placeholder="Or paste an image URL"
-          disabled={!editable}
-          style={{ marginTop: 8 }}
-        />
       </Field>
       <Field label="Description">
         <textarea value={form.description} onChange={set("description")} disabled={!editable} />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { img } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getCategory, getProducts, SITE_URL } from "@/lib/api";
@@ -87,7 +88,7 @@ export default async function CategoryPage({ params, searchParams }) {
             <Link key={child.id} href={`/c/${child.slug}`} className="top-cat">
               <span className="top-cat-icon">
                 {child.image ? (
-                  <img src={child.image} alt="" className="top-cat-photo" />
+                  <img src={img(child.image, 160)} alt="" className="top-cat-photo" />
                 ) : (
                   <CategoryIcon name={child.name} />
                 )}

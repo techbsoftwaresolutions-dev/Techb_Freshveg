@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { img } from "@/lib/format";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const ROTATE_MS = 6000;
@@ -60,7 +61,8 @@ export default function HeroCarousel({ banners = [] }) {
   const focalY = banner.focalY ?? 50;
   const image = (
     <img
-      src={banner.image}
+      src={img(banner.image, 1600)}
+      fetchPriority={index === 0 ? "high" : undefined}
       alt={banner.title || ""}
       className="hero-banner-image"
       style={{ objectPosition: `${focalX}% ${focalY}%` }}

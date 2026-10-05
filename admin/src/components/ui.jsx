@@ -1,6 +1,7 @@
-import { createContext, isValidElement, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, isValidElement, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Sparkline from "./Sparkline";
+import { IconDownload } from "./Icons";
 
 // Small shared primitives. Deliberately plain — the interesting code in this
 // app is the schema-driven form, not a component library.
@@ -313,14 +314,87 @@ function exportRows(columns, rows, format, title) {
   }
 }
 
-function ExportBar({ columns, rows, title }) {
-  if (!rows.length) return null;
+const EXPORT_FORMATS = [
+  { format: "csv", label: "CSV" },
+  { format: "word", label: "Word" },
+  { format: "pdf", label: "PDF" },
+];
+
+// One download icon, sat at the right end of the header row; the three
+// formats live in a popover. The popover is position:fixed (placed from the
+// button's rect) so the table's horizontal-scroll wrapper can't clip it.
+function ExportMenu({ columns, rows, title }) {
+  const [pos, setPos] = useState(null);
+  const rootRef = useRef(null);
+  const open = pos !== null;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = () => setPos(null);
+    const onDown = (event) => {
+      if (rootRef.current && !rootRef.current.contains(event.target)) close();
+    };
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    rootRef.current?.querySelector('[role="menuitem"]')?.focus();
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
+  const onKeyDown = (event) => {
+    if (event.key === "Escape") {
+      setPos(null);
+      rootRef.current?.querySelector("button")?.focus();
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const items = [...rootRef.current.querySelectorAll('[role="menuitem"]')];
+      const next = items.indexOf(document.activeElement) + (event.key === "ArrowDown" ? 1 : -1);
+      items[(next + items.length) % items.length]?.focus();
+    }
+  };
+
+  const toggle = (event) => {
+    event.stopPropagation(); // the header cell may be a sort target
+    if (open) return setPos(null);
+    const r = event.currentTarget.getBoundingClientRect();
+    setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+  };
+
   return (
-    <div className="table-export-bar">
-      <span className="faint" style={{ fontSize: 12 }}>Export:</span>
-      <button type="button" className="btn ghost sm" onClick={() => exportRows(columns, rows, "csv", title)}>CSV</button>
-      <button type="button" className="btn ghost sm" onClick={() => exportRows(columns, rows, "word", title)}>Word</button>
-      <button type="button" className="btn ghost sm" onClick={() => exportRows(columns, rows, "pdf", title)}>PDF</button>
+    <div className="export-menu" ref={rootRef} onKeyDown={onKeyDown} onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        className="btn ghost icon-btn"
+        title="Export"
+        aria-label="Export"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={toggle}
+      >
+        <IconDownload width="16" height="16" />
+      </button>
+      {open ? (
+        <div className="export-menu-pop" role="menu" style={pos}>
+          {EXPORT_FORMATS.map(({ format, label }) => (
+            <button
+              key={format}
+              type="button"
+              role="menuitem"
+              className="export-menu-item"
+              onClick={() => {
+                setPos(null);
+                exportRows(columns, rows, format, title);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -347,16 +421,16 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
 
   return (
     <div className="table-wrap">
-      <ExportBar columns={columns} rows={sortedRows} title={title} />
       <table className="data">
         <thead>
           <tr>
-            {columns.map((col) => {
+            {columns.map((col, i) => {
               const sortable = col.sortable !== false;
+              const last = i === columns.length - 1;
               return (
                 <th
                   key={col.key}
-                  className={[col.align === "right" ? "num" : "", sortable ? "sortable" : ""].filter(Boolean).join(" ")}
+                  className={[col.align === "right" ? "num" : "", sortable ? "sortable" : "", last ? "export-th" : ""].filter(Boolean).join(" ")}
                   style={col.width ? { width: col.width } : undefined}
                   onClick={sortable ? () => toggleSort(col.key) : undefined}
                 >
@@ -364,6 +438,7 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
                   {sortable && sort.key === col.key ? (
                     <span className="sort-arrow">{sort.dir === 1 ? " ▲" : " ▼"}</span>
                   ) : null}
+                  {last ? <ExportMenu columns={columns} rows={sortedRows} title={title} /> : null}
                 </th>
               );
             })}

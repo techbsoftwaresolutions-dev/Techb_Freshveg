@@ -552,14 +552,37 @@ table.data th.sortable { cursor: pointer; user-select: none; }
 table.data th.sortable:hover { color: var(--text); }
 .sort-arrow { font-size: 10px; letter-spacing: 0; }
 
-.table-export-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-2);
+/* The export icon rides in the last header cell, out of flow, so the table
+   keeps its columns and no extra row is spent on it. */
+table.data th.export-th { position: relative; padding-right: 44px; }
+.export-menu { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); text-transform: none; letter-spacing: 0; }
+.export-menu .icon-btn { width: 30px; height: 30px; padding: 0; justify-content: center; }
+.export-menu .icon-btn svg { flex: 0 0 auto; }
+.export-menu-pop {
+  position: fixed;
+  z-index: 40;
+  min-width: 120px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(16, 18, 24, 0.16);
+  animation: select-pop 0.12s ease-out;
 }
+.export-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.export-menu-item:hover, .export-menu-item:focus-visible { background: var(--surface-2); outline: none; }
 
 .row-title { font-weight: 550; overflow-wrap: anywhere; }
 .row-sub { color: var(--text-faint); font-size: 12px; }

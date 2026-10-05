@@ -6,7 +6,6 @@ import {
   IconDashboard,
   IconCalendar,
   IconCategories,
-  IconAttributes,
   IconProducts,
   IconBrands,
   IconReviews,
@@ -53,12 +52,6 @@ const NAV = [
         label: "Categories",
         permission: "catalog.view",
         icon: IconCategories,
-      },
-      {
-        to: "/catalog/attributes",
-        label: "Attributes",
-        permission: "catalog.view",
-        icon: IconAttributes,
       },
       {
         to: "/catalog/products",
