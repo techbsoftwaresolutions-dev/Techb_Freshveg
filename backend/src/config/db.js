@@ -1,3 +1,4 @@
+const dns = require("dns");
 const mongoose = require("mongoose");
 const config = require("./index");
 
@@ -7,6 +8,13 @@ const config = require("./index");
 // would mean copying every product row per branch.
 async function connectDb() {
   mongoose.set("strictQuery", true);
+
+  // A mongodb+srv:// URI needs an SRV lookup, which goes through Node's own
+  // resolver rather than the OS one. On some Windows machines Node cannot read
+  // the adapter's DNS list and falls back to 127.0.0.1, so the lookup fails
+  // with "querySrv ECONNREFUSED" while nslookup works fine. DNS_SERVERS
+  // points Node at real resolvers instead.
+  if (config.dnsServers.length) dns.setServers(config.dnsServers);
 
   try {
     await mongoose.connect(config.mongoUri, {

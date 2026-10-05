@@ -68,6 +68,11 @@ function OrderDetail() {
     return () => clearInterval(poller.current);
   }, [tracking, load]);
 
+  // The review prompt (components/ReviewPrompt) listens for this.
+  useEffect(() => {
+    if (tracking?.status === "DELIVERED") window.dispatchEvent(new Event("reviews:check"));
+  }, [tracking?.status]);
+
   async function cancel() {
     if (!confirm("Cancel this order? This cannot be undone.")) return;
     setCancelling(true);

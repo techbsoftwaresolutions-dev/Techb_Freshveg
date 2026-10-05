@@ -166,7 +166,9 @@ export default function CartPage() {
               </div>
             ) : null}
 
-            {!cart.cart.couponCode ? (
+            {/* A stored coupon that no longer qualifies is not in `applied`,
+                so the box must stay open to replace it. */}
+            {!cart.offers.applied.some((o) => o.code) ? (
               <form onSubmit={applyCoupon} className="coupon-form">
                 <input
                   type="text"

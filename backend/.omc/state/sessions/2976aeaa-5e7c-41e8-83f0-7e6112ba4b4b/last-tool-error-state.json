@@ -1,0 +1,7 @@
+{
+  "tool_name": "PowerShell",
+  "tool_input_preview": "{\"command\":\"Set-Location \\\"D:\\\\TechB\\\\fresh market\\\\Techb_Freshveg\\\\backend\\\"; node -e \\\"const B='./src';process.env.DISABLE_JOBS='true';(async()=>{const {connectDb}=require(B+'/config/db');const c=aw...",
+  "error": "Exit code 1\n[eval]:1\r\nconst B='./src';process.env.DISABLE_JOBS='true';(async()=>{const {connectDb}=require(B+'/config/db');const c=await connectDb();const P=require(B+'/modules/payments/payment.model');const O=require(B+'/modules/orders/order.model');console.log('payments total:',await P.countDocuments(),'| with empty key:',await P.countDocuments({idempotencyKey:''}));const ids=await P.distinct('order');console.log('orders total:',await O.countDocuments(),'| orders with no payment record:',await...",
+  "timestamp": "2026-10-04T07:19:56.911Z",
+  "retry_count": 1
+}

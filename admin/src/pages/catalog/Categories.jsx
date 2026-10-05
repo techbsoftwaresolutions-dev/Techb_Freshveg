@@ -432,7 +432,7 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
         <Field label="Name">
           <input type="text" value={form.name} onChange={set("name")} disabled={!editable} />
         </Field>
-        <Field label="Parent category" help="Move this category — and everything under it — somewhere else. Leave empty for a top-level department.">
+        <Field label="Parent category" >
           <select value={form.parent} onChange={set("parent")} disabled={!editable}>
             <option value="">— Top level —</option>
             {parentOptions.map((option) => (
@@ -444,11 +444,11 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
         </Field>
       </div>
       <div className="grid cols-2">
-        <Field label="Icon" help="An emoji shown on the app's category tiles, used when no photo is set.">
+        <Field label="Icon" >
           <input type="text" value={form.icon} onChange={set("icon")} disabled={!editable} maxLength={4} />
         </Field>
       </div>
-      <Field label="Tile photo" help="Upload a photo, or paste an image URL directly. Shown on the app's category tiles instead of the icon.">
+      <Field label="Tile photo" >
         <div className="inline" style={{ gap: 10, alignItems: "center" }}>
           {form.image ? (
             <div
@@ -818,7 +818,7 @@ function NewCategoryModal({ parentId, tree, saving, onClose, onCreate }) {
             maxLength={4}
             value={form.icon}
             onChange={(e) => setForm({ ...form, icon: e.target.value })}
- placeholder=""
+            placeholder=""
           />
         </Field>
       </div>
