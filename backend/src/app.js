@@ -13,7 +13,26 @@ const app = express();
 
 app.set("trust proxy", 1);
 app.use(helmet());
-app.use(cors());
+// Which websites may call this API from a browser. In production the admin
+// (admin.hosurbasket.com) and the site (hosurbasket.com) live on different
+// addresses from the API (api.hosurbasket.com), so they are listed in
+// CORS_ORIGINS; any other site's browser requests are refused. Unset — as in
+// development — allows every origin. The phone apps send no Origin header and
+// are unaffected either way.
+const allowedOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+app.use(
+  cors(
+    allowedOrigins.length
+      ? {
+          origin: (origin, done) => done(null, !origin || allowedOrigins.includes(origin)),
+          credentials: true,
+        }
+      : undefined
+  )
+);
 app.use(compression());
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));

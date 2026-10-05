@@ -107,7 +107,7 @@ export default function ProfileScreen() {
       />
 
       <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.sm }]}>
-        Samagra Partner · v0.1.0
+        Hosur Basket Partner · v0.1.0
       </Text>
     </ScrollView>
   );

@@ -3,7 +3,10 @@ import "dotenv/config";
 
 export default {
   expo: {
-    name: "Samagra Mart",
+    // The name under the icon on the phone. The scheme and the iOS/Android
+    // IDs below still say "samagramart" on purpose: an ID is permanent once
+    // the app is in a store, and changing it ships a separate app.
+    name: "Hosur Basket",
     slug: "commerce-customer-app",
     version: "0.1.0",
     orientation: "portrait",

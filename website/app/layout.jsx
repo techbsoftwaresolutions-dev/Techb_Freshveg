@@ -12,22 +12,22 @@ import { getCategories, SITE_URL } from "@/lib/api";
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "FreshMart — fresh fruit, vegetables & groceries delivered",
+    default: "Hosur Basket — fresh fruit, vegetables & groceries delivered",
     // Every page supplies its own name; the brand is appended once, here.
-    template: "%s | FreshMart",
+    template: "%s | Hosur Basket",
   },
   description:
     "Order fresh fruit, vegetables, groceries, personal care and household essentials from your neighbourhood store. Same-day delivery, free above ₹399.",
   openGraph: {
     type: "website",
-    siteName: "FreshMart",
+    siteName: "Hosur Basket",
     locale: "en_IN",
   },
   robots: { index: true, follow: true },
-  applicationName: "FreshMart",
+  applicationName: "Hosur Basket",
   // Launched from the iPhone home screen: full screen, with the status bar
   // drawn over the dark green utility strip.
-  appleWebApp: { capable: true, title: "FreshMart", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Hosur Basket", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
 };
 

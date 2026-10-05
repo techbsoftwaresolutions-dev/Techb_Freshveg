@@ -70,10 +70,10 @@ export default function PwaSupport() {
   if (!installEvent && !showIosHint) return null;
 
   return (
-    <div className="install-bar" role="dialog" aria-label="Install the FreshMart app">
+    <div className="install-bar" role="dialog" aria-label="Install the Hosur Basket app">
       <img src="/app-icon/192" alt="" className="install-bar-icon" width="40" height="40" />
       <div className="install-bar-copy">
-        <strong>Get the FreshMart app</strong>
+        <strong>Get the Hosur Basket app</strong>
         <span>
           {installEvent
             ? "Faster ordering, right from your home screen."

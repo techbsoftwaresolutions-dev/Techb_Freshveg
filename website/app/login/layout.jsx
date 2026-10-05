@@ -2,7 +2,7 @@
 // lives in a thin server layout alongside it.
 export const metadata = {
   title: "Sign in",
-  description: "Sign in to FreshMart with a one-time code.",
+  description: "Sign in to Hosur Basket with a one-time code.",
   robots: { index: false, follow: false },
 };
 

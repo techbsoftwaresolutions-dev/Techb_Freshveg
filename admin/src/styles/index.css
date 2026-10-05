@@ -152,7 +152,10 @@ h3 { font-size: 14px; }
   background: var(--accent);
   color: var(--accent-text);
   display: grid; place-items: center;
-  font-size: 14px;
+  /* Two letters ("HB") now, so a touch smaller and tighter than one did. */
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .sidebar nav { padding: 10px; flex: 1; }
