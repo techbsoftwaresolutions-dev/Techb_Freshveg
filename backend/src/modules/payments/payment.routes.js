@@ -1,4 +1,5 @@
 const express = require("express");
+const QRCode = require("qrcode");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
 const { paginate } = require("../../core/query");
@@ -63,6 +64,42 @@ router.post(
     // Always 200 once the signature is good: a gateway that gets an error
     // retries for hours.
     res.json({ success: true });
+  })
+);
+
+// A UPI payment QR for a store, sized to the order amount — public in the
+// same way the store's own VPA already is (returned by GET /stores/public):
+// it is meant to be shown to a customer, like a QR taped to a shop counter,
+// not a credential that needs a session behind it.
+router.get(
+  "/upi-qr",
+  asyncHandler(async (req, res) => {
+    const store = await Store.findById(req.query.store).catch(() => null);
+    const upi = store?.settings?.upi;
+    if (!upi?.enabled || !upi?.vpa) {
+      throw ApiError.notFound("UPI is not set up for this store yet");
+    }
+
+    const amountPaise = Math.max(0, Number(req.query.amount) || 0);
+    const payee = upi.payeeName || store.name;
+    const params = new URLSearchParams({
+      pa: upi.vpa,
+      pn: payee,
+      cu: "INR",
+      tn: "Order payment",
+    });
+    if (amountPaise > 0) params.set("am", (amountPaise / 100).toFixed(2));
+
+    const png = await QRCode.toBuffer(`upi://pay?${params.toString()}`, {
+      type: "png",
+      width: 320,
+      margin: 1,
+      color: { dark: "#135c2b", light: "#ffffff" },
+    });
+
+    res.set("Content-Type", "image/png");
+    res.set("Cache-Control", "no-store");
+    res.send(png);
   })
 );
 

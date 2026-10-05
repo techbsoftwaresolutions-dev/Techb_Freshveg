@@ -9,6 +9,7 @@ const config = require("./config");
 const routes = require("./routes");
 const storage = require("./modules/storage/storage.routes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
+const localizeUploadUrls = require("./middleware/localizeUploadUrls");
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use(
   express.static(storage.UPLOAD_DIR, { maxAge: "30d", immutable: true, fallthrough: true })
 );
 
+app.use(localizeUploadUrls);
 app.use(config.apiPrefix, routes);
 
 app.use(notFound);

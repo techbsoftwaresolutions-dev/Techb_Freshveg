@@ -113,12 +113,13 @@ function Schedule() {
 
       {data.overdue.length ? (
         <Card title="Overdue a service" tight className="" >
-          <Table columns={columns} rows={data.overdue} />
+          <Table title="Overdue maintenance" columns={columns} rows={data.overdue} />
         </Card>
       ) : null}
 
       <Card title="Coming up" tight style={{ marginTop: 14 }}>
         <Table
+          title="Upcoming maintenance"
           columns={columns}
           rows={data.upcoming}
           empty={<Empty title="Nothing due soon" hint="Every asset is inside its service interval." />}
@@ -163,6 +164,7 @@ function Assets() {
         ) : (
           <>
             <Table
+              title="Maintenance assets"
               columns={[
                 {
                   key: "name",
@@ -358,6 +360,7 @@ function AssetDetail({ id, onClose }) {
 
       <div className="section-label">Service history</div>
       <Table
+        title="Service history"
         columns={[
           { key: "code", label: "Job", render: (row) => <span className="mono">{row.code}</span> },
           { key: "title", label: "What happened", render: (row) => (
@@ -431,6 +434,7 @@ function Jobs() {
         ) : (
           <>
             <Table
+              title="Maintenance jobs"
               columns={[
                 {
                   key: "title",

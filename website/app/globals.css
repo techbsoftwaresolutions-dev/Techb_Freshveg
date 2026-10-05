@@ -46,7 +46,15 @@
 
 * { box-sizing: border-box; }
 
-html, body { padding: 0; margin: 0; }
+/* A single element pushed wider than the viewport (a long order's item
+   list, a flex row that doesn't wrap) makes the whole page horizontally
+   scrollable on a phone-width screen, and the most common way a shopper
+   hits that is accidentally, by a sideways swipe — the page then sits
+   shifted with content clipped at both edges. html/body hides any stray
+   horizontal overflow instead of letting it leak out to the whole page;
+   it never affects a component's own deliberate horizontal scrolling
+   (the category bar, the PDP tabs), which scroll inside their own box. */
+html, body { padding: 0; margin: 0; overflow-x: hidden; }
 
 body {
   background: var(--bg);
@@ -69,6 +77,7 @@ img { max-width: 100%; display: block; }
 button { font: inherit; }
 
 .wrap { max-width: var(--max); margin: 0 auto; padding: 0 20px; }
+.wrap-narrow { max-width: 560px; }
 
 /* ------------------------------------------------------------- header */
 
@@ -2235,6 +2244,24 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .choice-copy > span { font-size: 13px; color: var(--text-muted); }
 .choice-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .address-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+/* ---- UPI payment panel (checkout) */
+.upi-pay-box {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-alt);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.upi-pay-label { font-size: 12px; color: var(--text-muted); }
+.upi-pay-id { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.upi-pay-id strong { font-size: 15px; letter-spacing: 0.01em; }
+.upi-pay-note { font-size: 12.5px; color: var(--text-muted); }
+.upi-qr-img { width: 180px; height: 180px; border-radius: 10px; border: 1px solid var(--border); background: #fff; padding: 8px; }
 .checkout-step.active .num { box-shadow: 0 0 0 4px var(--brand-soft); }
 
 /* ---- sign in */
@@ -2304,6 +2331,17 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .account-hero-copy span { font-size: 13.5px; opacity: 0.85; }
 .account-signout { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.4); color: #fff; }
 .account-signout:hover:not(:disabled) { background: #fff; color: var(--brand-dark); border-color: #fff; }
+.account-hero-edit {
+  align-self: flex-start;
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+  opacity: 0.85;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.account-hero-edit:hover { opacity: 1; }
 
 .stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 16px; }
 .stat-tile {
@@ -2320,8 +2358,26 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .stat-tile strong { font-size: 20px; font-weight: 700; }
 .stat-tile em { font-style: normal; font-size: 12px; color: var(--text-faint); }
 .stat-code { letter-spacing: 0.12em; color: var(--brand-dark); }
+.stat-tile-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.stat-share-btn {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  white-space: nowrap;
+}
+.stat-share-btn:hover { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
 
 .split.cart:has(> .panel + .panel) { align-items: start; }
+.account-more { margin-top: 16px; }
+
+.legal-page h2 { font-size: 16px; font-weight: 600; margin: 22px 0 8px; color: var(--text); }
+.legal-page h2:first-child { margin-top: 0; }
+.legal-page p { margin: 0 0 4px; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
 .list-rows { display: flex; flex-direction: column; }
 .list-row {
   display: flex;
@@ -2871,6 +2927,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .auth-card { padding: 24px 20px; }
 
   .account-hero { flex-wrap: wrap; padding: 18px; }
+  .account-hero-copy { min-width: 180px; }
   .account-signout { margin-left: 74px; }
   .stat-tiles { grid-template-columns: 1fr 1fr; gap: 10px; }
   .stat-tile { padding: 12px 14px; }

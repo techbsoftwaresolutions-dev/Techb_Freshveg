@@ -111,6 +111,7 @@ function Transactions() {
         ) : (
           <>
             <Table
+              title="Transactions"
               columns={[
                 {
                   key: "order",
@@ -201,6 +202,7 @@ function Refunds() {
   return (
     <Card tight>
       <Table
+        title="Refunds"
         columns={[
           {
             key: "order",
@@ -297,6 +299,7 @@ function CashOnDelivery({ canManage }) {
 
       <Card tight>
         <Table
+          title="Cash to collect"
           columns={[
             {
               key: "partner",

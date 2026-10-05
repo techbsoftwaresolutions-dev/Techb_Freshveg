@@ -255,6 +255,33 @@ router.patch(
   })
 );
 
+router.delete(
+  "/brands/:id",
+  canManage,
+  asyncHandler(async (req, res) => {
+    // A brand isn't order-critical the way a product is — nothing downstream
+    // points straight at it — so, unlike a product, it can actually be
+    // removed rather than only archived. The one thing that has to hold is
+    // that no live product is still filed under it when it goes, the same
+    // rule a category delete already enforces.
+    const productCount = await Product.countDocuments({ brand: req.params.id, status: { $ne: "archived" } });
+    if (productCount) {
+      const sample = await Product.find({ brand: req.params.id, status: { $ne: "archived" } })
+        .select("name status")
+        .limit(5)
+        .lean();
+      throw ApiError.conflict(
+        `${productCount} product(s) are filed under this brand. Reassign or remove them first.`,
+        { productCount, products: sample.map((p) => ({ id: String(p._id), name: p.name, status: p.status })) }
+      );
+    }
+
+    const brand = await Brand.findByIdAndDelete(req.params.id);
+    if (!brand) throw ApiError.notFound("Brand not found");
+    res.json({ success: true });
+  })
+);
+
 // ---------------------------------------------------------------- products
 
 router.get(

@@ -548,6 +548,18 @@ table.data td {
 table.data tbody tr:last-child td { border-bottom: none; }
 table.data tbody tr:hover { background: var(--surface-2); }
 table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.data th.sortable { cursor: pointer; user-select: none; }
+table.data th.sortable:hover { color: var(--text); }
+.sort-arrow { font-size: 10px; letter-spacing: 0; }
+
+.table-export-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
 
 .row-title { font-weight: 550; overflow-wrap: anywhere; }
 .row-sub { color: var(--text-faint); font-size: 12px; }

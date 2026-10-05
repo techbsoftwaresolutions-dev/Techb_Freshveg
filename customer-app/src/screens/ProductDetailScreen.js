@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
 import { useCart } from "../context/CartContext";
 import { useStore } from "../context/StoreContext";
@@ -7,6 +7,7 @@ import { colors, radius, rupees, spacing, type, unitSuffix } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
 import QtyStepper from "../components/QtyStepper";
 import ProductCard from "../components/ProductCard";
+import CustomerReviews from "../components/CustomerReviews";
 
 export default function ProductDetailScreen({ route, navigation }) {
   const { slug } = route.params;
@@ -17,6 +18,8 @@ export default function ProductDetailScreen({ route, navigation }) {
   const [variantId, setVariantId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [galleryWidth, setGalleryWidth] = useState(Dimensions.get("window").width);
 
   useEffect(() => {
     setLoading(true);
@@ -50,7 +53,7 @@ export default function ProductDetailScreen({ route, navigation }) {
     return <EmptyState title="Couldn't load this item" hint={error} />;
   }
 
-  const { product, specs, features, related, breadcrumb } = data;
+  const { product, specs, features, related } = data;
   const discount = variant?.mrp > variant?.sellingPrice
     ? Math.round(((variant.mrp - variant.sellingPrice) / variant.mrp) * 100)
     : 0;
@@ -58,9 +61,36 @@ export default function ProductDetailScreen({ route, navigation }) {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
-        <View style={styles.gallery}>
-          {product.media?.[0]?.url ? (
-            <Image source={{ uri: product.media[0].url }} style={styles.image} resizeMode="contain" />
+        <View style={styles.gallery} onLayout={(e) => setGalleryWidth(e.nativeEvent.layout.width)}>
+          {product.media?.length ? (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                const index = galleryWidth ? Math.round(e.nativeEvent.contentOffset.x / galleryWidth) : 0;
+                setGalleryIndex(index);
+              }}
+            >
+              {product.media.map((item, index) => (
+                <Image
+                  key={item.url || index}
+                  source={{ uri: item.url }}
+                  style={[styles.image, { width: galleryWidth }]}
+                  resizeMode="contain"
+                />
+              ))}
+            </ScrollView>
+          ) : null}
+          {product.media?.length > 1 ? (
+            <View style={styles.galleryDots}>
+              {product.media.map((_, index) => (
+                <View
+                  key={index}
+                  style={[styles.galleryDot, index === galleryIndex && styles.galleryDotActive]}
+                />
+              ))}
+            </View>
           ) : null}
           {discount > 0 ? (
             <View style={styles.discountRibbon}>
@@ -70,12 +100,6 @@ export default function ProductDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.body}>
-          {breadcrumb?.length > 1 ? (
-            <Text style={styles.breadcrumb} numberOfLines={1}>
-              {breadcrumb.map((c) => c.name).join(" › ")}
-            </Text>
-          ) : null}
-
           <Text style={type.h1}>{product.name}</Text>
           {product.brand?.name ? <Text style={styles.brand}>by {product.brand.name}</Text> : null}
 
@@ -201,6 +225,12 @@ export default function ProductDetailScreen({ route, navigation }) {
             </>
           ) : null}
 
+          <CustomerReviews
+            productId={product.id}
+            ratingAverage={product.rating?.average || 0}
+            ratingCount={product.rating?.count || 0}
+          />
+
           {related?.length ? (
             <>
               <Text style={styles.sectionTitle}>You might also like</Text>
@@ -260,6 +290,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  galleryDots: {
+    position: "absolute",
+    bottom: 10,
+    flexDirection: "row",
+    alignSelf: "center",
+    gap: 6,
+  },
+  galleryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.border,
+  },
+  galleryDotActive: {
+    backgroundColor: colors.primary,
+    width: 16,
+  },
   image: { width: "100%", height: "100%" },
   discountRibbon: {
     position: "absolute",
@@ -274,7 +321,6 @@ const styles = StyleSheet.create({
   discountText: { color: "#fff", fontWeight: "800", fontSize: 12 },
 
   body: { padding: spacing.lg },
-  breadcrumb: { ...type.tiny, marginBottom: 4 },
   brand: { ...type.small, marginTop: 2 },
 
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: spacing.md },

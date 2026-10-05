@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-// Only pages that exist are linked. About, careers, FAQs and the legal pages
-// have no route yet — they join these lists when they do, rather than sitting
-// here as links that go nowhere.
+// Only pages that exist are linked. About, careers and FAQs have no route
+// yet — they join these lists when they do, rather than sitting here as
+// links that go nowhere.
 export default function Footer({ categories = [] }) {
   return (
     <footer className="footer">
@@ -40,6 +40,7 @@ export default function Footer({ categories = [] }) {
               <li><Link href="/orders">Track Order</Link></li>
               <li><Link href="/orders">Returns &amp; Refunds</Link></li>
               <li><a href="tel:+919876543109">Contact Us</a></li>
+              <li><Link href="/terms">Terms &amp; Conditions</Link></li>
             </ul>
           </div>
 

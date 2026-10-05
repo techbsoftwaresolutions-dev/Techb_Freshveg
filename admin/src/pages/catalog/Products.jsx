@@ -131,6 +131,7 @@ export default function Products() {
         ) : (
           <>
             <Table
+              title="Products"
               columns={[
                 {
                   key: "name",
@@ -226,6 +227,8 @@ export default function Products() {
                   key: "actions",
                   label: "",
                   align: "right",
+                  sortable: false,
+                  exportable: false,
                   render: (row) =>
                     can("catalog.manage") && (
                       <button

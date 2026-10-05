@@ -76,6 +76,7 @@ export default function Support() {
         ) : (
           <>
             <Table
+              title="Support tickets"
               columns={[
                 {
                   key: "code",

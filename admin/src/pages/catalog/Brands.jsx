@@ -1,28 +1,56 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import FormRoute from "../../components/FormRoute";
-import { Banner, Card, Empty, Field, Loading, Modal, Pill, Table } from "../../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table } from "../../components/ui";
 
 export default function Brands() {
   const { can } = useAuth();
   const editable = can("catalog.manage");
   const navigate = useNavigate();
 
-  const [items, setItems] = useState([]);
+  const [data, setData] = useState({ items: [], meta: null });
+  const [filters, setFilters] = useState({ search: "", status: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [removingId, setRemovingId] = useState(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
     api
-      .get("/catalog/brands", { limit: 100 })
-      .then(({ items: list }) => setItems(list))
+      .get("/catalog/brands", { ...filters, limit: 20 })
+      .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [filters]);
 
-  if (loading) return <div className="page"><Loading /></div>;
+  // The search box fires on every keystroke, so it gets a short debounce; a
+  // page or status change is a deliberate click and should feel instant.
+  useEffect(() => {
+    const timer = setTimeout(load, filters.search ? 250 : 0);
+    return () => clearTimeout(timer);
+  }, [load, filters.search]);
+
+  const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));
+
+  // No order ever points straight at a brand, so — unlike a product — it's
+  // really removed rather than archived. The backend still refuses when a
+  // live product is still filed under it, and that refusal's message is
+  // what ends up in the banner below.
+  async function removeBrand(brand) {
+    if (!window.confirm(`Delete "${brand.name}"? This can't be undone.`)) return;
+    setRemovingId(brand.id);
+    setError("");
+    try {
+      await api.delete(`/catalog/brands/${brand.id}`);
+      setData((d) => ({ ...d, items: d.items.filter((b) => b.id !== brand.id) }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
   return (
     <div className="page">
@@ -39,22 +67,67 @@ export default function Brands() {
 
       <Banner tone="error">{error}</Banner>
 
-      <Card tight>
-        <Table
-          columns={[
-            { key: "name", label: "Brand", render: (row) => <span className="row-title">{row.name}</span> },
-            { key: "slug", label: "Slug", render: (row) => <span className="tag">{row.slug}</span> },
-            { key: "productCount", label: "Products", align: "right" },
-            {
-              key: "status",
-              label: "Status",
-              render: (row) => <Pill tone={row.status === "active" ? "ok" : undefined}>{row.status}</Pill>,
-            },
-          ]}
-          rows={items}
-          onRowClick={editable ? (row) => navigate(`/catalog/brands/${row.id}`) : undefined}
-          empty={<Empty title="No brands" hint="Add one to enable brand filters." />}
+      <div className="toolbar">
+        <input
+          type="search"
+          placeholder="Search brands…"
+          value={filters.search}
+          onChange={(e) => set("search", e.target.value)}
+          style={{ minWidth: 220 }}
         />
+        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="hidden">Hidden</option>
+          <option value="archived">Archived</option>
+        </select>
+      </div>
+
+      <Card tight>
+        {loading ? (
+          <Loading />
+        ) : (
+          <>
+            <Table
+              title="Brands"
+              columns={[
+                { key: "name", label: "Brand", render: (row) => <span className="row-title">{row.name}</span> },
+                { key: "slug", label: "Slug", render: (row) => <span className="tag">{row.slug}</span> },
+                { key: "productCount", label: "Products", align: "right" },
+                {
+                  key: "status",
+                  label: "Status",
+                  render: (row) => <Pill tone={row.status === "active" ? "ok" : undefined}>{row.status}</Pill>,
+                },
+                {
+                  key: "actions",
+                  label: "",
+                  align: "right",
+                  sortable: false,
+                  exportable: false,
+                  render: (row) =>
+                    editable && (
+                      <button
+                        type="button"
+                        className="btn sm danger"
+                        disabled={removingId === row.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeBrand(row);
+                        }}
+                      >
+                        {removingId === row.id ? "Removing…" : "Delete"}
+                      </button>
+                    ),
+                },
+              ]}
+              rows={data.items}
+              onRowClick={editable ? (row) => navigate(`/catalog/brands/${row.id}`) : undefined}
+              empty={<Empty title="No brands" hint="Add one to enable brand filters." />}
+            />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+          </>
+        )}
       </Card>
     </div>
   );

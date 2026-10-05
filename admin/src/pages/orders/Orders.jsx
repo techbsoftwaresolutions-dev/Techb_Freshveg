@@ -95,6 +95,7 @@ export default function Orders() {
         ) : (
           <>
             <Table
+              title="Orders"
               columns={[
                 {
                   key: "code",

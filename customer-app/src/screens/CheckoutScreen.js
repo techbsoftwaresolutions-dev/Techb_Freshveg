@@ -1,16 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { api } from "../api/client";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { api, API_BASE_URL } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, Loading, Notice, Pill } from "../components/ui";
-
-const PAYMENT_METHODS = [
- { key:"cod", label:"Cash on delivery", hint:"Pay the delivery partner", icon:""},
- { key:"upi", label:"UPI", hint:"GPay, PhonePe, Paytm", icon:""},
- { key:"card", label:"Card", hint:"Credit or debit", icon:""},
-];
 
 export default function CheckoutScreen({ navigation }) {
   const { user, refreshUser } = useAuth();
@@ -18,6 +12,8 @@ export default function CheckoutScreen({ navigation }) {
 
   const [addressId, setAddressId] = useState(null);
   const [method, setMethod] = useState("cod");
+  const [upiTab, setUpiTab] = useState("manual");
+  const [methods, setMethods] = useState(null);
   const [note, setNote] = useState("");
   const [useWallet, setUseWallet] = useState(false);
   const [placing, setPlacing] = useState(false);
@@ -26,6 +22,7 @@ export default function CheckoutScreen({ navigation }) {
 
   const addresses = user?.addresses || [];
   const summary = cart.summary;
+  const storeId = cart.cart?.store?.id;
 
   useEffect(() => {
     if (!addressId && addresses.length) {
@@ -42,9 +39,22 @@ export default function CheckoutScreen({ navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useWallet]);
 
+  // What this store actually accepts — cash on delivery, and UPI once the
+  // store has a VPA configured in Admin → Stores.
+  useEffect(() => {
+    if (!storeId || summary?.total == null) return;
+    api
+      .get("/payments/methods", { store: storeId, total: summary.total })
+      .then((data) => setMethods(data.methods || []))
+      .catch(() => setMethods([]));
+  }, [storeId, summary?.total]);
+
+  const codMethod = methods?.find((m) => m.key === "cod");
+  const upiMethod = methods?.find((m) => m.key === "upi");
+
   const codBlocked = useMemo(
-    () => method === "cod" && summary && summary.total > (cart.cart?.store?.maxCodValue ?? Infinity),
-    [method, summary, cart.cart]
+    () => method === "cod" && codMethod && codMethod.available === false,
+    [method, codMethod]
   );
 
   async function placeOrder() {
@@ -129,27 +139,92 @@ export default function CheckoutScreen({ navigation }) {
         {/* Payment */}
         <Card style={{ padding: spacing.md }}>
           <Text style={type.h3}>Payment method</Text>
-          {PAYMENT_METHODS.map((option) => (
-            <Pressable
-              key={option.key}
-              onPress={() => setMethod(option.key)}
-              style={[styles.option, method === option.key && styles.optionActive]}
-            >
-              <View style={styles.radio}>
-                {method === option.key ? <View style={styles.radioDot} /> : null}
-              </View>
-              <Text style={{ fontSize: 18 }}>{option.icon}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.optionTitle}>{option.label}</Text>
-                <Text style={type.tiny}>{option.hint}</Text>
-              </View>
-              {option.key !== "cod" ? <Pill tone="warn">Gateway pending</Pill> : null}
-            </Pressable>
-          ))}
 
-          {method !== "cod" ? (
+          {methods === null ? (
+            <Text style={[type.small, { marginTop: spacing.sm }]}>Loading payment options…</Text>
+          ) : (
+            <>
+              {codMethod ? (
+                <Pressable
+                  onPress={() => setMethod("cod")}
+                  style={[styles.option, method === "cod" && styles.optionActive]}
+                >
+                  <View style={styles.radio}>
+                    {method === "cod" ? <View style={styles.radioDot} /> : null}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.optionTitle}>Cash on delivery</Text>
+                    <Text style={type.tiny}>Pay the delivery partner</Text>
+                  </View>
+                  {codMethod.available === false ? <Pill tone="warn">{codMethod.reason}</Pill> : null}
+                </Pressable>
+              ) : null}
+
+              {upiMethod ? (
+                <>
+                  <Pressable
+                    onPress={() => {
+                      setMethod("upi");
+                      setUpiTab("manual");
+                    }}
+                    style={[styles.option, method === "upi" && upiTab === "manual" && styles.optionActive]}
+                  >
+                    <View style={styles.radio}>
+                      {method === "upi" && upiTab === "manual" ? <View style={styles.radioDot} /> : null}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.optionTitle}>UPI ID / Number</Text>
+                      <Text style={type.tiny}>Pay {upiMethod.payeeName} from your UPI app</Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      setMethod("upi");
+                      setUpiTab("scan");
+                    }}
+                    style={[styles.option, method === "upi" && upiTab === "scan" && styles.optionActive]}
+                  >
+                    <View style={styles.radio}>
+                      {method === "upi" && upiTab === "scan" ? <View style={styles.radioDot} /> : null}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.optionTitle}>Scan QR</Text>
+                      <Text style={type.tiny}>GPay, PhonePe or any UPI app</Text>
+                    </View>
+                  </Pressable>
+                </>
+              ) : null}
+            </>
+          )}
+
+          {method === "upi" && upiMethod ? (
+            <View style={styles.upiBox}>
+              {upiTab === "manual" ? (
+                <>
+                  <Text style={type.tiny}>Pay to</Text>
+                  <Text selectable style={styles.upiId}>
+                    {upiMethod.vpa}
+                  </Text>
+                  <Text style={type.tiny}>
+                    {upiMethod.payeeName} · pay {rupees(summary.total)}, then place the order
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Image
+                    source={{ uri: `${API_BASE_URL}/api/v1/payments/upi-qr?store=${storeId}&amount=${summary.total}` }}
+                    style={styles.upiQr}
+                  />
+                  <Text style={type.tiny}>Scan, pay {rupees(summary.total)}, then place the order</Text>
+                </>
+              )}
+            </View>
+          ) : null}
+
+          {method === "upi" ? (
             <Notice tone="warn" style={{ marginTop: spacing.sm }}>
-              No payment gateway is wired up yet — the order will be created awaiting payment.
+              No payment gateway is connected — the order is created awaiting payment, and we confirm it
+              once we see it land.
             </Notice>
           ) : null}
         </Card>
@@ -370,6 +445,18 @@ const styles = StyleSheet.create({
   checkmark: { color: "#fff", fontSize: 12, fontWeight: "900" },
   walletRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },
   walletApplied: { color: colors.save, fontWeight: "800" },
+
+  upiBox: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    gap: 4,
+  },
+  upiId: { fontSize: 15, fontWeight: "700", color: colors.text, letterSpacing: 0.2 },
+  upiQr: { width: 180, height: 180, borderRadius: 10, backgroundColor: "#fff" },
 
   noteInput: {
     marginTop: spacing.sm,

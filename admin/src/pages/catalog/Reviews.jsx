@@ -82,6 +82,7 @@ export default function Reviews() {
         ) : (
           <>
             <Table
+              title="Product reviews"
               columns={[
                 {
                   key: "product",

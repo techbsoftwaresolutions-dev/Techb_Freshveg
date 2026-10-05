@@ -6,12 +6,6 @@ import { useAuth, useCart } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
 
-const PAYMENT_METHODS = [
-  { key: "cod", label: "Cash on delivery", hint: "Pay the delivery partner", live: true },
-  { key: "upi", label: "UPI", hint: "GPay, PhonePe, Paytm", live: false },
-  { key: "card", label: "Card", hint: "Credit or debit", live: false },
-];
-
 export default function CheckoutPage() {
   const router = useRouter();
   const cart = useCart();
@@ -19,6 +13,9 @@ export default function CheckoutPage() {
 
   const [addressId, setAddressId] = useState(null);
   const [method, setMethod] = useState("cod");
+  const [upiTab, setUpiTab] = useState("manual");
+  const [copied, setCopied] = useState(false);
+  const [methods, setMethods] = useState(null);
   const [note, setNote] = useState("");
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState("");
@@ -37,6 +34,19 @@ export default function CheckoutPage() {
       setAddressId((addresses.find((a) => a.isDefault) || addresses[0]).id);
     }
   }, [addresses, addressId]);
+
+  // What this store actually accepts — cash on delivery, and UPI once the
+  // store has a VPA configured in Admin → Stores. No static guesswork here,
+  // so turning UPI on for a store needs no code change on this page.
+  const storeId = cart.cart?.store?.id;
+  const cartTotal = cart.summary?.total;
+  useEffect(() => {
+    if (!storeId || cartTotal == null) return;
+    api
+      .get("/payments/methods", { store: storeId, total: cartTotal })
+      .then((data) => setMethods(data.methods || []))
+      .catch(() => setMethods([]));
+  }, [storeId, cartTotal]);
 
   async function removeAddress(id) {
     setRemovingId(id);
@@ -82,6 +92,9 @@ export default function CheckoutPage() {
       setPlacing(false);
     }
   }
+
+  const codMethod = methods?.find((m) => m.key === "cod");
+  const upiMethod = methods?.find((m) => m.key === "upi");
 
   const steps = [
     { label: "Delivery address", done: Boolean(addressId) },
@@ -215,28 +228,116 @@ export default function CheckoutPage() {
                 Payment method
               </h3>
             </div>
-            <div className="choice-list">
-              {PAYMENT_METHODS.map((option) => (
-                <label key={option.key} className={`choice choice-main${method === option.key ? " on" : ""}`}>
-                  <input
-                    type="radio"
-                    name="payment"
-                    checked={method === option.key}
-                    onChange={() => setMethod(option.key)}
-                  />
-                  <span className="choice-radio" aria-hidden="true" />
-                  <span className="choice-copy">
-                    <strong>{option.label}</strong>
-                    <span>{option.hint}</span>
-                  </span>
-                  {!option.live ? <span className="pill accent">Coming soon</span> : null}
-                </label>
-              ))}
-            </div>
 
-            {method !== "cod" ? (
+            {methods === null ? (
+              <p className="muted-line">Loading payment options…</p>
+            ) : (
+              <div className="choice-list">
+                {codMethod ? (
+                  <label className={`choice choice-main${method === "cod" ? " on" : ""}`}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={method === "cod"}
+                      onChange={() => setMethod("cod")}
+                    />
+                    <span className="choice-radio" aria-hidden="true" />
+                    <span className="choice-copy">
+                      <strong>Cash on delivery</strong>
+                      <span>Pay the delivery partner</span>
+                    </span>
+                    {!codMethod.available ? <span className="pill accent">{codMethod.reason}</span> : null}
+                  </label>
+                ) : null}
+
+                {upiMethod ? (
+                  <>
+                    <label className={`choice choice-main${method === "upi" && upiTab === "manual" ? " on" : ""}`}>
+                      <input
+                        type="radio"
+                        name="payment"
+                        checked={method === "upi" && upiTab === "manual"}
+                        onChange={() => {
+                          setMethod("upi");
+                          setUpiTab("manual");
+                        }}
+                      />
+                      <span className="choice-radio" aria-hidden="true" />
+                      <span className="choice-copy">
+                        <strong>UPI ID / Number</strong>
+                        <span>Pay {upiMethod.payeeName} directly from your UPI app</span>
+                      </span>
+                    </label>
+                    <label className={`choice choice-main${method === "upi" && upiTab === "scan" ? " on" : ""}`}>
+                      <input
+                        type="radio"
+                        name="payment"
+                        checked={method === "upi" && upiTab === "scan"}
+                        onChange={() => {
+                          setMethod("upi");
+                          setUpiTab("scan");
+                        }}
+                      />
+                      <span className="choice-radio" aria-hidden="true" />
+                      <span className="choice-copy">
+                        <strong>Scan QR</strong>
+                        <span>Scan with GPay, PhonePe or any UPI app</span>
+                      </span>
+                    </label>
+                  </>
+                ) : null}
+              </div>
+            )}
+
+            {method === "upi" && upiMethod ? (
+              <div className="upi-pay-box">
+                {upiTab === "manual" ? (
+                  <>
+                    <span className="upi-pay-label">Pay to</span>
+                    <div className="upi-pay-id">
+                      <strong>{upiMethod.vpa}</strong>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(upiMethod.vpa);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          } catch {
+                            // Clipboard permission denied — the VPA is still shown to copy by hand.
+                          }
+                        }}
+                      >
+                        {copied ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                    <span className="upi-pay-note">
+                      {upiMethod.payeeName} · pay {rupees(summary.total)}, then place the order
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a
+                        store-specific, amount-specific image generated by our
+                        own API; next/image's static optimization adds nothing here. */}
+                    <img
+                      src={`/api/v1/payments/upi-qr?store=${storeId}&amount=${summary.total}`}
+                      alt={`UPI QR for ${upiMethod.payeeName}`}
+                      width={200}
+                      height={200}
+                      className="upi-qr-img"
+                    />
+                    <span className="upi-pay-note">Scan, pay {rupees(summary.total)}, then place the order</span>
+                  </>
+                )}
+              </div>
+            ) : null}
+
+            {method === "upi" ? (
               <p className="notice warn" style={{ marginTop: 14, marginBottom: 0 }}>
-                No payment gateway is connected yet — the order will be created awaiting payment.
+                No payment gateway is connected — the order is created awaiting payment, and we confirm
+                it once we see it land.
               </p>
             ) : null}
           </section>
