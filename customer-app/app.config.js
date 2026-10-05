@@ -1,4 +1,5 @@
-require("dotenv").config();
+// require("dotenv").config();
+import "dotenv/config";
 
 export default {
   expo: {
