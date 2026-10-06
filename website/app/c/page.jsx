@@ -11,7 +11,7 @@ import { DeliveryBar, MobileChips, MobileHead, MobileRail } from "@/components/M
 export const metadata = {
   title: "All categories",
   description:
-    "Every department at FreshMart — fruit and vegetables, grocery, personal care, household and general store.",
+    "Every department at Hosur Basket — fruit and vegetables, grocery, personal care, household and general store.",
   alternates: { canonical: "/c" },
 };
 

@@ -21,10 +21,10 @@ export async function generateMetadata({ params }) {
     description:
       category.seo?.description ||
       category.description ||
-      `Shop ${category.name} at FreshMart. Fresh stock, honest prices, delivered from your neighbourhood store.`,
+      `Shop ${category.name} at Hosur Basket. Fresh stock, honest prices, delivered from your neighbourhood store.`,
     alternates: { canonical: `/c/${category.slug}` },
     openGraph: {
-      title: `${category.name} | FreshMart`,
+      title: `${category.name} | Hosur Basket`,
       description: category.description || undefined,
       url: `${SITE_URL}/c/${category.slug}`,
     },

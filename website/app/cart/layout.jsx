@@ -2,7 +2,7 @@
 // lives in a thin server layout alongside it.
 export const metadata = {
   title: "Your cart",
-  description: "Review the items in your FreshMart basket before checking out.",
+  description: "Review the items in your Hosur Basket basket before checking out.",
   robots: { index: false, follow: false },
 };
 

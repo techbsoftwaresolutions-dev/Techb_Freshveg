@@ -110,7 +110,7 @@ export default function Header({ categories = [] }) {
             <LogoMark className="logo-mark" />
             <span className="logo-text">
               <span className="logo-name">
-                Fresh<span className="logo-name-accent">Mart</span>
+                Hosur <span className="logo-name-accent">Basket</span>
               </span>
               <span className="logo-tag">Fresh Food • Better Life</span>
             </span>

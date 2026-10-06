@@ -1,9 +1,12 @@
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useStore } from "../context/StoreContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Pill } from "../components/ui";
+
+const SUPPORT_PHONE = "+919003597158";
+const SUPPORT_PHONE_LABEL = "+91 90035 97158";
 
 export default function AccountScreen({ navigation }) {
   const { user, signedIn, signOut } = useAuth();
@@ -117,6 +120,15 @@ export default function AccountScreen({ navigation }) {
         ))}
       </Card>
 
+      {/* The shop's own line, for anything the app can't sort out. */}
+      <Card style={styles.supportCard}>
+        <View style={{ flex: 1 }}>
+          <Text style={type.h3}>Need help?</Text>
+          <Text style={type.small}>Call Hosur Basket on {SUPPORT_PHONE_LABEL}</Text>
+        </View>
+        <Button title="Call" variant="outline" onPress={() => Linking.openURL(`tel:${SUPPORT_PHONE}`).catch(() => {})} />
+      </Card>
+
       <Button
         title="Sign out"
         variant="ghost"
@@ -129,7 +141,7 @@ export default function AccountScreen({ navigation }) {
       />
 
       <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.md }]}>
-        Samagra Mart · v0.1.0
+        Hosur Basket · v0.1.0 · hosurbasket.com
       </Text>
     </ScrollView>
   );
@@ -150,6 +162,7 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.primaryDark, fontWeight: "800", fontSize: 17 },
 
   balanceCard: { flex: 1, padding: spacing.md, gap: 2 },
+  supportCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md, marginBottom: spacing.sm },
   balanceValue: { fontSize: 20, fontWeight: "800", color: colors.text },
 
   referralRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },

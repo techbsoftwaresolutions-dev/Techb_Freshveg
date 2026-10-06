@@ -17,9 +17,9 @@ const SHOW_HOME_SIDEBAR = false;
 export const metadata = {
   // The layout's title template deliberately does not apply to the root
   // segment, so the brand is spelled out here rather than appended.
-  title: "FreshMart — fresh fruit, vegetables & groceries delivered",
+  title: "Hosur Basket — fresh fruit, vegetables & groceries delivered",
   description:
-    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your neighbourhood FreshMart store.",
+    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your neighbourhood Hosur Basket store.",
   alternates: { canonical: "/" },
 };
 
