@@ -265,6 +265,7 @@ router.get(
       store: { id: store.id, name: store.name, code: store.code },
       isOpen: store.isOpenNow(),
       minOrderValue: store.settings.minOrderValue,
+      freeDeliveryEnabled: store.settings.freeDeliveryEnabled !== false,
       freeDeliveryAbove: store.settings.freeDeliveryAbove,
       deliveryCharge: store.settings.deliveryCharge,
       prepTimeMinutes: store.settings.prepTimeMinutes,
@@ -402,6 +403,7 @@ router.get(
             id: store.id,
             name: store.name,
             isOpen: store.isOpenNow(),
+            freeDeliveryEnabled: store.settings.freeDeliveryEnabled !== false,
             freeDeliveryAbove: store.settings.freeDeliveryAbove,
             prepTimeMinutes: store.settings.prepTimeMinutes,
           }
@@ -525,6 +527,32 @@ router.get(
     // The phone's "Offers" chip: only products with a discount on them.
     if (req.query.offers === "true") filter.maxDiscountPct = { $gt: 0 };
 
+    // In-page search on a listing: matches name, tags, keywords and
+    // descriptions, plus anything filed under a matching brand or category —
+    // and still honours every other filter and the sort, which /search does not.
+    const term = String(req.query.q || "").trim().slice(0, 60);
+    if (term) {
+      const rx = new RegExp(escapeRegex(term), "i");
+      const [brandIds, categoryIds] = await Promise.all([
+        Brand.find({ name: rx }).distinct("_id"),
+        Category.find({ name: rx, status: "active" }).distinct("_id"),
+      ]);
+      filter.$and = [
+        ...(filter.$and || []),
+        {
+          $or: [
+            { name: rx },
+            { tags: rx },
+            { searchKeywords: rx },
+            { shortDescription: rx },
+            { description: rx },
+            { brand: { $in: brandIds } },
+            { categoryPath: { $in: categoryIds } },
+          ],
+        },
+      ];
+    }
+
     if (req.query.minPrice || req.query.maxPrice) {
       filter.priceFrom = {};
       if (req.query.minPrice) filter.priceFrom.$gte = Number(req.query.minPrice);
@@ -545,7 +573,10 @@ router.get(
       // name falls back instead of reaching the database as a field name.
       // Whatever the order, what can be bought comes first — a shelf that
       // opens on "Sold out" reads as an empty store.
-      sort: { inStock: -1, ...(sortMap[req.query.sort] || { isFeatured: -1, "rating.average": -1 }) },
+      // `_id` last: products tie on stock, rating and price all the time, and
+      // without a final unique key Mongo may order the ties differently on
+      // every page request — so a product can show on two pages or on none.
+      sort: { inStock: -1, ...(sortMap[req.query.sort] || { isFeatured: -1, "rating.average": -1 }), _id: 1 },
       select: PRODUCT_CARD_FIELDS,
       populate: { path: "brand", select: "name slug" },
       lean: true,

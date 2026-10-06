@@ -80,7 +80,7 @@ async function quote({ storeId, pincode, coordinates, cartValue = 0 }) {
 
   const freeAbove = zone ? zone.freeDeliveryAbove : store.settings.freeDeliveryAbove;
   const charge = zone ? zone.deliveryCharge : store.settings.deliveryCharge;
-  const free = freeAbove > 0 && cartValue >= freeAbove;
+  const free = store.settings.freeDeliveryEnabled !== false && freeAbove > 0 && cartValue >= freeAbove;
 
   return {
     zone: zone ? { id: zone.id, name: zone.name } : null,

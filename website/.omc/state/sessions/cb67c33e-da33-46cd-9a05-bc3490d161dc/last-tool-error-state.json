@@ -1,7 +1,7 @@
 {
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd \\\"D:/TechB/fresh market/Techb_Freshveg\\\" && cat .claude/launch.json 2>/dev/null; grep -n '\\\"dev\\\"\\\\|\\\"start\\\"' website/package.json backend/package.json; cat website/.env* 2>/dev/null |...",
-  "error": "Exit code 7\nwebsite/package.json:6:    \"dev\": \"next dev -p 3100\",\nwebsite/package.json:8:    \"start\": \"next start -p 3100\",\nbackend/package.json:9:    \"start\": \"node src/server.js\",\nbackend/package.json:10:    \"dev\": \"nodemon src/server.js\",\n# Where the commerce API lives.\n#\n# Server components fetch this directly. The browser never uses it — client\n# requests go to /api/... on this same origin and Next rewrites them, so there\n# is no CORS story and no API host baked into the HTML.\n{\"success\":tr...",
-  "timestamp": "2026-10-05T10:04:01.527Z",
+  "tool_name": "mcp__Claude_Browser__resize_window",
+  "tool_input_preview": "{\"width\":390,\"height\":780}",
+  "error": "No preview is open. Use `preview_start` or `navigate` with {\"url\": \"https://…\"} to open a browser tab at a URL, or `preview_start` with {\"name\": \"…\"} to start a dev server from .claude/launch.json.",
+  "timestamp": "2026-10-06T07:00:21.308Z",
   "retry_count": 1
 }

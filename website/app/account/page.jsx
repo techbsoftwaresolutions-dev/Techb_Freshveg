@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { MorphingSquare } from "@/components/ui/morphing-square";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth, useStore } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees, when } from "@/lib/format";
 import StatusPill from "@/components/StatusPill";
+import AccountMobile, { AccountHead } from "@/components/AccountMobile";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -45,8 +47,9 @@ export default function AccountPage() {
 
   if (!ready || !user) {
     return (
-      <div className="wrap">
-        <div className="page-loading">Loading your account…</div>
+      <div className="wrap acct-page">
+        <AccountHead settings={false} />
+        <div className="page-loading"><MorphingSquare message="Loading your account…" /></div>
       </div>
     );
   }
@@ -59,8 +62,27 @@ export default function AccountPage() {
     .join("")
     .toUpperCase();
 
+  const handleSignOut = () => {
+    signOut();
+    router.push("/");
+  };
+
   return (
-    <div className="wrap">
+    <div className="wrap acct-page">
+      {/* Phone layout: same data and handlers, arranged for a small screen. */}
+      <AccountMobile
+        user={user}
+        initials={initials}
+        store={store}
+        pincode={pincode}
+        recentOrders={recentOrders}
+        shared={shared}
+        onShare={shareReferral}
+        onSignOut={handleSignOut}
+      />
+
+      {/* Desktop dashboard, unchanged — hidden on phones. */}
+      <div className="acct-d">
       <header className="page-title">
         <h1>My Account</h1>
       </header>
@@ -80,10 +102,7 @@ export default function AccountPage() {
         <button
           type="button"
           className="btn sm account-signout"
-          onClick={() => {
-            signOut();
-            router.push("/");
-          }}
+          onClick={handleSignOut}
         >
           Sign out
         </button>
@@ -194,6 +213,7 @@ export default function AccountPage() {
           </Link>
         </div>
       </section>
+      </div>
     </div>
   );
 }

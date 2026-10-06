@@ -51,6 +51,23 @@ router.patch(
   "/:id",
   requirePermission("settings.manage"),
   asyncHandler(async (req, res) => {
+    // Free-delivery rule: the amount must be a real, non-negative number, and
+    // an enabled rule needs an amount above zero. (0 with the rule off is how
+    // stores that predate the switch are stored, so that stays allowed.)
+    const rule = req.body?.settings;
+    if (rule && Object.prototype.hasOwnProperty.call(rule, "freeDeliveryAbove")) {
+      const amount = Number(rule.freeDeliveryAbove);
+      if (!Number.isFinite(amount) || amount < 0 || !Number.isInteger(amount)) {
+        throw ApiError.badRequest("Free delivery amount must be a positive number");
+      }
+      if (rule.freeDeliveryEnabled === true && amount <= 0) {
+        throw ApiError.badRequest("Enter a free delivery amount above zero, or turn free delivery off");
+      }
+    }
+    if (rule && "freeDeliveryEnabled" in rule && typeof rule.freeDeliveryEnabled !== "boolean") {
+      throw ApiError.badRequest("Free delivery must be on or off");
+    }
+
     const store = await Store.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!store) throw ApiError.notFound("Store not found");
     res.json({ success: true, store });

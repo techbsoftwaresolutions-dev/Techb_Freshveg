@@ -5,9 +5,11 @@ import { Suspense } from "react";
 import { getCategories, getCategory, getProducts, SITE_URL } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import Filters, { ActiveFilters, SortBar } from "@/components/Filters";
-import { DeliveryBar, MobileChips, MobileHead, MobileRail } from "@/components/MobileBrowse";
+import { DeliveryBar, MobileChips, MobileRail } from "@/components/MobileBrowse";
+import { SearchHead, SearchProvider, SearchSwap } from "@/components/ListingSearch";
 import CategoryIcon from "@/components/CategoryIcon";
 import EmptyState from "@/components/EmptyState";
+import InfiniteProducts from "@/components/InfiniteProducts";
 import TrustStrip from "@/components/TrustStrip";
 
 export async function generateMetadata({ params }) {
@@ -70,7 +72,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const meta = result?.meta;
 
   return (
-    <div className="wrap">
+    <SearchProvider className="wrap">
       <nav className="crumbs" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         {breadcrumb.map((step) => (
@@ -87,7 +89,7 @@ export default async function CategoryPage({ params, searchParams }) {
           screen readers, which need a page title to know what this is. */}
       <h1 className="sr-only">{category.name}</h1>
 
-      <MobileHead title={category.name} backHref={parent ? `/c/${parent.slug}` : "/c"} />
+      <SearchHead title={category.name} backHref={parent ? `/c/${parent.slug}` : "/c"} />
 
       {children.length ? (
         <nav className="top-cats aisle-tiles cat-hide-mobile" aria-label={`Inside ${category.name}`}>
@@ -116,6 +118,7 @@ export default async function CategoryPage({ params, searchParams }) {
         <div>
           <MobileChips facets={{ filters, brands, priceBands, availability }} />
 
+          <SearchSwap query={{ ...apiQuery, page: undefined }}>
           <div className="browse-head">
             <h2 className="browse-total">
               {meta?.total ?? products.length}{" "}
@@ -141,6 +144,15 @@ export default async function CategoryPage({ params, searchParams }) {
               {meta && meta.pages > 1 ? (
                 <Pagination slug={slug} meta={meta} query={query} />
               ) : null}
+              {meta && meta.pages > meta.page ? (
+                <InfiniteProducts
+                  key={JSON.stringify(apiQuery)}
+                  query={{ ...apiQuery, page: undefined }}
+                  startPage={meta.page + 1}
+                  pages={meta.pages}
+                  seenIds={products.map((p) => p.id)}
+                />
+              ) : null}
             </>
           ) : (meta?.total ?? 0) === 0 && !hasFilters(query) ? (
             <EmptyState icon="box" title="Nothing here yet" actions={[{ href: "/c", label: "Browse all products" }]}>
@@ -155,12 +167,13 @@ export default async function CategoryPage({ params, searchParams }) {
               Try removing a filter, or browse a subcategory above.
             </EmptyState>
           )}
+          </SearchSwap>
         </div>
       </div>
 
       <DeliveryBar />
       <TrustStrip />
-    </div>
+    </SearchProvider>
   );
 }
 
@@ -184,6 +197,7 @@ function Pagination({ slug, meta, query }) {
 
   return (
     <nav
+      className="pager-slug"
       style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center", marginTop: 32 }}
       aria-label="Pagination"
     >

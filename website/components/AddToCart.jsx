@@ -40,7 +40,15 @@ export default function AddToCart({ variantId, disabled, size = "sm", qty = 1, f
           ...(fullWidth ? { width: "100%" } : null),
         }}
       >
-        {busy ? "…" : "Add to Cart"}
+        {busy ? (
+          "…"
+        ) : (
+          <>
+            {/* the phone's card has room for only "Add" (see .add-short) */}
+            <span className="add-full">Add to Cart</span>
+            <span className="add-short">Add</span>
+          </>
+        )}
       </button>
     );
   }

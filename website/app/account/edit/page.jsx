@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MorphingSquare } from "@/components/ui/morphing-square";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/Providers";
@@ -45,7 +46,7 @@ export default function EditProfilePage() {
   if (!ready || !user) {
     return (
       <div className="wrap">
-        <div className="page-loading">Loading…</div>
+        <div className="page-loading"><MorphingSquare message="Loading…" /></div>
       </div>
     );
   }

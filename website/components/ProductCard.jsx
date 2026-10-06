@@ -50,13 +50,6 @@ export default function ProductCard({ product }) {
           ) : null}
         </MediaWrap>
         <WishlistButton productId={product.id} variantId={product.defaultVariant} />
-        {/* Phone: the add control floats on the photo (see .card-fab in the
-            CSS); the full button in the footer is hidden at that width. */}
-        {!outOfStock ? (
-          <div className="card-fab">
-            <AddToCart variantId={product.defaultVariant} />
-          </div>
-        ) : null}
       </div>
 
       <NameWrap {...nameProps}>

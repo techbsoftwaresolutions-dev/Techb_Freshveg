@@ -1,0 +1,7 @@
+{
+  "tool_name": "PowerShell",
+  "tool_input_preview": "{\"command\":\"$c = Get-NetTCPConnection -LocalPort 3103 -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force; \\\"stopped 3103\\\" }\\nStart-Sleep 1\\n$dst = \\\"C:\\\\U...",
+  "error": "Exit code 2\nstopped 3103\r\ncopy exists: False\r\n3100 listening: 1",
+  "timestamp": "2026-10-06T10:08:50.082Z",
+  "retry_count": 1
+}
