@@ -522,6 +522,8 @@ router.get(
     if (req.query.tag) filter.tags = req.query.tag;
     if (req.query.featured === "true") filter.isFeatured = true;
     if (req.query.inStock === "true") filter.inStock = true;
+    // The phone's "Offers" chip: only products with a discount on them.
+    if (req.query.offers === "true") filter.maxDiscountPct = { $gt: 0 };
 
     if (req.query.minPrice || req.query.maxPrice) {
       filter.priceFrom = {};

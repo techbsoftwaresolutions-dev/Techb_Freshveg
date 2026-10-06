@@ -187,6 +187,12 @@
   },
   "hotPaths": [
     {
+      "path": "website/app/c/[slug]/page.jsx",
+      "accessCount": 4,
+      "lastAccessed": 1791192711416,
+      "type": "file"
+    },
+    {
       "path": "backend/src/config/db.js",
       "accessCount": 3,
       "lastAccessed": 1791077683499,
@@ -202,6 +208,12 @@
       "path": "admin/src/pages/catalog/ProductForm.jsx",
       "accessCount": 2,
       "lastAccessed": 1791185560218,
+      "type": "file"
+    },
+    {
+      "path": "website/components/Filters.jsx",
+      "accessCount": 2,
+      "lastAccessed": 1791192705991,
       "type": "file"
     },
     {
@@ -262,6 +274,12 @@
       "path": "admin/src/styles/index.css",
       "accessCount": 1,
       "lastAccessed": 1791183584154,
+      "type": "file"
+    },
+    {
+      "path": "admin/src/pages/catalog/Categories.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791265120994,
       "type": "file"
     }
   ],

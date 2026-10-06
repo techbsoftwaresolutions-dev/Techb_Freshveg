@@ -6,6 +6,7 @@ import ProductCard from "@/components/ProductCard";
 import { SortBar } from "@/components/Filters";
 import CategoryIcon from "@/components/CategoryIcon";
 import EmptyState from "@/components/EmptyState";
+import { DeliveryBar, MobileChips, MobileHead, MobileRail } from "@/components/MobileBrowse";
 
 export const metadata = {
   title: "All categories",
@@ -24,7 +25,12 @@ export default async function CategoriesPage({ searchParams }) {
 
   const [catalog, result] = await Promise.all([
     getCategories(),
-    getProducts({ limit: PER_PAGE, page, ...(query.sort ? { sort: query.sort } : {}) }),
+    getProducts({
+      limit: PER_PAGE,
+      page,
+      ...(query.sort ? { sort: query.sort } : {}),
+      ...(query.offers === "true" ? { offers: "true" } : {}),
+    }),
   ]);
 
   const departments = catalog?.categories || [];
@@ -33,13 +39,17 @@ export default async function CategoriesPage({ searchParams }) {
 
   return (
     <div className="wrap">
+      <MobileHead title="All products" backHref="/" />
+
       <nav className="crumbs" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         {" › "}
         <span>All categories</span>
       </nav>
 
-      <div className="split">
+      <div className="split cat-layout has-rail">
+        <MobileRail departments={departments} activeSlug={null} />
+
         {/* The aisle rail. Real links, one URL per aisle, so a crawler can
             follow them and a shopper can bookmark where they got to. */}
         <aside>
@@ -73,6 +83,8 @@ export default async function CategoriesPage({ searchParams }) {
         </aside>
 
         <div>
+          <MobileChips />
+
           <div className="browse-head">
             <h1>
               All products
@@ -100,6 +112,8 @@ export default async function CategoriesPage({ searchParams }) {
           )}
         </div>
       </div>
+
+      <DeliveryBar />
     </div>
   );
 }

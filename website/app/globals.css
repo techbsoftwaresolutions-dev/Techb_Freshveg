@@ -3059,3 +3059,184 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .review-prompt-backdrop, .review-prompt { animation: none; }
 }
+
+/* ------------------------------------------------ browse pages, phone
+   "All products" and every category page. Above 720px none of this applies:
+   the desktop sidebar, header and card are untouched. */
+.cat-mobile-head, .cat-rail, .cat-chips, .cat-delivery, .card-fab { display: none; }
+
+@media (max-width: 720px) {
+  /* The site chrome gives way to the app-style header and the bottom nav. */
+  body:has(.cat-mobile-head) .header,
+  body:has(.cat-mobile-head) .footer,
+  body:has(.cat-mobile-head) .crumbs,
+  body:has(.cat-mobile-head) .trust-strip,
+  .aisle-tiles.cat-hide-mobile { display: none; }
+
+  .cat-mobile-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    margin: 0 -16px 8px;
+    padding: 8px 8px 8px 4px;
+    background: var(--bg, #fff);
+  }
+  .cat-mobile-title { flex: 1; min-width: 0; font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+  .cat-mobile-btn { display: grid; place-items: center; width: 44px; height: 44px; color: var(--text); }
+
+  .split.cat-layout { grid-template-columns: minmax(0, 1fr); gap: 0; align-items: start; padding-bottom: 130px; }
+  .split.cat-layout.has-rail { grid-template-columns: 76px minmax(0, 1fr); gap: 0 8px; }
+  .split.cat-layout > div { display: block; min-width: 0; grid-column: 2; grid-row: 1; order: 0; }
+  .split.cat-layout > aside,
+  .split.cat-layout .browse-head { display: none; }
+
+  .split.cat-layout > .cat-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    grid-column: 1;
+    grid-row: 1;
+    order: 0;
+    position: sticky;
+    top: 60px;
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .cat-rail::-webkit-scrollbar { display: none; }
+  .cat-rail-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 2px;
+    border-left: 3px solid transparent;
+    border-radius: 0 12px 12px 0;
+    color: var(--text-muted);
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+  .cat-rail-item.active { color: var(--brand-dark); font-weight: 600; background: var(--brand-soft); border-left-color: var(--brand); }
+  .cat-rail-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; overflow: hidden; }
+  .cat-rail-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .cat-rail-icon svg { width: 28px; height: 28px; }
+  .cat-rail-name { overflow-wrap: anywhere; }
+
+  /* One scrolling row; the sort list is a fixed sheet so this row's overflow
+     can't clip it. */
+  .cat-chips {
+    display: flex;
+    gap: 8px;
+    margin: 0 -16px 10px 0;
+    padding: 2px 16px 2px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .cat-chips::-webkit-scrollbar { display: none; }
+  .cat-chips > *, .cat-chips .sort-menu { flex: 0 0 auto; }
+  /* an older phone rule ordered .sort-bar; the chips keep source order */
+  .split.cat-layout .cat-chips .sort-bar { order: 0; grid-column: auto; }
+  .cat-chips .filters { display: contents; }
+  .cat-chips .filters-trigger,
+  .cat-chips .sort-select,
+  .cat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .cat-chip.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-dark); }
+  .cat-chip-pct {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--brand);
+    color: var(--on-brand, #fff);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .cat-chips .sort-select .sort-label { display: inline; color: var(--text); }
+  .cat-chips .sort-select[data-default="false"] .sort-label { display: none; }
+  .cat-chips .sort-select[data-default="true"] strong { display: none; }
+  .cat-chips .sort-list {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    z-index: 90;
+    margin: 0;
+    padding: 12px 8px calc(12px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.22);
+  }
+  .cat-chips .sort-option { padding: 14px 16px; font-size: 15px; }
+
+  /* Two-up grid and the compact card. */
+  .split.cat-layout .product-grid,
+  .split.cat-layout .product-grid.wide { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 0; }
+  .split.cat-layout .card { padding: 8px; gap: 2px; border-radius: 12px; box-shadow: none; }
+  .split.cat-layout .card:hover { transform: none; box-shadow: none; }
+  .split.cat-layout .card-media { background: #fff; border-radius: 10px; }
+  .split.cat-layout .card-media img { object-fit: contain; padding: 4px; }
+  .split.cat-layout .card-name { font-size: 13px; font-weight: 600; }
+  .split.cat-layout .card-pack { margin-bottom: 4px; font-size: 12px; }
+  .split.cat-layout .price { font-size: 16px; font-weight: 700; }
+  .split.cat-layout .card-foot .add-btn,
+  .split.cat-layout .card-foot .qty { display: none; }
+
+  .split.cat-layout .card-fab { display: block; position: absolute; right: 6px; bottom: 6px; z-index: 2; }
+  .card-fab .add-btn {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0;
+    box-shadow: 0 2px 8px rgba(10, 30, 20, 0.25);
+  }
+  .card-fab .add-btn::before { content: "+"; font-size: 22px; line-height: 1; font-weight: 500; }
+  .card-fab .qty button { width: 28px; }
+  .card-fab .qty {
+    height: 34px;
+    min-width: 0;
+    max-width: calc(100% - 4px);
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(10, 30, 20, 0.25);
+  }
+
+  /* Free-delivery bar, sitting just above the bottom nav. */
+  .cat-delivery {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(66px + env(safe-area-inset-bottom));
+    z-index: 55;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: var(--brand);
+    color: var(--on-brand, #fff);
+    font-size: 12.5px;
+    box-shadow: 0 6px 18px rgba(10, 30, 20, 0.25);
+  }
+  .cat-delivery strong { font-weight: 700; }
+}
