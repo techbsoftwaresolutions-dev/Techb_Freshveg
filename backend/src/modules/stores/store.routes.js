@@ -16,7 +16,9 @@ router.get(
     const filter = { status: "active" };
     if (req.query.pincode) filter.servicePincodes = String(req.query.pincode);
 
-    const stores = await Store.find(filter).select("-manager");
+    // Default store first: a client with no pincode yet takes stores[0], and
+    // that must be the store the storefront prices and stocks pages against.
+    const stores = await Store.find(filter).select("-manager").sort({ isDefault: -1, _id: 1 });
     res.json({
       success: true,
       stores: stores.map((s) => ({

@@ -305,7 +305,18 @@ async function availabilityMap(storeId, variantIds) {
   return map;
 }
 
+// Products with at least one active pack of which a whole unit can be bought
+// at this store right now. (A product marked sold out is excluded by the
+// caller, on the product query itself.)
+async function buyableProductIds(storeId) {
+  const rows = await Inventory.find({ store: storeId, $expr: { $gte: [{ $subtract: ["$onHand", "$reserved"] }, 1] } })
+    .select("variant")
+    .lean();
+  return Variant.distinct("product", { _id: { $in: rows.map((r) => r.variant) }, status: "active" });
+}
+
 module.exports = {
+  buyableProductIds,
   getOrCreateRow,
   availability,
   availabilityMap,

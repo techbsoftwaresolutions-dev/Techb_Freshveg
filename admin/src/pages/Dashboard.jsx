@@ -116,6 +116,7 @@ export default function Dashboard() {
   const [orders, setOrders] = useState([]);
   const [ordersTotal, setOrdersTotal] = useState(0);
   const [lowStock, setLowStock] = useState([]);
+  const [outOfStock, setOutOfStock] = useState({ items: [], total: 0 });
   const [tickets, setTickets] = useState([]);
   const [productsTotal, setProductsTotal] = useState(0);
   const [customersTotal, setCustomersTotal] = useState(0);
@@ -150,6 +151,9 @@ export default function Dashboard() {
       can("reports.view")
         ? api.get("/audit", { limit: 6 })
         : Promise.resolve({ items: [] }),
+      can("inventory.view")
+        ? api.get("/inventory/out-of-stock", { limit: 6 })
+        : Promise.resolve({ items: [], meta: null }),
     ])
       .then(
         ([
@@ -161,6 +165,7 @@ export default function Dashboard() {
           customerData,
           topProductData,
           activityData,
+          outData,
         ]) => {
           setData(dashboard);
           setOrders(orderData.items || []);
@@ -171,6 +176,7 @@ export default function Dashboard() {
           setCustomersTotal(customerData.meta?.total || 0);
           setTopProducts(topProductData.products || []);
           setActivity(activityData.items || []);
+          setOutOfStock({ items: outData.items || [], total: outData.meta?.total || 0 });
         },
       )
       .catch((err) => setError(err.message))
@@ -485,6 +491,56 @@ export default function Dashboard() {
               <Empty title="No orders yet" />
             )}
           </Card>
+
+          {can("inventory.view") ? (
+            <Card
+              title={`Out of Stock${outOfStock.total ? ` (${outOfStock.total})` : ""}`}
+              actions={
+                <Link className="btn sm" to="/inventory?tab=out">
+                  View all
+                </Link>
+              }
+              tight
+            >
+              {outOfStock.items.length ? (
+                <div className="table-wrap">
+                  <table className="data">
+                    <tbody>
+                      {outOfStock.items.map((row) => {
+                        const image = row.product?.media?.find((m) => m.type === "image")?.url;
+                        return (
+                          <tr key={row.id}>
+                            <td>
+                              <div className="inline" style={{ gap: 10 }}>
+                                {image ? (
+                                  <img src={image} alt="" className="rank-thumb" />
+                                ) : (
+                                  <span className="rank-thumb rank-thumb-fallback">
+                                    <IconProducts />
+                                  </span>
+                                )}
+                                <div className="stack">
+                                  <span className="row-title">{row.product?.name}</span>
+                                  <span className="row-sub">
+                                    {[row.variant?.name, row.store?.name].filter(Boolean).join(" · ")}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="num">
+                              <Pill tone="danger">{row.neverStocked ? "Never stocked" : "Out of stock"}</Pill>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty title="Everything is in stock" hint="Every item on sale has at least one unit available." />
+              )}
+            </Card>
+          ) : null}
 
           <Card
             title="Running Low Stock"

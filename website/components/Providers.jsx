@@ -108,7 +108,9 @@ export function Providers({ children }) {
   const [cart, setCart] = useState(null);
   const [pending, setPending] = useState({});
   const [cartError, setCartError] = useState("");
+  const [soldOut, setSoldOut] = useState({}); // variantId -> true, learnt from a refused add
   const storeId = store?.id || null;
+  useEffect(() => setSoldOut({}), [storeId]);
 
   const refreshCart = useCallback(async () => {
     if (!storeId) return null;
@@ -156,7 +158,11 @@ export function Providers({ children }) {
           // cause, so re-read rather than guessing. The message is set after
           // the re-read, which would otherwise clear it.
           await refreshCart();
-          setCartError(err.message);
+          // None left at all (sold since the page was drawn, or a different
+          // store from the one the page was drawn for): the card turns into
+          // "Out of stock" instead of saying so in a message.
+          if (err.status === 409 && !err.details?.available) setSoldOut((s) => ({ ...s, [variantId]: true }));
+          else setCartError(err.message);
           throw err;
         }
       });
@@ -191,6 +197,7 @@ export function Providers({ children }) {
       lineCount: cart?.items?.length || 0,
       error: cartError,
       pending,
+      soldOut,
       refresh: refreshCart,
       add: (variantId, quantity) =>
         run(variantId, () => api.post("/cart/items", { variant: variantId, quantity, store: storeId })),
@@ -211,7 +218,7 @@ export function Providers({ children }) {
         cart?.items?.find((i) => String(i.variant) === String(variantId))?.quantity || 0,
       lineFor: (variantId) => cart?.items?.find((i) => String(i.variant) === String(variantId)) || null,
     }),
-    [cart, cartError, pending, refreshCart, run, storeId]
+    [cart, cartError, pending, soldOut, refreshCart, run, storeId]
   );
 
 

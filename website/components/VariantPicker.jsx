@@ -14,9 +14,12 @@ export default function VariantPicker({ product, variants }) {
   const [buying, setBuying] = useState(false);
 
   const [variantId, setVariantId] = useState(() => {
+    // The default pack when it can be bought, else the first that can.
+    const buyable = (v) => (v.availability?.available ?? 0) >= 1;
     const preferred =
+      variants.find((v) => v.id === product.defaultVariant && buyable(v)) ||
+      variants.find(buyable) ||
       variants.find((v) => v.id === product.defaultVariant) ||
-      variants.find((v) => (v.availability?.available ?? 0) > 0) ||
       variants[0];
     return preferred?.id || null;
   });
@@ -50,7 +53,7 @@ export default function VariantPicker({ product, variants }) {
             <h3>Choose a pack</h3>
             <div className="pack-options">
               {variants.map((option) => {
-                const soldOut = (option.availability?.available ?? 0) <= 0;
+                const soldOut = (option.availability?.available ?? 0) < 1;
                 const selected = option.id === variantId;
                 // Only the selected pack gets an AddToCart control below, so
                 // without this a pack you already have in your cart looks
@@ -79,7 +82,7 @@ export default function VariantPicker({ product, variants }) {
           </section>
         ) : null}
 
-      {!alreadyInCart && available > 0 ? (
+      {!alreadyInCart && available >= 1 ? (
         <div className="pdp-qty">
           <span>Quantity</span>
           <div className="qty">
@@ -132,9 +135,9 @@ export default function VariantPicker({ product, variants }) {
 
       <div className="pdp-actions">
         <div>
-          <AddToCart variantId={variant.id} disabled={available <= 0} size="lg" qty={pendingQty} fullWidth />
+          <AddToCart variantId={variant.id} disabled={available < 1} size="lg" qty={pendingQty} fullWidth />
         </div>
-        {available > 0 ? (
+        {available >= 1 ? (
           <button
             type="button"
             className="btn lg pdp-buy-now"
@@ -155,8 +158,8 @@ export default function VariantPicker({ product, variants }) {
           </button>
         ) : null}
       </div>
-      {available > 0 && available <= 5 ? (
-        <div className="pdp-low-stock">Hurry — only {available} left</div>
+      {available >= 1 && available <= 5 ? (
+        <div className="pdp-low-stock">Hurry — only {Math.floor(available)} left</div>
       ) : null}
 
     </>

@@ -60,12 +60,33 @@ async function paginate(Model, filter, reqQuery, options = {}) {
   // a field that does not exist and returns rows in storage order.
   const sort = options.sort || sorting(reqQuery.sort, options.defaultSort);
 
-  let q = Model.find(filter).sort(sort).skip(skip).limit(limit);
-  if (options.populate) q = q.populate(options.populate);
-  if (options.select) q = q.select(options.select);
-  if (options.lean) q = q.lean();
+  const find = (where, from, count) => {
+    if (count <= 0) return [];
+    let q = Model.find(where).sort(sort).skip(from).limit(count);
+    if (options.populate) q = q.populate(options.populate);
+    if (options.select) q = q.select(options.select);
+    if (options.lean) q = q.lean();
+    return q;
+  };
 
-  const [rows, total] = await Promise.all([q, Model.countDocuments(filter)]);
+  let rows;
+  let total;
+  if (options.first) {
+    // Rows matching `first` (e.g. "can be bought at this store") come before
+    // the rest, each part in `sort` order, and the page is cut across the two.
+    const head = { $and: [filter, options.first] };
+    const tail = { $and: [filter, { $nor: [options.first] }] };
+    const [inHead, inTail] = await Promise.all([Model.countDocuments(head), Model.countDocuments(tail)]);
+    const fromHead = Math.max(0, Math.min(limit, inHead - skip));
+    const [a, b] = await Promise.all([
+      find(head, skip, fromHead),
+      find(tail, Math.max(0, skip - inHead), limit - fromHead),
+    ]);
+    rows = [...a, ...b];
+    total = inHead + inTail;
+  } else {
+    [rows, total] = await Promise.all([find(filter, skip, limit), Model.countDocuments(filter)]);
+  }
   const items = options.lean ? rows.map(leanToApi) : rows;
 
   return {

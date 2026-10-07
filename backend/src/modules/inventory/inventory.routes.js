@@ -1,11 +1,14 @@
 const express = require("express");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
-const { paginate } = require("../../core/query");
+const { paginate, paging } = require("../../core/query");
 const { requireAuth, requirePermission } = require("../../middleware/auth");
 
 const Inventory = require("./inventory.model");
 const StockMovement = require("./stockMovement.model");
+const Variant = require("../catalog/variant.model");
+const Product = require("../catalog/product.model");
+const Store = require("../stores/store.model");
 const inventoryService = require("./inventory.service");
 
 const router = express.Router();
@@ -50,6 +53,76 @@ router.get(
 
     const low = rows.filter((r) => r.isLow);
     res.json({ success: true, items: low, meta: { total: low.length } });
+  })
+);
+
+// Out of stock means exactly what the storefront means: a pack on sale of
+// which not one whole unit can be bought at the store — counting packs the
+// store has never stocked (no row yet) and products marked sold out. So it
+// starts from the variants on sale, not from the stock rows. Without ?store=
+// it covers every active store.
+router.get(
+  "/out-of-stock",
+  canView,
+  asyncHandler(async (req, res) => {
+    const { page, limit, skip } = paging(req.query);
+    const stores = await Store.find(req.query.store ? { _id: req.query.store } : { status: "active" }).select("name");
+
+    const [result] = await Variant.aggregate([
+      { $match: { status: "active" } },
+      {
+        $lookup: {
+          from: Product.collection.name,
+          localField: "product",
+          foreignField: "_id",
+          pipeline: [{ $project: { name: 1, slug: 1, media: 1, unit: 1, status: 1, soldOut: 1 } }],
+          as: "product",
+        },
+      },
+      { $unwind: "$product" },
+      { $match: { "product.status": "active" } },
+      { $set: { store: stores.map((s) => s._id) } },
+      { $unwind: "$store" },
+      {
+        $lookup: {
+          from: Inventory.collection.name,
+          let: { v: "$_id", s: "$store" },
+          pipeline: [{ $match: { $expr: { $and: [{ $eq: ["$variant", "$$v"] }, { $eq: ["$store", "$$s"] }] } } }],
+          as: "row",
+        },
+      },
+      { $set: { row: { $first: "$row" } } },
+      { $set: { onHand: { $ifNull: ["$row.onHand", 0] }, reserved: { $ifNull: ["$row.reserved", 0] } } },
+      {
+        $set: {
+          available: {
+            $cond: ["$product.soldOut", 0, { $max: [0, { $subtract: ["$onHand", "$reserved"] }] }],
+          },
+        },
+      },
+      { $match: { available: { $lt: 1 } } },
+      { $sort: { "product.name": 1, name: 1, _id: 1 } },
+      { $facet: { items: [{ $skip: skip }, { $limit: limit }], total: [{ $count: "n" }] } },
+    ]);
+
+    const storeName = new Map(stores.map((s) => [String(s._id), s.name]));
+    const items = result.items.map((v) => ({
+      id: v.row ? String(v.row._id) : `${v.store}:${v._id}`,
+      store: { id: String(v.store), name: storeName.get(String(v.store)) },
+      variant: { id: String(v._id), sku: v.sku, name: v.name, sellingPrice: v.sellingPrice, packSize: v.packSize },
+      product: { id: String(v.product._id), name: v.product.name, slug: v.product.slug, media: v.product.media, unit: v.product.unit },
+      onHand: v.onHand,
+      reserved: v.reserved,
+      available: v.available,
+      neverStocked: !v.row,
+      soldOut: Boolean(v.product.soldOut),
+    }));
+    const total = result.total[0]?.n || 0;
+    res.json({
+      success: true,
+      items,
+      meta: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)), hasNext: skip + items.length < total },
+    });
   })
 );
 

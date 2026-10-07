@@ -39,6 +39,7 @@ export default function ProductCard({ product }) {
               src={img(image, 500)}
               alt={product.name}
               loading="lazy"
+              decoding="async"
               style={{ objectPosition: `${focalX}% ${focalY}%` }}
             />
           ) : null}
@@ -53,7 +54,9 @@ export default function ProductCard({ product }) {
       </div>
 
       <NameWrap {...nameProps}>
-        <h3 className="card-name">{product.name}</h3>
+        <h3 className="card-name" title={product.name}>
+          {product.name}
+        </h3>
       </NameWrap>
       <div className="card-pack">{size}</div>
 

@@ -414,15 +414,19 @@ a.utility-item:hover { color: #fff; opacity: 0.85; }
 .wishlist-btn.saved { color: #e0454f; }
 .wishlist-btn:disabled { opacity: 0.6; cursor: default; }
 
+/* One line, always: a long name ends in "..." rather than wrapping, so every
+   card in a row is the same height. The full name is in the title tooltip
+   and on the product page. */
 .card-name {
   font-size: 14px;
   font-weight: 500;
   line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  height: 1.35em;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
+.card > a:has(.card-name), .card > div:has(> .card-name) { display: block; min-width: 0; }
 .card-pack { font-size: 12px; color: var(--text-faint); margin-bottom: 10px; }
 /* flex-wrap, not a fixed one-line row: a discounted price (selling +
    struck-through MRP) next to a "Choose size" button doesn't fit a
@@ -3279,8 +3283,6 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     font-size: 12.5px;
     font-weight: 600;
     line-height: 1.3;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
   }
   .split.cat-layout .card-pack { margin-bottom: 2px; font-size: 11.5px; }
   .split.cat-layout .card-foot {
@@ -3304,6 +3306,8 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     font-size: 13.5px;
     font-weight: 600;
   }
+  /* "Out of stock" doesn't fit the 68px "Add" slot — size to the words, one line. */
+  .split.cat-layout .card-foot .add-btn.add-oos { width: auto; padding: 0 10px; font-size: 12px; white-space: nowrap; }
   .split.cat-layout .card-foot .add-btn .add-full { display: none; }
   .split.cat-layout .card-foot .add-btn .add-short { display: inline; }
   .split.cat-layout .card-foot .qty {

@@ -14,14 +14,14 @@ export default function AddToCart({ variantId, disabled, size = "sm", qty = 1, f
   const quantity = line?.quantity || 0;
   const busy = Boolean(cart.pending[variantId]);
 
-  if (disabled) {
+  if (disabled || (quantity <= 0 && cart.soldOut[variantId])) {
     return (
       <button
-        className="add-btn"
+        className="add-btn add-oos"
         disabled
         style={{ opacity: 0.5, cursor: "not-allowed", ...(fullWidth ? { width: "100%" } : null) }}
       >
-        Sold out
+        Out of stock
       </button>
     );
   }

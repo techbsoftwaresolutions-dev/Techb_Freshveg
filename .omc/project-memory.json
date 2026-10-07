@@ -203,6 +203,12 @@
       "type": "directory"
     },
     {
+      "path": "admin/src/pages/inventory/Inventory.jsx",
+      "accessCount": 5,
+      "lastAccessed": 1791363385243,
+      "type": "file"
+    },
+    {
       "path": "website/app/c/[slug]/page.jsx",
       "accessCount": 4,
       "lastAccessed": 1791192711416,
@@ -255,6 +261,18 @@
       "accessCount": 2,
       "lastAccessed": 1791359413454,
       "type": "directory"
+    },
+    {
+      "path": "admin/src/pages/Dashboard.jsx",
+      "accessCount": 2,
+      "lastAccessed": 1791363359497,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/inventory/inventory.routes.js",
+      "accessCount": 2,
+      "lastAccessed": 1791363379497,
+      "type": "file"
     },
     {
       "path": "backend/src/config/index.js",
@@ -368,6 +386,18 @@
       "path": "website/components/VariantPicker.jsx",
       "accessCount": 1,
       "lastAccessed": 1791359405004,
+      "type": "file"
+    },
+    {
+      "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/2690dae9-17e9-4524-ad53-2933f2a09223/scratchpad/big-top.png",
+      "accessCount": 1,
+      "lastAccessed": 1791365486962,
+      "type": "file"
+    },
+    {
+      "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/2690dae9-17e9-4524-ad53-2933f2a09223/scratchpad/big-desk.png",
+      "accessCount": 1,
+      "lastAccessed": 1791365509857,
       "type": "file"
     }
   ],

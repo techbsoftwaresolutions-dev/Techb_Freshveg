@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__plugin_playwright_playwright__browser_run_code_unsafe",
+  "tool_input_preview": "{\"code\":\"async (page) => {\\n  const out = [];\\n  const T = 'C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/2690dae9-17e9-4524-ad53-2933f2a09223/scratchpad/';\\n  await pa...",
+  "error": "### Error\nTimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.card').filter({ hasText: 'Out of Stock' }).first() to be visible\u001b[22m",
+  "timestamp": "2026-10-07T09:00:56.139Z",
+  "retry_count": 1
+}
