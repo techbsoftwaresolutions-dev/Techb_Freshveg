@@ -209,10 +209,28 @@
       "type": "file"
     },
     {
+      "path": "website/components/FreeDeliveryProgress.jsx",
+      "accessCount": 4,
+      "lastAccessed": 1791358405130,
+      "type": "file"
+    },
+    {
       "path": "backend/src/config/db.js",
       "accessCount": 3,
       "lastAccessed": 1791077683499,
       "type": "file"
+    },
+    {
+      "path": "website/components/Providers.jsx",
+      "accessCount": 3,
+      "lastAccessed": 1791359392872,
+      "type": "directory"
+    },
+    {
+      "path": "website",
+      "accessCount": 3,
+      "lastAccessed": 1791359397096,
+      "type": "directory"
     },
     {
       "path": "admin/src",
@@ -231,6 +249,12 @@
       "accessCount": 2,
       "lastAccessed": 1791192705991,
       "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 2,
+      "lastAccessed": 1791359413454,
+      "type": "directory"
     },
     {
       "path": "backend/src/config/index.js",
@@ -281,12 +305,6 @@
       "type": "file"
     },
     {
-      "path": "",
-      "accessCount": 1,
-      "lastAccessed": 1791183192601,
-      "type": "directory"
-    },
-    {
       "path": "admin/src/styles/index.css",
       "accessCount": 1,
       "lastAccessed": 1791183584154,
@@ -323,10 +341,34 @@
       "type": "file"
     },
     {
-      "path": "website",
+      "path": "website/components/Header.jsx",
       "accessCount": 1,
-      "lastAccessed": 1791291907823,
+      "lastAccessed": 1791358382807,
       "type": "directory"
+    },
+    {
+      "path": "website/components/AddToCart.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791359392231,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/cart/cart.service.js",
+      "accessCount": 1,
+      "lastAccessed": 1791359404004,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/cart/cart.routes.js",
+      "accessCount": 1,
+      "lastAccessed": 1791359404551,
+      "type": "file"
+    },
+    {
+      "path": "website/components/VariantPicker.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791359405004,
+      "type": "file"
     }
   ],
   "userDirectives": []

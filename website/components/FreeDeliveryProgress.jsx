@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { rupees } from "@/lib/format";
 import { useCart, useStore } from "./Providers";
 
@@ -124,11 +125,15 @@ export default function FreeDeliveryProgress({ variant = "inline" }) {
 }
 
 // The one-line version for the site header: the standing rule, with the
-// current amount. Hidden when the rule is off. Renders nothing until the store
-// has loaded on the client, so server and browser agree on the first paint.
+// current amount. Hidden when the rule is off. Renders nothing until this
+// component has mounted: the header hydrates inside a Suspense boundary, often
+// after the store has already loaded, so its first client render must still
+// match the server's empty output.
 export function FreeDeliveryNote({ className, withSeparator = false }) {
   const { known, enabled, threshold } = useFreeDeliveryRule();
-  if (!known || !enabled) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted || !known || !enabled) return null;
   return (
     <>
       {withSeparator ? <span className="utility-sep" aria-hidden="true" /> : null}

@@ -197,10 +197,7 @@ async function replaceVariants(product, variantPayloads, schema = null) {
       weightGrams: payload.weightGrams ?? 0,
       minOrderQty: payload.minOrderQty ?? soldLoose(resolved.defaults.minOrderQty, isSplitIntoPacks),
       maxOrderQty: payload.maxOrderQty ?? resolved.defaults.maxOrderQty ?? 50,
-      // A fractional step is a *loose* concept: 0.25 kg of tomatoes makes
-      // sense, a quarter of a sealed 1 KG pack does not. So a category's
-      // fractional step only reaches a product that is sold as one thing;
-      // a product split into packs steps in whole packs.
+      // The variant model rounds both of these to whole units on save.
       stepQty: payload.stepQty ?? soldLoose(resolved.defaults.stepQty, isSplitIntoPacks),
       lowStockThreshold: payload.lowStockThreshold ?? resolved.defaults.lowStockThreshold ?? 5,
       media: payload.media || [],

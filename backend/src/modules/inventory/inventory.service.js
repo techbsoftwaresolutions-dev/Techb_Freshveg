@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Inventory = require("./inventory.model");
 const StockMovement = require("./stockMovement.model");
 const Variant = require("../catalog/variant.model");
@@ -96,14 +97,25 @@ async function refreshVariantStock(variantId, session = null) {
 
 // The variants among these whose product is switched to "sold out" — they
 // can't be sold whatever the shelf holds.
+// Variants whose product is marked sold out — one round trip, the product
+// joined on the server.
 async function soldOutVariantIds(variantIds) {
-  const variants = await Variant.find({ _id: { $in: variantIds } }).select("product");
-  const soldOut = await Product.find({
-    _id: { $in: [...new Set(variants.map((v) => String(v.product)))] },
-    soldOut: true,
-  }).select("_id");
-  const soldOutProducts = new Set(soldOut.map((p) => String(p._id)));
-  return new Set(variants.filter((v) => soldOutProducts.has(String(v.product))).map((v) => String(v._id)));
+  const ids = variantIds.filter((id) => mongoose.isValidObjectId(id)).map((id) => new mongoose.Types.ObjectId(String(id)));
+  const rows = await Variant.aggregate([
+    { $match: { _id: { $in: ids } } },
+    {
+      $lookup: {
+        from: Product.collection.name,
+        localField: "product",
+        foreignField: "_id",
+        pipeline: [{ $match: { soldOut: true } }, { $project: { _id: 1 } }],
+        as: "soldOutProduct",
+      },
+    },
+    { $match: { "soldOutProduct.0": { $exists: true } } },
+    { $project: { _id: 1 } },
+  ]);
+  return new Set(rows.map((r) => String(r._id)));
 }
 
 async function availability(storeId, variantId) {

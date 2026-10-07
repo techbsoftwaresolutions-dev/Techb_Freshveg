@@ -17,6 +17,29 @@ const ownerOf = (req) => ({
   storeId: req.body.store || req.query.store || req.headers["x-store-id"] || null,
 });
 
+// Changes to one cart run one at a time. Two "add" taps that arrive together
+// would otherwise both read the cart without the item and both push it — a
+// duplicate line — or one save would overwrite the other's quantity. Each
+// change waits for the previous one on the same cart to finish responding.
+// ponytail: in-process queue — right for a single API process; with several
+// instances, switch to Mongoose optimisticConcurrency on the cart and retry.
+const queues = new Map();
+function oneAtATime(req, res, next) {
+  if (req.method === "GET") return next();
+  const { userId, sessionId, storeId } = ownerOf(req);
+  const key = `${userId || sessionId}|${storeId}`;
+  const previous = queues.get(key) || Promise.resolve();
+  let done;
+  const tail = previous.then(() => new Promise((resolve) => (done = resolve)));
+  queues.set(key, tail);
+  res.once("close", () => {
+    done?.();
+    if (queues.get(key) === tail) queues.delete(key);
+  });
+  previous.then(() => (res.writableEnded || res.destroyed ? done() : next()));
+}
+router.use(oneAtATime);
+
 const loadCart = asyncHandler(async (req, _res, next) => {
   req.cart = await cartService.getOrCreateCart(ownerOf(req));
   next();
