@@ -3095,6 +3095,232 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .review-prompt-backdrop, .review-prompt { animation: none; }
 }
 
+/* ---------------------------------------------------------------------------
+   Homepage "Download the app" band (components/AppDownload.jsx). The button
+   installs the site as a PWA.
+   ------------------------------------------------------------------------- */
+.app-band {
+  display: grid;
+  grid-template-columns: 225px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 28px;
+  padding: 22px 36px 0;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(100deg, #f1f8f3 0%, #e9f4ec 55%, #f4f9f5 100%);
+  border: 1px solid #dfece3;
+  overflow: hidden;
+}
+
+.app-band-phones {
+  position: relative;
+  align-self: end;
+  height: 200px;
+}
+.app-phone {
+  position: absolute;
+  bottom: -18px;
+  width: 108px;
+  height: 200px;
+  border: 7px solid #15181b;
+  border-radius: 24px;
+  background: #15181b;
+  box-shadow: 0 14px 30px rgba(10, 30, 20, 0.22);
+}
+.app-phone.back { left: 18px; transform: rotate(-9deg); }
+.app-phone.front { left: 100px; bottom: -6px; transform: rotate(7deg); }
+.app-phone-screen {
+  position: relative;
+  height: 100%;
+  border-radius: 17px;
+  background: #fff;
+  overflow: hidden;
+  padding: 22px 8px 8px;
+}
+.app-phone-notch {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 34px;
+  height: 6px;
+  margin-left: -17px;
+  border-radius: 6px;
+  background: #15181b;
+}
+.app-phone-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 4px;
+  font-size: 19px;
+  line-height: 1;
+  text-align: center;
+}
+.app-phone-deal {
+  position: absolute;
+  left: 8px;
+  right: 6px;
+  top: 98px;
+  padding: 8px 4px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f97316, #e8590c);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(-6deg);
+  box-shadow: 0 6px 14px rgba(232, 89, 12, 0.35);
+}
+
+.app-band-copy { padding-bottom: 22px; min-width: 0; }
+.app-band-copy h2 {
+  margin: 0 0 8px;
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.app-band-nowrap { white-space: nowrap; }
+.app-band-brand { color: var(--brand); }
+.app-band-brand span { color: #f08a1c; }
+.app-band-copy p {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.app-band-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 22px 10px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: #111;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.app-band-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2); }
+.app-band-btn:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.app-band-btn small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.app-band-btn strong { display: block; font-size: 20px; font-weight: 700; line-height: 1.2; }
+
+.app-band-help {
+  position: relative;
+  max-width: 440px;
+  margin-top: 12px;
+  padding: 10px 36px 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  font-size: 14px;
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+.app-band-help:focus { outline: none; }
+.app-band-help p { margin: 0; color: inherit; font-size: inherit; }
+.app-band-help-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.app-band-features {
+  display: flex;
+  margin: 0;
+  padding: 0 0 22px;
+  list-style: none;
+}
+.app-band-features li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 112px;
+  padding: 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--text);
+}
+.app-band-features li + li { border-left: 1px solid #d5e4da; }
+.app-band-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+}
+.app-band-icon.tone-green { background: #dcefe2; color: #1b7a3a; }
+.app-band-icon.tone-pink { background: #fde4ec; color: #e0457b; }
+.app-band-icon.tone-red { background: #fde3e3; color: #e53935; }
+.app-band-icon.tone-amber { background: #fff0d6; color: #f59e0b; }
+
+@media (max-width: 1080px) {
+  .app-band { grid-template-columns: 230px minmax(0, 1fr); row-gap: 0; }
+  .app-band-features {
+    grid-column: 1 / -1;
+    justify-content: space-around;
+    padding-top: 18px;
+    border-top: 1px solid #d5e4da;
+  }
+  .app-band-phones { grid-row: 1; }
+}
+
+@media (max-width: 720px) {
+  .app-band {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 22px 16px 0;
+    text-align: center;
+  }
+  .app-band-copy { grid-row: 1; padding-bottom: 6px; }
+  .app-band-copy h2 { font-size: 23px; }
+  .app-band-copy p { font-size: 14.5px; }
+  .app-band-help { margin-left: auto; margin-right: auto; text-align: left; }
+  .app-band-phones {
+    grid-row: 2;
+    width: 230px;
+    height: 150px;
+    margin: 6px auto 0;
+  }
+  .app-phone { transform-origin: bottom center; }
+  .app-phone.back { left: 12px; bottom: -48px; transform: rotate(-9deg) scale(0.85); }
+  .app-phone.front { left: 108px; bottom: -36px; transform: rotate(7deg) scale(0.85); }
+  /* Opaque and above the phones, so their lower halves tuck behind it. */
+  .app-band-features {
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0 -16px;
+    padding: 16px 4px;
+    background: #fff;
+    position: relative;
+    z-index: 1;
+  }
+  .app-band-features li { width: auto; padding: 0 4px; font-size: 12px; gap: 8px; }
+  .app-band-icon { width: 46px; height: 46px; }
+  .app-band-icon svg { width: 22px; height: 22px; }
 /* ------------------------------------------------ browse pages, phone
    "All products" and every category page. Above 720px none of this applies:
    the desktop sidebar, header and card are untouched. */
@@ -3944,4 +4170,5 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     .cart-line-qty .qty { min-width: 92px; }
     .cart-line-qty .qty button { width: 30px; }
   }
+}
 }
