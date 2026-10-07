@@ -9,6 +9,7 @@ import HomeSidebar from "@/components/HomeSidebar";
 import HeroCarousel from "@/components/HeroCarousel";
 import FlashDeal from "@/components/FlashDeal";
 import TrustStrip from "@/components/TrustStrip";
+import AppDownload from "@/components/AppDownload";
 
 // Flip to true to bring the left department sidebar back on the homepage —
 // see the comment beside its render call for what else that involves.
@@ -247,6 +248,8 @@ export default async function HomePage() {
           ) : null}
 
           <TrustStrip prepTimeMinutes={store?.prepTimeMinutes} />
+
+          <AppDownload />
         </div>
       </div>
     </div>
