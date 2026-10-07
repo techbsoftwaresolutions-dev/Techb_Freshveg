@@ -6,6 +6,9 @@ import ProductCard from "@/components/ProductCard";
 import { SortBar } from "@/components/Filters";
 import CategoryIcon from "@/components/CategoryIcon";
 import EmptyState from "@/components/EmptyState";
+import InfiniteProducts from "@/components/InfiniteProducts";
+import { DeliveryBar, MobileChips, MobileRail } from "@/components/MobileBrowse";
+import { SearchHead, SearchProvider, SearchSwap } from "@/components/ListingSearch";
 
 export const metadata = {
   title: "All categories",
@@ -22,24 +25,33 @@ export default async function CategoriesPage({ searchParams }) {
   const query = (await searchParams) || {};
   const page = Number(query.page) || 1;
 
-  const [catalog, result] = await Promise.all([
-    getCategories(),
-    getProducts({ limit: PER_PAGE, page, ...(query.sort ? { sort: query.sort } : {}) }),
-  ]);
+  // Everything but the page number: the phone's infinite scroll reuses it to
+  // fetch the pages after this one.
+  const listQuery = {
+    limit: PER_PAGE,
+    ...(query.sort ? { sort: query.sort } : {}),
+    ...(query.offers === "true" ? { offers: "true" } : {}),
+  };
+
+  const [catalog, result] = await Promise.all([getCategories(), getProducts({ ...listQuery, page })]);
 
   const departments = catalog?.categories || [];
   const products = result?.items || [];
   const meta = result?.meta;
 
   return (
-    <div className="wrap">
+    <SearchProvider className="wrap">
+      <SearchHead title="All products" backHref="/" />
+
       <nav className="crumbs" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         {" › "}
         <span>All categories</span>
       </nav>
 
-      <div className="split">
+      <div className="split cat-layout has-rail">
+        <MobileRail departments={departments} activeSlug={null} />
+
         {/* The aisle rail. Real links, one URL per aisle, so a crawler can
             follow them and a shopper can bookmark where they got to. */}
         <aside>
@@ -73,6 +85,9 @@ export default async function CategoriesPage({ searchParams }) {
         </aside>
 
         <div>
+          <MobileChips />
+
+          <SearchSwap query={listQuery}>
           <div className="browse-head">
             <h1>
               All products
@@ -92,15 +107,27 @@ export default async function CategoriesPage({ searchParams }) {
               </div>
 
               {meta && meta.pages > 1 ? <Pagination meta={meta} query={query} /> : null}
+              {meta && meta.pages > page ? (
+                <InfiniteProducts
+                  key={JSON.stringify(listQuery)}
+                  query={listQuery}
+                  startPage={page + 1}
+                  pages={meta.pages}
+                  seenIds={products.map((p) => p.id)}
+                />
+              ) : null}
             </>
           ) : (
             <EmptyState icon="box" title="Nothing to show yet" actions={[{ href: "/", label: "Go to home" }]}>
               Products appear here as soon as the store adds them.
             </EmptyState>
           )}
+          </SearchSwap>
         </div>
       </div>
-    </div>
+
+      <DeliveryBar />
+    </SearchProvider>
   );
 }
 

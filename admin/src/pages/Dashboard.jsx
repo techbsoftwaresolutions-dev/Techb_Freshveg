@@ -274,7 +274,7 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid dashboard-cols" style={{ marginBottom: 14 }}>
+      <div className="grid dashboard-cols swap" style={{ marginBottom: 14 }}>
         <div style={{ display: "grid", gap: 14 }}>
           <Card
             title="Sales Overview"
@@ -336,6 +336,100 @@ export default function Dashboard() {
           </Card>
 
           <Card
+            title="Top Selling Products"
+            actions={
+              <Link className="btn sm" to="/reports">
+                View all
+              </Link>
+            }
+            tight
+          >
+            {topProducts.length ? (
+              <div className="rank-list">
+                {topProducts.map((product, index) => (
+                  <div className="rank-item" key={product.id || product.name}>
+                    <span className="rank-num">{index + 1}</span>
+                    {product.image ? (
+                      <img src={product.image} alt="" className="rank-thumb" />
+                    ) : (
+                      <span className="rank-thumb rank-thumb-fallback">
+                        <IconProducts />
+                      </span>
+                    )}
+                    <div className="rank-body">
+                      <div className="rank-row">
+                        <span className="row-title">{product.name}</span>
+                        <strong>{rupees(product.revenue)}</strong>
+                      </div>
+                      <div className="row-sub">{product.units} units</div>
+                      <div className="rank-bar">
+                        <span
+                          style={{
+                            width: `${Math.round(((product.revenue || 0) / maxProductRevenue) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Empty
+                title="No sales yet"
+                hint="Top sellers show up once orders come in."
+              />
+            )}
+          </Card>
+
+          <Card
+            title="Recent Activity"
+            actions={
+              <Link className="btn sm" to="/settings/audit">
+                View all
+              </Link>
+            }
+            tight
+          >
+            {activity.length ? (
+              <div className="activity-list">
+                {activity.map((entry) => {
+                  const EntryIcon = ACTIVITY_ICONS[entry.entity] || IconAudit;
+                  const thumb = entry.thumbnail;
+                  return (
+                    <div className="activity-item" key={entry.id}>
+                      {thumb ? (
+                        <img src={thumb} alt="" className="activity-icon activity-thumb" />
+                      ) : (
+                        <span className="activity-icon">
+                          <EntryIcon />
+                        </span>
+                      )}
+                      <div className="activity-body">
+                        <div className="row-title">
+                          {cleanSummary(entry.summary) || `${entry.action} ${entry.entity}`}
+                        </div>
+                        <div className="row-sub">
+                          {entry.actorName || "System"}
+                        </div>
+                      </div>
+                      <span className="activity-time">
+                        {when(entry.createdAt)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Empty
+                title="No admin activity yet"
+                hint="Staff changes will show up here."
+              />
+            )}
+          </Card>
+        </div>
+
+        <div style={{ display: "grid", gap: 14 }}>
+          <Card
             title="Recent Orders"
             actions={
               <Link className="btn sm" to="/orders">
@@ -389,54 +483,6 @@ export default function Dashboard() {
               </div>
             ) : (
               <Empty title="No orders yet" />
-            )}
-          </Card>
-        </div>
-
-        <div style={{ display: "grid", gap: 14 }}>
-          <Card
-            title="Top Selling Products"
-            actions={
-              <Link className="btn sm" to="/reports">
-                View all
-              </Link>
-            }
-            tight
-          >
-            {topProducts.length ? (
-              <div className="rank-list">
-                {topProducts.map((product, index) => (
-                  <div className="rank-item" key={product.id || product.name}>
-                    <span className="rank-num">{index + 1}</span>
-                    {product.image ? (
-                      <img src={product.image} alt="" className="rank-thumb" />
-                    ) : (
-                      <span className="rank-thumb rank-thumb-fallback">
-                        <IconProducts />
-                      </span>
-                    )}
-                    <div className="rank-body">
-                      <div className="rank-row">
-                        <span className="row-title">{product.name}</span>
-                        <strong>{rupees(product.revenue)}</strong>
-                      </div>
-                      <div className="row-sub">{product.units} units</div>
-                      <div className="rank-bar">
-                        <span
-                          style={{
-                            width: `${Math.round(((product.revenue || 0) / maxProductRevenue) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Empty
-                title="No sales yet"
-                hint="Top sellers show up once orders come in."
-              />
             )}
           </Card>
 
@@ -534,52 +580,6 @@ export default function Dashboard() {
             </Card>
           ) : null}
         </div>
-
-        <Card
-          title="Recent Activity"
-          actions={
-            <Link className="btn sm" to="/settings/audit">
-              View all
-            </Link>
-          }
-          tight
-        >
-          {activity.length ? (
-            <div className="activity-list">
-              {activity.map((entry) => {
-                const EntryIcon = ACTIVITY_ICONS[entry.entity] || IconAudit;
-                const thumb = entry.thumbnail;
-                return (
-                  <div className="activity-item" key={entry.id}>
-                    {thumb ? (
-                      <img src={thumb} alt="" className="activity-icon activity-thumb" />
-                    ) : (
-                      <span className="activity-icon">
-                        <EntryIcon />
-                      </span>
-                    )}
-                    <div className="activity-body">
-                      <div className="row-title">
-                        {cleanSummary(entry.summary) || `${entry.action} ${entry.entity}`}
-                      </div>
-                      <div className="row-sub">
-                        {entry.actorName || "System"}
-                      </div>
-                    </div>
-                    <span className="activity-time">
-                      {when(entry.createdAt)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <Empty
-              title="No admin activity yet"
-              hint="Staff changes will show up here."
-            />
-          )}
-        </Card>
       </div>
 
       <div className="feature-row">

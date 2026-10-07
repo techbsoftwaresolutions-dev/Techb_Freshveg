@@ -58,6 +58,10 @@ const storeSchema = new mongoose.Schema(
     // delivery threshold than a small-town one without a code change.
     settings: {
       minOrderValue: money(0),
+      // Whether the "free above ₹X" rule is on at all. Off hides the customer
+      // progress card and stops the threshold from waiving delivery; the
+      // amount below is kept so switching it back on needs no retyping.
+      freeDeliveryEnabled: { type: Boolean, default: true },
       freeDeliveryAbove: money(0),
       deliveryCharge: money(0),
       packagingCharge: money(0),

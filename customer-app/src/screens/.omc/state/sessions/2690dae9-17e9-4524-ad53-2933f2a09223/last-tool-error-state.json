@@ -1,0 +1,7 @@
+{
+  "tool_name": "PowerShell",
+  "tool_input_preview": "{\"command\":\"foreach ($port in 3105,5183) { $c = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force; \\\"stopped $port\\\"...",
+  "error": "Exit code 2\nstopped 3105\r\nstopped 5183\r\ncopy exists: False",
+  "timestamp": "2026-10-06T11:06:58.352Z",
+  "retry_count": 1
+}

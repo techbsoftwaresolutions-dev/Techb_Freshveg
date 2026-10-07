@@ -13,6 +13,7 @@
     "sync-indexes": "node src/seed/syncIndexes.js",
     "smoke": "node src/seed/smoke.js",
     "migrate:images": "node src/seed/migrateImagesToCloudinary.js",
+    "migrate:whole-units": "node src/seed/migrateWholeUnits.js",
     "demo": "node src/seed/demoServer.js",
     "jobs:run": "node -e \"require(\"./src/jobs/scheduler\").trigger(process.argv[1]).then(r=>console.log(r))\""
   },

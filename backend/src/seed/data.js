@@ -231,8 +231,8 @@ const categories = [
       shelfLifeDays: 4,
       returnWindowDays: 1,
       lowStockThreshold: 10,
-      minOrderQty: 0.25,
-      stepQty: 0.25,          // sold in quarter kilos
+      minOrderQty: 1,
+      stepQty: 1,             // cart quantities count packs, never kilos
       maxOrderQty: 20,
     },
     bind: [

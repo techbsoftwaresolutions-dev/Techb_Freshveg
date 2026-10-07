@@ -155,8 +155,10 @@ function emptyCart(settings = {}) {
       offerDiscount: 0,
       deliveryCharge: 0,
       deliveryFree: false,
-      freeDeliveryThreshold: settings.freeDeliveryAbove || 0,
-      amountToFreeDelivery: 0,
+      freeDeliveryEnabled: settings.freeDeliveryEnabled !== false,
+      freeDeliveryThreshold: settings.freeDeliveryEnabled !== false ? settings.freeDeliveryAbove || 0 : 0,
+      // Nothing in the cart yet, so the whole threshold is still to go.
+      amountToFreeDelivery: settings.freeDeliveryEnabled !== false ? settings.freeDeliveryAbove || 0 : 0,
       packagingCharge: 0,
       taxTotal: 0,
       taxBreakup: [],
@@ -273,7 +275,10 @@ async function priceCart(context) {
 
   // --- 3. Charges -----------------------------------------------------
   let deliveryCharge = settings.deliveryCharge || 0;
-  const freeDeliveryThreshold = settings.freeDeliveryAbove || 0;
+  // A switched-off rule has no threshold at all, so it can neither waive the
+  // charge nor be shown to the customer.
+  const freeDeliveryEnabled = settings.freeDeliveryEnabled !== false;
+  const freeDeliveryThreshold = freeDeliveryEnabled ? settings.freeDeliveryAbove || 0 : 0;
   const freeByThreshold = freeDeliveryThreshold > 0 && afterDiscount >= freeDeliveryThreshold;
   if (freeDelivery || freeByThreshold) deliveryCharge = 0;
 
@@ -353,6 +358,7 @@ async function priceCart(context) {
       offerDiscount,
       deliveryCharge,
       deliveryFree: freeDelivery || freeByThreshold,
+      freeDeliveryEnabled,
       freeDeliveryThreshold,
       // How much more they need to spend to stop paying for delivery — the
       // nudge the cart screen shows.

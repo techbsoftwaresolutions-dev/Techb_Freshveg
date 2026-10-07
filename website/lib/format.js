@@ -10,19 +10,6 @@ export function discountPct(mrp, price) {
   return Math.round(((mrp - price) / mrp) * 100);
 }
 
-// A unit suffix belongs only on loose goods. A 5 KG bag of rice has
-// packSize.unit "kg" too, but its quantity counts packs — "1 kg" there would
-// tell someone they are buying a kilo when they are buying five.
-export function unitSuffix(item) {
-  if (!item) return "";
-  return Number(item.stepQty ?? 1) < 1 ? item.packSize?.unit || "" : "";
-}
-
-export function formatQty(quantity, unit = "") {
-  const rounded = Math.round(Number(quantity) * 100) / 100;
-  return `${rounded}${unit ? ` ${unit}` : ""}`;
-}
-
 export const when = (value) =>
   value
     ? new Date(value).toLocaleString("en-IN", {

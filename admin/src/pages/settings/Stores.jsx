@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, rupees } from "../../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Switch, Table, rupees } from "../../components/ui";
 
 // Commercial rules are per store — a city branch can carry a higher free
 // delivery threshold than a small-town one without any code change.
@@ -17,6 +17,9 @@ export default function Stores() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  // A save returns here as ?saved=<store name>, which is the confirmation.
+  const [params] = useSearchParams();
+  const saved = params.get("saved");
 
   useEffect(() => {
     setLoading(true);
@@ -41,6 +44,7 @@ export default function Stores() {
       </div>
 
       <Banner tone="error">{error}</Banner>
+      <Banner tone="ok">{saved ? `${saved} saved.` : ""}</Banner>
 
       <Card tight>
         <Table
@@ -88,7 +92,10 @@ export default function Stores() {
               key: "freeDelivery",
               label: "Free above",
               align: "right",
-              render: (row) => rupees(row.settings?.freeDeliveryAbove),
+              render: (row) =>
+                row.settings?.freeDeliveryEnabled === false || !row.settings?.freeDeliveryAbove
+                  ? "Off"
+                  : rupees(row.settings.freeDeliveryAbove),
             },
             {
               key: "status",
@@ -129,14 +136,15 @@ export function StoreFormPage() {
           saving={saving}
           onClose={back}
           onSave={(draft) =>
-            save(() =>
-              api.patch(`/stores/${draft.id}`, {
+            save(async () => {
+              await api.patch(`/stores/${draft.id}`, {
                 name: draft.name,
                 status: draft.status,
                 servicePincodes: draft.servicePincodes,
                 settings: draft.settings,
-              })
-            )
+              });
+              return `/settings/stores?saved=${encodeURIComponent(draft.name)}`;
+            })
           }
         />
       )}
@@ -162,6 +170,33 @@ function StoreModal({ value, saving, onClose, onSave }) {
     setForm((f) => ({ ...f, settings: { ...f.settings, upi: { ...f.settings?.upi, [key]: next } } }));
   const money = (key) => (e) => setSetting(key, Math.round(Number(e.target.value || 0) * 100));
 
+  // Free delivery. A store saved before the switch existed with no amount
+  // means "no free delivery", so it opens switched off rather than invalid.
+  const storedAmount = form.settings?.freeDeliveryAbove || 0;
+  const freeOn = form.settings?.freeDeliveryEnabled === true || (form.settings?.freeDeliveryEnabled !== false && storedAmount > 0);
+  const [freeText, setFreeText] = useState(storedAmount ? String(storedAmount / 100) : "");
+  const freeAmount = Number(freeText);
+  // Rupees with at most paise: ₹399.50 is fine, ₹399.555 is not.
+  const freeError = !freeOn
+    ? ""
+    : freeText.trim() === "" || !Number.isFinite(freeAmount)
+      ? "Enter the minimum order value."
+      : freeAmount <= 0
+        ? "Must be more than ₹0."
+        : Math.round(freeAmount * 100) !== Number((freeAmount * 100).toFixed(4))
+          ? "Use at most two decimal places."
+          : "";
+  const submit = () =>
+    onSave({
+      ...form,
+      settings: {
+        ...form.settings,
+        freeDeliveryEnabled: freeOn,
+        // Kept while switched off so turning it back on needs no retyping.
+        freeDeliveryAbove: freeError || freeText.trim() === "" ? storedAmount : Math.round(freeAmount * 100),
+      },
+    });
+
   return (
     <Modal
       title={form.name}
@@ -172,8 +207,8 @@ function StoreModal({ value, saving, onClose, onSave }) {
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn primary" disabled={saving} onClick={() => onSave(form)}>
-            {saving ? "Saving…" : "Save"}
+          <button className="btn primary" disabled={saving || Boolean(freeError)} onClick={submit}>
+            {saving ? "Saving…" : "Save changes"}
           </button>
         </>
       }
@@ -222,13 +257,6 @@ function StoreModal({ value, saving, onClose, onSave }) {
             onChange={money("minOrderValue")}
           />
         </Field>
-        <Field label="Free delivery above ₹">
-          <input
-            type="number"
-            value={(form.settings?.freeDeliveryAbove || 0) / 100}
-            onChange={money("freeDeliveryAbove")}
-          />
-        </Field>
         <Field label="Delivery charge ₹">
           <input
             type="number"
@@ -259,7 +287,46 @@ function StoreModal({ value, saving, onClose, onSave }) {
         </Field>
       </div>
 
-      <div className="inline">
+      <Card
+        title="Free delivery"
+        actions={
+          <Switch
+            checked={freeOn}
+            onChange={(next) => setSetting("freeDeliveryEnabled", next)}
+            onLabel="On"
+            offLabel="Off"
+          />
+        }
+        className="free-delivery-card"
+      >
+        <Field
+          label="Minimum order value"
+          error={freeError}
+          help={freeOn ? "Customers get free delivery once their cart reaches this amount." : undefined}
+        >
+          <div className="inline" style={{ gap: 6 }}>
+            <span className="muted">₹</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0.01"
+              step="0.01"
+              value={freeText}
+              onChange={(e) => setFreeText(e.target.value)}
+              disabled={!freeOn}
+              aria-invalid={Boolean(freeError)}
+              style={{ maxWidth: 160 }}
+            />
+          </div>
+        </Field>
+        {!freeOn ? (
+          <p className="faint" style={{ margin: 0, fontSize: 13 }}>
+            Free delivery is currently disabled. Customers will not see the free-delivery progress card.
+          </p>
+        ) : null}
+      </Card>
+
+      <div className="inline" style={{ marginTop: 14 }}>
         <label className="checkbox">
           <input
             type="checkbox"

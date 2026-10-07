@@ -2,11 +2,14 @@ import Link from "next/link";
 import { img } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { getCategory, getProducts, SITE_URL } from "@/lib/api";
+import { getCategories, getCategory, getProducts, SITE_URL } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import Filters, { ActiveFilters, SortBar } from "@/components/Filters";
+import { DeliveryBar, MobileChips, MobileRail } from "@/components/MobileBrowse";
+import { SearchHead, SearchProvider, SearchSwap } from "@/components/ListingSearch";
 import CategoryIcon from "@/components/CategoryIcon";
 import EmptyState from "@/components/EmptyState";
+import InfiniteProducts from "@/components/InfiniteProducts";
 import TrustStrip from "@/components/TrustStrip";
 
 export async function generateMetadata({ params }) {
@@ -56,16 +59,20 @@ export default async function CategoryPage({ params, searchParams }) {
   if (query.brand) apiQuery.brand = query.brand;
   if (query.maxPrice) apiQuery.maxPrice = query.maxPrice;
   if (query.inStock === "true") apiQuery.inStock = "true";
+  if (query.offers === "true") apiQuery.offers = "true";
   for (const [key, value] of Object.entries(query)) {
     if (key.startsWith("attr.")) apiQuery[key] = value;
   }
+
+  const parent = [...breadcrumb].reverse().find((step) => step.slug !== slug);
+  const departments = (await getCategories())?.categories || [];
 
   const result = await getProducts(apiQuery);
   const products = result?.items || [];
   const meta = result?.meta;
 
   return (
-    <div className="wrap">
+    <SearchProvider className="wrap">
       <nav className="crumbs" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         {breadcrumb.map((step) => (
@@ -82,8 +89,10 @@ export default async function CategoryPage({ params, searchParams }) {
           screen readers, which need a page title to know what this is. */}
       <h1 className="sr-only">{category.name}</h1>
 
+      <SearchHead title={category.name} backHref={parent ? `/c/${parent.slug}` : "/c"} />
+
       {children.length ? (
-        <nav className="top-cats aisle-tiles" aria-label={`Inside ${category.name}`}>
+        <nav className="top-cats aisle-tiles cat-hide-mobile" aria-label={`Inside ${category.name}`}>
           {children.map((child) => (
             <Link key={child.id} href={`/c/${child.slug}`} className="top-cat">
               <span className="top-cat-icon">
@@ -99,14 +108,17 @@ export default async function CategoryPage({ params, searchParams }) {
         </nav>
       ) : null}
 
-      <div className="split browse">
+      <div className="split browse cat-layout has-rail">
+        <MobileRail departments={departments} activeSlug={slug} />
+
         <Suspense fallback={<aside />}>
           <Filters filters={filters} brands={brands} priceBands={priceBands} availability={availability} />
         </Suspense>
 
         <div>
-          {/* How many products, with the sort beside it. The name is already
-              the page title directly above, so it is not repeated here. */}
+          <MobileChips facets={{ filters, brands, priceBands, availability }} />
+
+          <SearchSwap query={{ ...apiQuery, page: undefined }}>
           <div className="browse-head">
             <h2 className="browse-total">
               {meta?.total ?? products.length}{" "}
@@ -132,6 +144,15 @@ export default async function CategoryPage({ params, searchParams }) {
               {meta && meta.pages > 1 ? (
                 <Pagination slug={slug} meta={meta} query={query} />
               ) : null}
+              {meta && meta.pages > meta.page ? (
+                <InfiniteProducts
+                  key={JSON.stringify(apiQuery)}
+                  query={{ ...apiQuery, page: undefined }}
+                  startPage={meta.page + 1}
+                  pages={meta.pages}
+                  seenIds={products.map((p) => p.id)}
+                />
+              ) : null}
             </>
           ) : (meta?.total ?? 0) === 0 && !hasFilters(query) ? (
             <EmptyState icon="box" title="Nothing here yet" actions={[{ href: "/c", label: "Browse all products" }]}>
@@ -146,11 +167,13 @@ export default async function CategoryPage({ params, searchParams }) {
               Try removing a filter, or browse a subcategory above.
             </EmptyState>
           )}
+          </SearchSwap>
         </div>
       </div>
 
+      <DeliveryBar />
       <TrustStrip />
-    </div>
+    </SearchProvider>
   );
 }
 
@@ -174,6 +197,7 @@ function Pagination({ slug, meta, query }) {
 
   return (
     <nav
+      className="pager-slug"
       style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center", marginTop: 32 }}
       aria-label="Pagination"
     >

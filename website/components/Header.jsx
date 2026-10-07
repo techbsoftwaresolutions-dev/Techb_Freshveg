@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "./Providers";
 import { rupees } from "@/lib/format";
+import { FreeDeliveryNote } from "./FreeDeliveryProgress";
 
 export default function Header({ categories = [] }) {
   const router = useRouter();
@@ -52,12 +53,18 @@ export default function Header({ categories = [] }) {
   // Keep the box in step when the user lands on /search?q= from elsewhere.
   useEffect(() => {
     setTerm(params.get("q") || "");
-  }, [params]);
+  }, [params, pathname]);
+
+  // On "All products" and category pages the search box filters the listing
+  // in place (see ListingSearch) instead of opening the /search page.
+  const onListing = pathname === "/c" || pathname.startsWith("/c/");
+  const tellListing = (value) => window.dispatchEvent(new CustomEvent("listing-search", { detail: value }));
 
   const submit = (event) => {
     event.preventDefault();
     const q = term.trim();
-    if (q.length >= 2) router.push(`/search?q=${encodeURIComponent(q)}`);
+    if (onListing) tellListing(q);
+    else if (q.length >= 2) router.push(`/search?q=${encodeURIComponent(q)}`);
   };
 
   return (
@@ -75,14 +82,13 @@ export default function Header({ categories = [] }) {
       <div className="utility">
         <div className="wrap utility-inner">
           <span className="utility-item utility-wide">Freshness You Can Trust</span>
-          <span className="utility-sep" aria-hidden="true" />
-          <span className="utility-item utility-promo">Free delivery on orders above ₹399</span>
+          <FreeDeliveryNote className="utility-item utility-promo" withSeparator />
           <span className="utility-spacer" />
           <Link href="/orders" className="utility-item">
             <IconTruck className="utility-icon" />
             Track Order
           </Link>
-          <Link href="/account" className="utility-item utility-wide">
+          <Link href="/help" className="utility-item utility-wide">
             <IconHelp className="utility-icon" />
             Help Center
           </Link>
@@ -105,6 +111,10 @@ export default function Header({ categories = [] }) {
       </div>
 
       <div className="wrap header-main">
+        {/* Phone, on the cart page only (see globals.css): all categories. */}
+        <Link href="/c" className="header-burger" aria-label="All categories">
+          <IconMenu className="header-burger-icon" />
+        </Link>
         <Link href="/" className="logo">
           <span className="logo-row">
             <LogoMark className="logo-mark" />
@@ -122,7 +132,10 @@ export default function Header({ categories = [] }) {
           <input
             type="search"
             value={term}
-            onChange={(e) => setTerm(e.target.value)}
+            onChange={(e) => {
+              setTerm(e.target.value);
+              if (onListing) tellListing(e.target.value);
+            }}
             placeholder="Search for fruits, vegetables, groceries and more…"
             aria-label="Search products"
           />

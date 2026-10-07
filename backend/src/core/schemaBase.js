@@ -70,4 +70,9 @@ const objectId = (ref, options = {}) => ({
   ...options,
 });
 
-module.exports = { mongoose, baseOptions, subdocOptions, money, percent, objectId };
+// Order-quantity rules count packs or pieces, so they are whole numbers of at
+// least 1. Used as a setter: a fractional value (0.25 "kg") becomes 1, and an
+// unset one (null — "inherit") stays unset.
+const wholeUnit = (value) => (value == null || value === "" ? value : Math.max(1, Math.ceil(Number(value))));
+
+module.exports = { mongoose, baseOptions, subdocOptions, money, percent, objectId, wholeUnit };

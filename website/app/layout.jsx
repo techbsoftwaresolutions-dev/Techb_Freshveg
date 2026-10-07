@@ -17,7 +17,7 @@ export const metadata = {
     template: "%s | Hosur Basket",
   },
   description:
-    "Order fresh fruit, vegetables, groceries, personal care and household essentials from your neighbourhood store. Same-day delivery, free above ₹399.",
+    "Order fresh fruit, vegetables, groceries, personal care and household essentials from your neighbourhood store. Same-day delivery, with free delivery above a minimum order.",
   openGraph: {
     type: "website",
     siteName: "Hosur Basket",

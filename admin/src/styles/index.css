@@ -372,9 +372,16 @@ h3 { font-size: 14px; }
 .card { min-width: 0; }
 .grid.dashboard-cols { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.9fr); align-items: start; }
 
+/* Two-column dashboard: the orders table gets the wider right side. */
+@media (min-width: 1301px) {
+  .grid.dashboard-cols.swap { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+}
 @media (max-width: 1300px) {
   .grid.dashboard-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .grid.dashboard-cols > :last-child { grid-column: 1 / -1; }
+}
+@media (min-width: 1101px) and (max-width: 1300px) {
+  .grid.dashboard-cols.swap > :last-child { grid-column: auto; }
 }
 @media (max-width: 1100px) {
   .grid.cols-4, .grid.cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1277,3 +1284,135 @@ textarea { min-height: 76px; resize: vertical; }
 
 /* A bordered block inside a modal — an address, a saved card, a grouped note. */
 .panel { background: var(--surface-2); }
+
+/* ------------------------------------------------- categories, phone view
+   Desktop keeps editor + tree side by side. Up to 720px the page is a list
+   first; picking a row swaps to that category's editor with a back link. */
+.cat-m, .cat-m-back { display: none; }
+
+@media (max-width: 720px) {
+  .cats-head { margin-bottom: 12px; gap: 10px; flex-wrap: nowrap; align-items: center; }
+  .cats-head h1 { font-size: 20px; margin: 0; }
+  .cats-head .btn { flex: 0 0 auto; }
+
+  .cats-page:not(.m-editing) .cats-desktop,
+  .cats-page.m-editing .cat-m,
+  .cats-page.m-editing .cats-head { display: none; }
+  .cats-page .cats-tree-card { display: none; }
+
+  .cats-page:not(.m-editing) .cat-m, .cats-page.m-editing .cat-m-back { display: block; }
+  .cat-m-back {
+    margin: -4px 0 12px;
+    padding: 10px 6px;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .cat-m-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-faint);
+  }
+  .cat-m-search input {
+    flex: 1;
+    min-width: 0;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent;
+    padding: 0 !important;
+    font-size: 15px;
+  }
+
+  .cat-m-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 0;
+  }
+  .cat-m-row { display: flex; align-items: center; min-height: 52px; padding-right: 2px; border-top: 1px solid var(--border); }
+  .cat-m-list > div:first-child > .cat-m-row { border-top: none; }
+  .cat-m-row.child .cat-m-name { font-weight: 500; }
+  .cat-m-twisty {
+    flex: 0 0 36px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border: none;
+    background: none;
+    color: var(--text-faint);
+    cursor: pointer;
+  }
+  .cat-m-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 4px;
+    border: none;
+    background: none;
+    font: inherit;
+    text-align: left;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .cat-m-name { font-weight: 650; font-size: 15px; overflow-wrap: anywhere; }
+  .cat-m-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--text-faint); }
+  .cat-m-more {
+    flex: 0 0 44px;
+    height: 44px;
+    border: none;
+    background: none;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .cat-m-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(16, 18, 24, 0.4); }
+  .cat-m-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 91;
+    padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    background: var(--surface);
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
+  }
+  .cat-m-sheet-title { padding: 10px 8px 6px; font-weight: 650; overflow-wrap: anywhere; }
+  .cat-m-sheet button {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: none;
+    font: inherit;
+    font-size: 15px;
+    text-align: left;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .cat-m-sheet button:active { background: var(--surface-2); }
+  .cat-m-sheet button.danger { color: var(--danger); margin-top: 6px; border-top: 1px solid var(--border); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+  .cat-m-sheet button.cancel { margin-top: 6px; text-align: center; font-weight: 600; background: var(--surface-2); }
+
+  /* the editor card: long names and paths wrap instead of widening the page */
+  .cats-page .card-head { flex-wrap: wrap; gap: 8px; }
+  .cats-page .card-head h2, .cats-page .card-head .tag { overflow-wrap: anywhere; }
+}
