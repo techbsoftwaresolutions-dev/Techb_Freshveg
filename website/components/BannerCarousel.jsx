@@ -2,9 +2,16 @@
 
 import Link from "next/link";
 import { img } from "@/lib/format";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import crate from "@/assets/Fresh Harvest in a Sunlit Crate.webp";
+import basket from "@/assets/Fresh Fruit Basket in Sunlit Greenery.webp";
+import splash from "@/assets/Fresh Produce Splash Banner.webp";
 
-const ROTATE_MS = 6000;
+const ROTATE_MS = 7000;
+
+// The strip's own photography, one per slide in order. A banner that has its
+// own image uploaded in the admin shows that instead.
+const BACKDROPS = [crate.src, basket.src, splash.src];
 
 // Where a banner's target points. The admin stores a kind and a value rather
 // than a URL, so the shape of the site can change without rewriting banners.
@@ -24,102 +31,120 @@ function hrefFor(target) {
   }
 }
 
+// "Fresh picks, every morning" -> ["Fresh picks,", "every morning"]: the
+// headline's second half takes the light-green accent. A title with no
+// natural break stays on one colour.
+function splitTitle(title = "") {
+  const match = title.match(/^(.+?[,?!:])\s+(.+)$/);
+  return match ? [match[1], match[2]] : [title, ""];
+}
+
 export default function BannerCarousel({ banners = [] }) {
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const timer = useRef(null);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [still, setStill] = useState(false); // prefers-reduced-motion
+  const touch = useRef(null);
 
   const count = banners.length;
-  const go = useCallback((next) => setIndex(((next % count) + count) % count), [count]);
-
-  useEffect(() => {
-    if (count < 2 || paused) return undefined;
-    timer.current = setInterval(() => setIndex((i) => (i + 1) % count), ROTATE_MS);
-    return () => clearInterval(timer.current);
-  }, [count, paused]);
+  const go = (next) => setIndex(((next % count) + count) % count);
 
   // Someone who prefers reduced motion gets the first banner and the dots,
   // with nothing moving underneath them.
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const apply = () => setPaused(query.matches);
+    const apply = () => setStill(query.matches);
     apply();
     query.addEventListener("change", apply);
     return () => query.removeEventListener("change", apply);
   }, []);
 
+  // One timeout per slide, so picking a slide by hand gives it the full
+  // seven seconds rather than whatever was left on the previous one.
+  useEffect(() => {
+    if (count < 2 || hovered || focused || still) return undefined;
+    const timer = setTimeout(() => setIndex((i) => (i + 1) % count), ROTATE_MS);
+    return () => clearTimeout(timer);
+  }, [index, count, hovered, focused, still]);
+
   if (!count) return null;
 
-  const banner = banners[index];
-  const href = hrefFor(banner.target);
-
-  const content = (
-    <div
-      // Always the same brand green, regardless of what's set in Admin —
-      // this strip is meant to stay one consistent color across every
-      // promotion, not follow a per-banner custom color.
-      className={`banner-slide${banner.image ? " has-image" : ""}`}
-      style={{ background: "var(--brand-dark)" }}
-    >
-      {/* The photo fills the whole card, with a green wash over its left side
-          so the copy stays readable whatever the picture is. The admin's crop
-          focus decides which part of the photo stays in view. */}
-      {banner.image ? (
-        <>
-          <img
-            src={img(banner.image, 1200)}
-            alt=""
-            className="banner-image"
-            style={{ objectPosition: `${banner.focalX ?? 50}% ${banner.focalY ?? 50}%` }}
-          />
-          <span className="banner-shade" aria-hidden="true" />
-        </>
-      ) : null}
-      <div className="banner-copy">
-        <strong>{banner.title}</strong>
-        {banner.subtitle ? <span>{banner.subtitle}</span> : null}
-        {href ? (
-          <span className="banner-cue">
-            Shop Now
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </span>
-        ) : null}
-      </div>
-    </div>
-  );
-
   return (
-    <div
-      className="banner-carousel"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
+    <section
+      className={`promo-carousel${still ? " still" : ""}`}
       aria-roledescription="carousel"
+      aria-label="Promotions"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setFocused(false)}
+      onTouchStart={(event) => (touch.current = event.touches[0].clientX)}
+      onTouchEnd={(event) => {
+        if (touch.current == null) return;
+        const dx = event.changedTouches[0].clientX - touch.current;
+        touch.current = null;
+        if (Math.abs(dx) > 40) go(index + (dx < 0 ? 1 : -1));
+      }}
     >
-      {href ? (
-        <Link href={href} aria-label={banner.title}>
-          {content}
-        </Link>
-      ) : (
-        content
-      )}
+      {banners.map((banner, i) => {
+        const href = hrefFor(banner.target);
+        const [lead, accent] = splitTitle(banner.title);
+        const current = i === index;
+        const photo = banner.image ? img(banner.image, 1600) : BACKDROPS[i % BACKDROPS.length];
+        const Wrap = href ? Link : "div";
+        return (
+          <Wrap
+            key={banner.id || i}
+            {...(href ? { href } : {})}
+            className={`promo-slide${current ? " current" : ""}`}
+            aria-hidden={current ? undefined : true}
+            tabIndex={current ? undefined : -1}
+            aria-roledescription="slide"
+            aria-label={`${i + 1} of ${count}: ${banner.title}`}
+          >
+            <img
+              src={photo}
+              alt=""
+              className="promo-photo"
+              loading={i === 0 ? "eager" : "lazy"}
+              decoding="async"
+              style={banner.image ? { objectPosition: `${banner.focalX ?? 50}% ${banner.focalY ?? 50}%` } : undefined}
+            />
+            <span className="promo-shade" aria-hidden="true" />
+            <div className="promo-copy">
+              <h2 className="promo-title">
+                {lead}
+                {accent ? <span>{accent}</span> : null}
+              </h2>
+              {banner.subtitle ? <p>{banner.subtitle}</p> : null}
+              {href ? (
+                <span className="promo-cue">
+                  Shop Now
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </span>
+              ) : null}
+            </div>
+          </Wrap>
+        );
+      })}
 
       {count > 1 ? (
-        <div className="banner-dots" role="tablist" aria-label="Choose a promotion">
-          {banners.map((b, i) => (
+        <div className="promo-dots" role="tablist" aria-label="Choose a promotion">
+          {banners.map((banner, i) => (
             <button
-              key={b.id}
+              key={banner.id || i}
               type="button"
               role="tab"
               aria-selected={i === index}
-              aria-label={b.title}
-              className={`banner-dot${i === index ? " current" : ""}`}
+              aria-label={banner.title}
+              className={`promo-dot${i === index ? " current" : ""}`}
               onClick={() => go(i)}
             />
           ))}
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }
