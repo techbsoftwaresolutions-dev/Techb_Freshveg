@@ -16,6 +16,8 @@ export default function Stores() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deleted, setDeleted] = useState("");
+  const [deleting, setDeleting] = useState(null);
   const navigate = useNavigate();
   // A save returns here as ?saved=<store name>, which is the confirmation.
   const [params] = useSearchParams();
@@ -33,6 +35,26 @@ export default function Stores() {
       .finally(() => setLoading(false));
   }, [page]);
 
+  // The API refuses when deleting would lose history or widen a rule (orders
+  // on record, the default store, staff or offers tied to it alone) and says
+  // why; that reason is shown as it comes.
+  async function removeStore(store) {
+    if (!window.confirm(`Delete "${store.name}"? Its stock, delivery zones and slots go with it. This can't be undone.`)) return;
+    setDeleting(store.id);
+    setError("");
+    setDeleted("");
+    try {
+      await api.delete(`/stores/${store.id}`);
+      setItems((list) => list.filter((s) => s.id !== store.id));
+      setMeta((m) => (m ? { ...m, total: Math.max(0, m.total - 1) } : m));
+      setDeleted(store.name);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeleting(null);
+    }
+  }
+
   if (loading) return <div className="page"><Loading /></div>;
 
   return (
@@ -44,7 +66,7 @@ export default function Stores() {
       </div>
 
       <Banner tone="error">{error}</Banner>
-      <Banner tone="ok">{saved ? `${saved} saved.` : ""}</Banner>
+      <Banner tone="ok">{deleted ? `${deleted} deleted.` : saved ? `${saved} saved.` : ""}</Banner>
 
       <Card tight>
         <Table
@@ -107,6 +129,29 @@ export default function Stores() {
                 </div>
               ),
             },
+            ...(editable
+              ? [
+                  {
+                    key: "actions",
+                    label: "",
+                    align: "right",
+                    render: (row) => (
+                      <button
+                        type="button"
+                        className="btn sm danger"
+                        disabled={row.isDefault || deleting === row.id}
+                        title={row.isDefault ? "The default store can't be deleted" : undefined}
+                        onClick={(event) => {
+                          event.stopPropagation(); // the row itself opens the store
+                          removeStore(row);
+                        }}
+                      >
+                        {deleting === row.id ? "Deleting…" : "Delete"}
+                      </button>
+                    ),
+                  },
+                ]
+              : []),
           ]}
           rows={items}
           onRowClick={editable ? (row) => navigate(`/settings/stores/${row.id}`) : undefined}

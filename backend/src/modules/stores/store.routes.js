@@ -4,6 +4,18 @@ const ApiError = require("../../core/ApiError");
 const { paginate } = require("../../core/query");
 const { requireAuth, requirePermission, optionalAuth } = require("../../middleware/auth");
 const Store = require("./store.model");
+const Order = require("../orders/order.model");
+const Payment = require("../payments/payment.model");
+const User = require("../auth/user.model");
+const Offer = require("../pricing/offer.model");
+const Inventory = require("../inventory/inventory.model");
+const StockMovement = require("../inventory/stockMovement.model");
+const Cart = require("../cart/cart.model");
+const DeliveryZone = require("../delivery/deliveryZone.model");
+const DeliverySlot = require("../delivery/deliverySlot.model");
+const MaintenanceAsset = require("../maintenance/maintenanceAsset.model");
+const MaintenanceRequest = require("../maintenance/maintenanceRequest.model");
+const audit = require("../audit/audit.service");
 
 const router = express.Router();
 
@@ -73,6 +85,62 @@ router.patch(
     const store = await Store.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!store) throw ApiError.notFound("Store not found");
     res.json({ success: true, store });
+  })
+);
+
+// Deleting a store removes it and its operational data (stock, carts,
+// delivery zones and slots, maintenance records). It is refused when that
+// would lose something that has to be kept or change who/what a rule covers:
+//  - the default store — the storefront falls back to it;
+//  - a store with orders or payments — that history must stay (close the
+//    store instead: status "closed");
+//  - staff or offers scoped to this store alone — an empty store list means
+//    "every store", so removing the last one would widen them.
+router.delete(
+  "/:id",
+  requirePermission("settings.manage"),
+  asyncHandler(async (req, res) => {
+    const store = await Store.findById(req.params.id);
+    if (!store) throw ApiError.notFound("Store not found");
+    if (store.isDefault) {
+      throw ApiError.conflict("This is the default store. Make another store the default first.");
+    }
+
+    const id = store._id;
+    const [orders, payments, onlyStaff, onlyOffers] = await Promise.all([
+      Order.countDocuments({ store: id }),
+      Payment.countDocuments({ store: id }),
+      User.countDocuments({ stores: [id] }),
+      Offer.countDocuments({ "conditions.stores": [id] }),
+    ]);
+    const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+    if (orders || payments) {
+      throw ApiError.conflict(
+        `${store.name} has ${plural(orders || payments, orders ? "order" : "payment")} on record, which must be kept. Set its status to Closed instead.`
+      );
+    }
+    if (onlyStaff) {
+      throw ApiError.conflict(`${plural(onlyStaff, "staff member")} ${onlyStaff === 1 ? "works" : "work"} only at ${store.name}. Assign them to another store first.`);
+    }
+    if (onlyOffers) {
+      throw ApiError.conflict(`${plural(onlyOffers, "offer")} ${onlyOffers === 1 ? "applies" : "apply"} only at ${store.name}. Edit or remove ${onlyOffers === 1 ? "it" : "them"} first.`);
+    }
+
+    await Promise.all([
+      Inventory.deleteMany({ store: id }),
+      StockMovement.deleteMany({ store: id }),
+      Cart.deleteMany({ store: id }),
+      DeliveryZone.deleteMany({ store: id }),
+      DeliverySlot.deleteMany({ store: id }),
+      MaintenanceAsset.deleteMany({ store: id }),
+      MaintenanceRequest.deleteMany({ store: id }),
+      User.updateMany({ stores: id }, { $pull: { stores: id } }),
+      Offer.updateMany({ "conditions.stores": id }, { $pull: { "conditions.stores": id } }),
+    ]);
+    await store.deleteOne();
+
+    await audit.record({ req, action: "delete", entity: "Store", entityId: id, label: store.name });
+    res.json({ success: true });
   })
 );
 
