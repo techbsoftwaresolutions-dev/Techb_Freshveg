@@ -43,6 +43,8 @@ copy(path.join(project, "website"), app);
 copy(path.join(project, "backend/src"), path.join(app, "backend/src"));
 fs.copyFileSync(path.join(__dirname, "one-app/server.js"), path.join(app, "server.js"));
 fs.copyFileSync(path.join(__dirname, "one-app/instrumentation.js"), path.join(app, "instrumentation.js"));
+fs.copyFileSync(path.join(__dirname, "one-app/api-start.js"), path.join(app, "backend/start.js"));
+fs.copyFileSync(path.join(__dirname, "one-app/next.config.mjs"), path.join(app, "next.config.mjs"));
 
 const site = JSON.parse(fs.readFileSync(path.join(project, "website/package.json"), "utf8"));
 const api = JSON.parse(fs.readFileSync(path.join(project, "backend/package.json"), "utf8"));
@@ -81,6 +83,10 @@ fs.writeFileSync(
     SITE_URL: live,
   })
 );
+// The same settings as a file for hPanel's "Import .env" button: the host's
+// Next.js preset may not carry the uploaded .env through to the running app,
+// but its own Environment Variables always reach it. Holds secrets — never share.
+fs.copyFileSync(path.join(app, ".env"), path.join(__dirname, "hosurbasket-app.env"));
 
 // A lockfile matching the merged dependencies, so `npm ci` works too.
 execSync("npm install --package-lock-only --no-audit --no-fund", { cwd: app, stdio: "inherit" });

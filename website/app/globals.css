@@ -3100,121 +3100,150 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
    installs the site as a PWA.
    ------------------------------------------------------------------------- */
 .app-band {
+  --ab-ink: #15181b;
   display: grid;
-  grid-template-columns: 225px minmax(0, 1fr) auto;
+  grid-template-columns: 240px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 28px;
-  padding: 22px 36px 0;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(100deg, #f1f8f3 0%, #e9f4ec 55%, #f4f9f5 100%);
-  border: 1px solid #dfece3;
+  gap: 24px 28px;
+  padding: 0 36px 0 20px;
+  border-radius: 28px;
+  background:
+    radial-gradient(120% 140% at 0% 100%, #e3f3e7 0%, transparent 55%),
+    radial-gradient(90% 120% at 100% 100%, #e6f3ea 0%, transparent 50%),
+    linear-gradient(100deg, #f2f9f4 0%, #eef7f1 60%, #f5faf6 100%);
+  border: 1px solid #e1eee5;
   overflow: hidden;
 }
 
-.app-band-phones {
-  position: relative;
-  align-self: end;
-  height: 200px;
-}
+/* phones + greenery */
+.app-band-art { position: relative; align-self: end; height: 230px; }
 .app-phone {
   position: absolute;
-  bottom: -18px;
-  width: 108px;
-  height: 200px;
-  border: 7px solid #15181b;
-  border-radius: 24px;
-  background: #15181b;
-  box-shadow: 0 14px 30px rgba(10, 30, 20, 0.22);
+  bottom: -8px;
+  width: 116px;
+  height: 222px;
+  border: 6px solid var(--ab-ink);
+  border-radius: 26px;
+  background: var(--ab-ink);
+  box-shadow: 0 16px 34px rgba(10, 30, 20, 0.22);
 }
-.app-phone.back { left: 18px; transform: rotate(-9deg); }
-.app-phone.front { left: 100px; bottom: -6px; transform: rotate(7deg); }
+.app-phone.back { left: 26px; bottom: -26px; transform: rotate(-12deg); }
+.app-phone.front { left: 112px; bottom: 6px; transform: rotate(7deg); z-index: 1; }
 .app-phone-screen {
   position: relative;
   height: 100%;
-  border-radius: 17px;
+  border-radius: 20px;
   background: #fff;
   overflow: hidden;
-  padding: 22px 8px 8px;
+  padding: 24px 8px 8px;
 }
 .app-phone-notch {
   position: absolute;
   top: 6px;
   left: 50%;
-  width: 34px;
-  height: 6px;
-  margin-left: -17px;
+  width: 38px;
+  height: 9px;
+  margin-left: -19px;
   border-radius: 6px;
-  background: #15181b;
+  background: var(--ab-ink);
 }
-.app-phone-grid {
+.app-phone-title { display: block; margin: 0 0 6px 2px; font-size: 10.5px; font-weight: 800; color: #1b7a3a; }
+.app-phone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px 4px; }
+.app-phone-tile {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px 4px;
-  font-size: 19px;
-  line-height: 1;
-  text-align: center;
-}
-.app-phone-deal {
-  position: absolute;
-  left: 8px;
-  right: 6px;
-  top: 98px;
-  padding: 8px 4px;
+  justify-items: center;
+  gap: 2px;
+  padding: 5px 0 3px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #f97316, #e8590c);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-align: center;
-  text-transform: uppercase;
-  transform: rotate(-6deg);
-  box-shadow: 0 6px 14px rgba(232, 89, 12, 0.35);
+  background: #fbf6ec;
 }
+.app-phone.back .app-phone-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+.app-phone.back .app-phone-tile { padding: 9px 0; background: #fdf3ef; }
+.app-phone-tile small { font-size: 6.5px; font-weight: 600; color: #4b5563; line-height: 1; }
+.app-phone-cta {
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fb8c1e, #f06d0f);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  box-shadow: 0 6px 12px rgba(240, 109, 15, 0.35);
+}
+.app-phone-cta svg { width: 11px; height: 11px; }
+.app-sprig { position: absolute; bottom: -6px; width: 92px; height: 92px; z-index: 2; }
+.app-sprig.left { left: -18px; }
+.app-sprig.right { left: 196px; width: 64px; height: 64px; transform: scaleX(-1); }
+.app-spark {
+  position: absolute;
+  top: 26px;
+  left: 24px;
+  width: 26px;
+  height: 22px;
+  background:
+    linear-gradient(#4caf63, #4caf63) 0 100% / 13px 3.5px no-repeat,
+    linear-gradient(#4caf63, #4caf63) 100% 0 / 3.5px 13px no-repeat;
+  transform: rotate(-30deg);
+  border-radius: 2px;
+}
+.app-leaf { position: absolute; right: -8px; top: 92px; color: #6fbf82; }
 
-.app-band-copy { padding-bottom: 22px; min-width: 0; }
+/* copy */
+.app-band-copy { padding: 30px 0; min-width: 0; }
 .app-band-copy h2 {
   margin: 0 0 8px;
-  font-size: 27px;
+  font-size: 30px;
   font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
   color: var(--text);
 }
 .app-band-nowrap { white-space: nowrap; }
 .app-band-brand { color: var(--brand); }
-.app-band-brand span { color: #f08a1c; }
 .app-band-copy p {
-  margin: 0 0 16px;
+  max-width: 470px;
+  margin: 0 0 18px;
   color: var(--text-muted);
-  font-size: 16px;
+  font-size: 17px;
+  line-height: 1.45;
 }
-
 .app-band-btn {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 22px 10px 16px;
+  gap: 14px;
+  min-height: 60px;
+  padding: 8px 20px 8px 14px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 14px;
   background: #111;
   color: #fff;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.app-band-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2); }
-.app-band-btn:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
-.app-band-btn small {
-  display: block;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.85;
+.app-band-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 26px rgba(0, 0, 0, 0.22); }
+.app-band-btn:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+.app-band-btn-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--brand);
 }
-.app-band-btn strong { display: block; font-size: 20px; font-weight: 700; line-height: 1.2; }
+.app-band-btn-text { display: grid; }
+.app-band-btn small { font-size: 12.5px; font-weight: 500; opacity: 0.85; }
+.app-band-btn strong { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.app-band-btn .app-arrow { margin-left: 18px; flex: none; }
 
 .app-band-help {
   position: relative;
@@ -3244,83 +3273,136 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   cursor: pointer;
 }
 
+/* features */
 .app-band-features {
   display: flex;
+  gap: 2px;
   margin: 0;
-  padding: 0 0 22px;
+  padding: 6px 0 6px 22px;
+  border-left: 1px solid #d5e4da;
   list-style: none;
 }
 .app-band-features li {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 112px;
-  padding: 0 8px;
+  gap: 12px;
+  width: 94px;
   font-size: 14px;
-  font-weight: 600;
-  line-height: 1.3;
+  font-weight: 500;
+  line-height: 1.35;
   text-align: center;
   color: var(--text);
 }
-.app-band-features li + li { border-left: 1px solid #d5e4da; }
 .app-band-icon {
   display: grid;
   place-items: center;
-  width: 58px;
-  height: 58px;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
 }
-.app-band-icon.tone-green { background: #dcefe2; color: #1b7a3a; }
-.app-band-icon.tone-pink { background: #fde4ec; color: #e0457b; }
-.app-band-icon.tone-red { background: #fde3e3; color: #e53935; }
-.app-band-icon.tone-amber { background: #fff0d6; color: #f59e0b; }
+.app-band-icon.tone-green { background: #d9f0df; color: #22a24a; }
+.app-band-icon.tone-pink { background: #fde0e8; color: #ec3f6d; }
+.app-band-icon.tone-peach { background: #fde9dc; color: #f4511e; }
+.app-band-icon.tone-violet { background: #ece4fd; color: #8b5cf6; }
 
-@media (max-width: 1080px) {
-  .app-band { grid-template-columns: 230px minmax(0, 1fr); row-gap: 0; }
+/* narrower desktops: the features take their own row under the copy */
+@media (max-width: 1180px) {
+  .app-band { grid-template-columns: 240px minmax(0, 1fr); row-gap: 0; }
+  .app-band-art { grid-row: 1 / span 2; }
+  .app-band-copy { padding-bottom: 14px; }
   .app-band-features {
-    grid-column: 1 / -1;
-    justify-content: space-around;
-    padding-top: 18px;
+    grid-column: 2;
+    justify-content: flex-start;
+    padding: 16px 0 28px;
+    border-left: 0;
     border-top: 1px solid #d5e4da;
   }
-  .app-band-phones { grid-row: 1; }
+  .app-band-features li { width: auto; flex: 1; max-width: 120px; font-size: 13.5px; }
+  .app-band-icon { width: 56px; height: 56px; }
 }
 
+/* phone: art on top, centred copy, a full-width button, features 2 x 2 */
 @media (max-width: 720px) {
   .app-band {
     grid-template-columns: minmax(0, 1fr);
-    padding: 22px 16px 0;
+    gap: 0;
+    padding: 0 16px 16px;
+    border-radius: 22px;
     text-align: center;
   }
-  .app-band-copy { grid-row: 1; padding-bottom: 6px; }
-  .app-band-copy h2 { font-size: 23px; }
-  .app-band-copy p { font-size: 14.5px; }
-  .app-band-help { margin-left: auto; margin-right: auto; text-align: left; }
-  .app-band-phones {
-    grid-row: 2;
-    width: 230px;
+  .app-band-art {
+    grid-row: 1;
+    width: 250px;
     height: 150px;
-    margin: 6px auto 0;
+    margin: 0 auto;
+    align-self: auto;
   }
   .app-phone { transform-origin: bottom center; }
-  .app-phone.back { left: 12px; bottom: -48px; transform: rotate(-9deg) scale(0.85); }
-  .app-phone.front { left: 108px; bottom: -36px; transform: rotate(7deg) scale(0.85); }
-  /* Opaque and above the phones, so their lower halves tuck behind it. */
+  .app-phone.back { left: 34px; bottom: -64px; transform: rotate(-12deg) scale(0.8); }
+  .app-phone.front { left: 110px; bottom: -52px; transform: rotate(7deg) scale(0.8); }
+  .app-sprig.left { left: -6px; width: 74px; height: 74px; }
+  .app-sprig.right { left: 196px; width: 54px; height: 54px; }
+  .app-leaf { right: 4px; top: 40px; }
+  .app-spark { top: 18px; left: 20px; }
+  /* the copy sits on an opaque panel over the phones' lower halves */
+  .app-band-copy {
+    grid-row: 2;
+    position: relative;
+    z-index: 3;
+    margin: 0 -16px;
+    padding: 18px 16px 4px;
+    background: linear-gradient(#f3faf5, #eef7f1);
+    border-top: 1px solid #e1eee5;
+  }
+  .app-band-copy h2 { font-size: 23px; }
+  .app-band-copy p { margin: 0 auto 14px; font-size: 14.5px; }
+  .app-band-btn { display: flex; width: 100%; max-width: 360px; margin: 0 auto; min-height: 56px; }
+  .app-band-btn-text { flex: 1; }
+  .app-band-btn strong { font-size: 18px; }
+  .app-band-btn .app-arrow { margin-left: 8px; }
+  .app-band-help { margin-left: auto; margin-right: auto; text-align: left; }
   .app-band-features {
     grid-row: 3;
+    grid-column: 1;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    margin: 0 -16px;
-    padding: 16px 4px;
-    background: #fff;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 14px;
+    padding: 0;
+    border: 0;
     position: relative;
-    z-index: 1;
+    z-index: 3;
   }
-  .app-band-features li { width: auto; padding: 0 4px; font-size: 12px; gap: 8px; }
-  .app-band-icon { width: 46px; height: 46px; }
-  .app-band-icon svg { width: 22px; height: 22px; }
+  .app-band-features li {
+    flex-direction: row;
+    gap: 10px;
+    max-width: none;
+    padding: 8px 10px;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid #e3eee6;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-align: left;
+  }
+  .app-band-icon { width: 38px; height: 38px; flex: none; }
+  .app-band-icon svg { width: 20px; height: 20px; }
+}
+@media (max-width: 340px) {
+  .app-band-copy h2 { font-size: 21px; }
+  .app-band-btn { gap: 10px; padding: 8px 12px 8px 10px; }
+  .app-band-btn-icon { width: 34px; height: 34px; }
+  .app-band-btn-text { white-space: nowrap; }
+  .app-band-btn small { font-size: 11px; }
+  .app-band-btn strong { font-size: 16.5px; }
+  .app-band-btn .app-arrow { width: 20px; height: 20px; margin-left: 4px; }
+  .app-band-features { gap: 6px; }
+  .app-band-features li { padding: 7px; gap: 7px; font-size: 11.5px; }
+  .app-band-icon { width: 32px; height: 32px; }
+  .app-band-icon svg { width: 18px; height: 18px; }
+}
 /* ------------------------------------------------ browse pages, phone
    "All products" and every category page. Above 720px none of this applies:
    the desktop sidebar, header and card are untouched. */
@@ -4170,5 +4252,4 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     .cart-line-qty .qty { min-width: 92px; }
     .cart-line-qty .qty button { width: 30px; }
   }
-}
 }

@@ -30,25 +30,32 @@ export default function AppDownload() {
 
   return (
     <section className="section app-band" aria-labelledby="app-band-title">
-      <div className="app-band-phones" aria-hidden="true">
-        <Phone className="app-phone back" items={["🥕", "🍅", "🥦", "🧅", "🥛", "🍞"]} />
-        <Phone className="app-phone front" items={["🍎", "🍌", "🥭", "🍇", "🥚", "🧈"]} deal />
+      <div className="app-band-art" aria-hidden="true">
+        <Sprig className="app-sprig left" />
+        <Sprig className="app-sprig right" />
+        <span className="app-spark" />
+        <Phone className="app-phone back" tiles={["apple", "orange", "lemon", "greens"]} />
+        <Phone className="app-phone front" tiles={["apple", "greens", "milk", "snack", "chips"]} labelled />
+        <IconLeaf className="app-leaf" />
       </div>
 
       <div className="app-band-copy">
         <h2 id="app-band-title">
           Download{" "}
           <span className="app-band-nowrap">
-            <span className="app-band-brand">Hosur <span>Basket</span></span> App
+            <span className="app-band-brand">Hosur Basket</span> App
           </span>
         </h2>
-        <p>Fresh groceries, offers and order tracking — one tap from your home screen.</p>
+        <p>Get fresh groceries, exclusive offers and a better shopping experience on our app.</p>
         <button type="button" className="app-band-btn" onClick={install}>
-          <IconPhone />
-          <span>
-            <small>Free on Android &amp; iPhone</small>
+          <span className="app-band-btn-icon">
+            <IconPhone />
+          </span>
+          <span className="app-band-btn-text">
+            <small>Get it on your phone</small>
             <strong>Install the app</strong>
           </span>
+          <IconArrow />
         </button>
 
         {help ? (
@@ -63,20 +70,20 @@ export default function AppDownload() {
 
       <ul className="app-band-features">
         <li>
-          <span className="app-band-icon tone-green"><IconPin /></span>
-          Track your<br />order live
+          <span className="app-band-icon tone-green"><IconTag /></span>
+          <span>Exclusive<br />App Offers</span>
         </li>
         <li>
-          <span className="app-band-icon tone-pink"><IconGift /></span>
-          Exclusive<br />offers
+          <span className="app-band-icon tone-pink"><IconTruck /></span>
+          <span>Faster<br />Delivery</span>
         </li>
         <li>
-          <span className="app-band-icon tone-red"><IconHeart /></span>
-          Save your<br />favourites
+          <span className="app-band-icon tone-peach"><IconHeart /></span>
+          <span>Easy<br />Reordering</span>
         </li>
         <li>
-          <span className="app-band-icon tone-amber"><IconBolt /></span>
-          Fast &amp; easy<br />reorder
+          <span className="app-band-icon tone-violet"><IconCrown /></span>
+          <span>Personalized<br />Deals</span>
         </li>
       </ul>
     </section>
@@ -110,19 +117,101 @@ function HelpText({ platform }) {
   );
 }
 
-function Phone({ className, items, deal = false }) {
+// ---- the phone mock-ups (decorative) ---------------------------------------
+
+const TILE_LABEL = { apple: "Fruits", greens: "Vegetables", milk: "Dairy", snack: "Snacks", chips: "Snacks" };
+
+function Phone({ className, tiles, labelled = false }) {
   return (
     <div className={className}>
       <div className="app-phone-screen">
         <span className="app-phone-notch" />
+        {labelled ? <span className="app-phone-title">Fresh Market</span> : null}
         <div className="app-phone-grid">
-          {items.map((item) => (
-            <span key={item}>{item}</span>
+          {tiles.map((tile, i) => (
+            <span key={`${tile}${i}`} className="app-phone-tile">
+              <Produce kind={tile} />
+              {labelled ? <small>{TILE_LABEL[tile]}</small> : null}
+            </span>
           ))}
         </div>
-        {deal ? <span className="app-phone-deal">Fresh deals</span> : null}
+        {labelled ? (
+          <span className="app-phone-cta">
+            Shop Now <IconArrow />
+          </span>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+// Small flat drawings standing in for product photos.
+function Produce({ kind }) {
+  const svg = { viewBox: "0 0 32 32", width: 22, height: 22 };
+  switch (kind) {
+    case "apple":
+      return (
+        <svg {...svg}>
+          <path d="M16 10c-3-2.5-9-1.5-9 5.5 0 6 4 10 6.5 10 1.3 0 1.8-.6 2.5-.6s1.2.6 2.5.6C21 25.5 25 21.5 25 15.5c0-7-6-8-9-5.5Z" fill="#e53935" />
+          <path d="M16 10c0-2.5 1-4 2.5-5" stroke="#6d4c41" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+          <path d="M18 7c2.5-1.5 5-1 5-1s-1 2.6-4 2.6" fill="#43a047" />
+        </svg>
+      );
+    case "orange":
+      return (
+        <svg {...svg}>
+          <circle cx="16" cy="17" r="9" fill="#fb8c00" />
+          <path d="M16 8c1.5-2 4-2 4-2s-.6 2.6-3.4 2.8" fill="#43a047" />
+        </svg>
+      );
+    case "lemon":
+      return (
+        <svg {...svg}>
+          <ellipse cx="16" cy="16" rx="10" ry="7.5" fill="#fdd835" />
+          <circle cx="7" cy="16" r="1.6" fill="#fdd835" />
+        </svg>
+      );
+    case "greens":
+      return (
+        <svg {...svg}>
+          <path d="M14.5 18h3l1 9h-5l1-9Z" fill="#7cb342" />
+          <circle cx="11" cy="14" r="5" fill="#43a047" />
+          <circle cx="21" cy="14" r="5" fill="#43a047" />
+          <circle cx="16" cy="10" r="5.5" fill="#66bb6a" />
+        </svg>
+      );
+    case "milk":
+      return (
+        <svg {...svg}>
+          <path d="M12.5 4h7v4l2.5 4v15a1 1 0 0 1-1 1H11a1 1 0 0 1-1-1V12l2.5-4V4Z" fill="#e3f2fd" stroke="#64b5f6" strokeWidth="1.4" />
+          <rect x="10.8" y="15" width="10.4" height="6" fill="#42a5f5" />
+          <rect x="12.5" y="2.5" width="7" height="3" rx="1" fill="#1e88e5" />
+        </svg>
+      );
+    case "snack":
+      return (
+        <svg {...svg}>
+          <path d="M8 6h16l-1.5 3 1.5 3v12l-1.5 3H9.5L8 24V12l1.5-3L8 6Z" fill="#fb8c00" />
+          <circle cx="16" cy="17" r="4" fill="#ffe082" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...svg}>
+          <path d="M9 6h14l-1 3 1 3v12l-1 3H10l-1-3V12l1-3-1-3Z" fill="#e53935" />
+          <circle cx="16" cy="17" r="4" fill="#ffcdd2" />
+        </svg>
+      );
+  }
+}
+
+function Sprig({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 90 90" aria-hidden="true">
+      <path d="M45 88C40 60 20 48 6 46c10 14 18 32 39 42Z" fill="#7cc58d" />
+      <path d="M47 88c2-28 16-46 34-56-4 20-14 44-34 56Z" fill="#4caf63" />
+      <path d="M46 88C44 64 46 40 56 18c6 24 2 50-10 70Z" fill="#66bb6a" />
+    </svg>
   );
 }
 
@@ -136,30 +225,52 @@ const iconProps = {
   "aria-hidden": true,
 };
 
+function IconLeaf({ className }) {
+  return (
+    <svg {...iconProps} className={className} strokeWidth="1.5" width="34" height="34">
+      <path d="M20 4C9 4 4 10 4 20c10 0 16-5 16-16Z" />
+      <path d="M4 20 15 9" />
+    </svg>
+  );
+}
+
 function IconPhone() {
   return (
-    <svg {...iconProps} width="26" height="26">
+    <svg {...iconProps} width="24" height="24">
       <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
       <path d="M11 18.5h2" />
     </svg>
   );
 }
 
-function IconPin() {
+function IconArrow() {
   return (
-    <svg {...iconProps} width="28" height="28">
-      <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z" />
-      <circle cx="12" cy="9.5" r="2.6" />
+    <svg {...iconProps} className="app-arrow" width="24" height="24" strokeWidth="2.2">
+      <path d="M5 12h14M13 6l6 6-6 6" />
     </svg>
   );
 }
 
-function IconGift() {
+function IconTag() {
   return (
-    <svg {...iconProps} width="28" height="28">
-      <rect x="3.5" y="8" width="17" height="4" rx="1" />
-      <path d="M5 12v8h14v-8M12 8v12" />
-      <path d="M12 8S10.5 3.5 8 4.2C6 4.8 7 8 12 8Zm0 0s1.5-4.5 4-3.8C18 4.8 17 8 12 8Z" />
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+      <path d="M3 12.6V4.5A1.5 1.5 0 0 1 4.5 3h8.1a1.5 1.5 0 0 1 1 .44l7 7a1.5 1.5 0 0 1 0 2.12l-8.1 8.1a1.5 1.5 0 0 1-2.12 0l-7-7A1.5 1.5 0 0 1 3 12.6Z" fill="currentColor" />
+      <circle cx="7.5" cy="7.5" r="1.4" fill="#fff" />
+      <path d="M9.5 15.5 15.5 9.5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="10.6" cy="10.6" r="1" fill="#fff" />
+      <circle cx="14.4" cy="14.4" r="1" fill="#fff" />
+    </svg>
+  );
+}
+
+function IconTruck() {
+  return (
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+      <path d="M2 6.5A1.5 1.5 0 0 1 3.5 5H14v11H2V6.5Z" fill="currentColor" />
+      <path d="M14 8.5h3.6a1.5 1.5 0 0 1 1.2.6l2.9 3.8V16H14V8.5Z" fill="currentColor" opacity="0.8" />
+      <circle cx="7" cy="17" r="2.2" fill="#fff" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="17.5" cy="17" r="2.2" fill="#fff" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M0 9h4M1 12h3" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   );
 }
@@ -172,10 +283,14 @@ function IconHeart() {
   );
 }
 
-function IconBolt() {
+function IconCrown() {
   return (
-    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
-      <path d="M13.5 2 4.5 13.5h6L9.5 22l9-11.5h-6L13.5 2Z" />
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+      <path d="M3 8.5 7.5 12 12 5.5 16.5 12 21 8.5 19.5 18h-15L3 8.5Z" fill="currentColor" />
+      <rect x="4.5" y="19" width="15" height="2" rx="1" fill="currentColor" opacity="0.75" />
+      <circle cx="12" cy="4.5" r="1.4" fill="currentColor" />
+      <circle cx="3" cy="8" r="1.2" fill="currentColor" />
+      <circle cx="21" cy="8" r="1.2" fill="currentColor" />
     </svg>
   );
 }
