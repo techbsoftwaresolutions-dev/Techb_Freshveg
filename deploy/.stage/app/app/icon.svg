@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Hosur Basket">
+  <rect width="64" height="64" rx="14" fill="#1b7a3a"/>
+  <g transform="translate(12 10) scale(0.84)">
+    <path d="M22 44C9 42 2 31 4 14c11 1 19 8 20 20 0 4-1 7-2 10Z" fill="#a5e0a9"/>
+    <path d="M24 44c1-14 7-26 20-32 2 17-5 29-18 32h-2Z" fill="#ffffff"/>
+  </g>
+</svg>
