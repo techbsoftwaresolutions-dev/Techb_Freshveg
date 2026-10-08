@@ -40,6 +40,8 @@ export function AuthProvider({ children }) {
 
   async function signIn(phone, password) {
     const data = await api.post("/auth/staff/login", { phone, password });
+    // No token, no session — whatever the reply claimed.
+    if (!data?.accessToken || !data?.user) throw new Error("Sign-in failed. Please try again.");
     const next = {
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,

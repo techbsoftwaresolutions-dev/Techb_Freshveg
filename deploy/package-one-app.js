@@ -41,10 +41,13 @@ function setEnv(text, values) {
 const app = path.join(stage, "app");
 copy(path.join(project, "website"), app);
 copy(path.join(project, "backend/src"), path.join(app, "backend/src"));
-fs.copyFileSync(path.join(__dirname, "one-app/server.js"), path.join(app, "server.js"));
+// The API is served by a Next.js API route that runs the Express app
+// in-process, so the host only ever sees an ordinary Next.js app.
 fs.copyFileSync(path.join(__dirname, "one-app/instrumentation.js"), path.join(app, "instrumentation.js"));
 fs.copyFileSync(path.join(__dirname, "one-app/api-start.js"), path.join(app, "backend/start.js"));
 fs.copyFileSync(path.join(__dirname, "one-app/next.config.mjs"), path.join(app, "next.config.mjs"));
+fs.mkdirSync(path.join(app, "pages/api"), { recursive: true });
+fs.copyFileSync(path.join(__dirname, "one-app/api-route.js"), path.join(app, "pages/api/[...path].js"));
 
 const site = JSON.parse(fs.readFileSync(path.join(project, "website/package.json"), "utf8"));
 const api = JSON.parse(fs.readFileSync(path.join(project, "backend/package.json"), "utf8"));
@@ -55,8 +58,7 @@ fs.writeFileSync(
       name: "hosurbasket",
       version: site.version,
       private: true,
-      main: "server.js",
-      scripts: { build: "next build", start: "node server.js" },
+      scripts: { build: "next build", start: "next start" },
       dependencies: { ...api.dependencies, ...site.dependencies },
       engines: { node: ">=20" },
     },
@@ -75,11 +77,10 @@ fs.writeFileSync(
     PUBLIC_URL: live,
     // The website is same-origin now; only the admin calls the API cross-site.
     CORS_ORIGINS: `${live},https://www.hosurbasket.com,https://admin.hosurbasket.com`,
-    // Under plain `next start`, instrumentation.js runs the API on this private
-    // port and both the /api rewrite and the server-rendered pages use it.
-    // (Under server.js the site points at its own port instead.)
-    INTERNAL_API_PORT: "41755",
-    API_BASE_URL: "http://127.0.0.1:41755",
+    // The pages read the API at the site's own public address (instrumentation.js
+    // enforces this at runtime; here it also serves the build step).
+    INTERNAL_API_PORT: null,
+    API_BASE_URL: live,
     SITE_URL: live,
   })
 );
