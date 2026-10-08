@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Poppins } from "next/font/google";
+import { DM_Serif_Display, Poppins } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import Header from "@/components/Header";
@@ -40,6 +40,14 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
+// Headings only — the serif that carries the Farmers Basket wordmark's tone.
+const serif = DM_Serif_Display({
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+  variable: "--font-dm-serif",
+});
+
 export const viewport = {
   width: "device-width",
   initialScale: 1,
@@ -56,7 +64,7 @@ export default async function RootLayout({ children }) {
   const categories = data?.categories || [];
 
   return (
-    <html lang="en-IN" className={poppins.variable}>
+    <html lang="en-IN" className={`${poppins.variable} ${serif.variable}`}>
       <body>
         <Providers>
           {/* Header reads useSearchParams, which needs a Suspense boundary so

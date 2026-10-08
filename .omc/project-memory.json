@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1791279548199,
+  "lastScanned": 1791441603438,
   "projectRoot": "D:\\TechB\\fresh market\\Techb_Freshveg",
   "techStack": {
     "languages": [],
@@ -33,7 +33,7 @@
       "path": "admin",
       "purpose": null,
       "fileCount": 6,
-      "lastAccessed": 1791279548076,
+      "lastAccessed": 1791441603340,
       "keyFiles": [
         "index.html",
         "package-lock.json",
@@ -45,7 +45,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1791279548077,
+      "lastAccessed": 1791441603341,
       "keyFiles": [
         "package-lock.json",
         "package.json"
@@ -55,7 +55,7 @@
       "path": "customer-app",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1791279548078,
+      "lastAccessed": 1791441603341,
       "keyFiles": [
         "app.config.js",
         "App.js",
@@ -68,7 +68,7 @@
       "path": "delivery-app",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1791279548079,
+      "lastAccessed": 1791441603343,
       "keyFiles": [
         "app.config.js",
         "App.js",
@@ -77,11 +77,21 @@
         "package.json"
       ]
     },
+    "deploy": {
+      "path": "deploy",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1791441603344,
+      "keyFiles": [
+        "hosurbasket-app.env",
+        "package-one-app.js"
+      ]
+    },
     "website": {
       "path": "website",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1791279548080,
+      "lastAccessed": 1791441603345,
       "keyFiles": [
         "jsconfig.json",
         "next.config.mjs",
@@ -94,7 +104,7 @@
       "path": "admin\\dist",
       "purpose": "Distribution/build output",
       "fileCount": 1,
-      "lastAccessed": 1791279548081,
+      "lastAccessed": 1791441603346,
       "keyFiles": [
         "index.html"
       ]
@@ -103,14 +113,21 @@
       "path": "admin\\node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1791279548082,
+      "lastAccessed": 1791441603349,
+      "keyFiles": []
+    },
+    "admin\\public": {
+      "path": "admin\\public",
+      "purpose": "Public files",
+      "fileCount": 1,
+      "lastAccessed": 1791441603350,
       "keyFiles": []
     },
     "admin\\src": {
       "path": "admin\\src",
       "purpose": "Source code",
       "fileCount": 2,
-      "lastAccessed": 1791279548085,
+      "lastAccessed": 1791441603351,
       "keyFiles": [
         "App.jsx",
         "main.jsx"
@@ -120,14 +137,14 @@
       "path": "backend\\node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1791279548091,
+      "lastAccessed": 1791441603354,
       "keyFiles": []
     },
     "backend\\src": {
       "path": "backend\\src",
       "purpose": "Source code",
       "fileCount": 2,
-      "lastAccessed": 1791279548092,
+      "lastAccessed": 1791441603355,
       "keyFiles": [
         "app.js",
         "server.js"
@@ -137,62 +154,59 @@
       "path": "customer-app\\node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1791279548108,
-      "keyFiles": []
-    },
-    "customer-app\\src": {
-      "path": "customer-app\\src",
-      "purpose": "Source code",
-      "fileCount": 0,
-      "lastAccessed": 1791279548122,
+      "lastAccessed": 1791441603361,
       "keyFiles": []
     },
     "delivery-app\\node_modules": {
       "path": "delivery-app\\node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1791279548128,
+      "lastAccessed": 1791441603366,
       "keyFiles": []
     },
     "website\\app": {
       "path": "website\\app",
       "purpose": "Application code",
       "fileCount": 9,
-      "lastAccessed": 1791279548131,
+      "lastAccessed": 1791441603367,
       "keyFiles": [
         "apple-icon.jsx",
         "globals.css",
         "icon.svg"
       ]
     },
+    "website\\assets": {
+      "path": "website\\assets",
+      "purpose": "Static assets",
+      "fileCount": 4,
+      "lastAccessed": 1791441603367,
+      "keyFiles": [
+        "Farmers Basket Fresh Produce Logo.webp",
+        "Fresh Fruit Basket in Sunlit Greenery.webp",
+        "Fresh Harvest in a Sunlit Crate.webp"
+      ]
+    },
     "website\\components": {
       "path": "website\\components",
       "purpose": "UI components",
-      "fileCount": 27,
-      "lastAccessed": 1791279548136,
+      "fileCount": 34,
+      "lastAccessed": 1791441603368,
       "keyFiles": [
-        "AddToCart.jsx",
-        "BannerCarousel.jsx",
-        "Carousel.jsx"
+        "AccountIcons.jsx",
+        "AccountMobile.jsx",
+        "AddToCart.jsx"
       ]
     },
     "website\\lib": {
       "path": "website\\lib",
       "purpose": "Library code",
-      "fileCount": 4,
-      "lastAccessed": 1791279548157,
+      "fileCount": 6,
+      "lastAccessed": 1791441603368,
       "keyFiles": [
         "api.js",
         "app-icon.jsx",
         "client-api.js"
       ]
-    },
-    "website\\node_modules": {
-      "path": "website\\node_modules",
-      "purpose": "Dependencies",
-      "fileCount": 1,
-      "lastAccessed": 1791279548166,
-      "keyFiles": []
     }
   },
   "hotPaths": [
@@ -422,6 +436,30 @@
       "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/2690dae9-17e9-4524-ad53-2933f2a09223/scratchpad/stores-refused.png",
       "accessCount": 1,
       "lastAccessed": 1791374042550,
+      "type": "file"
+    },
+    {
+      "path": "website/assets/Fresh Harvest Basket in Sunlit Fields.webp",
+      "accessCount": 1,
+      "lastAccessed": 1791442485143,
+      "type": "file"
+    },
+    {
+      "path": "website/app/page.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791442494328,
+      "type": "file"
+    },
+    {
+      "path": ".playwright-mcp/hero-desk.jpg",
+      "accessCount": 1,
+      "lastAccessed": 1791442542540,
+      "type": "file"
+    },
+    {
+      "path": ".playwright-mcp/hero-mob.jpg",
+      "accessCount": 1,
+      "lastAccessed": 1791442543098,
       "type": "file"
     }
   ],

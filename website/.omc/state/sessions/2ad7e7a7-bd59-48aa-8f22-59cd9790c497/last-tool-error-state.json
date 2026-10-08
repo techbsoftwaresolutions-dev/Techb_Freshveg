@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"/d/TechB/fresh market/Techb_Freshveg/.playwright-mcp\\\" && node -e \\\"\\n// split the tall mobile shot into 3 crops for reading\\n\\\" ; python -c \\\"\\nfrom PIL import Image\\nim=Image.open('...",
+  "error": "Exit code 1\nTraceback (most recent call last):\r\n  File \"<string>\", line 2, in <module>\r\n    from PIL import Image\r\nModuleNotFoundError: No module named 'PIL'",
+  "timestamp": "2026-10-08T06:50:24.111Z",
+  "retry_count": 1
+}

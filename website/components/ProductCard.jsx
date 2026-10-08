@@ -15,6 +15,9 @@ export default function ProductCard({ product }) {
   const focalX = primaryMedia?.focalX ?? 50;
   const focalY = primaryMedia?.focalY ?? 50;
   const outOfStock = product.inStock === false;
+  // Quality flags the admin already tags products with — shown as chips on
+  // the photo. Other tags are search keywords, not badges.
+  const flags = (product.tags || []).filter((tag) => /^(fresh|organic|export quality)$/i.test(tag)).slice(0, 2);
 
   const multi = product.variantCount > 1;
   // What the price actually buys. A figure with no size beside it cannot be
@@ -43,7 +46,13 @@ export default function ProductCard({ product }) {
               style={{ objectPosition: `${focalX}% ${focalY}%` }}
             />
           ) : null}
-          {off > 0 && !outOfStock ? <span className="badge">{off}% OFF</span> : null}
+          {flags.length && !outOfStock ? (
+            <span className="card-flags">
+              {flags.map((flag) => (
+                <span key={flag} className="badge">{flag}</span>
+              ))}
+            </span>
+          ) : null}
           {outOfStock ? (
             <span className="out-overlay">
               <span className="pill danger">Out of stock</span>
@@ -64,6 +73,7 @@ export default function ProductCard({ product }) {
         <div>
           <span className="price">{rupees(price)}</span>
           {off > 0 ? <span className="mrp">{rupees(mrp)}</span> : null}
+          {off > 0 && !outOfStock ? <span className="off-pill">{off}% OFF</span> : null}
         </div>
         <AddToCart variantId={product.defaultVariant} disabled={outOfStock} />
       </div>

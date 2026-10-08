@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "./Providers";
 import { rupees } from "@/lib/format";
 import { FreeDeliveryNote } from "./FreeDeliveryProgress";
+import logo from "@/assets/Farmers Basket Fresh Produce Logo.webp";
 
 export default function Header({ categories = [] }) {
   const router = useRouter();
@@ -83,30 +84,6 @@ export default function Header({ categories = [] }) {
         <div className="wrap utility-inner">
           <span className="utility-item utility-wide">Freshness You Can Trust</span>
           <FreeDeliveryNote className="utility-item utility-promo" withSeparator />
-          <span className="utility-spacer" />
-          <Link href="/orders" className="utility-item">
-            <IconTruck className="utility-icon" />
-            Track Order
-          </Link>
-          <Link href="/help" className="utility-item utility-wide">
-            <IconHelp className="utility-icon" />
-            Help Center
-          </Link>
-          {/* Always /account, even signed out: the destination must not depend
-              on client-only state, or the server and client render different
-              hrefs and hydration fails. /account redirects to /login by
-              itself, so the behaviour is identical either way. */}
-          <Link href="/account" className="utility-item">
-            <IconUser className="utility-icon" />
-            {/* The label depends on the stored session, which the server
-                render cannot see — suppressHydrationWarning sits on the
-                element whose own text varies, because React only suppresses
-                a mismatch for the element that carries it. */}
-            <span suppressHydrationWarning>
-              {signedIn ? user.name?.split(" ")[0] || "My Account" : "My Account"}
-            </span>
-            <IconCaret className="utility-caret" aria-hidden="true" />
-          </Link>
         </div>
       </div>
 
@@ -116,15 +93,9 @@ export default function Header({ categories = [] }) {
           <IconMenu className="header-burger-icon" />
         </Link>
         <Link href="/" className="logo">
-          <span className="logo-row">
-            <LogoMark className="logo-mark" />
-            <span className="logo-text">
-              <span className="logo-name">
-                Hosur <span className="logo-name-accent">Basket</span>
-              </span>
-              <span className="logo-tag">Fresh Food • Better Life</span>
-            </span>
-          </span>
+          {/* The artwork carries a wide white margin; .logo crops it so the
+              basket and wordmark fill the header row. */}
+          <img src={logo.src} alt="Farmers Basket" width={logo.width} height={logo.height} className="logo-img" />
         </Link>
 
         <form className="search-form" onSubmit={submit} role="search">
@@ -136,7 +107,7 @@ export default function Header({ categories = [] }) {
               setTerm(e.target.value);
               if (onListing) tellListing(e.target.value);
             }}
-            placeholder="Search for fruits, vegetables, groceries and more…"
+            placeholder="Search vegetables, organic produce and more…"
             aria-label="Search products"
           />
           <button type="submit" aria-label="Search">
@@ -148,7 +119,7 @@ export default function Header({ categories = [] }) {
           <button className="header-btn" onClick={() => setPinOpen((v) => !v)} aria-expanded={pinOpen}>
             <IconPin className="header-btn-icon" />
             <span>
-              <span className="sub">Location</span>
+              <span className="sub">Deliver to</span>
               {/* Read from localStorage, so the server cannot know it and the
                   two renders legitimately differ. suppressHydrationWarning is
                   exactly for this — the alternative is rendering a placeholder
@@ -160,6 +131,32 @@ export default function Header({ categories = [] }) {
               </span>
             </span>
           </button>
+
+          <span className="header-divider" aria-hidden="true" />
+
+          {/* Phone: these two live in the bottom tab bar instead (globals.css). */}
+          <div className="header-btn header-extra">
+            <IconHelp className="header-btn-icon" />
+            <span>
+              <Link href="/help" className="sub">Help /</Link>
+              <Link href="/orders" className="sub">Orders</Link>
+            </span>
+          </div>
+
+          {/* Always /account, even signed out: the destination must not depend
+              on client-only state, or the server and client render different
+              hrefs and hydration fails. /account redirects to /login by
+              itself, so the behaviour is identical either way. */}
+          <Link href="/account" className="header-btn header-extra">
+            <IconUser className="header-btn-icon" />
+            {/* The label depends on the stored session, which the server
+                render cannot see — suppressHydrationWarning sits on the
+                element whose own text varies. */}
+            <span className="sub" suppressHydrationWarning>
+              {signedIn ? user.name?.split(" ")[0] || "My Account" : "My Account"}
+            </span>
+            <IconCaret className="header-caret" aria-hidden="true" />
+          </Link>
 
           <span className="header-divider" aria-hidden="true" />
 
@@ -443,35 +440,12 @@ function IconMenu(props) {
     </svg>
   );
 }
-function IconTruck(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-      <path d="M2 6.5h11.5v9.5H2z" />
-      <path d="M13.5 10h4.2l3.3 3.2V16h-7.5" />
-      <circle cx="6.5" cy="17.8" r="1.7" />
-      <circle cx="17" cy="17.8" r="1.7" />
-    </svg>
-  );
-}
 function IconHelp(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
       <circle cx="12" cy="12" r="9" />
       <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6" />
       <path d="M12 17h.01" />
-    </svg>
-  );
-}
-
-// Two leaves off one stem, in the two brand greens — the mark beside the
-// wordmark.
-function LogoMark(props) {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true" {...props}>
-      <path d="M22 44C9 42 2 31 4 14c11 1 19 8 20 20 0 4-1 7-2 10Z" fill="#4caf50" />
-      <path d="M24 44c1-14 7-26 20-32 2 17-5 29-18 32h-2Z" fill="#1b7a3a" />
-      <path d="M8 18c6 6 11 14 14 24" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" opacity=".7" />
-      <path d="M40 17c-7 6-11 14-14 25" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" opacity=".6" />
     </svg>
   );
 }

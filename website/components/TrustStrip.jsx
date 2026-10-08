@@ -1,9 +1,14 @@
 // The four standing promises, as one tinted strip — the same block at the
 // foot of the homepage and every category page, so the shop makes the same
 // promises wherever a shopper lands.
-export default function TrustStrip({ prepTimeMinutes }) {
+export default function TrustStrip({ prepTimeMinutes, title }) {
   return (
     <section className="section">
+      {title ? (
+        <div className="section-head">
+          <h2 className="accent">{title}</h2>
+        </div>
+      ) : null}
       <ul className="assurance">
         <li>
           <span className="assurance-icon"><IconLeaf /></span>

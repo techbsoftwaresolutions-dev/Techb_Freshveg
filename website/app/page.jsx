@@ -10,6 +10,8 @@ import HeroCarousel from "@/components/HeroCarousel";
 import FlashDeal from "@/components/FlashDeal";
 import TrustStrip from "@/components/TrustStrip";
 import AppDownload from "@/components/AppDownload";
+import heroPhoto from "@/assets/Fresh Harvest Basket in Sunlit Fields.webp";
+import farmPhoto from "@/assets/Fresh Fruit Basket in Sunlit Greenery.webp";
 
 // Flip to true to bring the left department sidebar back on the homepage —
 // see the comment beside its render call for what else that involves.
@@ -22,6 +24,15 @@ export const metadata = {
   description:
     "Same-day delivery on fresh produce, groceries, personal care and household essentials from your neighbourhood Hosur Basket store.",
   alternates: { canonical: "/" },
+};
+
+// Shown in the merchandising strip until the admin publishes a home_strip
+// banner of its own; BannerCarousel supplies the photo.
+const DEFAULT_PROMO = {
+  id: "organic-export",
+  title: "Organic & Export Quality Collection",
+  subtitle: "Handpicked premium vegetables for superior taste, nutrition and global standards.",
+  target: { kind: "search", value: "organic" },
 };
 
 // Sold-out products sink to the end of a row rather than leading it — a shelf
@@ -50,10 +61,10 @@ export default async function HomePage() {
   }
 
   const { offers = [], featured = [], rails = [], store, categories = [], flashDeal = null } = home;
-  const banners = bannerData?.banners || [];
+  const banners = bannerData?.banners?.length ? bannerData.banners : [DEFAULT_PROMO];
   // The admin's own empty-state hint is the spec here: "falls back to its
   // built-in hero until you add one" — so a hero banner is optional, and
-  // HeroArt below is that fallback, not a placeholder to delete. Every
+  // the bundled produce photo is that fallback. Every
   // home_hero banner is passed through (not just the first) so more than
   // one rotates.
   const heroBanners = heroBannerData?.banners || [];
@@ -75,41 +86,45 @@ export default async function HomePage() {
         <div className="home-main">
           <section className="hero">
             <div className="hero-media" aria-hidden={heroBanners.length ? undefined : "true"}>
-              {heroBanners.length ? <HeroCarousel banners={heroBanners} /> : <HeroArt />}
+              {heroBanners.length ? (
+                <HeroCarousel banners={heroBanners} />
+              ) : (
+                <img src={heroPhoto.src} alt="" className="hero-photo" fetchPriority="high" />
+              )}
             </div>
 
             <div className="hero-main">
-              <span className="hero-eyebrow">Fresh • Healthy • Everyday</span>
+              <span className="hero-eyebrow">Premium Fresh Vegetables</span>
               <h1>
-                Fresh from the market, <span className="hero-accent">at your door</span>
+                Fresh from the Farm. <span className="hero-accent">Delivered to Your Basket.</span>
               </h1>
               <p>
-                Fruit and vegetables picked today, groceries for the week, and everything else the
-                house needs — from {store?.name || "your neighbourhood store"}.
+                Farm-fresh vegetables, carefully selected for quality, freshness and export
+                standards — from {store?.name || "your neighbourhood store"}.
               </p>
               <div className="hero-cta">
                 <Link href="/c" className="btn primary lg">
-                  Shop Now
+                  Shop Vegetables
                   <IconArrow />
                 </Link>
-                <Link href="/c" className="btn lg hero-secondary">
-                  <IconGrid />
-                  <span className="hide-narrow">Browse&nbsp;</span>Categories
+                <Link href="/search?q=organic" className="btn lg hero-secondary">
+                  Explore Organic
+                  <IconArrow />
                 </Link>
               </div>
 
               <ul className="hero-features">
                 <li>
                   <IconLeafBadge />
-                  <span>100% Fresh<br />Products</span>
-                </li>
-                <li>
-                  <IconTruck />
-                  <span>Fast &amp; Reliable<br />Delivery</span>
+                  <span>Farm Fresh<br />Daily</span>
                 </li>
                 <li>
                   <IconShield />
-                  <span>Secure<br />Payments</span>
+                  <span>Organic &amp;<br />Export Quality</span>
+                </li>
+                <li>
+                  <IconTruck />
+                  <span>Fast Local<br />Delivery</span>
                 </li>
               </ul>
             </div>
@@ -119,29 +134,59 @@ export default async function HomePage() {
               before typing a search. */}
           {departments.length ? (
             <section className="section">
-              <SectionHead title="Shop by Category" href="/c" linkLabel="View All" />
+              <SectionHead title="Shop by Category" href="/c" linkLabel="View All" accent />
               <nav className="top-cats" aria-label="Departments">
                 {departments.map((department) => (
                   <Link key={department.id} href={`/c/${department.slug}`} className="top-cat">
                     <span className="top-cat-icon">
                       {department.image ? (
-                        <img src={img(department.image, 160)} alt="" className="top-cat-photo" />
+                        <img src={img(department.image, 320)} alt="" className="top-cat-photo" loading="lazy" />
                       ) : (
                         <CategoryIcon name={department.name} />
                       )}
                     </span>
-                    <span className="top-cat-name">{department.name}</span>
+                    <span className="top-cat-name">
+                      {department.name}
+                      <IconArrow />
+                    </span>
                   </Link>
                 ))}
                 <Link href="/c" className="top-cat top-cat-more">
                   <span className="top-cat-icon">
                     <IconGrid />
                   </span>
-                  <span className="top-cat-name">More</span>
+                  <span className="top-cat-name">
+                    View All
+                    <IconArrow />
+                  </span>
                 </Link>
               </nav>
             </section>
           ) : null}
+
+          {/* The brand story: the photo fills the band, the copy sits on the
+              wash to its left (same structure as the hero). */}
+          <section className="story">
+            <img src={farmPhoto.src} alt="" className="story-photo" loading="lazy" />
+            <div className="story-copy">
+              <span className="hero-eyebrow">Direct from Farmers</span>
+              <h2 className="story-title">From Our Farms to Your Home</h2>
+              <ul className="hero-features">
+                <li>
+                  <IconLeafBadge />
+                  <span>Direct Sourcing<br />from Trusted Farmers</span>
+                </li>
+                <li>
+                  <IconAward />
+                  <span>Careful Grading<br />for Best Quality</span>
+                </li>
+                <li>
+                  <IconBox />
+                  <span>Hygienic Packing<br />for Maximum Freshness</span>
+                </li>
+              </ul>
+            </div>
+          </section>
 
           {offers.length ? (
             <div className="promo-row" id="offers">
@@ -192,7 +237,7 @@ export default async function HomePage() {
 
           {trending.length >= MIN_ROW_ITEMS ? (
             <section className="section">
-              <SectionHead title="Trending Now" />
+              <SectionHead title="Trending Now" accent />
               <Carousel label="Trending Now">
                 {trending.map((product) => (
                   <ProductCard key={product.id} product={product} />
@@ -209,6 +254,7 @@ export default async function HomePage() {
                   title={rail.category.name}
                   href={`/c/${rail.category.slug}`}
                   linkLabel="View All"
+                  accent
                 />
                 <Carousel label={rail.category.name}>
                   {inStockFirst(rail.products).map((product) => (
@@ -220,7 +266,7 @@ export default async function HomePage() {
 
           {departments.length ? (
             <section className="section">
-              <SectionHead title="Explore Categories" href="/c" linkLabel="View All Categories" />
+              <SectionHead title="Explore Categories" href="/c" linkLabel="View All Categories" accent />
               <div className="shop-row">
                 {departments.slice(0, 5).map((department) => (
                   <Link key={department.id} href={`/c/${department.slug}`} className="shop-card">
@@ -247,7 +293,7 @@ export default async function HomePage() {
             </section>
           ) : null}
 
-          <TrustStrip prepTimeMinutes={store?.prepTimeMinutes} />
+          <TrustStrip prepTimeMinutes={store?.prepTimeMinutes} title="Why Farmers Basket?" />
 
           <AppDownload />
         </div>
@@ -267,24 +313,6 @@ function SectionHead({ title, href, linkLabel, accent = false }) {
         </Link>
       ) : null}
     </div>
-  );
-}
-
-// A small abstract mark for the hero — layered, tinted shapes rather than a
-// stand-in product photo the store doesn't have. Shown only when there is no
-// admin-managed hero banner.
-function HeroArt() {
-  return (
-    <svg className="hero-art" viewBox="0 0 220 190" fill="none" aria-hidden="true">
-      <ellipse cx="110" cy="168" rx="88" ry="14" fill="var(--brand-soft)" />
-      <circle cx="70" cy="88" r="52" fill="var(--brand-soft)" />
-      <circle cx="150" cy="70" r="34" fill="var(--accent)" fillOpacity="0.85" />
-      <circle cx="72" cy="92" r="40" fill="var(--brand)" fillOpacity="0.9" />
-      <circle cx="118" cy="122" r="24" fill="var(--save)" fillOpacity="0.85" />
-      <circle cx="150" cy="70" r="34" fill="none" stroke="var(--surface)" strokeWidth="3" />
-      <circle cx="72" cy="92" r="40" fill="none" stroke="var(--surface)" strokeWidth="3" />
-      <circle cx="118" cy="122" r="24" fill="none" stroke="var(--surface)" strokeWidth="3" />
-    </svg>
   );
 }
 
@@ -342,6 +370,24 @@ function IconShield() {
     <svg {...iconProps} width="24" height="24">
       <path d="M12 3 4 6v6c0 5 3.4 8.4 8 9 4.6-.6 8-4 8-9V6l-8-3Z" />
       <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function IconAward() {
+  return (
+    <svg {...iconProps} width="24" height="24">
+      <circle cx="12" cy="9" r="5.5" />
+      <path d="m9.5 13.8-1.5 6.7 4-2.2 4 2.2-1.5-6.7" />
+    </svg>
+  );
+}
+
+function IconBox() {
+  return (
+    <svg {...iconProps} width="24" height="24">
+      <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
+      <path d="m4 7.5 8 4.5 8-4.5M12 12v9" />
     </svg>
   );
 }
