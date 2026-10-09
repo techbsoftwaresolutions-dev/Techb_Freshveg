@@ -14,8 +14,8 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(helmet());
 // Which websites may call this API from a browser. In production the admin
-// (admin.hosurbasket.com) and the site (hosurbasket.com) live on different
-// addresses from the API (api.hosurbasket.com), so they are listed in
+// (admin.thefarmersbasket.in) and the site (thefarmersbasket.in) live on different
+// addresses from the API (thefarmersbasket.in/api), so they are listed in
 // CORS_ORIGINS; any other site's browser requests are refused. Unset — as in
 // development — allows every origin. The phone apps send no Origin header and
 // are unaffected either way.

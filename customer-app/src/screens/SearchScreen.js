@@ -50,7 +50,7 @@ export default function SearchScreen({ navigation }) {
         <TextInput
           value={term}
           onChangeText={setTerm}
-          placeholder="Search for fruits, grocery, more…"
+          placeholder="Search vegetables, fruits, milk…"
           placeholderTextColor={colors.textFaint}
           autoFocus
           returnKeyType="search"

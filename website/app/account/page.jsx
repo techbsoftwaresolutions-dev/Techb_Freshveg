@@ -22,10 +22,10 @@ export default function AccountPage() {
 
   async function shareReferral(code) {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const text = `Use my Hosur Basket referral code ${code} and get a discount on your first order!`;
+    const text = `Use my Farmers Basket referral code ${code} and get a discount on your first order!`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: "Hosur Basket referral", text, url: origin });
+        await navigator.share({ title: "The Farmers Basket referral", text, url: origin });
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(`${text} ${origin}`);
         setShared(true);

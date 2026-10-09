@@ -12,22 +12,22 @@ import { getCategories, SITE_URL } from "@/lib/api";
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Hosur Basket — fresh fruit, vegetables & groceries delivered",
+    default: "The Farmers Basket — farm-fresh vegetables, fruits & milk delivered",
     // Every page supplies its own name; the brand is appended once, here.
-    template: "%s | Hosur Basket",
+    template: "%s | The Farmers Basket",
   },
   description:
-    "Order fresh fruit, vegetables, groceries, personal care and household essentials from your neighbourhood store. Same-day delivery, with free delivery above a minimum order.",
+    "Order farm-fresh vegetables, fruits and milk straight from local farmers. Same-day delivery, with free delivery above a minimum order.",
   openGraph: {
     type: "website",
-    siteName: "Hosur Basket",
+    siteName: "The Farmers Basket",
     locale: "en_IN",
   },
   robots: { index: true, follow: true },
-  applicationName: "Hosur Basket",
+  applicationName: "The Farmers Basket",
   // Launched from the iPhone home screen: full screen, with the status bar
   // drawn over the dark green utility strip.
-  appleWebApp: { capable: true, title: "Hosur Basket", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "The Farmers Basket", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
 };
 

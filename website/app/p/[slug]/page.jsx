@@ -19,7 +19,7 @@ export async function generateMetadata({ params }) {
   const description =
     product.seo?.description ||
     product.shortDescription ||
-    `Buy ${product.name} online at Hosur Basket. Delivered fresh from your neighbourhood store.`;
+    `Buy ${product.name} online at The Farmers Basket. Delivered fresh from your neighbourhood store.`;
 
   return {
     title,
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }) {
     alternates: { canonical: `/p/${product.slug}` },
     openGraph: {
       type: "website",
-      title: `${product.name} | Hosur Basket`,
+      title: `${product.name} | The Farmers Basket`,
       description,
       url: `${SITE_URL}/p/${product.slug}`,
       images: product.media?.[0]?.url ? [product.media[0].url] : undefined,

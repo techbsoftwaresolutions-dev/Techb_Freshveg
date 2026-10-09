@@ -1,4 +1,4 @@
-// Hosur Basket service worker.
+// The Farmers Basket service worker.
 //
 // Deliberately conservative: prices, stock and the cart change by the minute,
 // so pages and API calls always go to the network. What is cached is only

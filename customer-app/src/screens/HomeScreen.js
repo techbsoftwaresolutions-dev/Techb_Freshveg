@@ -79,7 +79,7 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       <Pressable style={styles.searchBar} onPress={() => navigation.navigate("Search")}>
-        <Text style={styles.searchPlaceholder}>Search for fruits, grocery, more…</Text>
+        <Text style={styles.searchPlaceholder}>Search vegetables, fruits, milk…</Text>
       </Pressable>
 
       {error ? (

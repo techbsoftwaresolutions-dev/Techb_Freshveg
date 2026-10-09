@@ -65,3 +65,6 @@ build/
 large images/videos
 # Images live on Cloudinary only - never store uploads on disk
 backend/uploads/
+
+# One-time admin password written by npm run seed:farmers
+backend/farmers-admin-login.txt

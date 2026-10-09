@@ -55,5 +55,9 @@ export const getBanners = (placement) =>
 
 export const getStores = () => get("/stores/public", { revalidate: 300 });
 
+// Public settings (homepage design, feature switches). Short cache, so a
+// change saved in the admin shows on the site within half a minute.
+export const getPublicSettings = () => get("/settings/public", { revalidate: 30 });
+
 export const checkPincode = (pincode) =>
   get("/storefront/serviceability", { query: { pincode }, revalidate: 0 });

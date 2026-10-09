@@ -152,7 +152,7 @@ h3 { font-size: 14px; }
   background: var(--accent);
   color: var(--accent-text);
   display: grid; place-items: center;
-  /* Two letters ("HB") now, so a touch smaller and tighter than one did. */
+  /* Two letters ("FB") now, so a touch smaller and tighter than one did. */
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -1416,3 +1416,25 @@ textarea { min-height: 76px; resize: vertical; }
   .cats-page .card-head { flex-wrap: wrap; gap: 8px; }
   .cats-page .card-head h2, .cats-page .card-head .tag { overflow-wrap: anywhere; }
 }
+
+/* Homepage design picker (Settings → Website). */
+.template-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-top: 10px; }
+.template-option {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 2px solid var(--border, #e4e8e6);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.template-option:hover { border-color: #9cc9a8; }
+.template-option.selected { border-color: #1b7a3a; box-shadow: 0 0 0 3px rgba(27, 122, 58, 0.15); }
+.template-thumb { width: 100%; height: auto; border-radius: 8px; background: #f6f8f7; display: block; }
+.template-option-name { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 15px; }
+.template-option-tick { font-size: 11px; font-weight: 600; color: #fff; background: #1b7a3a; border-radius: 999px; padding: 2px 8px; }
+.template-option-desc { font-size: 12.5px; color: #5b6b62; line-height: 1.45; }

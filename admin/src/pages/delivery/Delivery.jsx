@@ -427,7 +427,7 @@ function ZoneModal({ zone, onClose, onSaved }) {
 
       <div className="grid cols-2">
         <Field label="Zone name">
-          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Hosur town centre" />
+          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Whitefield, Bangalore" />
         </Field>
         <Field label="Store">
           <select value={form.store} onChange={(e) => setForm({ ...form, store: e.target.value })}>

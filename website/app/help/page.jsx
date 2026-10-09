@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Help Center",
-  description: "Track an order, ask for a return, or call Hosur Basket.",
+  description: "Track an order, ask for a return, or call The Farmers Basket.",
   alternates: { canonical: "/help" },
 };
 
@@ -57,9 +57,14 @@ export default function HelpPage() {
       <section className="panel help-card help-call">
         <h2>Talk to us</h2>
         <p>Call and we will help with an order, a payment or anything else.</p>
-        <a href="tel:+919003597158" className="btn primary">
-          Call +91 90035 97158
-        </a>
+        <div className="help-call-numbers">
+          <a href="tel:+918072605216" className="btn primary">
+            Call +91 80726 05216
+          </a>
+          <a href="tel:+916374047119" className="btn primary">
+            Call +91 63740 47119
+          </a>
+        </div>
         <p className="help-terms">
           <Link href="/terms">Terms &amp; Conditions</Link>
         </p>

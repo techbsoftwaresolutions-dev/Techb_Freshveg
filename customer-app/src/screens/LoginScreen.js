@@ -70,8 +70,8 @@ export default function LoginScreen({ navigation }) {
       style={styles.screen}
     >
       <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Hosur Basket</Text>
-        <Text style={styles.heroSub}>Fresh produce and groceries, delivered.</Text>
+        <Text style={styles.heroTitle}>The Farmers Basket</Text>
+        <Text style={styles.heroSub}>Farm-fresh vegetables, fruits and milk, delivered.</Text>
       </View>
 
       <View style={styles.sheet}>

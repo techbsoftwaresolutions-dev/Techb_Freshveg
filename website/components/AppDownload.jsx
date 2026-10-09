@@ -35,7 +35,7 @@ export default function AppDownload() {
         <Sprig className="app-sprig right" />
         <span className="app-spark" />
         <Phone className="app-phone back" tiles={["apple", "orange", "lemon", "greens"]} />
-        <Phone className="app-phone front" tiles={["apple", "greens", "milk", "snack", "chips"]} labelled />
+        <Phone className="app-phone front" tiles={["greens", "apple", "milk", "orange"]} labelled />
         <IconLeaf className="app-leaf" />
       </div>
 
@@ -43,10 +43,10 @@ export default function AppDownload() {
         <h2 id="app-band-title">
           Download{" "}
           <span className="app-band-nowrap">
-            <span className="app-band-brand">Hosur Basket</span> App
+            <span className="app-band-brand">The Farmers Basket</span> App
           </span>
         </h2>
-        <p>Get fresh groceries, exclusive offers and a better shopping experience on our app.</p>
+        <p>Order farm-fresh vegetables, fruits and milk, get exclusive offers and track your delivery on our app.</p>
         <button type="button" className="app-band-btn" onClick={install}>
           <span className="app-band-btn-icon">
             <IconPhone />
@@ -92,7 +92,7 @@ export default function AppDownload() {
 
 function HelpText({ platform }) {
   if (platform === "done") {
-    return <p><strong>Installed!</strong> Open Hosur Basket from your home screen.</p>;
+    return <p><strong>Installed!</strong> Open The Farmers Basket from your home screen.</p>;
   }
   if (platform === "ios") {
     return (
@@ -112,14 +112,14 @@ function HelpText({ platform }) {
   return (
     <p>
       Click the <strong>install icon</strong> in the address bar, or open the browser menu and choose{" "}
-      <strong>Install Hosur Basket</strong>. On your phone, open hosurbasket.com and install from there.
+      <strong>Install The Farmers Basket</strong>. On your phone, open thefarmersbasket.in and install from there.
     </p>
   );
 }
 
 // ---- the phone mock-ups (decorative) ---------------------------------------
 
-const TILE_LABEL = { apple: "Fruits", greens: "Vegetables", milk: "Dairy", snack: "Snacks", chips: "Snacks" };
+const TILE_LABEL = { apple: "Fruits", orange: "Fruits", lemon: "Fruits", greens: "Vegetables", milk: "Milk" };
 
 function Phone({ className, tiles, labelled = false }) {
   return (

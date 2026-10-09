@@ -4,7 +4,7 @@ export default {
   expo: {
     // The name under the icon. The scheme and app IDs below are left as they
     // are — an ID is permanent once published.
-    name: "Hosur Basket Partner",
+    name: "The Farmers Basket Partner",
     slug: "commerce-delivery-app",
     version: "0.1.0",
     orientation: "portrait",

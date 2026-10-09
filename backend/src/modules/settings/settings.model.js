@@ -106,6 +106,10 @@ const settingsSchema = new mongoose.Schema(
       tagline: { type: String, default: "Fresh from the market, at your door" },
       metaDescription: { type: String, default: "" },
       socialLinks: { type: mongoose.Schema.Types.Mixed, default: {} },
+      // Which homepage layout the storefront renders — chosen in Admin →
+      // Settings, applies to every visitor. "classic" is the original design,
+      // "fresh" the "Farm Fresh Goodness" layout.
+      homeTemplate: { type: String, enum: ["classic", "fresh"], default: "classic" },
     },
 
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

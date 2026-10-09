@@ -323,8 +323,8 @@ export default function Layout() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="mark">HB</span>
-          <span>Hosur Basket</span>
+          <span className="mark">FB</span>
+          <span>The Farmers Basket</span>
         </div>
         <nav>
           {groups.map((group, index) => {
@@ -511,5 +511,5 @@ function titleFor(pathname) {
   const match = Object.keys(map)
     .filter((key) => pathname.startsWith(key))
     .sort((a, b) => b.length - a.length)[0];
-  return map[match] || "Hosur Basket Admin";
+  return map[match] || "The Farmers Basket Admin";
 }

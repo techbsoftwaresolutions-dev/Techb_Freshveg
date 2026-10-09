@@ -1,12 +1,12 @@
-// Hosur Basket as ONE Node app — the website and the API in a single process,
+// The Farmers Basket as ONE Node app — the website and the API in a single process,
 // so the hosting plan runs (and bills) one application instead of two.
 //
-//   https://hosurbasket.com/api/...   → the commerce API (backend/src/app.js)
-//   https://hosurbasket.com/...       → the Next.js website
+//   https://thefarmersbasket.in/api/...   → the commerce API (backend/src/app.js)
+//   https://thefarmersbasket.in/...       → the Next.js website
 //
 // The admin panel is plain static files and is hosted separately on
-// admin.hosurbasket.com (no Node needed); it and the phone apps call the API at
-// https://hosurbasket.com/api/v1.
+// admin.thefarmersbasket.in (no Node needed); it and the phone apps call the API at
+// https://thefarmersbasket.in/api/v1.
 //
 // package-one-app.js copies this file to the root of the upload, next to the
 // website files, with the backend's code under ./backend.
@@ -53,7 +53,7 @@ async function start() {
   const server = http
     .createServer((req, res) => (isApi(req.url) ? api(req, res) : handleSite(req, res)))
     .listen(port, () => {
-      console.log(`[app] Hosur Basket ready on port ${port} (website + API at /api)`);
+      console.log(`[app] The Farmers Basket ready on port ${port} (website + API at /api)`);
       const missing = storage.missingConfig();
       if (missing.length) console.warn(`[app] image uploads disabled — set ${missing.join(", ")}`);
     });

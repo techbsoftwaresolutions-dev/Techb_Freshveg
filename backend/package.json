@@ -10,6 +10,7 @@
     "dev": "nodemon src/server.js",
     "seed": "node src/seed/run.js",
     "seed:reset": "node src/seed/run.js --reset",
+    "seed:farmers": "node src/seed/farmers.js",
     "sync-indexes": "node src/seed/syncIndexes.js",
     "smoke": "node src/seed/smoke.js",
     "migrate:images": "node src/seed/migrateImagesToCloudinary.js",

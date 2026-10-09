@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Terms & Conditions",
-  description: "The terms and conditions for shopping on Hosur Basket.",
+  description: "The terms and conditions for shopping on The Farmers Basket.",
   alternates: { canonical: "/terms" },
 };
 
@@ -21,7 +21,7 @@ export default function TermsPage() {
 
       <section className="panel legal-page">
         <p>
-          These terms govern your use of Hosur Basket and any order you place with us. By creating an
+          These terms govern your use of The Farmers Basket and any order you place with us. By creating an
           account, browsing the catalogue or placing an order, you agree to the terms below. If you
           don&apos;t agree with any part of them, please don&apos;t use the service.
         </p>
@@ -70,7 +70,7 @@ export default function TermsPage() {
         <h2>6. Wallet &amp; loyalty points</h2>
         <p>
           Wallet balance and loyalty points shown on your account have no cash withdrawal value and can
-          only be used towards orders on Hosur Basket, subject to any conditions shown at the time they are
+          only be used towards orders on The Farmers Basket, subject to any conditions shown at the time they are
           used.
         </p>
 
@@ -98,7 +98,7 @@ export default function TermsPage() {
         <h2>10. Changes to these terms</h2>
         <p>
           We may update these terms from time to time as the service changes. The effective date above
-          reflects the last update, and continuing to use Hosur Basket after a change means you accept the
+          reflects the last update, and continuing to use The Farmers Basket after a change means you accept the
           revised terms.
         </p>
 

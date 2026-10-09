@@ -1,8 +1,8 @@
-// Builds the Hosur Basket uploads for hosting that bills per Node app:
+// Builds the Farmers Basket uploads for hosting that bills per Node app:
 //
-//   hosurbasket-app.zip    → ONE Node.js app at hosurbasket.com
-//                            (website + API at hosurbasket.com/api)
-//   hosurbasket-admin.zip  → static files for admin.hosurbasket.com
+//   farmersbasket-app.zip    → ONE Node.js app at thefarmersbasket.in
+//                            (website + API at thefarmersbasket.in/api)
+//   farmersbasket-admin.zip  → static files for admin.thefarmersbasket.in
 //
 // Run from anywhere:  node deploy/package-one-app.js
 // The project folders themselves are not modified, apart from the admin build
@@ -12,7 +12,7 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 const project = path.resolve(__dirname, "..");
-const live = "https://hosurbasket.com";
+const live = "https://thefarmersbasket.in";
 const stage = path.join(__dirname, ".stage");
 fs.rmSync(stage, { recursive: true, force: true });
 
@@ -52,7 +52,7 @@ fs.writeFileSync(
   path.join(app, "package.json"),
   JSON.stringify(
     {
-      name: "hosurbasket",
+      name: "farmersbasket",
       version: site.version,
       private: true,
       main: "server.js",
@@ -74,7 +74,7 @@ fs.writeFileSync(
     NODE_ENV: "production",
     PUBLIC_URL: live,
     // The website is same-origin now; only the admin calls the API cross-site.
-    CORS_ORIGINS: `${live},https://www.hosurbasket.com,https://admin.hosurbasket.com`,
+    CORS_ORIGINS: `${live},https://www.thefarmersbasket.in,https://admin.thefarmersbasket.in`,
     // Under plain `next start`, instrumentation.js runs the API on this private
     // port and both the /api rewrite and the server-rendered pages use it.
     // (Under server.js the site points at its own port instead.)
@@ -86,7 +86,7 @@ fs.writeFileSync(
 // The same settings as a file for hPanel's "Import .env" button: the host's
 // Next.js preset may not carry the uploaded .env through to the running app,
 // but its own Environment Variables always reach it. Holds secrets — never share.
-fs.copyFileSync(path.join(app, ".env"), path.join(__dirname, "hosurbasket-app.env"));
+fs.copyFileSync(path.join(app, ".env"), path.join(__dirname, "farmersbasket-app.env"));
 
 // A lockfile matching the merged dependencies, so `npm ci` works too.
 execSync("npm install --package-lock-only --no-audit --no-fund", { cwd: app, stdio: "inherit" });
@@ -101,7 +101,7 @@ execSync(`npx vite build --outDir "${path.join(stage, "admin")}" --emptyOutDir`,
 console.log("admin built");
 
 // ---- zips (tar writes forward-slash paths, which Linux hosts need)
-for (const [dir, zip] of [["app", "hosurbasket-app.zip"], ["admin", "hosurbasket-admin.zip"]]) {
+for (const [dir, zip] of [["app", "farmersbasket-app.zip"], ["admin", "farmersbasket-admin.zip"]]) {
   const out = path.join(__dirname, zip);
   fs.rmSync(out, { force: true });
   // Every top-level entry by name (dotfiles included), so paths have no "./".

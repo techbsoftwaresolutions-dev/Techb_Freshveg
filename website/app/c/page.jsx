@@ -13,7 +13,7 @@ import { SearchHead, SearchProvider, SearchSwap } from "@/components/ListingSear
 export const metadata = {
   title: "All categories",
   description:
-    "Every department at Hosur Basket — fruit and vegetables, grocery, personal care, household and general store.",
+    "Everything at The Farmers Basket — fresh vegetables, fruits and milk from local farms.",
   alternates: { canonical: "/c" },
 };
 

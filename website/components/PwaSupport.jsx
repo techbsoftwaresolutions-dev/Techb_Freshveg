@@ -44,10 +44,10 @@ export default function PwaSupport() {
   if (!mounted || installed || dismissed || (!canPrompt && !showIosHint)) return null;
 
   return (
-    <div className="install-bar" role="dialog" aria-label="Install the Hosur Basket app">
+    <div className="install-bar" role="dialog" aria-label="Install the Farmers Basket app">
       <img src="/app-icon/192" alt="" className="install-bar-icon" width="40" height="40" />
       <div className="install-bar-copy">
-        <strong>Get the Hosur Basket app</strong>
+        <strong>Get the Farmers Basket app</strong>
         <span>
           {canPrompt
             ? "Faster ordering, right from your home screen."

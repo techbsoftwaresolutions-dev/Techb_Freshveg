@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { img } from "@/lib/format";
-import { getBanners, getHome } from "@/lib/api";
+import { getBanners, getCategories, getHome, getPublicSettings } from "@/lib/api";
+import FreshHome from "@/components/FreshHome";
 import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
 import BannerCarousel from "@/components/BannerCarousel";
@@ -8,10 +9,9 @@ import CategoryIcon from "@/components/CategoryIcon";
 import HomeSidebar from "@/components/HomeSidebar";
 import HeroCarousel from "@/components/HeroCarousel";
 import FlashDeal from "@/components/FlashDeal";
-import TrustStrip from "@/components/TrustStrip";
-import AppDownload from "@/components/AppDownload";
-import heroPhoto from "@/assets/Fresh Harvest Basket in Sunlit Fields.webp";
-import farmPhoto from "@/assets/Fresh Fruit Basket in Sunlit Greenery.webp";
+import WhyFarmersBasket from "@/components/WhyFarmersBasket";
+import heroPhoto from "@/assets/farm-hero-terraces.webp";
+import farmPhoto from "@/assets/farm-farmer-greens.webp";
 
 // Flip to true to bring the left department sidebar back on the homepage —
 // see the comment beside its render call for what else that involves.
@@ -20,9 +20,9 @@ const SHOW_HOME_SIDEBAR = false;
 export const metadata = {
   // The layout's title template deliberately does not apply to the root
   // segment, so the brand is spelled out here rather than appended.
-  title: "Hosur Basket — fresh fruit, vegetables & groceries delivered",
+  title: "The Farmers Basket — farm-fresh vegetables, fruits & milk delivered",
   description:
-    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your neighbourhood Hosur Basket store.",
+    "Same-day delivery of farm-fresh vegetables, fruits and milk, sourced directly from local farmers.",
   alternates: { canonical: "/" },
 };
 
@@ -43,10 +43,12 @@ const inStockFirst = (products) =>
 // Server-rendered, so the whole shelf is in the HTML a crawler receives — no
 // spinner, no client fetch waterfall.
 export default async function HomePage() {
-  const [home, bannerData, heroBannerData] = await Promise.all([
+  const [home, bannerData, heroBannerData, settingsData, categoryTree] = await Promise.all([
     getHome(),
     getBanners("home_strip"),
     getBanners("home_hero"),
+    getPublicSettings(),
+    getCategories(),
   ]);
 
   if (!home) {
@@ -60,6 +62,11 @@ export default async function HomePage() {
     );
   }
 
+  // The homepage design is chosen in Admin → Settings → Website.
+  if (settingsData?.settings?.website?.homeTemplate === "fresh") {
+    return <FreshHome home={home} categoryTree={categoryTree?.categories || []} />;
+  }
+
   const { offers = [], featured = [], rails = [], store, categories = [], flashDeal = null } = home;
   const banners = bannerData?.banners?.length ? bannerData.banners : [DEFAULT_PROMO];
   // The admin's own empty-state hint is the spec here: "falls back to its
@@ -69,6 +76,12 @@ export default async function HomePage() {
   // one rotates.
   const heroBanners = heroBannerData?.banners || [];
   const departments = categories;
+  // "Shop by Category" shows every shelf a shopper can open: a department's
+  // aisles where it has them (the vegetable shelves), otherwise the
+  // department itself (Fresh Fruits, Milk & Dairy).
+  const shelves = (categoryTree?.categories || departments).flatMap((department) =>
+    department.children?.length ? department.children : [department]
+  );
   // Below this many products, a row reads as empty rather than curated.
   const MIN_ROW_ITEMS = 4;
   // Best sellers are things you can buy right now — a sold-out item has no
@@ -116,15 +129,15 @@ export default async function HomePage() {
               <ul className="hero-features">
                 <li>
                   <IconLeafBadge />
-                  <span>Farm Fresh<br />Daily</span>
+                  <span>Farm Fresh{" "}<br />Daily</span>
                 </li>
                 <li>
                   <IconShield />
-                  <span>Organic &amp;<br />Export Quality</span>
+                  <span>Organic &amp;{" "}<br />Export Quality</span>
                 </li>
                 <li>
                   <IconTruck />
-                  <span>Fast Local<br />Delivery</span>
+                  <span>Fast Local{" "}<br />Delivery</span>
                 </li>
               </ul>
             </div>
@@ -132,34 +145,25 @@ export default async function HomePage() {
 
           {/* Departments as tiles — the one grid a returning shopper scans
               before typing a search. */}
-          {departments.length ? (
+          {shelves.length ? (
             <section className="section">
               <SectionHead title="Shop by Category" href="/c" linkLabel="View All" accent />
-              <nav className="top-cats" aria-label="Departments">
-                {departments.map((department) => (
-                  <Link key={department.id} href={`/c/${department.slug}`} className="top-cat">
-                    <span className="top-cat-icon">
-                      {department.image ? (
-                        <img src={img(department.image, 320)} alt="" className="top-cat-photo" loading="lazy" />
+              <nav className="shelf-tiles" aria-label="Categories">
+                {shelves.map((shelf) => (
+                  <Link key={shelf.id} href={`/c/${shelf.slug}`} className="shelf-tile">
+                    <span className="shelf-tile-media">
+                      {shelf.image ? (
+                        <img src={img(shelf.image, 320)} alt="" loading="lazy" />
                       ) : (
-                        <CategoryIcon name={department.name} />
+                        <CategoryIcon name={shelf.name} />
                       )}
                     </span>
-                    <span className="top-cat-name">
-                      {department.name}
+                    <span className="shelf-tile-name">
+                      <span>{shelf.name}</span>
                       <IconArrow />
                     </span>
                   </Link>
                 ))}
-                <Link href="/c" className="top-cat top-cat-more">
-                  <span className="top-cat-icon">
-                    <IconGrid />
-                  </span>
-                  <span className="top-cat-name">
-                    View All
-                    <IconArrow />
-                  </span>
-                </Link>
               </nav>
             </section>
           ) : null}
@@ -174,15 +178,15 @@ export default async function HomePage() {
               <ul className="hero-features">
                 <li>
                   <IconLeafBadge />
-                  <span>Direct Sourcing<br />from Trusted Farmers</span>
+                  <span>Direct Sourcing{" "}<br />from Trusted Farmers</span>
                 </li>
                 <li>
                   <IconAward />
-                  <span>Careful Grading<br />for Best Quality</span>
+                  <span>Careful Grading{" "}<br />for Best Quality</span>
                 </li>
                 <li>
                   <IconBox />
-                  <span>Hygienic Packing<br />for Maximum Freshness</span>
+                  <span>Hygienic Packing{" "}<br />for Maximum Freshness</span>
                 </li>
               </ul>
             </div>
@@ -293,9 +297,7 @@ export default async function HomePage() {
             </section>
           ) : null}
 
-          <TrustStrip prepTimeMinutes={store?.prepTimeMinutes} title="Why Farmers Basket?" />
-
-          <AppDownload />
+          <WhyFarmersBasket />
         </div>
       </div>
     </div>

@@ -13,6 +13,21 @@ const SECTIONS = [
   { key: "delivery", label: "Delivery" },
   { key: "notifications", label: "Notifications" },
   { key: "app", label: "Apps" },
+  { key: "website", label: "Website" },
+];
+
+// The homepage layouts the storefront can render (settings.website.homeTemplate).
+const HOME_TEMPLATES = [
+  {
+    key: "classic",
+    name: "Classic",
+    description: "Hero banner, vegetable shelves, “From Our Farms” story, best sellers and the “Why Farmers Basket?” cards.",
+  },
+  {
+    key: "fresh",
+    name: "Farm Fresh",
+    description: "“Farm Fresh Goodness” hero, colourful category tiles, featured products, organic collection banner and fruit & vegetable rows.",
+  },
 ];
 
 export default function General() {
@@ -361,11 +376,85 @@ export default function General() {
           </>
         ) : null}
 
+        {section === "website" ? (
+          <>
+            <div className="section-label">Homepage design</div>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Every customer sees the design chosen here. The website switches within a minute of saving —
+              no redeploy needed.
+            </p>
+            <div className="template-picker" role="radiogroup" aria-label="Homepage design">
+              {HOME_TEMPLATES.map((template) => {
+                const selected = (draft.homeTemplate || "classic") === template.key;
+                return (
+                  <button
+                    key={template.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    className={`template-option${selected ? " selected" : ""}`}
+                    onClick={() => setDraft((d) => ({ ...d, homeTemplate: template.key }))}
+                  >
+                    <TemplateThumb kind={template.key} />
+                    <span className="template-option-name">
+                      {template.name}
+                      {selected ? <span className="template-option-tick">Selected</span> : null}
+                    </span>
+                    <span className="template-option-desc">{template.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : null}
+
         <div className="divider" />
         <button className="btn primary" disabled={saving} onClick={save}>
           {saving ? "Saving…" : `Save ${SECTIONS.find((s) => s.key === section)?.label.toLowerCase()} settings`}
         </button>
       </Card>
     </div>
+  );
+}
+
+// A small wireframe of each homepage layout, so the choice is visual.
+function TemplateThumb({ kind }) {
+  const green = "#1b7a3a";
+  const soft = "#e8f5ec";
+  const line = "#cfd6d3";
+  if (kind === "fresh") {
+    return (
+      <svg viewBox="0 0 160 110" className="template-thumb" aria-hidden="true">
+        <rect width="160" height="110" rx="6" fill="#fff" />
+        <rect x="6" y="6" width="148" height="34" rx="4" fill={soft} />
+        <rect x="12" y="13" width="56" height="6" rx="2" fill={green} />
+        <rect x="12" y="23" width="40" height="4" rx="2" fill={line} />
+        <rect x="12" y="30" width="22" height="5" rx="2.5" fill={green} />
+        <circle cx="128" cy="23" r="13" fill="#f59e0b" opacity="0.7" />
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <rect key={i} x={6 + i * 25} y="46" width="21" height="18" rx="4" fill={["#fde2e2", "#dcfce7", "#e0f2fe", "#ede9fe", "#fef3c7", "#dcfce7"][i]} />
+        ))}
+        {[0, 1, 2, 3, 4].map((i) => (
+          <rect key={i} x={6 + i * 30} y="70" width="26" height="16" rx="3" fill="#fff" stroke={line} />
+        ))}
+        <rect x="6" y="91" width="148" height="13" rx="3" fill={green} />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 160 110" className="template-thumb" aria-hidden="true">
+      <rect width="160" height="110" rx="6" fill="#fff" />
+      <rect x="6" y="6" width="148" height="34" rx="4" fill={soft} />
+      <rect x="12" y="14" width="60" height="7" rx="2" fill={green} />
+      <rect x="12" y="25" width="44" height="4" rx="2" fill={line} />
+      <rect x="96" y="10" width="52" height="26" rx="4" fill="#a5d6a7" />
+      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+        <rect key={i} x={6 + i * 21.3} y="46" width="18" height="16" rx="3" fill="#fff" stroke={line} />
+      ))}
+      <rect x="6" y="67" width="148" height="14" rx="3" fill={soft} />
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <rect key={i} x={6 + i * 25} y="86" width="21" height="18" rx="3" fill="#fff" stroke={line} />
+      ))}
+    </svg>
   );
 }

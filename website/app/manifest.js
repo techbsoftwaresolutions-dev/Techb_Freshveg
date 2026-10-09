@@ -1,10 +1,10 @@
-// The web app manifest — what makes "Add to Home Screen" install Hosur Basket as
+// The web app manifest — what makes "Add to Home Screen" install The Farmers Basket as
 // an app with its own icon and window rather than a browser bookmark.
 export default function manifest() {
   return {
-    name: "Hosur Basket — Fresh Food, Better Life",
-    short_name: "Hosur Basket",
-    description: "Fresh fruit, vegetables, groceries and household essentials, delivered from your neighbourhood store.",
+    name: "The Farmers Basket — Fresh Food, Better Life",
+    short_name: "The Farmers Basket",
+    description: "Farm-fresh vegetables, fruits and milk, delivered straight from local farmers.",
     id: "/",
     start_url: "/?source=pwa",
     scope: "/",

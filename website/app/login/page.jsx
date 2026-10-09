@@ -90,7 +90,7 @@ function LoginForm() {
               <path d="M24 44c1-14 7-26 20-32 2 17-5 29-18 32h-2Z" fill="#1b7a3a" />
             </svg>
           </span>
-          <h1>{step === "phone" ? "Welcome to Hosur Basket" : "Enter your code"}</h1>
+          <h1>{step === "phone" ? "Welcome to The Farmers Basket" : "Enter your code"}</h1>
           <p>
             {step === "phone"
               ? "Sign in or create an account with your mobile number. No password to remember."

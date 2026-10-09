@@ -67,7 +67,7 @@ export default function LoginScreen() {
       style={styles.screen}
     >
       <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Hosur Basket Partner</Text>
+        <Text style={styles.heroTitle}>The Farmers Basket Partner</Text>
         <Text style={styles.heroSub}>Deliveries, routes and earnings.</Text>
       </View>
 

@@ -5,8 +5,10 @@ import { useStore } from "../context/StoreContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Pill } from "../components/ui";
 
-const SUPPORT_PHONE = "+919003597158";
-const SUPPORT_PHONE_LABEL = "+91 90035 97158";
+const SUPPORT_PHONES = [
+  { number: "+918072605216", label: "+91 80726 05216" },
+  { number: "+916374047119", label: "+91 63740 47119" },
+];
 
 export default function AccountScreen({ navigation }) {
   const { user, signedIn, signOut } = useAuth();
@@ -124,9 +126,18 @@ export default function AccountScreen({ navigation }) {
       <Card style={styles.supportCard}>
         <View style={{ flex: 1 }}>
           <Text style={type.h3}>Need help?</Text>
-          <Text style={type.small}>Call Hosur Basket on {SUPPORT_PHONE_LABEL}</Text>
+          <Text style={type.small}>Call The Farmers Basket on either number</Text>
         </View>
-        <Button title="Call" variant="outline" onPress={() => Linking.openURL(`tel:${SUPPORT_PHONE}`).catch(() => {})} />
+        <View style={styles.supportCalls}>
+          {SUPPORT_PHONES.map((phone) => (
+            <Button
+              key={phone.number}
+              title={phone.label}
+              variant="outline"
+              onPress={() => Linking.openURL(`tel:${phone.number}`).catch(() => {})}
+            />
+          ))}
+        </View>
       </Card>
 
       <Button
@@ -141,7 +152,7 @@ export default function AccountScreen({ navigation }) {
       />
 
       <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.md }]}>
-        Hosur Basket · v0.1.0 · hosurbasket.com
+        The Farmers Basket · v0.1.0 · thefarmersbasket.in
       </Text>
     </ScrollView>
   );
@@ -163,6 +174,7 @@ const styles = StyleSheet.create({
 
   balanceCard: { flex: 1, padding: spacing.md, gap: 2 },
   supportCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md, marginBottom: spacing.sm },
+  supportCalls: { gap: spacing.xs },
   balanceValue: { fontSize: 20, fontWeight: "800", color: colors.text },
 
   referralRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },

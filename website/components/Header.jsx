@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "./Providers";
 import { rupees } from "@/lib/format";
 import { FreeDeliveryNote } from "./FreeDeliveryProgress";
@@ -18,6 +18,7 @@ export default function Header({ categories = [] }) {
 
   const [term, setTerm] = useState(params.get("q") || "");
   const [pinOpen, setPinOpen] = useState(false);
+  const closePin = useCallback(() => setPinOpen(false), []);
   const [openCategory, setOpenCategory] = useState(null);
   // Hover opens and closes a dropdown as the pointer moves through it, which
   // breaks the instant the pointer leaves the page to do anything else — to
@@ -116,21 +117,31 @@ export default function Header({ categories = [] }) {
         </form>
 
         <div className="header-actions">
-          <button className="header-btn" onClick={() => setPinOpen((v) => !v)} aria-expanded={pinOpen}>
-            <IconPin className="header-btn-icon" />
-            <span>
-              <span className="sub">Deliver to</span>
-              {/* Read from localStorage, so the server cannot know it and the
-                  two renders legitimately differ. suppressHydrationWarning is
-                  exactly for this — the alternative is rendering a placeholder
-                  and flashing, which is worse for the one thing a shopper
-                  checks first. */}
-              <span className="main" suppressHydrationWarning>
-                {pincode || store?.address?.city || store?.address?.pincode || "Set location"}
-                <IconCaret className="header-caret" aria-hidden="true" />
+          <div className="pin-anchor">
+            <button
+              className="header-btn"
+              onClick={() => setPinOpen((v) => !v)}
+              aria-expanded={pinOpen}
+              aria-haspopup="dialog"
+            >
+              <IconPin className="header-btn-icon" />
+              <span>
+                <span className="sub">Deliver to</span>
+                {/* Read from localStorage, so the server cannot know it and the
+                    two renders legitimately differ. suppressHydrationWarning is
+                    exactly for this — the alternative is rendering a placeholder
+                    and flashing, which is worse for the one thing a shopper
+                    checks first. */}
+                <span className="main" suppressHydrationWarning>
+                  {pincode || store?.address?.city || store?.address?.pincode || "Set location"}
+                  <IconCaret className="header-caret" aria-hidden="true" />
+                </span>
               </span>
-            </span>
-          </button>
+            </button>
+            {pinOpen ? (
+              <PincodePopover onDone={closePin} setPincode={setPincode} store={store} />
+            ) : null}
+          </div>
 
           <span className="header-divider" aria-hidden="true" />
 
@@ -178,8 +189,6 @@ export default function Header({ categories = [] }) {
           </Link>
         </div>
       </div>
-
-      {pinOpen ? <PincodeBar onDone={() => setPinOpen(false)} setPincode={setPincode} store={store} /> : null}
 
       <nav className="catbar" aria-label="Categories" ref={catbarRef}>
         <div className="wrap catbar-inner">
@@ -262,10 +271,31 @@ export default function Header({ categories = [] }) {
   );
 }
 
-function PincodeBar({ onDone, setPincode, store }) {
+// The delivery check: a small pop-up under "Deliver to". Closes on a click
+// outside, on Escape, or shortly after a pincode we serve is confirmed.
+function PincodePopover({ onDone, setPincode, store }) {
   const [value, setValue] = useState("");
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  const boxRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    const onPointerDown = (event) => {
+      // Clicks on the "Deliver to" button itself toggle it; leave those alone.
+      if (boxRef.current && !boxRef.current.parentElement.contains(event.target)) onDone();
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") onDone();
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [onDone]);
 
   const check = async (event) => {
     event.preventDefault();
@@ -282,39 +312,39 @@ function PincodeBar({ onDone, setPincode, store }) {
   };
 
   return (
-    <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg-alt)" }}>
-      <div className="wrap" style={{ padding: "14px 20px" }}>
-        <form onSubmit={check} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <strong style={{ fontSize: 14 }}>Check delivery:</strong>
-          <input
-            type="tel"
-            value={value}
-            onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="6-digit pincode"
-            style={{ width: 170 }}
-            aria-label="Pincode"
-          />
-          <button className="btn primary" disabled={value.length !== 6 || busy}>
-            {busy ? "Checking…" : "Check"}
-          </button>
-          {store ? (
-            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-              Currently serving from <strong>{store.name}</strong>
-            </span>
-          ) : null}
-        </form>
-
-        {result ? (
-          <p
-            className={`notice ${result.serviceable ? "save" : "error"}`}
-            style={{ marginTop: 12, marginBottom: 0 }}
-          >
-            {result.serviceable
-              ? `We deliver here — ${result.store.name}, about ${result.prepTimeMinutes} minutes.`
-              : result.message || "We don't deliver to this pincode yet."}
-          </p>
-        ) : null}
+    <div className="pin-pop" role="dialog" aria-label="Check delivery" ref={boxRef}>
+      <div className="pin-pop-head">
+        <strong>Check delivery</strong>
+        <button type="button" className="pin-pop-close" onClick={onDone} aria-label="Close">
+          ×
+        </button>
       </div>
+      <form onSubmit={check} className="pin-pop-form">
+        <input
+          ref={inputRef}
+          type="tel"
+          inputMode="numeric"
+          value={value}
+          onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          placeholder="6-digit pincode"
+          aria-label="Pincode"
+        />
+        <button className="btn primary" disabled={value.length !== 6 || busy}>
+          {busy ? "Checking…" : "Check"}
+        </button>
+      </form>
+
+      {result ? (
+        <p className={`pin-pop-result ${result.serviceable ? "ok" : "no"}`}>
+          {result.serviceable
+            ? `We deliver here — ${result.store.name}, about ${result.prepTimeMinutes} minutes.`
+            : result.message || "We don't deliver to this pincode yet."}
+        </p>
+      ) : store ? (
+        <p className="pin-pop-note">
+          Currently serving from <strong>{store.name}</strong>
+        </p>
+      ) : null}
     </div>
   );
 }
