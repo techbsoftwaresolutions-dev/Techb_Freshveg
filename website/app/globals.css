@@ -5175,3 +5175,11 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 @media (max-width: 720px) {
   .home-main .story-photo { object-position: 82% 18%; }
 }
+/* Farmer banner (banner-farmer-greens): her face sits ~22% down the photo. */
+.story-photo { object-position: 100% 22%; }
+@media (max-width: 720px) {
+  .home-main .story-photo { object-position: 62% 16%; }
+}@media (min-width: 721px) {
+  .home-main .story { min-height: 250px; }
+  .story-photo { object-position: 100% 12%; }
+}

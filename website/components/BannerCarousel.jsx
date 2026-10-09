@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { img } from "@/lib/format";
 import { useEffect, useRef, useState } from "react";
-import rows from "@/assets/farm-lettuce-rows.webp";
-import terraces from "@/assets/farm-hero-terraces.webp";
-import harvest from "@/assets/farm-harvest-carrots.webp";
+import lettuce from "@/assets/banner-organic-lettuce.webp";
+import rows from "@/assets/banner-farm-rows.webp";
+import crate from "@/assets/banner-harvest-crate.webp";
 
 const ROTATE_MS = 7000;
 
 // The strip's own photography, one per slide in order. A banner that has its
 // own image uploaded in the admin shows that instead.
-const BACKDROPS = [rows.src, terraces.src, harvest.src];
+const BACKDROPS = [lettuce.src, rows.src, crate.src];
 
 // Where a banner's target points. The admin stores a kind and a value rather
 // than a URL, so the shape of the site can change without rewriting banners.

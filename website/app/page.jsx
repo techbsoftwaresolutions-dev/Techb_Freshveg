@@ -10,8 +10,8 @@ import HomeSidebar from "@/components/HomeSidebar";
 import HeroCarousel from "@/components/HeroCarousel";
 import FlashDeal from "@/components/FlashDeal";
 import WhyFarmersBasket from "@/components/WhyFarmersBasket";
-import heroPhoto from "@/assets/farm-hero-terraces.webp";
-import farmPhoto from "@/assets/farm-farmer-greens.webp";
+import heroPhoto from "@/assets/banner-farm-rows.webp";
+import farmPhoto from "@/assets/banner-farmer-greens.webp";
 
 // Flip to true to bring the left department sidebar back on the homepage —
 // see the comment beside its render call for what else that involves.

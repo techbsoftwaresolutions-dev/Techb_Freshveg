@@ -4,8 +4,8 @@ import ProductCard from "@/components/ProductCard";
 import AddToCart from "@/components/AddToCart";
 import WishlistButton from "@/components/WishlistButton";
 import CategoryIcon from "@/components/CategoryIcon";
-import heroPhoto from "@/assets/farm-hero-terraces.webp";
-import organicPhoto from "@/assets/farm-lettuce-rows.webp";
+import heroPhoto from "@/assets/banner-harvest-crate.webp";
+import organicPhoto from "@/assets/banner-organic-lettuce.webp";
 
 // The "Farm Fresh" homepage layout (Admin → Settings → Website → Homepage
 // design). Same data as the classic layout — only the presentation differs.
