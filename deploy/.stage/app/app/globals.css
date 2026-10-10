@@ -5639,3 +5639,15 @@ a.legal-contact-card:hover { border-color: var(--brand); background: var(--brand
 }
 /* phones: the summary and numbered sections are enough; skip the long contents list */
 @media (max-width: 600px) { .legal-toc { display: none; } .legal-body { margin-top: -16px; } }
+
+/* Page loading: the logo, pulsing inside a turning ring (app/loading.jsx) */
+.page-loader { position: relative; display: grid; place-items: center; min-height: 60vh; }
+.page-loader-logo { grid-area: 1 / 1; width: 96px; height: 96px; object-fit: contain; animation: loader-pulse 1.4s ease-in-out infinite; }
+.page-loader-ring {
+  grid-area: 1 / 1; width: 132px; height: 132px; border-radius: 50%;
+  border: 3px solid var(--brand-soft); border-top-color: var(--brand);
+  animation: loader-spin 0.9s linear infinite;
+}
+@keyframes loader-spin { to { transform: rotate(360deg); } }
+@keyframes loader-pulse { 0%, 100% { transform: scale(0.94); opacity: 0.85; } 50% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .page-loader-logo, .page-loader-ring { animation: none; } }
