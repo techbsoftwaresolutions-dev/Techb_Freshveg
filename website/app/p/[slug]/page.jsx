@@ -8,6 +8,7 @@ import ProductGallery from "@/components/ProductGallery";
 import PdpDelivery from "@/components/PdpDelivery";
 import ProductTabs from "@/components/ProductTabs";
 import { discountPct, rupees } from "@/lib/format";
+import { SHARE_IMAGE, imageAlt, jsonLdHtml } from "@/lib/seo";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -15,23 +16,34 @@ export async function generateMetadata({ params }) {
   if (!data) return { title: "Product" };
 
   const { product } = data;
-  const title = product.seo?.title || product.name;
+  const title = product.seo?.title || `Buy ${product.name} Online in Bangalore`;
   const description =
     product.seo?.description ||
-    product.shortDescription ||
-    `Buy ${product.name} online at The Farmers Basket. Delivered fresh from your neighbourhood store.`;
+    `Buy fresh ${product.name} online in Bangalore at The Farmers Basket — sourced direct from local farmers. ` +
+      (product.shortDescription ? `${product.shortDescription} ` : "") +
+      "Same-day home delivery, free delivery on qualifying orders.";
 
   return {
     title,
     description,
+    keywords: [
+      ...(product.seo?.keywords || []),
+      `${product.name} online Bangalore`,
+      `buy ${product.name.toLowerCase()} online`,
+      `fresh ${product.name.toLowerCase()} delivery`,
+      "direct from farmers Bangalore",
+    ],
     alternates: { canonical: `/p/${product.slug}` },
     openGraph: {
       type: "website",
-      title: `${product.name} | The Farmers Basket`,
+      title: `${title} | The Farmers Basket`,
       description,
       url: `${SITE_URL}/p/${product.slug}`,
-      images: product.media?.[0]?.url ? [product.media[0].url] : undefined,
+      images: product.media?.[0]?.url
+        ? [{ url: product.media[0].url, alt: imageAlt(product.name, product.media[0]) }]
+        : [SHARE_IMAGE],
     },
+    twitter: { card: "summary_large_image", title: `${title} | The Farmers Basket`, description },
   };
 }
 
@@ -57,7 +69,17 @@ export default async function ProductPage({ params }) {
     "@type": "Product",
     name: product.name,
     description: product.shortDescription || product.description || undefined,
-    image: product.media?.map((m) => m.url).filter(Boolean),
+    url: `${SITE_URL}/p/${product.slug}`,
+    // Each photo with its alt text as the caption, for Google Images.
+    image: (product.media || [])
+      .filter((m) => m?.url)
+      .map((m, index) => ({
+        "@type": "ImageObject",
+        url: m.url,
+        contentUrl: m.url,
+        caption: imageAlt(product.name, m, index),
+        name: product.name,
+      })),
     sku: cheapest?.sku,
     brand: product.brand?.name ? { "@type": "Brand", name: product.brand.name } : undefined,
     category: breadcrumb.map((b) => b.name).join(" > ") || undefined,
@@ -70,6 +92,8 @@ export default async function ProductPage({ params }) {
       availability: anyInStock
         ? "https://schema.org/InStock"
         : "https://schema.org/OutOfStock",
+      areaServed: { "@type": "City", name: "Bengaluru" },
+      seller: { "@type": "Organization", name: "The Farmers Basket", url: SITE_URL },
     },
     ...(product.rating?.count
       ? {
@@ -101,11 +125,11 @@ export default async function ProductPage({ params }) {
     <div className="wrap">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={jsonLdHtml(jsonLd)}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        dangerouslySetInnerHTML={jsonLdHtml(breadcrumbLd)}
       />
 
       <nav className="crumbs" aria-label="Breadcrumb">

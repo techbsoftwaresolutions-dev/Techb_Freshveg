@@ -37,6 +37,22 @@ const storeSchema = new mongoose.Schema(
     // Coarse serviceability. Delivery zones (drawn polygons, per-zone charges)
     // refine this; a pincode list is what a small operation actually maintains.
     servicePincodes: { type: [String], default: [], index: true },
+    // The named places behind those pincodes ("Sarjapura", "Dommasandra"),
+    // so a customer can find their area by name. One pincode can cover
+    // several places. When a save sends this list, servicePincodes is derived
+    // from it (normalizeServiceAreas), so lookups stay on the pincode index.
+    serviceAreas: {
+      type: [
+        new mongoose.Schema(
+          {
+            pincode: { type: String, required: true, match: /^\d{6}$/ },
+            name: { type: String, default: "", trim: true },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
     serviceRadiusKm: { type: Number, default: 0 },
 
     timings: {
@@ -111,4 +127,34 @@ storeSchema.methods.isOpenNow = function isOpenNow(at = new Date()) {
   return minutes >= openH * 60 + openM && minutes <= closeH * 60 + closeM;
 };
 
-module.exports = mongoose.model("Store", storeSchema);
+// The areas a store delivers to, as stored: every pincode in servicePincodes
+// appears, with its named places where they were given. Stores saved before
+// areas had names come back as bare pincodes.
+storeSchema.methods.deliveryAreas = function deliveryAreas() {
+  const named = (this.serviceAreas || []).map((a) => ({ pincode: a.pincode, name: a.name || "" }));
+  const covered = new Set(named.map((a) => a.pincode));
+  const bare = (this.servicePincodes || []).filter((p) => !covered.has(p)).map((pincode) => ({ pincode, name: "" }));
+  return [...named, ...bare];
+};
+
+const Store = mongoose.model("Store", storeSchema);
+
+// Cleans an incoming serviceAreas list (trimmed, six-digit pincodes only, the
+// same place twice kept once) and returns it with the servicePincodes it
+// implies.
+Store.normalizeServiceAreas = function normalizeServiceAreas(list) {
+  const seen = new Set();
+  const serviceAreas = [];
+  for (const raw of Array.isArray(list) ? list : []) {
+    const pincode = String(raw?.pincode ?? "").trim();
+    const name = String(raw?.name ?? "").trim().replace(/\s+/g, " ");
+    if (!/^\d{6}$/.test(pincode)) continue;
+    const key = `${pincode}|${name.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    serviceAreas.push({ pincode, name });
+  }
+  return { serviceAreas, servicePincodes: [...new Set(serviceAreas.map((a) => a.pincode))] };
+};
+
+module.exports = Store;

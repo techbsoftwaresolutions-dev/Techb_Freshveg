@@ -52,7 +52,7 @@ export default function WhyFarmersBasket() {
           {reasons.map((reason) => (
             <li key={reason.title} className="why-card">
               <span className="why-photo">
-                <img src={reason.photo.src} alt="" loading="lazy" />
+                <img src={reason.photo.src} alt={reason.title} loading="lazy" />
               </span>
               <span className="why-copy">
                 <span className="why-icon">{reason.icon}</span>

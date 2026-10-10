@@ -59,5 +59,8 @@ export const getStores = () => get("/stores/public", { revalidate: 300 });
 // change saved in the admin shows on the site within half a minute.
 export const getPublicSettings = () => get("/settings/public", { revalidate: 30 });
 
+// The named delivery areas set in the admin (pincode + place name).
+export const getServiceAreas = () => get("/stores/service-areas", { revalidate: 3600 });
+
 export const checkPincode = (pincode) =>
   get("/storefront/serviceability", { query: { pincode }, revalidate: 0 });

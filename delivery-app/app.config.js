@@ -10,9 +10,10 @@ export default {
     orientation: "portrait",
     userInterfaceStyle: "light",
     scheme: "samagrapartner",
-    splash: { backgroundColor: "#1D3A8A", resizeMode: "contain" },
+    icon: "./assets/icon.png",
+    splash: { image: "./assets/splash.png", backgroundColor: "#FBF9EF", resizeMode: "contain" },
     ios: { supportsTablet: false, bundleIdentifier: "com.samagramart.partner" },
-    android: { package: "com.samagramart.partner", adaptiveIcon: { backgroundColor: "#1D3A8A" } },
+    android: { package: "com.samagramart.partner", adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#295110" } },
     web: { bundler: "metro" },
     extra: {
       apiBaseUrl: process.env.API_BASE_URL,

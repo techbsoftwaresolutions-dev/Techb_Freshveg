@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { detectPlatform, promptInstall, useInstallPrompt } from "@/lib/install-prompt";
+import { detectPlatform, isAndroidOtherBrowser, promptInstall, useInstallPrompt } from "@/lib/install-prompt";
 
 const DISMISS_KEY = "freshmart.install.dismissedAt";
 // Asked at most once a fortnight — a banner that comes back on every visit is
@@ -41,6 +41,9 @@ export default function PwaSupport() {
   // Safari on iPhone has no prompt at all — installing is Share → Add to Home
   // Screen, so the most that can be done is to say so.
   const showIosHint = mounted && detectPlatform() === "ios" && !/crios|fxios/i.test(navigator.userAgent);
+  // Not Chrome on Android: its install gets blocked by Play Protect, so the
+  // bar doesn't offer it (see isAndroidOtherBrowser). The footer says why.
+  if (mounted && isAndroidOtherBrowser()) return null;
   if (!mounted || installed || dismissed || (!canPrompt && !showIosHint)) return null;
 
   return (

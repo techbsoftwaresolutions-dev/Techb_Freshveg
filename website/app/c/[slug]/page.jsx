@@ -11,6 +11,7 @@ import CategoryIcon from "@/components/CategoryIcon";
 import EmptyState from "@/components/EmptyState";
 import InfiniteProducts from "@/components/InfiniteProducts";
 import TrustStrip from "@/components/TrustStrip";
+import { KEYWORDS, SHARE_IMAGE, jsonLdHtml } from "@/lib/seo";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -18,17 +19,30 @@ export async function generateMetadata({ params }) {
   if (!data) return { title: "Category" };
 
   const { category } = data;
+  // Wording an admin sets on the category wins; otherwise it is written for
+  // the searches shoppers make ("buy leafy vegetables online Bangalore").
+  const description =
+    category.seo?.description ||
+    `Buy fresh ${category.name.toLowerCase()} online in Bangalore, direct from local farmers. ` +
+      `Farm-fresh quality, fair prices, same-day home delivery and free delivery on qualifying orders.`;
+  const title = category.seo?.title || `Buy ${category.name} Online in Bangalore — Direct from Farmers`;
   return {
-    title: category.seo?.title || `Buy ${category.name} online`,
-    description:
-      category.seo?.description ||
-      category.description ||
-      `Shop ${category.name} at The Farmers Basket. Fresh stock, honest prices, delivered from your neighbourhood store.`,
+    title,
+    description,
+    keywords: [
+      ...(category.seo?.keywords || []),
+      `${category.name} online Bangalore`,
+      `buy ${category.name.toLowerCase()} online`,
+      `fresh ${category.name.toLowerCase()} delivery Bangalore`,
+      `${category.name.toLowerCase()} direct from farmers`,
+      ...KEYWORDS.slice(0, 6),
+    ],
     alternates: { canonical: `/c/${category.slug}` },
     openGraph: {
-      title: `${category.name} | The Farmers Basket`,
-      description: category.description || undefined,
+      title: `${title} | The Farmers Basket`,
+      description,
       url: `${SITE_URL}/c/${category.slug}`,
+      images: category.image ? [category.image] : [SHARE_IMAGE],
     },
   };
 }
@@ -71,8 +85,47 @@ export default async function CategoryPage({ params, searchParams }) {
   const products = result?.items || [];
   const meta = result?.meta;
 
+  // Structured data: where this shelf sits, and the products on it (with
+  // their photos), so search engines can list them.
+  const pageUrl = `${SITE_URL}/c/${category.slug}`;
+  const categoryLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+        ...breadcrumb.map((step, index) => ({
+          "@type": "ListItem",
+          position: index + 2,
+          name: step.name,
+          item: `${SITE_URL}/c/${step.slug}`,
+        })),
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: `${category.name} — The Farmers Basket, Bangalore`,
+      url: pageUrl,
+      description: category.seo?.description || category.description || undefined,
+      ...(category.image ? { image: category.image } : {}),
+      mainEntity: {
+        "@type": "ItemList",
+        numberOfItems: meta?.total ?? products.length,
+        itemListElement: products.map((product, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          url: `${SITE_URL}/p/${product.slug}`,
+          name: product.name,
+          ...(product.media?.[0]?.url ? { image: product.media[0].url } : {}),
+        })),
+      },
+    },
+  ];
+
   return (
     <SearchProvider className="wrap">
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdHtml(categoryLd)} />
       <nav className="crumbs" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         {breadcrumb.map((step) => (
@@ -97,7 +150,7 @@ export default async function CategoryPage({ params, searchParams }) {
             <Link key={child.id} href={`/c/${child.slug}`} className="top-cat">
               <span className="top-cat-icon">
                 {child.image ? (
-                  <img src={img(child.image, 160)} alt="" className="top-cat-photo" />
+                  <img src={img(child.image, 160)} alt={`${child.name} — fresh from farmers, Bangalore`} className="top-cat-photo" loading="lazy" />
                 ) : (
                   <CategoryIcon name={child.name} />
                 )}

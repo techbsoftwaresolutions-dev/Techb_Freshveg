@@ -13,8 +13,11 @@ export default {
     userInterfaceStyle: "light",
     scheme: "samagramart",
 
+    icon: "./assets/icon.png",
+
     splash: {
-      backgroundColor: "#16A34A",
+      image: "./assets/splash.png",
+      backgroundColor: "#FBF9EF",
       resizeMode: "contain",
     },
 
@@ -25,7 +28,7 @@ export default {
 
     android: {
       package: "com.samagramart.customer",
-      adaptiveIcon: { backgroundColor: "#16A34A" },
+      adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#295110" },
     },
 
     web: {

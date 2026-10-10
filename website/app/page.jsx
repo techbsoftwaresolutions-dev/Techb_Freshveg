@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { img } from "@/lib/format";
 import { getBanners, getCategories, getHome, getPublicSettings } from "@/lib/api";
+import { HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
 import FreshHome from "@/components/FreshHome";
 import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
@@ -10,8 +11,8 @@ import HomeSidebar from "@/components/HomeSidebar";
 import HeroCarousel from "@/components/HeroCarousel";
 import FlashDeal from "@/components/FlashDeal";
 import WhyFarmersBasket from "@/components/WhyFarmersBasket";
-import heroPhoto from "@/assets/banner-farm-rows.webp";
-import farmPhoto from "@/assets/banner-farmer-greens.webp";
+import heroPhoto from "@/assets/Fresh Harvest Basket in Sunlit Fields.webp";
+import farmPhoto from "@/assets/Fresh Fruit Basket in Sunlit Greenery.webp";
 
 // Flip to true to bring the left department sidebar back on the homepage —
 // see the comment beside its render call for what else that involves.
@@ -20,9 +21,8 @@ const SHOW_HOME_SIDEBAR = false;
 export const metadata = {
   // The layout's title template deliberately does not apply to the root
   // segment, so the brand is spelled out here rather than appended.
-  title: "The Farmers Basket — farm-fresh vegetables, fruits & milk delivered",
-  description:
-    "Same-day delivery of farm-fresh vegetables, fruits and milk, sourced directly from local farmers.",
+  title: HOME_TITLE,
+  description: HOME_DESCRIPTION,
   alternates: { canonical: "/" },
 };
 
@@ -102,7 +102,7 @@ export default async function HomePage() {
               {heroBanners.length ? (
                 <HeroCarousel banners={heroBanners} />
               ) : (
-                <img src={heroPhoto.src} alt="" className="hero-photo" fetchPriority="high" />
+                <img src={heroPhoto.src} alt="Basket of farm-fresh vegetables delivered in Bangalore by The Farmers Basket" className="hero-photo" fetchPriority="high" />
               )}
             </div>
 
@@ -153,7 +153,7 @@ export default async function HomePage() {
                   <Link key={shelf.id} href={`/c/${shelf.slug}`} className="shelf-tile">
                     <span className="shelf-tile-media">
                       {shelf.image ? (
-                        <img src={img(shelf.image, 320)} alt="" loading="lazy" />
+                        <img src={img(shelf.image, 320)} alt={`Fresh ${shelf.name} — buy online in Bangalore`} loading="lazy" />
                       ) : (
                         <CategoryIcon name={shelf.name} />
                       )}
@@ -171,7 +171,7 @@ export default async function HomePage() {
           {/* The brand story: the photo fills the band, the copy sits on the
               wash to its left (same structure as the hero). */}
           <section className="story">
-            <img src={farmPhoto.src} alt="" className="story-photo" loading="lazy" />
+            <img src={farmPhoto.src} alt="Fresh fruit basket from local farms near Bangalore" className="story-photo" loading="lazy" />
             <div className="story-copy">
               <span className="hero-eyebrow">Direct from Farmers</span>
               <h2 className="story-title">From Our Farms to Your Home</h2>
@@ -196,7 +196,7 @@ export default async function HomePage() {
             <div className="promo-row" id="offers">
               {offers.slice(0, 3).map((offer, index) => (
                 <article key={offer.id} className={`promo tone-${index % 3}`}>
-                  {offer.image ? <img src={img(offer.image, 600)} alt="" className="promo-image" /> : null}
+                  {offer.image ? <img src={img(offer.image, 600)} alt={offer.title || "Offer at The Farmers Basket"} className="promo-image" loading="lazy" /> : null}
                   <div className="promo-copy">
                     <h3>{offer.title}</h3>
                     {offer.badge ? <span className="promo-badge">{offer.badge}</span> : null}
@@ -276,7 +276,7 @@ export default async function HomePage() {
                   <Link key={department.id} href={`/c/${department.slug}`} className="shop-card">
                     <span className="shop-card-media">
                       {department.image ? (
-                        <img src={img(department.image, 240)} alt="" loading="lazy" />
+                        <img src={img(department.image, 240)} alt={`${department.name} — direct from farmers, Bangalore`} loading="lazy" />
                       ) : (
                         <CategoryIcon name={department.name} />
                       )}

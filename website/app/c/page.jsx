@@ -11,9 +11,10 @@ import { DeliveryBar, MobileChips, MobileRail } from "@/components/MobileBrowse"
 import { SearchHead, SearchProvider, SearchSwap } from "@/components/ListingSearch";
 
 export const metadata = {
-  title: "All categories",
+  title: "Shop Fresh Vegetables, Fruits & Milk Online in Bangalore",
   description:
-    "Everything at The Farmers Basket — fresh vegetables, fruits and milk from local farms.",
+    "Shop every fresh vegetable, fruit and dairy product at The Farmers Basket — leafy greens, organic and export-quality produce, " +
+    "sourced direct from farmers and delivered across Bangalore. Free delivery on qualifying orders.",
   alternates: { canonical: "/c" },
 };
 
@@ -55,32 +56,48 @@ export default async function CategoriesPage({ searchParams }) {
         {/* The aisle rail. Real links, one URL per aisle, so a crawler can
             follow them and a shopper can bookmark where they got to. */}
         <aside>
-          <nav className="aisles sticky" aria-label="Categories">
-            <span className="aisles-item current" aria-current="page">
-              All products
-              {meta?.total ? <span className="aisles-count">{meta.total}</span> : null}
+          <nav className="cat-panel sticky" aria-label="Categories">
+            <div className="cat-panel-title">Shop by Category</div>
+
+            <span className="cat-panel-dept current" aria-current="page">
+              <span className="cat-panel-thumb cat-panel-thumb-all" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+                  <rect x="4" y="4" width="6.5" height="6.5" rx="1.6" />
+                  <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6" />
+                  <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6" />
+                  <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6" />
+                </svg>
+              </span>
+              <span className="cat-panel-name">All products</span>
+              {meta?.total ? <span className="cat-panel-count">{meta.total}</span> : null}
             </span>
 
-            {departments.map((department) => (
-              <div key={department.id} className="aisles-group">
-                <Link href={`/c/${department.slug}`} className="aisles-head">
-                  {department.image ? (
-                    <img src={img(department.image, 80)} alt="" className="aisles-head-icon aisles-head-photo" />
-                  ) : (
-                    <CategoryIcon name={department.name} className="aisles-head-icon" />
-                  )}
-                  {department.name}
-                </Link>
-                {department.children?.map((aisle) => (
-                  <Link key={aisle.id} href={`/c/${aisle.slug}`} className="aisles-item">
-                    {aisle.name}
-                    {aisle.productCount ? (
-                      <span className="aisles-count">{aisle.productCount}</span>
-                    ) : null}
+            {departments.map((department) => {
+              const aisles = department.children || [];
+              const total =
+                department.productCount || aisles.reduce((sum, aisle) => sum + (aisle.productCount || 0), 0);
+              return (
+                <div key={department.id} className="cat-panel-group">
+                  <Link href={`/c/${department.slug}`} className="cat-panel-dept">
+                    <span className="cat-panel-thumb">
+                      {department.image ? <img src={img(department.image, 96)} alt={`${department.name} — fresh from farmers`} loading="lazy" /> : <CategoryIcon name={department.name} />}
+                    </span>
+                    <span className="cat-panel-name">{department.name}</span>
+                    {total ? <span className="cat-panel-count">{total}</span> : null}
                   </Link>
-                ))}
-              </div>
-            ))}
+                  {aisles.length ? (
+                    <div className="cat-panel-aisles">
+                      {aisles.map((aisle) => (
+                        <Link key={aisle.id} href={`/c/${aisle.slug}`} className="cat-panel-aisle">
+                          <span>{aisle.name}</span>
+                          {aisle.productCount ? <span className="cat-panel-aisle-count">{aisle.productCount}</span> : null}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </nav>
         </aside>
 

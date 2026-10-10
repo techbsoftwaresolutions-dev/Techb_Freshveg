@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { api } from "../../api/client";
+import { api, toast } from "../../api/client";
 import { Banner, Card, Field, Loading, Tabs } from "../../components/ui";
 
+
+// A save's confirmation, as a toast (components/Toaster.jsx).
+const notifySaved = (message) => message && toast("success", message);
 // One settings document, edited a section at a time — so two admins working on
 // different areas do not overwrite each other with a whole-document save.
 const SECTIONS = [
@@ -37,7 +40,6 @@ export default function General() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     api
@@ -58,11 +60,11 @@ export default function General() {
   async function save() {
     setSaving(true);
     setError("");
-    setNotice("");
+    notifySaved("");
     try {
       const data = await api.patch(`/settings/${section}`, draft);
       setSettings(data.settings);
-      setNotice("Saved. Every client picks this up on its next read.");
+      notifySaved(`${SECTIONS.find((s) => s.key === section)?.label || "Settings"} settings saved successfully`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -103,7 +105,6 @@ export default function General() {
       </div>
 
       <Banner tone="error">{error}</Banner>
-      <Banner tone="ok">{notice}</Banner>
 
       <Tabs tabs={SECTIONS} active={section} onChange={setSection} />
 

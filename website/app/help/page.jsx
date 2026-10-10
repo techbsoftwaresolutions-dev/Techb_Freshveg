@@ -1,8 +1,9 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Help Center",
-  description: "Track an order, ask for a return, or call The Farmers Basket.",
+  title: "Help Center — Orders, Delivery & Returns",
+  description:
+    "Help with your Farmers Basket order in Bangalore: track a delivery, delivery areas and timings, returns and refunds, or call us on +91 80726 05216.",
   alternates: { canonical: "/help" },
 };
 

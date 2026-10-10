@@ -1,12 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, toast } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import SelectMenu from "../../components/SelectMenu";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pill } from "../../components/ui";
 import { IconChevronDown, IconSearch } from "../../components/Icons";
+import SeoCard from "../../components/SeoCard";
 
+// What the website writes when a category's SEO fields are left blank (kept
+// in step with website/app/c/[slug]/page.jsx).
+const autoCategoryTitle = (name) => `Buy ${name || "this category"} Online in Bangalore — Direct from Farmers`;
+const autoCategoryDescription = (name) =>
+  `Buy fresh ${(name || "produce").toLowerCase()} online in Bangalore, direct from local farmers. Farm-fresh quality, fair prices, same-day home delivery and free delivery on qualifying orders.`;
+const seoOf = (detail) => ({
+  title: detail.seo?.title || "",
+  description: detail.seo?.description || "",
+  keywords: detail.seo?.keywords || [],
+});
+
+
+// A save's confirmation, as a toast (components/Toaster.jsx).
+const notifySaved = (message) => message && toast("success", message);
 // The category editor is where the engine is configured. Three tabs, matching
 // the three things a category owns: its own details, the capability switches
 // that change how the engine treats its products, and the fields its products
@@ -185,7 +200,6 @@ export default function Categories() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [blockingProducts, setBlockingProducts] = useState([]);
-  const [notice, setNotice] = useState("");
   const navigate = useNavigate();
   // Phone only: false shows the list, true shows the editor for selectedId.
   // Desktop ignores it and always shows both side by side.
@@ -213,7 +227,7 @@ export default function Categories() {
         const first = data[0];
         if (preselect) {
           setSelectedId(preselect);
-          if (params.get("created")) setNotice("Category created. Bind fields to it under the Fields tab.");
+          if (params.get("created")) notifySaved("Category created. Bind fields to it under the Fields tab.");
         } else if (first) setSelectedId(first.id);
       })
       .catch((err) => setError(err.message))
@@ -240,14 +254,14 @@ export default function Categories() {
   async function save(changes) {
     setSaving(true);
     setError("");
-    setNotice("");
+    notifySaved("");
     try {
       const { category } = await api.patch(`/catalog/categories/${selectedId}`, changes);
       setDetail(category);
       const s = await api.get(`/catalog/categories/${selectedId}/schema`);
       setSchema(s);
       await loadTree();
-      setNotice("Saved. Every product form in this category updated.");
+      notifySaved("Saved. Every product form in this category updated.");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -264,7 +278,7 @@ export default function Categories() {
       });
       setDetail(category);
       setSchema(next);
-      setNotice("Field added — it is live on the product form now.");
+      notifySaved("Field added — it is live on the product form now.");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -293,7 +307,7 @@ export default function Categories() {
     setSaving(true);
     setError("");
     setBlockingProducts([]);
-    setNotice("");
+    notifySaved("");
     try {
       await api.delete(`/catalog/categories/${target.id}`);
       const data = await loadTree();
@@ -305,7 +319,7 @@ export default function Categories() {
         setDetail(null);
         setSchema(null);
       }
-      setNotice(`"${target.name}" deleted.`);
+      notifySaved(`"${target.name}" deleted.`);
     } catch (err) {
       setError(err.message);
       // The backend names a few of the actual blocking products when that's
@@ -365,7 +379,6 @@ export default function Categories() {
           </div>
         </div>
       )}
-      <Banner tone="ok">{notice}</Banner>
 
       <div className="grid split cats-desktop">
         <div style={{ display: "grid", gap: 14 }}>
@@ -506,6 +519,7 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
     showInNav: detail.showInNav,
     isFeatured: detail.isFeatured,
     seq: detail.seq ?? 0,
+    seo: seoOf(detail),
   });
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -522,6 +536,7 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
       showInNav: detail.showInNav,
       isFeatured: detail.isFeatured,
       seq: detail.seq ?? 0,
+      seo: seoOf(detail),
     });
   }, [detail]);
 
@@ -654,6 +669,15 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
           Featured
         </label>
       </div>
+      <SeoCard
+        bare
+        value={form.seo}
+        onChange={(seo) => setForm((f) => ({ ...f, seo }))}
+        editable={editable}
+        autoTitle={autoCategoryTitle(form.name)}
+        autoDescription={autoCategoryDescription(form.name)}
+        path={detail.slug ? `/c/${detail.slug}` : ""}
+      />
       {editable && (
         <button
           className="btn primary"

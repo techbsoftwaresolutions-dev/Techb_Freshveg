@@ -104,7 +104,7 @@ export default function BannerCarousel({ banners = [] }) {
           >
             <img
               src={photo}
-              alt=""
+              alt={banner.title || "Fresh vegetables and fruits at The Farmers Basket"}
               className="promo-photo"
               loading={i === 0 ? "eager" : "lazy"}
               decoding="async"

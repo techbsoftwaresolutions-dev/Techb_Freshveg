@@ -4,6 +4,7 @@ import { img } from "@/lib/format";
 import CategoryIcon from "./CategoryIcon";
 import Filters, { OffersChip, SortBar } from "./Filters";
 import FreeDeliveryProgress from "./FreeDeliveryProgress";
+import RailDrawer from "./RailDrawer";
 
 // The phone's browsing shell, shared by "All products" and every category
 // page: a compact header, a vertical category rail, the Filter / Sort / Offers
@@ -24,6 +25,7 @@ export function MobileRail({ departments = [], activeSlug = null }) {
   }
 
   return (
+    <RailDrawer>
     <nav className="cat-rail" aria-label="Categories">
       {items.map((item) => {
         const active = item.slug === activeSlug;
@@ -42,6 +44,7 @@ export function MobileRail({ departments = [], activeSlug = null }) {
         );
       })}
     </nav>
+    </RailDrawer>
   );
 }
 

@@ -52,10 +52,17 @@ const icon = {
 export function SearchHead({ title, backHref = "/" }) {
   const { open, setOpen, query, setQuery } = useSearch();
   const input = useRef(null);
+  const [railOpen, setRailOpen] = useState(true);
 
   useEffect(() => {
     if (open) input.current?.focus();
   }, [open]);
+
+  useEffect(() => {
+    const onState = (event) => setRailOpen(Boolean(event.detail));
+    window.addEventListener("cat-rail-state", onState);
+    return () => window.removeEventListener("cat-rail-state", onState);
+  }, []);
 
   const close = () => {
     setQuery("");
@@ -103,7 +110,19 @@ export function SearchHead({ title, backHref = "/" }) {
         </>
       ) : (
         <>
-          <span className="cat-mobile-title">{title}</span>
+          {/* The title opens the category drawer (RailDrawer) — no menu icon. */}
+          <button
+            type="button"
+            className="cat-mobile-title cat-title-toggle"
+            onClick={() => window.dispatchEvent(new Event("cat-rail-toggle"))}
+            aria-expanded={railOpen}
+            aria-label={`${title} — show categories`}
+          >
+            <span className="cat-title-text">{title}</span>
+            <svg viewBox="0 0 10 10" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`cat-title-caret${railOpen ? " up" : ""}`}>
+              <path d="M2 3.5L5 6.5L8 3.5" />
+            </svg>
+          </button>
           <button type="button" className="cat-mobile-btn" aria-label="Search" onClick={() => setOpen(true)}>
             <svg {...icon}>
               <circle cx="11" cy="11" r="6.5" />

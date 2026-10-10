@@ -2,10 +2,9 @@
   "name": "farmersbasket",
   "version": "0.1.0",
   "private": true,
-  "main": "server.js",
   "scripts": {
     "build": "next build",
-    "start": "node server.js"
+    "start": "next start"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

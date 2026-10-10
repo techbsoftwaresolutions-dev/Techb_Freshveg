@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { discountPct, img, rupees } from "@/lib/format";
+import { imageAlt } from "@/lib/seo";
 import AddToCart from "./AddToCart";
 import WishlistButton from "./WishlistButton";
 
@@ -40,7 +41,7 @@ export default function ProductCard({ product }) {
           {image ? (
             <img
               src={img(image, 500)}
-              alt={product.name}
+              alt={imageAlt(product.name, primaryMedia)}
               loading="lazy"
               decoding="async"
               style={{ objectPosition: `${focalX}% ${focalY}%` }}

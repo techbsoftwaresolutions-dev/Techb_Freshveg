@@ -37,7 +37,7 @@
 
   --max: 1240px;
   --header-h: 80px;
-  /* utility bar + main row + category bar: what the Suspense fallback must
+  /* main row + category bar: what the Suspense fallback must
      reserve, or the page jumps when the header streams in. */
   --header-total: 160px;
 
@@ -2999,10 +2999,10 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 }
 
 /* Installed and launched from the home screen: no browser bar above the page,
-   so the utility strip also has to clear the phone's status bar. */
+   so the header has to clear the phone's status bar. */
 @media (display-mode: standalone) {
-  .utility { padding-top: env(safe-area-inset-top); }
-  .header { padding-top: 0; }
+
+  .header { padding-top: env(safe-area-inset-top); }
 }
 
 /* ------------------------------------------------------------- review prompt */
@@ -3425,7 +3425,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 /* ------------------------------------------------ browse pages, phone
    "All products" and every category page. Above 720px none of this applies:
    the desktop sidebar, header and card are untouched. */
-.cat-mobile-head, .cat-rail, .cat-chips, .cat-delivery { display: none; }
+.cat-mobile-head, .cat-rail, .cat-drawer, .cat-chips, .cat-delivery { display: none; }
 .add-short { display: none; }
 
 @media (max-width: 720px) {
@@ -3465,7 +3465,10 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 
   .split.cat-layout { grid-template-columns: minmax(0, 1fr); gap: 0; align-items: start; padding-bottom: 150px; }
   .split.cat-layout.has-rail { grid-template-columns: clamp(62px, 18%, 76px) minmax(0, 1fr); gap: 0 6px; }
-  .split.cat-layout > div { display: block; min-width: 0; grid-column: 2; grid-row: 1; order: 0; }
+  /* rail hidden from the page title (RailDrawer): products take the width */
+  body.cat-rail-closed .split.cat-layout.has-rail { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  body.cat-rail-closed .split.cat-layout > .cat-drawer { display: none; }
+  .split.cat-layout > div { display: block; min-width: 0; grid-column: -2 / -1; grid-row: 1; order: 0; }
   .split.cat-layout > aside,
   .split.cat-layout .browse-head { display: none; }
 
@@ -3476,10 +3479,10 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   /* the hidden site header reserves no space (its loading placeholder too) */
   body:has(.cat-mobile-head) { --header-total: 0px; }
 
-  .split.cat-layout > .cat-rail {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+  /* The category rail, open by default; the page title hides and shows it
+     (RailDrawer). */
+  .split.cat-layout > .cat-drawer {
+    display: block;
     grid-column: 1;
     grid-row: 1;
     order: 0;
@@ -3492,7 +3495,8 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     overflow-y: auto;
     scrollbar-width: none;
   }
-  .cat-rail::-webkit-scrollbar { display: none; }
+  .cat-drawer::-webkit-scrollbar { display: none; }
+  .cat-drawer .cat-rail { display: flex; flex-direction: column; gap: 2px; }
   .cat-rail-item {
     display: flex;
     flex-direction: column;
@@ -3513,6 +3517,16 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   /* wrap between words; only a word wider than the rail ever splits */
   .cat-rail-name { overflow-wrap: break-word; }
   @media (max-width: 340px) { .cat-rail-item { font-size: 10px; letter-spacing: -0.1px; } }
+
+  /* the page title doubles as the drawer's switch */
+  .cat-title-toggle {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0; border: 0; background: none; color: var(--text);
+    font: inherit; font-size: 20px; font-weight: 700; text-align: left; cursor: pointer;
+  }
+  .cat-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cat-title-caret { flex: 0 0 auto; color: var(--brand); transition: transform 0.2s ease; }
+  .cat-title-caret.up { transform: rotate(180deg); }
 
   /* One scrolling row; the sort list is a fixed sheet so this row's overflow
      can't clip it. */
@@ -4847,6 +4861,16 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 .pin-pop-result { margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; }
 .pin-pop-result.ok { background: var(--save-soft); color: var(--save); }
 .pin-pop-result.no { background: var(--danger-soft); color: var(--danger); }
+.pin-pop-areas { list-style: none; margin: 10px 0 0; padding: 0; max-height: 260px; overflow-y: auto; display: grid; gap: 2px; }
+.pin-pop-areas button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 10px; border: 0; border-radius: 8px; background: transparent;
+  font: inherit; text-align: left; cursor: pointer; color: var(--text);
+}
+.pin-pop-areas button:hover, .pin-pop-areas button:focus-visible { background: var(--brand-soft); }
+.pin-pop-area-icon { width: 16px; height: 16px; flex: 0 0 auto; color: var(--brand); }
+.pin-pop-area-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pin-pop-area-code { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 @media (max-width: 720px) {
   .pin-pop { position: fixed; top: 120px; left: 16px; right: 16px; width: auto; }
   .pin-pop::before { display: none; }
@@ -5169,17 +5193,449 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .why-copy strong { font-size: 14.5px; }
   .why-copy > span:last-child { font-size: 12px; }
 }
-/* "From Our Farms" band: the farmer stands on the right of this photo; aim
-   the crop at her face and the greens she is holding. */
-.story-photo { object-position: 100% 14%; }
+
+/* Header logo: the round Farmers Basket mark, shown whole (no crop). */
+.logo { width: auto; height: 78px; overflow: visible; }
+.logo-img { width: auto; height: 100%; transform: none; object-fit: contain; }
+.footer-mark { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 12px; }
+.fresh-band-mark img { display: block; width: 48px; height: 48px; border-radius: 12px; }
 @media (max-width: 720px) {
-  .home-main .story-photo { object-position: 82% 18%; }
+  .logo { width: auto; height: 54px; }
+  .fresh-band-mark img { width: 40px; height: 40px; }
 }
-/* Farmer banner (banner-farmer-greens): her face sits ~22% down the photo. */
-.story-photo { object-position: 100% 22%; }
+/* Sign-in page: the round Farmers Basket logo above the heading. */
+.auth-logo { display: block; width: 140px; height: auto; margin: 0 auto 10px; }
+@media (max-width: 720px) { .auth-logo { width: 118px; } }
+/* ===========================================================================
+   "Farm Fresh" homepage (FreshHome.jsx) on phones: app-style — photo-card
+   hero, round category icons, swipe rows that snap, compact banners.
+   ========================================================================= */
 @media (max-width: 720px) {
-  .home-main .story-photo { object-position: 62% 16%; }
-}@media (min-width: 721px) {
-  .home-main .story { min-height: 250px; }
-  .story-photo { object-position: 100% 12%; }
+  .fh .wrap { padding: 0 16px; }
+  .fh-section { margin-top: 24px; }
+  .fh-head { margin-bottom: 10px; align-items: center; }
+  .fh-head h2 { font-size: 18px; }
+  .fh-head p { font-size: 12px; }
+  .fh-head.inline > div { display: block; }
+  .fh-head-link { font-size: 12.5px; }
+
+  /* ---- hero: rounded photo card, words over the photo ---- */
+  .fh-hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 330px;
+    margin: 12px 16px 0;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #1b3a24;
+    box-shadow: 0 10px 24px rgba(10, 30, 20, 0.16);
+  }
+  .fh-hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-position: 60% 45%; }
+  .fh-hero::before {
+    display: block;
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(8, 28, 14, 0) 20%, rgba(8, 28, 14, 0.55) 52%, rgba(8, 28, 14, 0.9) 100%);
+  }
+  .fh-hero-copy { width: auto; margin: 0; padding: 0 16px 16px; color: #fff; }
+  .fh-eyebrow { font-size: 10px; margin-bottom: 6px; color: #b9f0c6; }
+  .fh-hero-copy h1 { font-size: 24px; line-height: 1.15; color: #fff; margin-bottom: 0; max-width: none; }
+  .fh-hero-copy p { display: none; }
+  .fh-hero-cta { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; margin: 14px 0 0; }
+  .fh-hero-cta .btn { height: 40px; padding: 0 10px; border-radius: 12px; font-size: 12.5px; }
+  .fh-hero-cta .fh-ghost { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.55); color: #fff; }
+  .fh-hero-points { flex-wrap: nowrap; gap: 6px; margin-top: 12px; overflow-x: auto; scrollbar-width: none; }
+  .fh-hero-points::-webkit-scrollbar { display: none; }
+  .fh-hero-points li {
+    flex: 0 0 auto;
+    gap: 5px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-size: 10.5px;
+    white-space: nowrap;
+  }
+  .fh-hero-points li br { display: none; }
+  .fh-hero-points li > span { width: auto; height: auto; background: none; color: #b9f0c6; }
+  .fh-hero-points li > span svg { width: 14px; height: 14px; }
+  .fh-hero-script { top: 14px; right: 14px; font-size: 18px; }
+
+  /* ---- categories: round photos, three across, one white card ---- */
+  .fh-cats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 8px;
+    padding: 16px 10px;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: var(--shadow-card);
+  }
+  .fh-cat,
+  .fh-cat[class*="tint-"] { align-items: center; gap: 0; padding: 0; border: 0; background: none; text-align: center; }
+  .fh-cat:hover { transform: none; box-shadow: none; }
+  .fh-cat-media {
+    width: 70px;
+    height: 70px;
+    aspect-ratio: auto;
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1.5px #d7e9dc;
+  }
+  .fh-cat-badge { display: none; }
+  .fh-cat strong { margin-top: 6px; font-size: 11.5px; line-height: 1.25; }
+  .fh-cat-note { display: none; }
+
+  /* ---- product rows: swipe and snap, two and a peek ---- */
+  .fh-grid,
+  .fh-wide-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    gap: 12px;
+    margin: 0 -16px;
+    padding: 2px 16px 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding: 0 16px;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .fh-grid { grid-auto-columns: calc((100% - 24px) / 2.15); }
+  .fh-wide-row { grid-auto-columns: 82%; }
+  .fh-grid::-webkit-scrollbar,
+  .fh-wide-row::-webkit-scrollbar { display: none; }
+  .fh-grid > *,
+  .fh-wide-row > * { scroll-snap-align: start; }
+  .fh-wide { grid-template-columns: 92px minmax(0, 1fr); border: 0; box-shadow: 0 2px 10px rgba(10, 30, 20, 0.07); }
+
+  /* ---- organic banner ---- */
+  .fh-organic { margin-top: 24px; min-height: 0; border-radius: 18px; }
+  .fh-organic::before { background: linear-gradient(90deg, #0f4a23 0%, rgba(15, 74, 35, 0.92) 55%, rgba(15, 74, 35, 0.35) 100%); }
+  .fh-organic-copy { max-width: 74%; padding: 20px 16px; }
+  .fh-organic-copy h2 { font-size: 23px; }
+  .fh-organic-copy p { font-size: 12.5px; margin-bottom: 14px; }
+  .fh-pill { padding: 8px 16px; font-size: 13px; }
+  .fh-organic-seal { top: auto; bottom: 14px; right: 14px; width: 66px; height: 66px; transform: none; font-size: 8.5px; }
+  .fh-organic-seal strong { font-size: 16px; }
+
+  /* ---- why shop: five icons in one row ---- */
+  .fh-why { flex-direction: column; align-items: stretch; gap: 14px; margin-top: 24px; padding: 16px 12px; }
+  .fh-why-title { text-align: center; }
+  .fh-why-title h2 { font-size: 18px; }
+  .fh-why-list { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .fh-why-list li { font-size: 10px; gap: 6px; }
+  .fh-why-list li > span { width: 38px; height: 38px; }
+  .fh-why-list li > span svg { width: 18px; height: 18px; }
+  .fh-why-list br { display: none; }
 }
+@media (max-width: 720px) {
+  .fh-hero { align-items: stretch; }
+  .fh-hero-copy { width: 100%; box-sizing: border-box; }
+}
+/* Farm Fresh categories: every shelf (nine) in one row on desktop. */
+.fh-cats { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
+@media (max-width: 720px) { .fh-cats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }@media (max-width: 720px) {
+  /* Farm Fresh hero: two equal buttons that always fit side by side. */
+  .fh-hero-cta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fh-hero-cta .btn { min-width: 0; padding: 0 8px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; justify-content: center; }
+  .fh-hero-cta .btn svg { display: none; }
+}
+@media (max-width: 360px) {
+  .fh-hero-cta .btn { font-size: 11.5px; }
+}@media (max-width: 720px) {
+  /* Section heading and its link on one line. */
+  .fh-head h2 { white-space: nowrap; }
+  .fh-head-link { flex: 0 0 auto; }
+}
+/* ---------------------------------------------------------------------------
+   Product cards on phones: the photo runs edge to edge across the top of the
+   card; the badges stack small in the top-left corner and the heart keeps the
+   top-right, so they never collide.
+   ------------------------------------------------------------------------- */
+@media (max-width: 720px) {
+  .card { padding: 0 0 10px; gap: 3px; overflow: hidden; }
+  .card > :not(.card-media-wrap) { margin-left: 10px; margin-right: 10px; }
+  .card-media-wrap { margin: 0 0 6px; }
+  .card-media { border-radius: 0; aspect-ratio: 1 / 0.92; }
+
+  .card-flags {
+    top: 7px;
+    left: 7px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    max-width: calc(100% - 50px);
+  }
+  .card-flags .badge {
+    padding: 2px 7px;
+    font-size: 9px;
+    line-height: 1.3;
+    box-shadow: 0 1px 3px rgba(10, 30, 20, 0.15);
+  }
+  .card-flags .badge:not(:first-child) { background: rgba(255, 255, 255, 0.94); }
+
+  .card .wishlist-btn { top: 7px; right: 7px; width: 30px; height: 30px; }
+  .card .wishlist-btn svg { width: 16px; height: 16px; }
+}@media (max-width: 720px) {
+  /* Category pages: same edge-to-edge photo card as the rest of the site. */
+  .split.cat-layout .card { padding: 0 0 8px; overflow: hidden; }
+  .split.cat-layout .card > :not(.card-media-wrap) { margin-left: 8px; margin-right: 8px; }
+  .split.cat-layout .card-media-wrap { margin: 0 0 6px; }
+  .split.cat-layout .card-media { border-radius: 0; background: #f4f6f4; }
+  .split.cat-layout .card-media img { object-fit: cover; padding: 0; }
+  .split.cat-layout .card-flags .badge { padding: 2px 7px; font-size: 9px; border-radius: 999px; }
+  .split.cat-layout .wishlist-btn { top: 7px; right: 7px; width: 30px; height: 30px; }
+}@media (max-width: 720px) {
+  /* Room for the fixed free-delivery bar only (the tab bar's height is
+     already reserved by body's own padding) — no extra gap under the cards. */
+  .split.cat-layout { padding-bottom: calc(52px + env(safe-area-inset-bottom)); }
+}@media (max-width: 720px) {
+  /* The space for the fixed free-delivery bar belongs at the end of the page
+     (below the promises box), not under the product grid. */
+  .split.cat-layout { padding-bottom: 0; }
+  body:has(.cat-mobile-head) { padding-bottom: calc(64px + 56px + env(safe-area-inset-bottom)); }
+}
+/* ------------------------------------------------ "All products" category panel
+   The sidebar on /c: departments as photo rows with their totals, each
+   department's aisles indented beneath it on a guide line. */
+.cat-panel {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  padding: 14px 10px 12px;
+  max-height: calc(100vh - var(--header-total) - 48px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.cat-panel-title {
+  padding: 2px 8px 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.cat-panel-group { margin-top: 4px; }
+.cat-panel-dept {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 8px;
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.cat-panel-dept:hover { background: var(--bg-alt); color: var(--brand-dark); }
+.cat-panel-dept.current { background: var(--brand-soft); color: var(--brand-dark); box-shadow: inset 3px 0 0 var(--brand); }
+.cat-panel-thumb {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  overflow: hidden;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  color: var(--brand);
+}
+.cat-panel-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cat-panel-thumb svg { width: 20px; height: 20px; }
+.cat-panel-thumb-all { background: #fff; border-color: rgba(31, 122, 61, 0.25); }
+.cat-panel-name { flex: 1; min-width: 0; line-height: 1.25; }
+.cat-panel-count {
+  flex: 0 0 auto;
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-alt);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.cat-panel-dept.current .cat-panel-count { background: var(--brand); color: #fff; }
+.cat-panel-aisles {
+  margin: 2px 0 8px 27px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  display: grid;
+  gap: 1px;
+}
+.cat-panel-aisle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  position: relative;
+}
+.cat-panel-aisle::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.cat-panel-aisle:hover { background: var(--bg-alt); color: var(--brand-dark); }
+.cat-panel-aisle:hover::before { border-color: var(--brand); background: var(--brand); }
+.cat-panel-aisle-count { font-size: 12px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+/* keep department names on one line in the 250px panel */
+.cat-panel { padding-left: 8px; padding-right: 8px; }
+.cat-panel-dept { gap: 10px; padding: 6px 6px; font-size: 13.5px; }
+.cat-panel-thumb { flex-basis: 34px; width: 34px; height: 34px; border-radius: 10px; }
+.cat-panel-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat-panel-aisles { margin-left: 23px; }
+
+/* ------------------------------------------------ desktop header actions
+   Location, orders and account as matching two-line buttons (small grey
+   label over a bold value, icon in a soft green circle); the cart as the one
+   solid green call to action. Phones keep their own header (≤720px). */
+@media (min-width: 721px) {
+  .header-actions { gap: 4px; }
+  .header-divider { height: 28px; margin: 0 6px; background: var(--border); }
+  .header-btn { gap: 10px; padding: 6px 12px 6px 6px; border-radius: 999px; transition: background 0.15s ease, border-color 0.15s ease; }
+  .header-btn:hover { background: var(--bg-alt); border-color: var(--border); }
+  .header-btn .header-btn-icon {
+    box-sizing: content-box;
+    width: 20px; height: 20px; flex: 0 0 20px;
+    padding: 9px;
+    border-radius: 50%;
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+  .header-btn:hover .header-btn-icon { background: var(--brand); color: #fff; }
+  .header-btn .sub,
+  .header-extra .sub { display: block; font-size: 11.5px; font-weight: 500; color: var(--text-faint); line-height: 1.25; }
+  .header-btn .main { display: flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .header-btn .header-caret { width: 9px; height: 9px; color: var(--text-faint); }
+  .header-btn[aria-expanded="true"] { background: var(--bg-alt); border-color: var(--border); }
+  .pin-anchor .header-btn .main { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+
+  /* the cart: solid brand pill */
+  .header-btn.cart-btn { margin-left: 4px; padding: 6px 18px 6px 8px; background: var(--brand); border-color: var(--brand); color: #fff; box-shadow: 0 4px 12px rgba(31, 122, 61, 0.22); }
+  .header-btn.cart-btn:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+  .header-btn.cart-btn .header-btn-icon { width: 22px; height: 22px; flex-basis: 22px; padding: 7px; background: rgba(255, 255, 255, 0.16); color: #fff; }
+  .header-btn.cart-btn:hover .header-btn-icon { background: rgba(255, 255, 255, 0.22); }
+  .header-btn.cart-btn .sub { color: rgba(255, 255, 255, 0.8); }
+  .header-btn.cart-btn .main { color: #fff; font-size: 15px; font-weight: 700; }
+  .cart-btn .cart-badge { top: -4px; right: -6px; background: #f5b82e; color: #1f2a1f; border-color: var(--brand); }
+}
+/* tablet widths: the wrapped header lost the page gutter (padding: 12px 0) */
+@media (min-width: 721px) and (max-width: 1080px) {
+  .header-main { padding-left: 20px; padding-right: 20px; }
+}
+
+/* Login: the one-time code filling itself in */
+.otp-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.otp-auto { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--brand); }
+.otp-auto.done { color: var(--save, var(--brand)); }
+.otp-auto-spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--brand-soft); border-top-color: var(--brand); animation: otp-spin 0.7s linear infinite; }
+@keyframes otp-spin { to { transform: rotate(360deg); } }
+.otp-input.otp-filling { color: var(--brand); border-color: var(--brand) !important; box-shadow: 0 0 0 3px var(--brand-soft); font-variant-numeric: tabular-nums; }
+.otp-input.otp-done { border-color: var(--brand) !important; background: var(--brand-soft); color: var(--brand-dark); }
+@media (prefers-reduced-motion: reduce) { .otp-auto-spin { animation: none; } }
+
+/* ------------------------------------------------ legal pages (/terms) */
+.legal { background: var(--bg-alt); padding-bottom: 56px; }
+.legal-hero {
+  background: linear-gradient(135deg, #0f4a23 0%, #1f7a3d 100%);
+  color: #fff;
+  padding: 34px 0 40px;
+}
+.legal-crumbs { display: flex; gap: 8px; font-size: 13px; color: rgba(255, 255, 255, 0.75); margin-bottom: 14px; }
+.legal-crumbs a { color: rgba(255, 255, 255, 0.9); }
+.legal-crumbs a:hover { color: #fff; text-decoration: underline; }
+.legal-hero h1 { margin: 0 0 8px; font-family: var(--font-serif); font-size: clamp(30px, 4vw, 42px); font-weight: 400; color: #fff; }
+.legal-lede { margin: 0; max-width: 640px; font-size: 15.5px; line-height: 1.6; color: rgba(255, 255, 255, 0.86); }
+.legal-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.legal-meta span {
+  padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 500;
+  background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.22); color: #fff;
+}
+
+.legal-body { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 28px; align-items: start; margin-top: -18px; }
+.legal-toc { position: sticky; top: 20px; }
+.legal-toc-inner {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: var(--shadow-card); padding: 16px 12px;
+}
+.legal-toc strong { display: block; padding: 0 8px 10px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+.legal-toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; display: grid; gap: 1px; }
+.legal-toc li { counter-increment: toc; }
+.legal-toc a {
+  display: flex; gap: 10px; padding: 7px 8px; border-radius: 8px;
+  font-size: 13.5px; color: var(--text-muted); line-height: 1.35;
+}
+.legal-toc a::before { content: counter(toc, decimal-leading-zero); font-size: 11.5px; font-weight: 700; color: var(--text-faint); padding-top: 1px; }
+.legal-toc a:hover { background: var(--brand-soft); color: var(--brand-dark); }
+.legal-toc a:hover::before { color: var(--brand); }
+
+.legal-main { display: grid; gap: 14px; min-width: 0; }
+.legal-glance, .legal-section {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: var(--shadow-card); padding: 24px 28px;
+}
+.legal-glance h2 { margin: 0 0 14px; font-size: 18px; }
+.legal-glance ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.legal-glance li { display: flex; gap: 12px; padding: 14px; border-radius: 12px; background: var(--brand-soft); }
+.legal-glance li strong { display: block; font-size: 14px; color: var(--brand-dark); margin-bottom: 2px; }
+.legal-glance li span span { font-size: 13px; line-height: 1.45; color: var(--text-muted); }
+.legal-glance-icon {
+  display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px;
+  border-radius: 10px; background: #fff; color: var(--brand);
+}
+
+.legal-section { scroll-margin-top: 20px; }
+.legal-section h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; font-size: 18.5px; color: var(--text); }
+.legal-num {
+  display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 10px;
+  background: var(--brand-soft); color: var(--brand); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.legal-section p { margin: 0 0 10px; font-size: 14.5px; line-height: 1.75; color: var(--text-muted); }
+.legal-section p:last-child { margin-bottom: 0; }
+.legal-section:target { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+
+.legal-contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.legal-contact-card {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 12px; color: var(--text);
+}
+.legal-contact-card svg { flex: 0 0 auto; color: var(--brand); }
+a.legal-contact-card:hover { border-color: var(--brand); background: var(--brand-soft); }
+.legal-contact-card small { display: block; font-size: 11.5px; color: var(--text-faint); }
+.legal-contact-card strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.legal-foot { margin: 4px 0 0; text-align: center; font-size: 13.5px; color: var(--text-muted); }
+.legal-foot a { color: var(--brand); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .legal-body { grid-template-columns: minmax(0, 1fr); margin-top: -14px; }
+  .legal-toc { position: static; }
+  .legal-toc ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .legal-hero { padding: 22px 0 32px; }
+  .legal-toc ol, .legal-glance ul, .legal-contact-grid { grid-template-columns: minmax(0, 1fr); }
+  .legal-glance, .legal-section { padding: 18px 16px; border-radius: 14px; }
+  .legal-section h2 { font-size: 16.5px; }
+  .legal-section p { font-size: 14px; }
+}
+/* phones: the summary and numbered sections are enough; skip the long contents list */
+@media (max-width: 600px) { .legal-toc { display: none; } .legal-body { margin-top: -16px; } }

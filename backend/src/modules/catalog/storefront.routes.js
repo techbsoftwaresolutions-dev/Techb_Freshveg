@@ -291,6 +291,8 @@ router.get(
       success: true,
       serviceable: true,
       store: { id: store.id, name: store.name, code: store.code },
+      // The named places this pincode covers ("Sarjapura", "Dommasandra").
+      areas: store.deliveryAreas().filter((a) => a.pincode === pincode && a.name).map((a) => a.name),
       isOpen: store.isOpenNow(),
       minOrderValue: store.settings.minOrderValue,
       freeDeliveryEnabled: store.settings.freeDeliveryEnabled !== false,

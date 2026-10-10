@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import FormRoute from "../components/FormRoute";
+import DateTimePicker from "../components/DateTimePicker";
 import { useAuth } from "../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, rupees } from "../components/ui";
 
@@ -453,10 +454,10 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
         help="Optional. Set this to run the offer as a countdown 'Flash Deal' on the homepage — leave it blank for a regular offer with no countdown."
         style={{ marginBottom: 14 }}
       >
-        <input
-          type="datetime-local"
+        <DateTimePicker
           value={toLocalInputValue(form.schedule?.endsAt)}
-          onChange={(e) => setSchedule("endsAt", e.target.value)}
+          onChange={(next) => setSchedule("endsAt", next)}
+          placeholder="No end time — regular offer"
         />
       </Field>
       <div className="grid cols-3">

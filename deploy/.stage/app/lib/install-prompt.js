@@ -41,6 +41,21 @@ export function detectPlatform() {
   return "desktop";
 }
 
+// Android, in a browser other than Google Chrome. Chrome's installed app is
+// packaged and signed by Google; other Chromium browsers (Edge, Brave, Opera,
+// Samsung Internet, Mi/Vivo/Oppo browsers…) build the package on the phone
+// with an old Android target, which Play Protect blocks as "built for an older
+// version of Android". Those shoppers are pointed to Chrome instead.
+export function isAndroidOtherBrowser() {
+  if (typeof navigator === "undefined" || detectPlatform() !== "android") return false;
+  const ua = navigator.userAgent;
+  // Firefox adds a plain home-screen shortcut, which Play Protect leaves alone.
+  if (/Firefox/i.test(ua)) return false;
+  if (navigator.brave) return true;
+  if (/EdgA|OPR|Opera|SamsungBrowser|MiuiBrowser|XiaoMi|VivoBrowser|HeyTapBrowser|OppoBrowser|UCBrowser|YaBrowser|DuckDuckGo|; wv\)/i.test(ua)) return true;
+  return !/Chrome\/\d/.test(ua);
+}
+
 // Shows the browser's own install dialog. Resolves to "accepted",
 // "dismissed", or "unavailable" when the browser has not offered one.
 export async function promptInstall() {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { discountPct, img, rupees } from "@/lib/format";
+import { imageAlt } from "@/lib/seo";
 import ProductCard from "@/components/ProductCard";
 import AddToCart from "@/components/AddToCart";
 import WishlistButton from "@/components/WishlistButton";
@@ -38,7 +39,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
     <div className="fh">
       {/* ---------------------------------------------------------- hero */}
       <section className="fh-hero">
-        <img src={heroPhoto.src} alt="" className="fh-hero-photo" />
+        <img src={heroPhoto.src} alt="Farm-fresh vegetables delivered in Bangalore by The Farmers Basket" className="fh-hero-photo" />
         <div className="fh-hero-copy">
           <span className="fh-eyebrow">Premium Fresh Produce</span>
           <h1>
@@ -74,7 +75,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
                 <Link key={category.id} href={`/c/${category.slug}`} className={`fh-cat tint-${TINTS[index % TINTS.length]}`}>
                   <span className="fh-cat-media">
                     {category.image ? (
-                      <img src={img(category.image, 320)} alt="" loading="lazy" />
+                      <img src={img(category.image, 320)} alt={`Fresh ${category.name} — buy online in Bangalore`} loading="lazy" />
                     ) : (
                       <CategoryIcon name={category.name} />
                     )}
@@ -114,7 +115,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
 
         {/* --------------------------------------------- organic banner */}
         <section className="fh-organic">
-          <img src={organicPhoto.src} alt="" className="fh-organic-photo" loading="lazy" />
+          <img src={organicPhoto.src} alt="Organic vegetables and fruits from local farmers" className="fh-organic-photo" loading="lazy" />
           <div className="fh-organic-copy">
             <span className="fh-eyebrow light">Pure &amp; Natural</span>
             <h2>Organic Collection</h2>
@@ -226,7 +227,7 @@ function WideCard({ product }) {
   return (
     <article className={`fh-wide${outOfStock ? " sold-out" : ""}`}>
       <Link href={`/p/${product.slug}`} className="fh-wide-media" aria-label={product.name}>
-        {image ? <img src={img(image, 300)} alt="" loading="lazy" /> : <CategoryIcon name={product.name} />}
+        {image ? <img src={img(image, 300)} alt={imageAlt(product.name, product.media?.[0])} loading="lazy" /> : <CategoryIcon name={product.name} />}
       </Link>
       <div className="fh-wide-body">
         <Link href={`/p/${product.slug}`} className="fh-wide-name">{product.name}</Link>

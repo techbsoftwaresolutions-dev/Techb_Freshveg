@@ -57,4 +57,10 @@ const config = {
 
 config.isProd = config.env === "production";
 
+// Until an SMS provider is connected, the login code can be sent back to the
+// screen and filled in automatically. Always on outside production; on the
+// live site only when OTP_ON_SCREEN=true is set deliberately — anyone could
+// then sign in as any number, so it is for launch/testing only.
+config.otpOnScreen = !config.isProd || process.env.OTP_ON_SCREEN === "true";
+
 module.exports = config;

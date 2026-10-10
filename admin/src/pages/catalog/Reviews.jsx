@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { api } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { api, toast } from "../../api/client";
+import { useAuth } from "../../context/AuthContext";
+
+// A save's confirmation, as a toast (components/Toaster.jsx).
+const notifySaved = (message) => message && toast("success", message);
 import {
   Banner, Card, Empty, Loading, Modal, Pagination, Pill, Rating, Table, Tabs, when,
 } from "../../components/ui";
@@ -17,7 +20,6 @@ export default function Reviews() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [rejecting, setRejecting] = useState(null);
 
   const load = useCallback(() => {
@@ -38,7 +40,7 @@ export default function Reviews() {
     setError("");
     try {
       await api.post(`/reviews/${review.id}/moderate`, { status: decision, note });
-      setNotice(
+      notifySaved(
         decision === "published"
           ? "Published — it's live on the product page and counts towards the rating."
           : "Rejected. It stays on record but is not public."
@@ -61,7 +63,6 @@ export default function Reviews() {
       </div>
 
       <Banner tone="error">{error}</Banner>
-      <Banner tone="ok">{notice}</Banner>
 
       <Tabs
         tabs={[

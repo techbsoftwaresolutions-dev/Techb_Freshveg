@@ -9,11 +9,14 @@ const StoreContext = createContext(null);
 const WishlistContext = createContext(null);
 
 const PINCODE_KEY = "commerce.web.pincode";
+// The place name the shopper picked for that pincode ("Sarjapura").
+const AREA_KEY = "commerce.web.area";
 
 export function Providers({ children }) {
   // --- store / delivery location ---------------------------------------
   const [store, setStore] = useState(null);
   const [pincode, setPincodeState] = useState(null);
+  const [area, setArea] = useState("");
   const [storeReady, setStoreReady] = useState(false);
 
   useEffect(() => {
@@ -30,6 +33,13 @@ export function Providers({ children }) {
           const data = await api.get("/storefront/serviceability", { pincode: saved });
           if (data.serviceable) {
             setPincodeState(saved);
+            let savedArea = "";
+            try {
+              savedArea = localStorage.getItem(AREA_KEY) || "";
+            } catch {
+              savedArea = "";
+            }
+            setArea(savedArea || data.areas?.[0] || "");
             setStore({ ...data.store, ...data });
             setStoreReady(true);
             return;
@@ -49,13 +59,18 @@ export function Providers({ children }) {
     })();
   }, []);
 
-  const setPincode = useCallback(async (code) => {
+  // areaName: the place picked from the list; a typed pincode takes the
+  // first place the shop has named for it.
+  const setPincode = useCallback(async (code, areaName) => {
     const data = await api.get("/storefront/serviceability", { pincode: code });
     if (data.serviceable) {
+      const name = areaName || data.areas?.[0] || "";
       setPincodeState(code);
+      setArea(name);
       setStore({ ...data.store, ...data });
       try {
         localStorage.setItem(PINCODE_KEY, code);
+        localStorage.setItem(AREA_KEY, name);
       } catch {
         // Not fatal — they will be asked again next visit.
       }
@@ -288,8 +303,8 @@ export function Providers({ children }) {
   );
 
   const storeValue = useMemo(
-    () => ({ store, storeId, pincode, ready: storeReady, setPincode }),
-    [store, storeId, pincode, storeReady, setPincode]
+    () => ({ store, storeId, pincode, area, ready: storeReady, setPincode }),
+    [store, storeId, pincode, area, storeReady, setPincode]
   );
 
   return (

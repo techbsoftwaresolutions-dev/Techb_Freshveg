@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { api, toast } from "../../api/client";
+import { useAuth } from "../../context/AuthContext";
+
+// A save's confirmation, as a toast (components/Toaster.jsx).
+const notifySaved = (message) => message && toast("success", message);
 import {
   Banner, Card, DateRange, Empty, Loading, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
@@ -250,7 +253,6 @@ function CashOnDelivery({ canManage }) {
   const [data, setData] = useState({ partners: [], total: 0 });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
-  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
@@ -271,7 +273,7 @@ function CashOnDelivery({ canManage }) {
     setError("");
     try {
       const result = await api.post("/payments/cod/settle", { paymentIds: entry.paymentIds });
-      setNotice(`Recorded ${rupees(entry.amount)} handed in by ${entry.partner?.name || "the store"}.`);
+      notifySaved(`Recorded ${rupees(entry.amount)} handed in by ${entry.partner?.name || "the store"}.`);
       load();
     } catch (err) {
       setError(err.message);
@@ -285,7 +287,6 @@ function CashOnDelivery({ canManage }) {
   return (
     <>
       <Banner tone="error">{error}</Banner>
-      <Banner tone="ok">{notice}</Banner>
 
       <div className="grid cols-3" style={{ marginBottom: 14 }}>
         <Stat

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { detectPlatform, promptInstall, useInstallPrompt } from "@/lib/install-prompt";
+import { detectPlatform, isAndroidOtherBrowser, promptInstall, useInstallPrompt } from "@/lib/install-prompt";
 
 // "Get the app" in the footer: the app is this site installed as a PWA. The
 // button opens the browser's own install dialog where there is one (Chrome,
@@ -11,6 +11,7 @@ const HINTS = {
   ios: "In Safari, tap Share, then “Add to Home Screen”.",
   android: "Open the browser menu ⋮ and tap “Install app” or “Add to Home screen”.",
   desktop: "Use the install icon in the address bar, or the browser menu → Install The Farmers Basket.",
+  chrome: "To install safely on Android, open thefarmersbasket.in in Google Chrome, then tap Install. Other browsers build an app Android may block as unsafe.",
   done: "Installed! Open The Farmers Basket from your home screen.",
 };
 
@@ -21,6 +22,10 @@ export default function FooterInstall() {
   if (installed && hint !== "done") return null;
 
   const install = async () => {
+    if (isAndroidOtherBrowser()) {
+      setHint("chrome");
+      return;
+    }
     if (canPrompt) {
       if ((await promptInstall()) === "accepted") setHint("done");
       return;

@@ -3,6 +3,7 @@ import farmersPhoto from "@/assets/why-farmers.jpg";
 import qualityPhoto from "@/assets/why-quality.jpg";
 import packedPhoto from "@/assets/Fresh Harvest in a Sunlit Crate.webp";
 import deliveryPhoto from "@/assets/why-delivery.jpg";
+import logoIcon from "@/assets/logo-icon.png";
 
 // "Why Farmers Basket?" — the four promises as photo cards, followed by the
 // "Fresh. Healthy. Always." band. Homepage only; category pages keep the
@@ -51,7 +52,7 @@ export default function WhyFarmersBasket() {
           {reasons.map((reason) => (
             <li key={reason.title} className="why-card">
               <span className="why-photo">
-                <img src={reason.photo.src} alt="" loading="lazy" />
+                <img src={reason.photo.src} alt={reason.title} loading="lazy" />
               </span>
               <span className="why-copy">
                 <span className="why-icon">{reason.icon}</span>
@@ -66,7 +67,7 @@ export default function WhyFarmersBasket() {
       <section className="fresh-band" aria-label="Our promise">
         <div className="fresh-band-title">
           <span className="fresh-band-mark" aria-hidden="true">
-            <IconLeafMark />
+            <img src={logoIcon.src} alt="" width="48" height="48" />
           </span>
           <span>
             <strong>Fresh. Healthy. Always.</strong>
@@ -151,14 +152,6 @@ function IconNoChemical() {
     <svg {...iconProps} width="20" height="20">
       <circle cx="12" cy="12" r="8.5" />
       <path d="m6 6 12 12M9 9l6 6M15 9l-6 6" />
-    </svg>
-  );
-}
-function IconLeafMark() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" width="44" height="44">
-      <path d="M22 44C9 42 2 31 4 14c11 1 19 8 20 20 0 4-1 7-2 10Z" fill="#2e7d32" />
-      <path d="M24 44c1-14 7-26 20-32 2 17-5 29-18 32h-2Z" fill="#66bb6a" />
     </svg>
   );
 }

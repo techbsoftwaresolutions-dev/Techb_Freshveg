@@ -5,8 +5,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "./Providers";
 import { rupees } from "@/lib/format";
-import { FreeDeliveryNote } from "./FreeDeliveryProgress";
-import logo from "@/assets/Farmers Basket Fresh Produce Logo.webp";
+import { api } from "@/lib/client-api";
+
+import logo from "@/assets/logo-farmers-basket.png";
 
 export default function Header({ categories = [] }) {
   const router = useRouter();
@@ -14,9 +15,11 @@ export default function Header({ categories = [] }) {
   const pathname = usePathname();
   const cart = useCart();
   const { user, signedIn } = useAuth();
-  const { store, pincode, setPincode } = useStore();
+  const { store, pincode, area, setPincode } = useStore();
 
   const [term, setTerm] = useState(params.get("q") || "");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const typedPlaceholder = useTypedPlaceholder(!term && !searchFocused);
   const [pinOpen, setPinOpen] = useState(false);
   const closePin = useCallback(() => setPinOpen(false), []);
   const [openCategory, setOpenCategory] = useState(null);
@@ -60,6 +63,9 @@ export default function Header({ categories = [] }) {
   // On "All products" and category pages the search box filters the listing
   // in place (see ListingSearch) instead of opening the /search page.
   const onListing = pathname === "/c" || pathname.startsWith("/c/");
+  // Information pages (terms, help, policies) are for reading, not shopping —
+  // no category bar under the header there.
+  const onInfoPage = INFO_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
   const tellListing = (value) => window.dispatchEvent(new CustomEvent("listing-search", { detail: value }));
 
   const submit = (event) => {
@@ -71,23 +77,6 @@ export default function Header({ categories = [] }) {
 
   return (
     <header className="header">
-      {/* The standing terms, stated once and out of the way. A shopper reads
-          this on the first visit and never again, so it gets the smallest
-          type on the page rather than a banner that has to be dismissed.
-
-          Everything here is fixed copy on purpose. The store — and so its
-          delivery time — is resolved by an effect after mount, and this header
-          streams in behind a Suspense boundary; putting that number here means
-          the server writes one value and hydration finds another. The live
-          delivery time belongs on the page body, which is rendered on the
-          server from the real store. */}
-      <div className="utility">
-        <div className="wrap utility-inner">
-          <span className="utility-item utility-wide">Freshness You Can Trust</span>
-          <FreeDeliveryNote className="utility-item utility-promo" withSeparator />
-        </div>
-      </div>
-
       <div className="wrap header-main">
         {/* Phone, on the cart page only (see globals.css): all categories. */}
         <Link href="/c" className="header-burger" aria-label="All categories">
@@ -96,7 +85,7 @@ export default function Header({ categories = [] }) {
         <Link href="/" className="logo">
           {/* The artwork carries a wide white margin; .logo crops it so the
               basket and wordmark fill the header row. */}
-          <img src={logo.src} alt="Farmers Basket" width={logo.width} height={logo.height} className="logo-img" />
+          <img src={logo.src} alt="The Farmers Basket" width={logo.width} height={logo.height} className="logo-img" />
         </Link>
 
         <form className="search-form" onSubmit={submit} role="search">
@@ -108,7 +97,9 @@ export default function Header({ categories = [] }) {
               setTerm(e.target.value);
               if (onListing) tellListing(e.target.value);
             }}
-            placeholder="Search vegetables, organic produce and more…"
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            placeholder={typedPlaceholder}
             aria-label="Search products"
           />
           <button type="submit" aria-label="Search">
@@ -133,7 +124,7 @@ export default function Header({ categories = [] }) {
                     and flashing, which is worse for the one thing a shopper
                     checks first. */}
                 <span className="main" suppressHydrationWarning>
-                  {pincode || store?.address?.city || store?.address?.pincode || "Set location"}
+                  {area || pincode || store?.address?.city || store?.address?.pincode || "Set location"}
                   <IconCaret className="header-caret" aria-hidden="true" />
                 </span>
               </span>
@@ -146,13 +137,13 @@ export default function Header({ categories = [] }) {
           <span className="header-divider" aria-hidden="true" />
 
           {/* Phone: these two live in the bottom tab bar instead (globals.css). */}
-          <div className="header-btn header-extra">
-            <IconHelp className="header-btn-icon" />
+          <Link href="/orders" className="header-btn header-extra">
+            <IconBox className="header-btn-icon" />
             <span>
-              <Link href="/help" className="sub">Help /</Link>
-              <Link href="/orders" className="sub">Orders</Link>
+              <span className="sub">Returns &amp;</span>
+              <span className="main">Orders</span>
             </span>
-          </div>
+          </Link>
 
           {/* Always /account, even signed out: the destination must not depend
               on client-only state, or the server and client render different
@@ -163,10 +154,15 @@ export default function Header({ categories = [] }) {
             {/* The label depends on the stored session, which the server
                 render cannot see — suppressHydrationWarning sits on the
                 element whose own text varies. */}
-            <span className="sub" suppressHydrationWarning>
-              {signedIn ? user.name?.split(" ")[0] || "My Account" : "My Account"}
+            <span>
+              <span className="sub" suppressHydrationWarning>
+                {signedIn ? `Hello, ${user.name?.split(" ")[0] || "there"}` : "Hello, sign in"}
+              </span>
+              <span className="main">
+                Account
+                <IconCaret className="header-caret" aria-hidden="true" />
+              </span>
             </span>
-            <IconCaret className="header-caret" aria-hidden="true" />
           </Link>
 
           <span className="header-divider" aria-hidden="true" />
@@ -190,6 +186,7 @@ export default function Header({ categories = [] }) {
         </div>
       </div>
 
+      {onInfoPage ? null : (
       <nav className="catbar" aria-label="Categories" ref={catbarRef}>
         <div className="wrap catbar-inner">
           <Link href="/c" className="catbar-all">
@@ -267,18 +264,104 @@ export default function Header({ categories = [] }) {
           </Link>
         </div>
       </nav>
+      )}
     </header>
   );
 }
 
-// The delivery check: a small pop-up under "Deliver to". Closes on a click
-// outside, on Escape, or shortly after a pincode we serve is confirmed.
+// Pages that show the header without the category bar.
+const INFO_PAGES = ["/terms", "/help", "/privacy", "/refund-policy", "/shipping-policy", "/about"];
+
+// The search box's placeholder types itself out, one product at a time
+// ("Search for "Tomatoes"", erased, then "Search for "Fresh milk""…), while the
+// box is empty and not in use. Focused, or for anyone who prefers reduced
+// motion, it is a plain static hint.
+const SEARCH_PREFIX = "Search for ";
+const SEARCH_WORDS = [
+  "“Tomatoes”",
+  "“Fresh milk”",
+  "“Spinach”",
+  "“Organic vegetables”",
+  "“Carrots”",
+  "“Bananas”",
+  "“Coriander”",
+  "“Paneer”",
+];
+const SEARCH_STATIC = "Search vegetables, fruits, milk and more…";
+
+function useTypedPlaceholder(active) {
+  const [text, setText] = useState(SEARCH_STATIC);
+
+  useEffect(() => {
+    if (!active) {
+      setText(SEARCH_STATIC);
+      return undefined;
+    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
+
+    let word = 0;
+    let chars = 0;
+    let deleting = false;
+    let timer;
+    const tick = () => {
+      const full = SEARCH_WORDS[word];
+      if (!deleting) {
+        chars += 1;
+        setText(SEARCH_PREFIX + full.slice(0, chars));
+        if (chars === full.length) {
+          deleting = true;
+          timer = setTimeout(tick, 1600); // hold the finished word
+          return;
+        }
+        timer = setTimeout(tick, 85);
+      } else {
+        chars -= 1;
+        setText(SEARCH_PREFIX + full.slice(0, chars));
+        if (chars === 0) {
+          deleting = false;
+          word = (word + 1) % SEARCH_WORDS.length;
+          timer = setTimeout(tick, 350);
+          return;
+        }
+        timer = setTimeout(tick, 40);
+      }
+    };
+    setText(SEARCH_PREFIX);
+    timer = setTimeout(tick, 600);
+    return () => clearTimeout(timer);
+  }, [active]);
+
+  return text;
+}
+
+// The delivery check: a small pop-up under "Deliver to". The shopper types a
+// place name or a pincode and picks from the areas the shop delivers to (set
+// per store in the admin), or checks any 6-digit pincode directly. Closes on a
+// click outside, on Escape, or shortly after a served area is confirmed.
 function PincodePopover({ onDone, setPincode, store }) {
   const [value, setValue] = useState("");
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [areas, setAreas] = useState([]);
   const boxRef = useRef(null);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    let live = true;
+    api
+      .get("/stores/service-areas")
+      .then((data) => live && setAreas(data.areas || []))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const query = value.trim().toLowerCase();
+  const matches = areas
+    .filter((a) => !query || a.pincode.startsWith(query) || a.name.toLowerCase().includes(query))
+    .slice(0, 8);
+  const isPincode = /^\d{6}$/.test(value.trim());
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -297,18 +380,23 @@ function PincodePopover({ onDone, setPincode, store }) {
     };
   }, [onDone]);
 
-  const check = async (event) => {
-    event.preventDefault();
+  const choose = async (code, name) => {
     setBusy(true);
     try {
-      const data = await setPincode(value);
-      setResult(data);
+      const data = await setPincode(code, name);
+      setResult({ ...data, picked: name || data.areas?.[0] || "", pincode: code });
       if (data.serviceable) setTimeout(onDone, 900);
     } catch {
       setResult({ serviceable: false, message: "Could not check that pincode." });
     } finally {
       setBusy(false);
     }
+  };
+
+  const check = (event) => {
+    event.preventDefault();
+    if (isPincode) choose(value.trim());
+    else if (matches.length) choose(matches[0].pincode, matches[0].name);
   };
 
   return (
@@ -322,25 +410,45 @@ function PincodePopover({ onDone, setPincode, store }) {
       <form onSubmit={check} className="pin-pop-form">
         <input
           ref={inputRef}
-          type="tel"
-          inputMode="numeric"
+          type="text"
           value={value}
-          onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
-          placeholder="6-digit pincode"
-          aria-label="Pincode"
+          onChange={(e) => {
+            setValue(e.target.value.slice(0, 40));
+            setResult(null);
+          }}
+          placeholder="Area or pincode"
+          aria-label="Area name or pincode"
+          autoComplete="off"
         />
-        <button className="btn primary" disabled={value.length !== 6 || busy}>
+        <button className="btn primary" disabled={(!isPincode && !(query && matches.length)) || busy}>
           {busy ? "Checking…" : "Check"}
         </button>
       </form>
 
+      {!result && matches.length ? (
+        <ul className="pin-pop-areas" aria-label="Areas we deliver to">
+          {matches.map((a) => (
+            <li key={`${a.pincode}-${a.name}`}>
+              <button type="button" onClick={() => choose(a.pincode, a.name)} disabled={busy}>
+                <IconPin className="pin-pop-area-icon" />
+                <span className="pin-pop-area-name">{a.name || `Pincode ${a.pincode}`}</span>
+                <span className="pin-pop-area-code">{a.pincode}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {!result && query && !matches.length && !isPincode ? (
+        <p className="pin-pop-result no">No delivery area matches “{value.trim()}”. Try your pincode.</p>
+      ) : null}
+
       {result ? (
         <p className={`pin-pop-result ${result.serviceable ? "ok" : "no"}`}>
           {result.serviceable
-            ? `We deliver here — ${result.store.name}, about ${result.prepTimeMinutes} minutes.`
+            ? `We deliver to ${result.picked ? `${result.picked} (${result.pincode})` : result.pincode} — about ${result.prepTimeMinutes} minutes.`
             : result.message || "We don't deliver to this pincode yet."}
         </p>
-      ) : store ? (
+      ) : !matches.length && store ? (
         <p className="pin-pop-note">
           Currently serving from <strong>{store.name}</strong>
         </p>
@@ -470,12 +578,11 @@ function IconMenu(props) {
     </svg>
   );
 }
-function IconHelp(props) {
+function IconBox(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6" />
-      <path d="M12 17h.01" />
+      <path d="M21 8.2 12 3.5 3 8.2v7.6l9 4.7 9-4.7V8.2Z" />
+      <path d="M3.3 8.3 12 12.8l8.7-4.5M12 12.8v7.5M7.6 5.9l8.9 4.6" />
     </svg>
   );
 }

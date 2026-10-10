@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { img } from "@/lib/format";
 import { useEffect, useRef, useState } from "react";
-import lettuce from "@/assets/banner-organic-lettuce.webp";
-import rows from "@/assets/banner-farm-rows.webp";
-import crate from "@/assets/banner-harvest-crate.webp";
+import crate from "@/assets/Fresh Harvest in a Sunlit Crate.webp";
+import basket from "@/assets/Fresh Fruit Basket in Sunlit Greenery.webp";
+import splash from "@/assets/Fresh Produce Splash Banner.webp";
 
 const ROTATE_MS = 7000;
 
 // The strip's own photography, one per slide in order. A banner that has its
 // own image uploaded in the admin shows that instead.
-const BACKDROPS = [lettuce.src, rows.src, crate.src];
+const BACKDROPS = [crate.src, basket.src, splash.src];
 
 // Where a banner's target points. The admin stores a kind and a value rather
 // than a URL, so the shape of the site can change without rewriting banners.
@@ -104,7 +104,7 @@ export default function BannerCarousel({ banners = [] }) {
           >
             <img
               src={photo}
-              alt=""
+              alt={banner.title || "Fresh vegetables and fruits at The Farmers Basket"}
               className="promo-photo"
               loading={i === 0 ? "eager" : "lazy"}
               decoding="async"

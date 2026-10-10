@@ -112,6 +112,7 @@ const productSchema = new mongoose.Schema(
     seo: {
       title: { type: String, default: "" },
       description: { type: String, default: "" },
+      keywords: { type: [String], default: [] },
     },
 
     createdBy: objectId("User"),

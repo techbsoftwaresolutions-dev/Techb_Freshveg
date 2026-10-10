@@ -12,7 +12,7 @@ export default function Footer({ categories = [] }) {
         <div className="footer-grid">
           <div className="footer-brand">
             <Link href="/" className="footer-logo">
-              <img src={logoIcon.src} alt="" width="48" height="48" className="footer-mark" />
+              <img src={logoIcon.src} alt="The Farmers Basket logo" width="48" height="48" className="footer-mark" />
               <span>
                 <span className="footer-logo-name">The Farmers Basket</span>
                 <span className="footer-logo-tag">Fresh Food • Better Life</span>

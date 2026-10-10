@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import logoIcon from "../assets/logo-icon.png";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -323,7 +324,7 @@ export default function Layout() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="mark">FB</span>
+          <img src={logoIcon} alt="" className="mark mark-img" />
           <span>The Farmers Basket</span>
         </div>
         <nav>

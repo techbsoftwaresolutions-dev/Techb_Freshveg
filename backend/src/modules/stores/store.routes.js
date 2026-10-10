@@ -41,6 +41,28 @@ router.get(
   })
 );
 
+// Public: every place the shop delivers to, for the "Deliver to" picker —
+// pincode and place name, sorted by name. Pincodes with no place name set
+// are listed by pincode alone.
+router.get(
+  "/service-areas",
+  asyncHandler(async (req, res) => {
+    const stores = await Store.find({ status: "active" }).select("name servicePincodes serviceAreas").sort({ isDefault: -1, _id: 1 });
+    const seen = new Set();
+    const areas = [];
+    for (const store of stores) {
+      for (const area of store.deliveryAreas()) {
+        const key = `${area.pincode}|${area.name.toLowerCase()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        areas.push(area);
+      }
+    }
+    areas.sort((a, b) => !a.name - !b.name || a.name.localeCompare(b.name) || a.pincode.localeCompare(b.pincode));
+    res.json({ success: true, areas });
+  })
+);
+
 router.use(requireAuth);
 
 router.get(
@@ -82,7 +104,13 @@ router.patch(
       throw ApiError.badRequest("Free delivery must be on or off");
     }
 
-    const store = await Store.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    // Named delivery areas decide the pincode list, so the two never disagree.
+    const update = { ...req.body };
+    if (Array.isArray(update.serviceAreas)) {
+      Object.assign(update, Store.normalizeServiceAreas(update.serviceAreas));
+    }
+
+    const store = await Store.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
     if (!store) throw ApiError.notFound("Store not found");
     res.json({ success: true, store });
   })

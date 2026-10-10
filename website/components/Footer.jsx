@@ -1,5 +1,6 @@
 import Link from "next/link";
 import FooterInstall from "@/components/FooterInstall";
+import logoIcon from "@/assets/logo-icon.png";
 
 // Only pages that exist are linked. About, careers and FAQs have no route
 // yet — they join these lists when they do, rather than sitting here as
@@ -11,16 +12,12 @@ export default function Footer({ categories = [] }) {
         <div className="footer-grid">
           <div className="footer-brand">
             <Link href="/" className="footer-logo">
-              <FooterMark />
+              <img src={logoIcon.src} alt="The Farmers Basket logo" width="48" height="48" className="footer-mark" />
               <span>
                 <span className="footer-logo-name">The Farmers Basket</span>
                 <span className="footer-logo-tag">Fresh Food • Better Life</span>
               </span>
             </Link>
-            <p>
-              Farm-fresh vegetables, fruits and milk, delivered straight from local farmers to
-              your door.
-            </p>
             <FooterInstall />
           </div>
 
@@ -126,11 +123,3 @@ const SOCIAL = [
   },
 ];
 
-function FooterMark() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true" className="footer-mark">
-      <path d="M22 44C9 42 2 31 4 14c11 1 19 8 20 20 0 4-1 7-2 10Z" fill="#6cc070" />
-      <path d="M24 44c1-14 7-26 20-32 2 17-5 29-18 32h-2Z" fill="#a5d6a7" />
-    </svg>
-  );
-}

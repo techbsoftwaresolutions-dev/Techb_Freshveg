@@ -1,29 +1,43 @@
-// Starts the commerce API inside the website's process when the host launches
-// the site with plain `next start` (Hostinger's Next.js preset does, ignoring
-// server.js). Next.js calls register() once when its server boots.
+// Next.js calls register() once when its server starts (and in the build).
 //
-// The API listens on a private loopback port; next.config's /api rewrite and
-// the server-rendered pages both point at that port. When server.js is the
-// entry point it serves /api itself and sets HB_API_IN_PROCESS, so this does
-// nothing.
-const INTERNAL_API_PORT = 41755;
+// The site's server-rendered pages read the catalog with fetch() from
+// API_BASE_URL. The API runs in this same process, so those reads are served
+// in memory: API_BASE_URL is set to a private name, and fetch() calls to it go
+// straight to the Express app.
+//
+// Not over HTTP to the site's own address: Hostinger runs Node under LiteSpeed
+// (no second port, and the logged ":3000" is not connectable), and the public
+// address sits behind Hostinger's CDN, whose bot check answers server-to-server
+// requests with a "Checking your browser" page.
+const INTERNAL = "http://farmersbasket.internal";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  if (process.env.NEXT_PHASE === "phase-production-build") return;
-  if (process.env.HB_API_IN_PROCESS) return;
-  process.env.HB_API_IN_PROCESS = "1";
+  if (globalThis.__farmersBasketFetch) return;
 
-  // The site's own pages read the catalog from this in-process API, whatever
-  // API_BASE_URL the host's settings may say.
-  process.env.API_BASE_URL = `http://127.0.0.1:${INTERNAL_API_PORT}`;
+  process.env.API_BASE_URL = INTERNAL;
 
-  // A broken API (say, a missing MONGODB_URI) must not take the shop's pages
-  // down with it, so its failure is logged, not thrown.
-  try {
-    const { startApi } = await import("./backend/start.js");
-    await startApi(INTERNAL_API_PORT);
-  } catch (err) {
-    console.error("[api] could not start", err);
-  }
+  const { inject } = await import("./backend/start.js");
+  const passThrough = globalThis.fetch;
+
+  globalThis.__farmersBasketFetch = true;
+  globalThis.fetch = async function farmersBasketFetch(input, init = {}) {
+    const href = typeof input === "string" ? input : input instanceof URL ? input.href : input?.url;
+    if (!href || !href.startsWith(INTERNAL)) return passThrough(input, init);
+
+    const url = new URL(href);
+    const result = await inject({
+      method: init.method || (typeof input === "object" && input.method) || "GET",
+      path: url.pathname + url.search,
+      headers: init.headers || {},
+      body: init.body,
+    });
+
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(result.headers)) {
+      if (value !== undefined) headers.set(key, Array.isArray(value) ? value.join(", ") : String(value));
+    }
+    const noBody = result.status === 204 || result.status === 304 || result.body.length === 0;
+    return new Response(noBody ? null : result.body, { status: result.status, headers });
+  };
 }

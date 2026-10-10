@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/Providers";
+import logo from "@/assets/logo-farmers-basket.png";
 
 export default function LoginPage() {
   return (
@@ -22,11 +23,52 @@ function LoginForm() {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
-  const [devCode, setDevCode] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  // "filling" while the code counts up into the box, "done" once it is in.
+  const [autoFill, setAutoFill] = useState("");
   const timer = useRef(null);
+  const fillFrame = useRef(null);
+
+  const stopFill = () => clearInterval(fillFrame.current);
+  useEffect(() => stopFill, []);
+
+  // Fills the box by itself: the digits count up — 000001, 000002, … — and
+  // land on the real code, so the shopper sees it being fetched. A timer, not
+  // animation frames: those pause while the tab is in the background (the
+  // shopper glancing at their messages), and the code would never arrive.
+  function fillCode(target) {
+    if (!/^\d{6}$/.test(String(target || ""))) return;
+    stopFill();
+    const goal = Number(target);
+    const started = Date.now();
+    const DURATION = 900;
+    setAutoFill("filling");
+    fillFrame.current = setInterval(() => {
+      const t = Math.min(1, (Date.now() - started) / DURATION);
+      if (t >= 1) {
+        stopFill();
+        setCode(String(target));
+        setAutoFill("done");
+        return;
+      }
+      const eased = 1 - Math.pow(1 - t, 3);
+      setCode(String(Math.max(1, Math.round(goal * eased))).padStart(6, "0"));
+    }, 30);
+  }
+
+  // Android Chrome: read the code straight from the incoming SMS (WebOTP),
+  // once an SMS provider sends messages ending "@thefarmersbasket.in #123456".
+  useEffect(() => {
+    if (step !== "code" || typeof window === "undefined" || !("OTPCredential" in window)) return undefined;
+    const abort = new AbortController();
+    navigator.credentials
+      .get({ otp: { transport: ["sms"] }, signal: abort.signal })
+      .then((otp) => otp?.code && fillCode(otp.code))
+      .catch(() => {});
+    return () => abort.abort();
+  }, [step]);
 
   useEffect(() => {
     if (signedIn) router.replace(next);
@@ -54,11 +96,13 @@ function LoginForm() {
     setError("");
     try {
       const data = await requestOtp(phone);
-      // Outside production the API returns the code, so the site is usable
-      // before an SMS provider is connected.
-      setDevCode(data.devCode || null);
+      // Until an SMS provider is connected the API can return the code; it is
+      // then filled in automatically.
+      setCode("");
+      setAutoFill("");
       setStep("code");
       countdown(30);
+      if (data.devCode) setTimeout(() => fillCode(data.devCode), 450);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -84,12 +128,7 @@ function LoginForm() {
     <div className="auth-page">
       <div className="panel auth-card">
         <div className="auth-head">
-          <span className="auth-icon" aria-hidden="true">
-            <svg viewBox="0 0 48 48" width="34" height="34" fill="none">
-              <path d="M22 44C9 42 2 31 4 14c11 1 19 8 20 20 0 4-1 7-2 10Z" fill="#4caf50" />
-              <path d="M24 44c1-14 7-26 20-32 2 17-5 29-18 32h-2Z" fill="#1b7a3a" />
-            </svg>
-          </span>
+          <img src={logo.src} alt="The Farmers Basket" className="auth-logo" width="140" height="130" />
           <h1>{step === "phone" ? "Welcome to The Farmers Basket" : "Enter your code"}</h1>
           <p>
             {step === "phone"
@@ -131,22 +170,35 @@ function LoginForm() {
               ← Change number
             </button>
 
-            {devCode ? (
-              <p className="notice info">Development mode — your code is {devCode}</p>
-            ) : null}
-
             <div className="field">
-              <label htmlFor="code">One-time code</label>
+              <label htmlFor="code" className="otp-label">
+                One-time code
+                {autoFill ? (
+                  <span className={`otp-auto ${autoFill}`} role="status">
+                    {autoFill === "filling" ? (
+                      <>
+                        <span className="otp-auto-spin" aria-hidden="true" /> Fetching code…
+                      </>
+                    ) : (
+                      <>✓ Auto-filled</>
+                    )}
+                  </span>
+                ) : null}
+              </label>
               <input
                 id="code"
                 type="tel"
                 value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onChange={(e) => {
+                  stopFill();
+                  setAutoFill("");
+                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                }}
                 placeholder="······"
                 autoFocus
                 autoComplete="one-time-code"
                 inputMode="numeric"
-                className="otp-input"
+                className={`otp-input${autoFill ? ` otp-${autoFill}` : ""}`}
                 required
               />
             </div>
@@ -162,7 +214,7 @@ function LoginForm() {
               />
             </div>
 
-            <button className="btn primary block lg" disabled={code.length !== 6 || busy}>
+            <button className="btn primary block lg" disabled={code.length !== 6 || busy || autoFill === "filling"}>
               {busy ? "Verifying…" : "Verify & continue"}
             </button>
 

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { discountPct, img, rupees } from "@/lib/format";
+import { imageAlt } from "@/lib/seo";
 import ProductCard from "@/components/ProductCard";
 import AddToCart from "@/components/AddToCart";
 import WishlistButton from "@/components/WishlistButton";
 import CategoryIcon from "@/components/CategoryIcon";
-import heroPhoto from "@/assets/banner-harvest-crate.webp";
-import organicPhoto from "@/assets/banner-organic-lettuce.webp";
+import heroPhoto from "@/assets/Fresh Harvest Basket in Sunlit Fields.webp";
+import organicPhoto from "@/assets/Fresh Produce Splash Banner.webp";
 
 // The "Farm Fresh" homepage layout (Admin → Settings → Website → Homepage
 // design). Same data as the classic layout — only the presentation differs.
@@ -30,7 +31,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
     ...shelves.filter((c) => c.slug === "fresh-fruits"),
     ...shelves.filter((c) => c.slug !== "fresh-fruits" && c.slug !== "milk-dairy"),
     ...shelves.filter((c) => c.slug === "milk-dairy"),
-  ].slice(0, 7);
+  ];
 
   const bestSellers = fruits.length ? fruits : featured.slice(0, 4);
 
@@ -38,7 +39,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
     <div className="fh">
       {/* ---------------------------------------------------------- hero */}
       <section className="fh-hero">
-        <img src={heroPhoto.src} alt="" className="fh-hero-photo" />
+        <img src={heroPhoto.src} alt="Farm-fresh vegetables delivered in Bangalore by The Farmers Basket" className="fh-hero-photo" />
         <div className="fh-hero-copy">
           <span className="fh-eyebrow">Premium Fresh Produce</span>
           <h1>
@@ -56,25 +57,25 @@ export default function FreshHome({ home, categoryTree = [] }) {
             </Link>
           </div>
           <ul className="fh-hero-points">
-            <li><span><IconLeaf /></span>100% Natural<br />&amp; Organic</li>
-            <li><span><IconShield /></span>Farm to Home<br />Freshness</li>
-            <li><span><IconTruck /></span>Fast &amp; Reliable<br />Delivery</li>
+            <li><span><IconLeaf /></span>100% Natural{" "}<br />&amp; Organic</li>
+            <li><span><IconShield /></span>Farm to Home{" "}<br />Freshness</li>
+            <li><span><IconTruck /></span>Fast &amp; Reliable{" "}<br />Delivery</li>
           </ul>
         </div>
-        <span className="fh-hero-script" aria-hidden="true">Good Food<br />Better Tomorrow</span>
+        <span className="fh-hero-script" aria-hidden="true">Good Food{" "}<br />Better Tomorrow</span>
       </section>
 
       <div className="wrap">
         {/* ------------------------------------------------ categories */}
         {tiles.length ? (
           <section className="fh-section">
-            <Head title="Shop by Category" note="Everything you need for a healthy life" href="/c" link="View All Categories" />
+            <Head title="Shop by Category" href="/c" link="View All" />
             <nav className="fh-cats" aria-label="Categories">
               {tiles.map((category, index) => (
                 <Link key={category.id} href={`/c/${category.slug}`} className={`fh-cat tint-${TINTS[index % TINTS.length]}`}>
                   <span className="fh-cat-media">
                     {category.image ? (
-                      <img src={img(category.image, 320)} alt="" loading="lazy" />
+                      <img src={img(category.image, 320)} alt={`Fresh ${category.name} — buy online in Bangalore`} loading="lazy" />
                     ) : (
                       <CategoryIcon name={category.name} />
                     )}
@@ -91,7 +92,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
         {/* ------------------------------------------- featured products */}
         {featured.length ? (
           <section className="fh-section">
-            <Head title="Featured Products" note="Handpicked for freshness and quality" href="/c" link="View All" />
+            <Head title="Featured Products" href="/c" link="View All" />
             <div className="fh-grid">
               {featured.slice(0, 6).map((product) => (
                 <ProductCard key={product.id} product={product} />
@@ -103,7 +104,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
         {/* ------------------------------------------------ best sellers */}
         {bestSellers.length ? (
           <section className="fh-section">
-            <Head title="Best Sellers" note="Loved by thousands of customers" href="/c/fresh-fruits" link="View All" />
+            <Head title="Best Sellers" href="/c/fresh-fruits" link="View All" />
             <div className="fh-wide-row">
               {bestSellers.slice(0, 4).map((product) => (
                 <WideCard key={product.id} product={product} />
@@ -114,7 +115,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
 
         {/* --------------------------------------------- organic banner */}
         <section className="fh-organic">
-          <img src={organicPhoto.src} alt="" className="fh-organic-photo" loading="lazy" />
+          <img src={organicPhoto.src} alt="Organic vegetables and fruits from local farmers" className="fh-organic-photo" loading="lazy" />
           <div className="fh-organic-copy">
             <span className="fh-eyebrow light">Pure &amp; Natural</span>
             <h2>Organic Collection</h2>
@@ -132,7 +133,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
         {/* ------------------------------------- vegetables / fruits rows */}
         {vegetables.length ? (
           <section className="fh-section">
-            <Head title="Fresh Vegetables" note="Crisp · Nutritious · Farm Fresh" href="/c/fresh-vegetables" link="View All" inline />
+            <Head title="Fresh Vegetables" href="/c/fresh-vegetables" link="View All" inline />
             <div className="fh-grid">
               {vegetables.slice(0, 6).map((product) => (
                 <ProductCard key={product.id} product={product} />
@@ -143,7 +144,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
 
         {fruits.length ? (
           <section className="fh-section">
-            <Head title="Fresh Fruits" note="Sweet · Juicy · Naturally Fresh" href="/c/fresh-fruits" link="View All" />
+            <Head title="Fresh Fruits" href="/c/fresh-fruits" link="View All" />
             <div className="fh-wide-row">
               {fruits.slice(0, 4).map((product) => (
                 <WideCard key={product.id} product={product} />
@@ -154,7 +155,7 @@ export default function FreshHome({ home, categoryTree = [] }) {
 
         {dairy.length ? (
           <section className="fh-section">
-            <Head title="Milk & Dairy" note="Fresh from the farm every morning" href="/c/milk-dairy" link="View All" />
+            <Head title="Milk & Dairy" href="/c/milk-dairy" link="View All" />
             <div className="fh-wide-row">
               {dairy.slice(0, 4).map((product) => (
                 <WideCard key={product.id} product={product} />
@@ -170,14 +171,14 @@ export default function FreshHome({ home, categoryTree = [] }) {
             <p>Freshness. Trust. Better Living.</p>
           </div>
           <ul className="fh-why-list">
-            <li><span><IconLeaf /></span>Farm Fresh<br />Produce</li>
-            <li><span><IconShield /></span>Quality<br />Assured</li>
-            <li><span><IconTruck /></span>Fast &amp; Reliable<br />Delivery</li>
-            <li><span><IconHeart /></span>Support<br />Local Farmers</li>
-            <li><span><IconSmile /></span>Hassle-Free<br />Shopping</li>
+            <li><span><IconLeaf /></span>Farm Fresh{" "}<br />Produce</li>
+            <li><span><IconShield /></span>Quality{" "}<br />Assured</li>
+            <li><span><IconTruck /></span>Fast &amp; Reliable{" "}<br />Delivery</li>
+            <li><span><IconHeart /></span>Support{" "}<br />Local Farmers</li>
+            <li><span><IconSmile /></span>Hassle-Free{" "}<br />Shopping</li>
           </ul>
           <div className="fh-why-art" aria-hidden="true">
-            <span className="fh-why-script">Real Farmers<br />Real Freshness</span>
+            <span className="fh-why-script">Real Farmers{" "}<br />Real Freshness</span>
             <FarmSketch />
           </div>
         </section>
@@ -226,7 +227,7 @@ function WideCard({ product }) {
   return (
     <article className={`fh-wide${outOfStock ? " sold-out" : ""}`}>
       <Link href={`/p/${product.slug}`} className="fh-wide-media" aria-label={product.name}>
-        {image ? <img src={img(image, 300)} alt="" loading="lazy" /> : <CategoryIcon name={product.name} />}
+        {image ? <img src={img(image, 300)} alt={imageAlt(product.name, product.media?.[0])} loading="lazy" /> : <CategoryIcon name={product.name} />}
       </Link>
       <div className="fh-wide-body">
         <Link href={`/p/${product.slug}`} className="fh-wide-name">{product.name}</Link>

@@ -71,7 +71,10 @@ async function call(method, path, { body, query, retry = true } = {}) {
     }
   }
 
-  const response = await fetch(url.pathname + url.search, {
+  // The whole URL, not just its path: in production the API lives on another
+  // host (VITE_API_BASE_URL), and a bare path would be sent to the admin's own
+  // static site instead.
+  const response = await fetch(url.href, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -87,16 +90,51 @@ async function call(method, path, { body, query, retry = true } = {}) {
     if (renewed) return call(method, path, { body, query, retry: false });
   }
 
-  const payload = await response.json().catch(() => ({}));
+  const announce = method !== "GET" && !path.startsWith("/auth/");
+  try {
+    const payload = await readPayload(response, "Request failed");
+    if (announce) toast("success", payload.message || SUCCESS[method] || "Done");
+    return payload;
+  } catch (err) {
+    if (announce) toast("error", err.message);
+    throw err;
+  }
+}
 
+// What a successful write says when the API sends no message of its own.
+const SUCCESS = {
+  POST: "Saved successfully",
+  PATCH: "Changes saved",
+  PUT: "Changes saved",
+  DELETE: "Deleted successfully",
+};
+
+// Pops a toast (components/Toaster.jsx). Usable from anywhere in the admin:
+// toast("success", "Order updated") / toast("error", "Could not save").
+export function toast(type, text) {
+  window.dispatchEvent(new CustomEvent("admin-toast", { detail: { type, text } }));
+}
+
+// Every API reply is a JSON envelope. Anything else — an HTML page from a
+// misrouted request, a proxy's error page — is a failure, never data: treating
+// it as success is how a wrong password could look like a sign-in.
+async function readPayload(response, failure) {
+  const isJson = (response.headers.get("content-type") || "").includes("application/json");
+  const payload = isJson ? await response.json().catch(() => null) : null;
+
+  if (!payload) {
+    throw new ApiError(
+      response.ok ? 502 : response.status,
+      response.ok ? "The server sent an unexpected reply. Please try again." : `${failure} (${response.status})`
+    );
+  }
   if (!response.ok || payload.success === false) {
     throw new ApiError(
       response.status,
-      payload.error?.message || `Request failed (${response.status})`,
+      payload.error?.message || `${failure} (${response.status})`,
       payload.error?.details
     );
   }
-
   return payload;
 }
 
@@ -108,7 +146,7 @@ async function uploadImage(file, folder = "products") {
   if (folder) url.searchParams.set("folder", folder);
 
   const attempt = async (token) => {
-    const response = await fetch(url.pathname + url.search, {
+    const response = await fetch(url.href, {
       method: "POST",
       headers: {
         "Content-Type": file.type,
@@ -116,15 +154,7 @@ async function uploadImage(file, folder = "products") {
       },
       body: file,
     });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok || payload.success === false) {
-      throw new ApiError(
-        response.status,
-        payload.error?.message || `Upload failed (${response.status})`,
-        payload.error?.details
-      );
-    }
-    return payload;
+    return readPayload(response, "Upload failed");
   };
 
   const session = loadSession();

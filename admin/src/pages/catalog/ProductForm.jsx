@@ -1,11 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, toast } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Field, Loading, Pill } from "../../components/ui";
 import SchemaForm from "../../components/SchemaForm";
 import SelectMenu from "../../components/SelectMenu";
+import SeoCard from "../../components/SeoCard";
 
+// What the website writes when a product's SEO fields are left blank (kept in
+// step with website/app/p/[slug]/page.jsx and lib/seo.js).
+const autoProductTitle = (name) => `Buy ${name || "this product"} Online in Bangalore`;
+const autoProductDescription = (name) =>
+  `Buy fresh ${name || "produce"} online in Bangalore at The Farmers Basket — sourced direct from local farmers. Same-day home delivery, free delivery on qualifying orders.`;
+export const autoImageAlt = (name, index) =>
+  name ? `${name}${index ? ` — photo ${index + 1}` : ""} — farm fresh, The Farmers Basket Bangalore` : "";
+
+
+// A save's confirmation, as a toast (components/Toaster.jsx).
+const notifySaved = (message) => message && toast("success", message);
 // This screen is the point of the whole engine. Pick a category and the rest
 // of the form rebuilds itself from that category's resolved schema — which
 // fields exist, which of them are required, which split the product into
@@ -22,6 +34,7 @@ const emptyProduct = {
   isFeatured: false,
   attributes: {},
   media: [],
+  seo: { title: "", description: "", keywords: [] },
 };
 
 // What "Duplicate product" carries over: everything the admin typed, none of
@@ -77,7 +90,6 @@ export default function ProductForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
-  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -144,7 +156,7 @@ export default function ProductForm() {
     setSaving(true);
     setError("");
     setFieldErrors({});
-    setNotice("");
+    notifySaved("");
 
     const payload = {
       name: product.name,
@@ -156,21 +168,31 @@ export default function ProductForm() {
       isFeatured: product.isFeatured,
       status: publish ? "active" : product.status,
       attributes: product.attributes,
+      seo: {
+        title: (product.seo?.title || "").trim(),
+        description: (product.seo?.description || "").trim(),
+        keywords: product.seo?.keywords || [],
+      },
       media: (product.media || []).map((m, index) => ({
         url: m.url,
-        alt: m.alt || product.name,
+        alt: (m.alt || "").trim() || autoImageAlt(product.name, index),
         type: m.type || "image",
         seq: index,
         focalX: m.focalX ?? 50,
         focalY: m.focalY ?? 50,
       })),
       variants: variants.map((v) => {
+        // A variant loaded from the server and left untouched has its values
+        // in axisValues only (v.axis is filled in once a value is changed).
+        // Reading just v.axis sent those as blank, so the API took the variant
+        // for a new one and refused its SKU as a duplicate.
         const axisValues = axes
-          .map((axis) => ({
-            code: axis.code,
-            value: v.axis?.[axis.code] ?? "",
-            label: axis.options?.find((o) => o.value === v.axis?.[axis.code])?.label,
-          }))
+          .map((axis) => {
+            const value = String(
+              v.axis?.[axis.code] ?? v.axisValues?.find((a) => a.code === axis.code)?.value ?? ""
+            );
+            return { code: axis.code, value, label: axis.options?.find((o) => o.value === value)?.label };
+          })
           .filter((a) => a.value !== "");
         return {
           ...v,
@@ -196,7 +218,7 @@ export default function ProductForm() {
         ? await api.post("/catalog/products", payload)
         : await api.patch(`/catalog/products/${id}`, payload);
 
-      setNotice("Saved.");
+      notifySaved("Saved.");
       if (isNew) navigate(`/catalog/products/${result.product.id}`, { replace: true });
       else {
         setProduct((p) => ({ ...p, ...result.product, category: product.category, brand: product.brand }));
@@ -253,7 +275,6 @@ export default function ProductForm() {
       </div>
 
       <Banner tone="error">{error}</Banner>
-      <Banner tone="ok">{notice}</Banner>
 
       <div className="grid split">
         <div style={{ display: "grid", gap: 14 }}>
@@ -336,6 +357,15 @@ export default function ProductForm() {
             name={product.name}
             editable={editable}
             onChange={(media) => setProduct((p) => ({ ...p, media }))}
+          />
+
+          <SeoCard
+            value={product.seo}
+            onChange={(seo) => setProduct((p) => ({ ...p, seo }))}
+            editable={editable}
+            autoTitle={autoProductTitle(product.name)}
+            autoDescription={autoProductDescription(product.name)}
+            path={product.slug ? `/p/${product.slug}` : ""}
           />
 
           {schema && (
@@ -611,7 +641,7 @@ function MediaUploader({ media, name, editable, onChange }) {
           throw new Error(`${file.name}: file is larger than 5 MB`);
         }
         const result = await api.upload(file, "products");
-        uploaded.push({ url: result.url, alt: name || "", type: "image" });
+        uploaded.push({ url: result.url, alt: autoImageAlt(name, media.length + uploaded.length), type: "image" });
       }
       onChange([...media, ...uploaded]);
     } catch (err) {
@@ -625,6 +655,7 @@ function MediaUploader({ media, name, editable, onChange }) {
 
   const setFocal = (index, focalX, focalY) =>
     onChange(media.map((m, i) => (i === index ? { ...m, focalX, focalY } : m)));
+  const setAlt = (index, alt) => onChange(media.map((m, i) => (i === index ? { ...m, alt } : m)));
 
   const FOCAL_POINTS = [
     [0, 0], [50, 0], [100, 0],
@@ -713,6 +744,19 @@ function MediaUploader({ media, name, editable, onChange }) {
               {/* Shown so a stored image URL can be checked at a glance —
                   broken photos are much faster to diagnose when the URL is
                   right there instead of hidden behind a DevTools lookup. */}
+              {/* What search engines and screen readers read for this photo;
+                  Google Images ranks on it. Blank means automatic text. */}
+              <label className="media-alt">
+                <span>Image alt text (SEO)</span>
+                <input
+                  type="text"
+                  value={item.alt || ""}
+                  placeholder={autoImageAlt(name, index) || "Describe the photo"}
+                  onChange={(e) => setAlt(index, e.target.value)}
+                  disabled={!editable}
+                  maxLength={125}
+                />
+              </label>
               <div className="media-url" title={item.url}>{item.url}</div>
             </div>
           ))}
@@ -808,7 +852,11 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                     ) : (
                       <input
                         type="text"
-                        value={variant.axis?.[axis.code] ?? ""}
+                        value={
+                          variant.axis?.[axis.code] ??
+                          variant.axisValues?.find((a) => a.code === axis.code)?.value ??
+                          ""
+                        }
                         onChange={(e) => setAxis(index, axis.code, e.target.value)}
                         disabled={!editable}
                       />

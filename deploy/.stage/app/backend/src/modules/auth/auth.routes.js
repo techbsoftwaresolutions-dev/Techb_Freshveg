@@ -60,16 +60,19 @@ router.post(
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
-    // TODO: hand off to the SMS provider. Until one is wired up the code comes
-    // back in the response in non-production so the apps are testable — this is
-    // gated on NODE_ENV so it can never leak from a deployed environment.
-    console.log(`[otp] ${phone} -> ${code}`);
+    // TODO: hand off to the SMS provider. For Android's automatic code reading
+    // (the website's WebOTP), the SMS must end with its own line:
+    //   @thefarmersbasket.in #123456
+    // Until a provider is wired up, the code comes back in the response when
+    // config.otpOnScreen allows it (always in development; in production only
+    // with OTP_ON_SCREEN=true) and the site fills it in by itself.
+    if (!config.isProd) console.log(`[otp] ${phone} -> ${code}`);
 
     res.json({
       success: true,
       message: `OTP sent to ${phone}`,
       expiresInSeconds: 300,
-      ...(config.isProd ? {} : { devCode: code }),
+      ...(config.otpOnScreen ? { devCode: code } : {}),
     });
   })
 );
