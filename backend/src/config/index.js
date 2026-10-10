@@ -61,6 +61,10 @@ config.isProd = config.env === "production";
 // screen and filled in automatically. Always on outside production; on the
 // live site only when OTP_ON_SCREEN=true is set deliberately — anyone could
 // then sign in as any number, so it is for launch/testing only.
-config.otpOnScreen = !config.isProd || process.env.OTP_ON_SCREEN === "true";
+// Read leniently ("true", "True", " TRUE ", "\"true\"", "1", "yes"): a value
+// typed into a hosting panel with a stray quote or space must not silently
+// leave it off.
+const otpFlag = String(process.env.OTP_ON_SCREEN || "").trim().replace(/^["']|["']$/g, "").toLowerCase();
+config.otpOnScreen = !config.isProd || ["true", "1", "yes", "on"].includes(otpFlag);
 
 module.exports = config;

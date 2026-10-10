@@ -47,6 +47,12 @@ export const metadata = {
     "geo.region": BUSINESS.regionCode,
     "geo.placename": BUSINESS.city,
   },
+  // Google Search Console's "HTML tag" check: put the code from its
+  // content="…" in GOOGLE_SITE_VERIFICATION (hPanel environment variables).
+  // Not needed when the site is verified by a DNS TXT record instead.
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION.trim() } }
+    : {}),
   applicationName: "The Farmers Basket",
   // Launched from the iPhone home screen: full screen, with the status bar
   // drawn over the dark green utility strip.

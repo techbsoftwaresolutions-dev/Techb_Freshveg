@@ -6,6 +6,7 @@ const morgan = require("morgan");
 const mongoose = require("mongoose");
 
 const config = require("./config");
+const buildInfo = require("./build-info");
 const routes = require("./routes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 
@@ -45,6 +46,7 @@ app.get("/api/health", (_req, res) => {
     success: true,
     service: "commerce-engine-api",
     env: config.env,
+    build: buildInfo.builtAt || "development",
     database: {
       state: states[mongoose.connection.readyState] || "unknown",
       name: mongoose.connection.name || null,

@@ -48,6 +48,13 @@ fs.copyFileSync(path.join(__dirname, "one-app/api-start.js"), path.join(app, "ba
 fs.copyFileSync(path.join(__dirname, "one-app/next.config.mjs"), path.join(app, "next.config.mjs"));
 fs.mkdirSync(path.join(app, "pages/api"), { recursive: true });
 fs.copyFileSync(path.join(__dirname, "one-app/api-route.js"), path.join(app, "pages/api/[...path].js"));
+// Stamp the upload, so GET /api/health says which build the host is running.
+const builtAt = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
+fs.writeFileSync(
+  path.join(app, "backend/src/build-info.js"),
+  `// Written by deploy/package-one-app.js.\nmodule.exports = { builtAt: ${JSON.stringify(builtAt)} };\n`
+);
+console.log(`build stamp: ${builtAt}`);
 
 const site = JSON.parse(fs.readFileSync(path.join(project, "website/package.json"), "utf8"));
 const api = JSON.parse(fs.readFileSync(path.join(project, "backend/package.json"), "utf8"));
@@ -80,6 +87,9 @@ fs.writeFileSync(
     // The pages read the API at the site's own public address (instrumentation.js
     // enforces this at runtime; here it also serves the build step).
     INTERNAL_API_PORT: null,
+    // A workaround for Node's DNS on some Windows PCs (backend/.env). On the
+    // host it can only get in the way of reaching MongoDB, so it is left out.
+    DNS_SERVERS: null,
     API_BASE_URL: live,
     SITE_URL: live,
   })

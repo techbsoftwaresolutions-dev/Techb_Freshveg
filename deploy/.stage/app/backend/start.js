@@ -19,19 +19,40 @@
 const { IncomingMessage, ServerResponse } = require("http");
 const { Socket } = require("net");
 
-const state = globalThis.__farmersBasketApi || (globalThis.__farmersBasketApi = { ready: null, app: null });
+const state =
+  globalThis.__farmersBasketApi ||
+  (globalThis.__farmersBasketApi = { ready: null, app: null, loaded: null, connected: false, jobs: false });
+
+// A model registered twice (the second bundle loading the backend again) must
+// not crash startup; mongoose is one shared package, so this covers both.
+require("mongoose").set("overwriteModels", true);
 
 function ensureReady() {
   if (!state.ready) {
     state.ready = (async () => {
-      const app = require("./src/app");
-      const { connectDb } = require("./src/config/db");
-      await connectDb();
-      // Scheduled jobs belong to the running site, not to a build.
-      if (process.env.NEXT_PHASE !== "phase-production-build") require("./src/jobs/scheduler").start();
-      state.app = app;
+      // The Express app (and with it every model) is loaded once per process
+      // and kept, even if the database is not reachable yet. Loading it again
+      // on a retry is what used to fail with "Cannot overwrite `User` model
+      // once compiled" — hiding the real error and blocking every retry.
+      if (!state.loaded) {
+        state.loaded = {
+          app: require("./src/app"),
+          connectDb: require("./src/config/db").connectDb,
+        };
+      }
+      if (!state.connected) {
+        await state.loaded.connectDb();
+        state.connected = true;
+      }
+      // Scheduled jobs belong to the running site, not to a build — and run once.
+      if (!state.jobs && process.env.NEXT_PHASE !== "phase-production-build") {
+        require("./src/jobs/scheduler").start();
+        state.jobs = true;
+      }
+      state.app = state.loaded.app;
     })().catch((err) => {
-      // Try again on the next request (the database may simply have been slow).
+      // Only the database step is retried, on the next request (it may simply
+      // have been slow or briefly unreachable).
       state.ready = null;
       throw err;
     });
