@@ -154,6 +154,41 @@ export function IconCustomers(props) {
   );
 }
 
+// Delivery Areas page: a folded map with a pin.
+export function IconArea(props) {
+  return (
+    <Svg {...props}>
+      <path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4Z" />
+      <path d="M9 4v14M15 6v6" />
+      <path d="M18 14.5c0 1.6-2 3.5-2 3.5s-2-1.9-2-3.5a2 2 0 0 1 4 0Z" />
+    </Svg>
+  );
+}
+
+// Staff accounts (Users page): a person with a shield.
+export function IconTeam(props) {
+  return (
+    <Svg {...props}>
+      <circle cx="10" cy="8" r="3.2" />
+      <path d="M4 19.5a6 6 0 0 1 9.5-4.9" />
+      <path d="M18 13l3 1.2v2.6c0 1.9-1.3 3.4-3 4-1.7-.6-3-2.1-3-4v-2.6z" />
+    </Svg>
+  );
+}
+
+// Delivery Boys page: a rider on a scooter.
+export function IconRider(props) {
+  return (
+    <Svg {...props}>
+      <circle cx="6" cy="17.5" r="2.2" />
+      <circle cx="18" cy="17.5" r="2.2" />
+      <path d="M8.2 17.5h6.4l2-5.5H13l-1.5-3H9" />
+      <path d="M16.6 12l1.4 5.5" />
+      <circle cx="14.5" cy="5" r="1.6" />
+    </Svg>
+  );
+}
+
 export function IconOffers(props) {
   return (
     <Svg {...props}>

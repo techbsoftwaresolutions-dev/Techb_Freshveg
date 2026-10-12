@@ -13,6 +13,7 @@
     "seed:farmers": "node src/seed/farmers.js",
     "sync-indexes": "node src/seed/syncIndexes.js",
     "smoke": "node src/seed/smoke.js",
+    "test": "node --test \"test/**/*.test.js\"",
     "migrate:images": "node src/seed/migrateImagesToCloudinary.js",
     "migrate:whole-units": "node src/seed/migrateWholeUnits.js",
     "demo": "node src/seed/demoServer.js",

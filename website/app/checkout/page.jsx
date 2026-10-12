@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useAuth, useCart } from "@/components/Providers";
+import { useAuth, useCart, useStore } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const cart = useCart();
+  const { areaId } = useStore();
   const { user, ready, signedIn, refreshUser } = useAuth();
 
   const [addressId, setAddressId] = useState(null);
@@ -81,6 +82,8 @@ export default function CheckoutPage() {
       const { order } = await api.post("/orders", {
         cart: cart.cart.id,
         address: addressId,
+        // The delivery area picked in "Deliver to"; the API re-checks it.
+        deliveryArea: areaId || undefined,
         paymentMethod: method,
         note,
         source: "web",

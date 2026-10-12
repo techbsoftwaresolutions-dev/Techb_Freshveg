@@ -169,10 +169,60 @@ async function uploadImage(file, folder = "products") {
   }
 }
 
+// Hero videos go from the browser straight to Cloudinary under a signature
+// the API issues — a large file is never buffered through our server, and XHR
+// (not fetch) is what reports upload progress. Resolves with the library entry.
+async function uploadVideo(file, onProgress) {
+  const signed = await call("GET", "/uploads/video-signature");
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  if (!signed.formats.includes(extension)) {
+    throw new ApiError(400, `Use an ${signed.formats.map((f) => f.toUpperCase()).join(" or ")} video`);
+  }
+  if (file.size > signed.maxBytes) {
+    throw new ApiError(400, `That video is over ${Math.round(signed.maxBytes / 1024 / 1024)} MB — compress it and try again`);
+  }
+
+  const form = new FormData();
+  form.append("file", file);
+  form.append("api_key", signed.apiKey);
+  form.append("signature", signed.signature);
+  for (const [key, value] of Object.entries(signed.params)) form.append(key, value);
+
+  const result = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", signed.uploadUrl);
+    xhr.upload.onprogress = (event) => event.lengthComputable && onProgress?.(event.loaded / event.total);
+    xhr.onload = () => {
+      let payload = null;
+      try {
+        payload = JSON.parse(xhr.responseText);
+      } catch {
+        // falls through to the error below
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && payload?.secure_url) resolve(payload);
+      else reject(new ApiError(xhr.status || 502, `Upload failed: ${payload?.error?.message || `HTTP ${xhr.status}`}`));
+    };
+    xhr.onerror = () => reject(new ApiError(0, "Upload failed — check the connection and try again"));
+    xhr.send(form);
+  });
+
+  return {
+    url: result.secure_url,
+    publicId: result.public_id,
+    name: result.display_name || result.original_filename || result.public_id.split("/").pop(),
+    bytes: result.bytes,
+    width: result.width,
+    height: result.height,
+    duration: result.duration,
+    createdAt: result.created_at,
+  };
+}
+
 export const api = {
   get: (path, query) => call("GET", path, { query }),
   post: (path, body) => call("POST", path, { body }),
   patch: (path, body) => call("PATCH", path, { body }),
   delete: (path, body) => call("DELETE", path, { body }),
   upload: uploadImage,
+  uploadVideo,
 };

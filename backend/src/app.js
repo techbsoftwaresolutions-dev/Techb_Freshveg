@@ -35,7 +35,16 @@ app.use(
   )
 );
 app.use(compression());
-app.use(express.json({ limit: "2mb" }));
+app.use(
+  express.json({
+    limit: "2mb",
+    // Webhook senders sign the exact bytes they send; re-serialising the
+    // parsed JSON would not reproduce them. Kept for webhook paths only.
+    verify: (req, _res, buf) => {
+      if (req.originalUrl.includes("/webhook")) req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 
 if (!config.isProd) app.use(morgan("dev"));

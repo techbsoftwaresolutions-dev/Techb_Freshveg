@@ -257,20 +257,6 @@ export default function ProductForm() {
               Duplicate product
             </button>
           )}
-          {editable && (
-            <>
-              <button className="btn" disabled={saving || !product.category} onClick={() => save()}>
-                {saving ? "Saving…" : "Save draft"}
-              </button>
-              <button
-                className="btn primary"
-                disabled={saving || !product.category || !product.name}
-                onClick={() => save({ publish: true })}
-              >
-                Save & publish
-              </button>
-            </>
-          )}
         </div>
       </div>
 
@@ -454,6 +440,22 @@ export default function ProductForm() {
           )}
         </div>
       </div>
+      {/* Same sticky foot as the add/edit form pages (.form-page-foot), so
+          saving stays in reach at the bottom of a long form. */}
+      {editable && (
+        <div className="form-page-foot">
+          <button className="btn" disabled={saving || !product.category} onClick={() => save()}>
+            {saving ? "Saving…" : "Save draft"}
+          </button>
+          <button
+            className="btn primary"
+            disabled={saving || !product.category || !product.name}
+            onClick={() => save({ publish: true })}
+          >
+            Save & publish
+          </button>
+        </div>
+      )}
     </div>
   );
 }

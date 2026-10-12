@@ -1,7 +1,7 @@
 const express = require("express");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
-const { requireAuth, requireAnyPermission } = require("../../middleware/auth");
+const { requireAuth, requireAnyPermission, requirePermission } = require("../../middleware/auth");
 const storage = require("./providers");
 
 const router = express.Router();
@@ -62,6 +62,30 @@ router.get(
       accepts: Object.keys(ALLOWED),
       folder: process.env.CLOUDINARY_FOLDER || null,
     });
+  })
+);
+
+// Hero videos (Admin → Settings → Website). The browser uploads straight to
+// Cloudinary with this signature; the library lists what is already there, so
+// a video is picked again rather than uploaded twice.
+router.get(
+  "/video-signature",
+  requirePermission("settings.manage"),
+  asyncHandler(async (_req, res) => {
+    res.json({
+      success: true,
+      ...storage.resolve().signVideoUpload(),
+      maxBytes: storage.MAX_VIDEO_BYTES,
+      formats: storage.VIDEO_FORMATS,
+    });
+  })
+);
+
+router.get(
+  "/videos",
+  requirePermission("settings.manage"),
+  asyncHandler(async (_req, res) => {
+    res.json({ success: true, videos: await storage.resolve().listVideos() });
   })
 );
 

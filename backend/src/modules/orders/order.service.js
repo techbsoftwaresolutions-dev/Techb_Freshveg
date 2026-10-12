@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 
 const Order = require("./order.model");
 const Cart = require("../cart/cart.model");
@@ -13,6 +14,9 @@ const walletService = require("../wallet/wallet.service");
 const loyaltyService = require("../loyalty/loyalty.service");
 const referralService = require("../referrals/referral.service");
 const notificationService = require("../notifications/notification.service");
+const whatsappService = require("../notifications/whatsapp.service");
+const deliveryAreaService = require("../stores/deliveryArea.service");
+const DeliveryArea = require("../stores/deliveryArea.model");
 const inventoryService = require("../inventory/inventory.service");
 const {
   STATUSES,
@@ -50,7 +54,7 @@ function appendStatus(order, status, actor, note = "") {
 // Turns a priced cart into an order. Stock is reserved here, not at
 // ORDER_ACCEPTED, because the moment a customer has paid the items have to be
 // theirs — a reservation that fails must fail the checkout, not the picking.
-async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", slot, note, source = "app" }) {
+async function placeOrder({ cartId, userId, addressId, deliveryAreaId, paymentMethod = "cod", slot, note, source = "app" }) {
   const cart = await Cart.findOne({ _id: cartId, customer: userId, status: "active" });
   if (!cart) throw ApiError.notFound("Cart not found");
 
@@ -61,7 +65,26 @@ async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", sl
   const address = customer.addresses.id(addressId) || customer.defaultAddress();
   if (!address) throw ApiError.badRequest("Add a delivery address before placing the order");
 
-  if (store.servicePincodes.length && !store.servicePincodes.includes(address.pincode)) {
+  // Checked here, not only in the picker: the area must be one the admin has
+  // open for delivery right now. The area the customer picked is honoured
+  // when it covers the address; one switched off since they picked it is a
+  // clear refusal, not a silent swap. (With no delivery areas set up at all,
+  // the store's own pincode list still decides, as before.)
+  let deliveryArea = null;
+  if (await deliveryAreaService.hasAreas()) {
+    if (deliveryAreaId) {
+      const picked = mongoose.isValidObjectId(deliveryAreaId) ? await DeliveryArea.findById(deliveryAreaId) : null;
+      if (!picked || !picked.active) {
+        throw ApiError.conflict(
+          `${picked ? picked.name : "The delivery area you picked"} is no longer one of our delivery areas — choose another location`
+        );
+      }
+    }
+    deliveryArea = await deliveryAreaService.areaForCheckout({ storeId: store._id, pincode: address.pincode, preferredId: deliveryAreaId });
+    if (!deliveryArea) {
+      throw ApiError.conflict(`We don't deliver to ${address.pincode} yet — choose an address in one of our delivery areas`);
+    }
+  } else if (store.servicePincodes.length && !store.servicePincodes.includes(address.pincode)) {
     throw ApiError.conflict(`${store.name} does not deliver to ${address.pincode}`);
   }
 
@@ -160,6 +183,9 @@ async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", sl
         city: address.city, state: address.state, pincode: address.pincode,
         location: address.location,
       },
+      area: deliveryArea
+        ? { id: deliveryArea._id, name: deliveryArea.name, city: deliveryArea.city, state: deliveryArea.state, pincode: deliveryArea.pincode }
+        : undefined,
       slot: slot || cart.deliverySlot,
       otp: deliveryOtp(),
       instructions: note || "",
@@ -312,6 +338,9 @@ async function transition(order, to, actor = {}, note = "") {
   // Tell the customer last, once the state change has actually stuck — a
   // notification about something that then failed to save is worse than none.
   await announce(order, to);
+  // WhatsApp is queued, not awaited: a slow or unreachable Meta must not hold
+  // up (or fail) the order. It never throws; retries run from the scheduler.
+  whatsappService.enqueueForStatus(order, to);
 
   return order;
 }

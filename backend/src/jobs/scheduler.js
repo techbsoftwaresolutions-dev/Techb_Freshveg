@@ -1,4 +1,5 @@
 const rules = require("./rules");
+const whatsappService = require("../modules/notifications/whatsapp.service");
 
 // A small in-process scheduler.
 //
@@ -14,6 +15,8 @@ const JOBS = [
   { name: "winBack", everyMinutes: 24 * 60, run: rules.winBack },
   { name: "expireCarts", everyMinutes: 24 * 60, run: rules.expireCarts },
   { name: "expireLoyalty", everyMinutes: 24 * 60, run: rules.expireLoyalty },
+  // Queued WhatsApp order updates that are due a (re)try — see whatsapp.service.
+  { name: "whatsappQueue", everyMinutes: 1, run: () => whatsappService.retryDue() },
 ];
 
 const timers = [];

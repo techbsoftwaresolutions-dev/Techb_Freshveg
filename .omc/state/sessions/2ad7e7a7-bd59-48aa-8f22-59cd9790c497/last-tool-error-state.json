@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__plugin_playwright_playwright__browser_click",
+  "tool_input_preview": "{\"target\":\"form.login-card button\",\"element\":\"Sign in button\"}",
+  "error": "### Error\nError: browserBackend.callTool: Error: strict mode violation: locator('form.login-card button') resolved to 2 elements:\n    1) <button type=\"button\" aria-pressed=\"false\" class=\"password-toggle\" aria-label=\"Show password\">…</button> aka getByRole('button', { name: 'Show password' })\n    2) <button class=\"btn primary\">Sign in</button> aka getByRole('button', { name: 'Sign in' })\n\nCall log:\n\u001b[2m  - waiting for locator('form.login-card button')\u001b[22m",
+  "timestamp": "2026-10-12T07:40:54.682Z",
+  "retry_count": 2
+}

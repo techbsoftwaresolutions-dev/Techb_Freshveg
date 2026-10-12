@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, toast } from "../../api/client";
 import { Banner, Card, Field, Loading, Tabs } from "../../components/ui";
+import VideoHeroConfig from "./VideoHeroConfig";
 
 
 // A save's confirmation, as a toast (components/Toaster.jsx).
@@ -17,6 +18,7 @@ const SECTIONS = [
   { key: "notifications", label: "Notifications" },
   { key: "app", label: "Apps" },
   { key: "website", label: "Website" },
+  { key: "branding", label: "Branding" },
 ];
 
 // The homepage layouts the storefront can render (settings.website.homeTemplate).
@@ -31,6 +33,11 @@ const HOME_TEMPLATES = [
     name: "Farm Fresh",
     description: "“Farm Fresh Goodness” hero, colourful category tiles, featured products, organic collection banner and fruit & vegetable rows.",
   },
+  {
+    key: "video",
+    name: "Video Hero",
+    description: "The Classic page with a full-card background video as its hero — your words and a Shop Now button on the left.",
+  },
 ];
 
 export default function General() {
@@ -40,6 +47,7 @@ export default function General() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [configuringVideo, setConfiguringVideo] = useState(false);
 
   useEffect(() => {
     api
@@ -72,7 +80,18 @@ export default function General() {
     }
   }
 
+  // "Save configuration" in the Video Hero popup saves and switches the
+  // homepage to it in one go; a failure stays in the popup, nothing changes.
+  async function saveVideoHero(videoHero) {
+    const data = await api.patch("/settings/website", { ...draft, homeTemplate: "video", videoHero });
+    setSettings(data.settings);
+    setConfiguringVideo(false);
+  }
+
   if (loading) return <div className="page"><Loading /></div>;
+
+  const savedVideoHero = settings?.website?.videoHero;
+  const videoConfigured = Boolean(savedVideoHero?.videos?.length);
 
   const set = (key) => (event) => {
     const value =
@@ -394,7 +413,13 @@ export default function General() {
                     role="radio"
                     aria-checked={selected}
                     className={`template-option${selected ? " selected" : ""}`}
-                    onClick={() => setDraft((d) => ({ ...d, homeTemplate: template.key }))}
+                    onClick={() =>
+                      // Video Hero cannot go live without its videos: ask for
+                      // them first, and switch only once they are saved.
+                      template.key === "video" && !videoConfigured
+                        ? setConfiguringVideo(true)
+                        : setDraft((d) => ({ ...d, homeTemplate: template.key }))
+                    }
                   >
                     <TemplateThumb kind={template.key} />
                     <span className="template-option-name">
@@ -405,6 +430,50 @@ export default function General() {
                   </button>
                 );
               })}
+            </div>
+            {videoConfigured || draft.homeTemplate === "video" ? (
+              <div className="inline" style={{ marginTop: 14, gap: 12, flexWrap: "wrap" }}>
+                <button type="button" className="btn" onClick={() => setConfiguringVideo(true)}>
+                  Configure video hero
+                </button>
+                <span className="muted" style={{ fontSize: 13 }}>
+                  {videoConfigured
+                    ? `${savedVideoHero.videos.length} video${savedVideoHero.videos.length === 1 ? "" : "s"} in the playlist${draft.homeTemplate === "video" ? "" : " — kept while another design is live"}`
+                    : "No videos chosen yet"}
+                </span>
+              </div>
+            ) : null}
+            {configuringVideo ? (
+              <VideoHeroConfig
+                initial={savedVideoHero}
+                onCancel={() => setConfiguringVideo(false)}
+                onSave={saveVideoHero}
+              />
+            ) : null}
+          </>
+        ) : null}
+
+        {section === "branding" ? (
+          <>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Shown on the customer website. Leave either one empty to keep the built-in Farmers Basket artwork.
+              Changes appear within a minute of saving.
+            </p>
+            <div className="grid cols-2">
+              <ImageSetting
+                label="Logo"
+                help="Shown in the website header. A PNG with a transparent background works best, at least 300px tall."
+                value={draft.logo || ""}
+                onChange={(url) => setDraft((d) => ({ ...d, logo: url }))}
+                shape="logo"
+              />
+              <ImageSetting
+                label="Favicon"
+                help="The small icon in the browser tab and on phone home screens. Use a square PNG, at least 192 × 192px."
+                value={draft.favicon || ""}
+                onChange={(url) => setDraft((d) => ({ ...d, favicon: url }))}
+                shape="favicon"
+              />
             </div>
           </>
         ) : null}
@@ -418,11 +487,82 @@ export default function General() {
   );
 }
 
+// One branding image: preview, upload (to Cloudinary, via /uploads) and
+// remove. Saved with the rest of the tab by its Save button.
+function ImageSetting({ label, help, value, onChange, shape }) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  return (
+    <Field label={label} help={help} error={uploadError}>
+      <div className={`brand-preview ${shape}`}>
+        {value ? <img src={value} alt={`${label} preview`} /> : <span className="faint">Using the default {label.toLowerCase()}</span>}
+      </div>
+      <div className="inline" style={{ gap: 10, marginTop: 10 }}>
+        <label className="btn sm" aria-disabled={uploading} style={{ cursor: uploading ? "default" : "pointer", opacity: uploading ? 0.6 : 1 }}>
+          {uploading ? "Uploading…" : value ? `Replace ${label.toLowerCase()}` : `Upload ${label.toLowerCase()}`}
+          <input
+            type="file"
+            accept="image/png,image/webp,image/jpeg"
+            hidden
+            disabled={uploading}
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+              setUploading(true);
+              setUploadError("");
+              try {
+                onChange((await api.upload(file, "branding")).url);
+              } catch (err) {
+                setUploadError(err.message);
+              } finally {
+                setUploading(false);
+              }
+            }}
+          />
+        </label>
+        {value ? (
+          <button type="button" className="btn sm" onClick={() => onChange("")}>
+            Use default
+          </button>
+        ) : null}
+      </div>
+    </Field>
+  );
+}
+
 // A small wireframe of each homepage layout, so the choice is visual.
 function TemplateThumb({ kind }) {
   const green = "#1b7a3a";
   const soft = "#e8f5ec";
   const line = "#cfd6d3";
+  if (kind === "video") {
+    return (
+      <svg viewBox="0 0 160 110" className="template-thumb" aria-hidden="true">
+        <rect width="160" height="110" rx="6" fill="#fff" />
+        <rect x="6" y="6" width="148" height="40" rx="4" fill="#1f4d2c" />
+        <rect x="6" y="6" width="148" height="40" rx="4" fill="url(#vh-sky)" />
+        <defs>
+          <linearGradient id="vh-sky" x1="0" x2="1">
+            <stop offset="0" stopColor="#0f2a17" stopOpacity="0.9" />
+            <stop offset="0.6" stopColor="#4c8a3f" stopOpacity="0.2" />
+          </linearGradient>
+        </defs>
+        <path d="M112 18v16l13-8z" fill="#fff" opacity="0.9" />
+        <rect x="12" y="20" width="54" height="5" rx="2" fill="#fff" />
+        <rect x="12" y="28" width="40" height="5" rx="2" fill="#fff" />
+        <rect x="12" y="37" width="34" height="5" rx="2.5" fill="#fff" />
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <rect key={i} x={6 + i * 21.3} y="52" width="18" height="16" rx="3" fill="#fff" stroke={line} />
+        ))}
+        <rect x="6" y="73" width="148" height="12" rx="3" fill={soft} />
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <rect key={i} x={6 + i * 25} y="89" width="21" height="16" rx="3" fill="#fff" stroke={line} />
+        ))}
+      </svg>
+    );
+  }
   if (kind === "fresh") {
     return (
       <svg viewBox="0 0 160 110" className="template-thumb" aria-hidden="true">

@@ -20,6 +20,8 @@ import Delivery, { SlotFormPage, ZoneFormPage } from "./pages/delivery/Delivery"
 import Support, { TicketPage } from "./pages/support/Support";
 import Maintenance, { AssetDetailPage, AssetFormPage, JobFormPage } from "./pages/maintenance/Maintenance";
 import Customers, { CustomerPage } from "./pages/customers/Customers";
+import Users, { DeliveryBoys, NewUserPage } from "./pages/users/Users";
+import DeliveryAreas, { DeliveryAreaFormPage } from "./pages/delivery/DeliveryAreas";
 import Banners, { BannerFormPage } from "./pages/marketing/Banners";
 import Notifications, { TemplateFormPage } from "./pages/marketing/Notifications";
 import Reports from "./pages/reports/Reports";
@@ -80,10 +82,16 @@ function Shell() {
 
         <Route path="inventory" element={<Guard permission="inventory.view"><Inventory /></Guard>} />
         <Route path="delivery" element={<Guard permission="delivery.view"><Delivery /></Guard>} />
+        <Route path="delivery-areas" element={<Guard permission="settings.manage"><DeliveryAreas /></Guard>} />
+        <Route path="delivery-areas/:id" element={<Guard permission="settings.manage"><DeliveryAreaFormPage /></Guard>} />
         <Route path="support" element={<Guard permission="customers.view"><Support /></Guard>} />
         <Route path="maintenance" element={<Guard permission="settings.manage"><Maintenance /></Guard>} />
 
         <Route path="customers" element={<Guard permission="customers.view"><Customers /></Guard>} />
+        <Route path="users" element={<Guard permission="users.manage"><Users /></Guard>} />
+        <Route path="delivery-boys" element={<Guard permission="users.manage"><DeliveryBoys /></Guard>} />
+        <Route path="users/new" element={<Guard permission="users.manage"><NewUserPage /></Guard>} />
+        <Route path="delivery-boys/new" element={<Guard permission="users.manage"><NewUserPage fixedRole="delivery_partner" /></Guard>} />
 
         <Route
           path="marketing/offers"

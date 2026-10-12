@@ -168,6 +168,16 @@ const orderSchema = new mongoose.Schema(
           coordinates: { type: [Number], default: undefined },
         },
       },
+      // The delivery area (Admin → Delivery Areas) the order went to — the id
+      // to find it, the rest as it was at checkout, so renaming or removing
+      // the area later does not rewrite this order.
+      area: {
+        id: objectId("DeliveryArea", { index: true }),
+        name: String,
+        city: String,
+        state: String,
+        pincode: String,
+      },
       slot: {
         date: Date,
         startTime: String,

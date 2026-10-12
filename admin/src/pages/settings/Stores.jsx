@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
@@ -185,7 +185,6 @@ export function StoreFormPage() {
               await api.patch(`/stores/${draft.id}`, {
                 name: draft.name,
                 status: draft.status,
-                serviceAreas: draft.serviceAreas,
                 settings: draft.settings,
               });
               return `/settings/stores?saved=${encodeURIComponent(draft.name)}`;
@@ -197,43 +196,8 @@ export function StoreFormPage() {
   );
 }
 
-// The store's delivery areas as editable rows. A store saved before areas had
-// names opens with one row per pincode and the name left blank to fill in.
-function initialAreas(store) {
-  const named = (store.serviceAreas || []).map((a) => ({ pincode: a.pincode, name: a.name || "" }));
-  const covered = new Set(named.map((a) => a.pincode));
-  const bare = (store.servicePincodes || []).filter((p) => !covered.has(p)).map((pincode) => ({ pincode, name: "" }));
-  return [...named, ...bare];
-}
-
 function StoreModal({ value, saving, onClose, onSave }) {
   const [form, setForm] = useState({ ...value });
-  const [areas, setAreas] = useState(() => initialAreas(value));
-  const [newArea, setNewArea] = useState({ pincode: "", name: "" });
-  const [areaFilter, setAreaFilter] = useState("");
-  const areaErrors = areas.map((a) => (/^\d{6}$/.test(a.pincode.trim()) ? "" : "6 digits"));
-  const areasInvalid = areaErrors.some(Boolean);
-  const pincodeCount = new Set(areas.map((a) => a.pincode.trim()).filter((p) => /^\d{6}$/.test(p))).size;
-  const setAreaAt = (index, key, next) =>
-    setAreas((list) => list.map((a, i) => (i === index ? { ...a, [key]: next } : a)));
-  const removeArea = (index) => setAreas((list) => list.filter((_, i) => i !== index));
-  const newPinOk = /^\d{6}$/.test(newArea.pincode);
-  // A typed list ("Sarjapura, Dommasandra") adds one row per place, all on
-  // the same pincode.
-  const addArea = () => {
-    if (!newPinOk) return;
-    const names = newArea.name.split(",").map((n) => n.trim()).filter(Boolean);
-    const rows = (names.length ? names : [""]).map((name) => ({ pincode: newArea.pincode, name }));
-    setAreas((list) => {
-      const have = new Set(list.map((a) => `${a.pincode}|${a.name.trim().toLowerCase()}`));
-      return [...list, ...rows.filter((r) => !have.has(`${r.pincode}|${r.name.toLowerCase()}`))];
-    });
-    setNewArea({ pincode: newArea.pincode, name: "" });
-  };
-  const filterText = areaFilter.trim().toLowerCase();
-  const shownAreas = areas
-    .map((a, index) => ({ ...a, index }))
-    .filter((a) => !filterText || a.pincode.includes(filterText) || a.name.toLowerCase().includes(filterText));
   const setSetting = (key, next) => setForm((f) => ({ ...f, settings: { ...f.settings, [key]: next } }));
   const setUpi = (key, next) =>
     setForm((f) => ({ ...f, settings: { ...f.settings, upi: { ...f.settings?.upi, [key]: next } } }));
@@ -258,7 +222,6 @@ function StoreModal({ value, saving, onClose, onSave }) {
   const submit = () =>
     onSave({
       ...form,
-      serviceAreas: areas.map((a) => ({ pincode: a.pincode.trim(), name: a.name.trim() })),
       settings: {
         ...form.settings,
         freeDeliveryEnabled: freeOn,
@@ -277,7 +240,7 @@ function StoreModal({ value, saving, onClose, onSave }) {
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn primary" disabled={saving || Boolean(freeError) || areasInvalid} onClick={submit}>
+          <button className="btn primary" disabled={saving || Boolean(freeError)} onClick={submit}>
             {saving ? "Saving…" : "Save changes"}
           </button>
         </>
@@ -298,102 +261,11 @@ function StoreModal({ value, saving, onClose, onSave }) {
 
       <div className="section-label">Delivery areas</div>
       <p className="faint" style={{ fontSize: 12, marginTop: -8 }}>
-        {areas.length} area{areas.length === 1 ? "" : "s"} across {pincodeCount} pincode{pincodeCount === 1 ? "" : "s"}.
-        Customers pick their area by name or pincode on the website; anyone outside these pincodes can't
-        check out against this store.
+        {(value.serviceAreas || []).length} active area{(value.serviceAreas || []).length === 1 ? "" : "s"} across{" "}
+        {(value.servicePincodes || []).length} pincode{(value.servicePincodes || []).length === 1 ? "" : "s"}. Areas are
+        added, edited and switched on or off in{" "}
+        <Link to={`/delivery-areas`}>Delivery Areas</Link>; this store delivers to its active ones.
       </p>
-
-      <div className="area-add">
-        <Field label="Pincode">
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="562125"
-            value={newArea.pincode}
-            onChange={(e) => setNewArea((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addArea())}
-          />
-        </Field>
-        <Field label="Place name(s)" help="Separate several places on one pincode with commas.">
-          <input
-            type="text"
-            placeholder="Sarjapura, Dommasandra"
-            value={newArea.name}
-            onChange={(e) => setNewArea((a) => ({ ...a, name: e.target.value }))}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addArea())}
-          />
-        </Field>
-        <button type="button" className="btn primary area-add-btn" disabled={!newPinOk} onClick={addArea}>
-          Add area
-        </button>
-      </div>
-
-      {areas.length > 6 ? (
-        <input
-          type="search"
-          className="area-filter"
-          placeholder="Filter areas…"
-          value={areaFilter}
-          onChange={(e) => setAreaFilter(e.target.value)}
-        />
-      ) : null}
-
-      {areas.length ? (
-        <div className="area-table-wrap">
-          <table className="area-table">
-            <thead>
-              <tr>
-                <th style={{ width: 130 }}>Pincode</th>
-                <th>Place name</th>
-                <th style={{ width: 44 }} aria-label="Remove" />
-              </tr>
-            </thead>
-            <tbody>
-              {shownAreas.map((a) => (
-                <tr key={a.index}>
-                  <td>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={a.pincode}
-                      aria-invalid={Boolean(areaErrors[a.index])}
-                      title={areaErrors[a.index] || undefined}
-                      onChange={(e) => setAreaAt(a.index, "pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={a.name}
-                      placeholder="Name this place"
-                      onChange={(e) => setAreaAt(a.index, "name", e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn sm ghost area-remove"
-                      onClick={() => removeArea(a.index)}
-                      aria-label={`Remove ${a.name || a.pincode}`}
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="faint" style={{ fontSize: 13 }}>
-          No delivery areas yet — with none set, pincode checks on the website won't find this store.
-        </p>
-      )}
-      {areasInvalid ? (
-        <p className="field-error" style={{ color: "var(--danger)", fontSize: 12.5 }}>
-          Every pincode must be 6 digits.
-        </p>
-      ) : null}
 
       <div className="section-label">Commercial rules</div>
       <div className="grid cols-3">

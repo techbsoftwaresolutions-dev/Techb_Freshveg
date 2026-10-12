@@ -108,8 +108,41 @@ const settingsSchema = new mongoose.Schema(
       socialLinks: { type: mongoose.Schema.Types.Mixed, default: {} },
       // Which homepage layout the storefront renders — chosen in Admin →
       // Settings, applies to every visitor. "classic" is the original design,
-      // "fresh" the "Farm Fresh Goodness" layout.
-      homeTemplate: { type: String, enum: ["classic", "fresh"], default: "classic" },
+      // "fresh" the "Farm Fresh Goodness" layout, "video" the Classic page
+      // with a full-card background video as its hero.
+      homeTemplate: { type: String, enum: ["classic", "fresh", "video"], default: "classic" },
+      // Kept when another design is chosen, so switching back needs no
+      // re-upload. Videos are Cloudinary references, never the bytes.
+      videoHero: {
+        text: {
+          type: String,
+          maxlength: 300,
+          default: "100% source traceable natural harvest from 800+ farms across South India.",
+        },
+        ctaLabel: { type: String, maxlength: 30, default: "Shop Now" },
+        videos: {
+          type: [
+            {
+              _id: false,
+              url: { type: String, required: true },
+              publicId: String,
+              name: String,
+              duration: Number,
+              bytes: Number,
+              width: Number,
+              height: Number,
+            },
+          ],
+          default: [],
+        },
+      },
+    },
+
+    // The storefront's own logo (header) and browser-tab icon, uploaded in
+    // Admin → Settings → Branding. Empty means the bundled defaults.
+    branding: {
+      logo: { type: String, default: "" },
+      favicon: { type: String, default: "" },
     },
 
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

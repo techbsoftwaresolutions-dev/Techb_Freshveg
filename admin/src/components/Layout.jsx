@@ -18,6 +18,9 @@ import {
   IconSupport,
   IconMaintenance,
   IconCustomers,
+  IconTeam,
+  IconArea,
+  IconRider,
   IconOffers,
   IconBanners,
   IconBell,
@@ -113,6 +116,12 @@ const NAV = [
         icon: IconDelivery,
       },
       {
+        to: "/delivery-areas",
+        label: "Delivery Areas",
+        permission: "settings.manage",
+        icon: IconArea,
+      },
+      {
         to: "/support",
         label: "Support",
         permission: "customers.view",
@@ -134,6 +143,23 @@ const NAV = [
         label: "Customers",
         permission: "customers.view",
         icon: IconCustomers,
+      },
+    ],
+  },
+  {
+    group: "Team",
+    items: [
+      {
+        to: "/users",
+        label: "Users",
+        permission: "users.manage",
+        icon: IconTeam,
+      },
+      {
+        to: "/delivery-boys",
+        label: "Delivery Boys",
+        permission: "users.manage",
+        icon: IconRider,
       },
     ],
   },
@@ -452,7 +478,7 @@ export default function Layout() {
                     {user?.name}
                   </span>
                   <span className="faint" style={{ fontSize: 11 }}>
-                    {user?.role?.replace(/_/g, " ")}
+                    {user?.roleLabel || user?.role?.replace(/_/g, " ")}
                   </span>
                 </div>
                 <div className="avatar">{initials}</div>
@@ -498,9 +524,12 @@ function titleFor(pathname) {
     "/payments": "Payments",
     "/inventory": "Inventory",
     "/delivery": "Delivery",
+    "/delivery-areas": "Delivery Areas",
     "/support": "Support",
     "/maintenance": "Maintenance",
     "/customers": "Customers",
+    "/users": "Users",
+    "/delivery-boys": "Delivery Boys",
     "/marketing/offers": "Offers & Coupons",
     "/marketing/banners": "Banners",
     "/marketing/notifications": "Notifications",

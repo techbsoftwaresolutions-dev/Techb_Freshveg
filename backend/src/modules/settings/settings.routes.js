@@ -4,6 +4,8 @@ const { requireAuth, requirePermission, optionalAuth } = require("../../middlewa
 
 const Settings = require("./settings.model");
 const audit = require("../audit/audit.service");
+const ApiError = require("../../core/ApiError");
+const storage = require("../storage/providers");
 
 const router = express.Router();
 
@@ -27,6 +29,7 @@ router.get(
         },
         app: settings.app,
         website: settings.website,
+        branding: settings.branding,
         payment: {
           codEnabled: settings.payment.codEnabled,
           onlineEnabled: settings.payment.onlineEnabled,
@@ -72,7 +75,7 @@ router.patch(
   asyncHandler(async (req, res) => {
     const allowed = [
       "company", "tax", "payment", "loyalty", "referral",
-      "delivery", "notifications", "app", "website",
+      "delivery", "notifications", "app", "website", "branding",
     ];
     const { section } = req.params;
     if (!allowed.includes(section)) {
@@ -85,7 +88,10 @@ router.patch(
     const settings = await Settings.load();
     const before = audit.snapshot(settings);
 
-    settings[section] = { ...(settings[section]?.toObject?.() ?? settings[section]), ...req.body };
+    const next = { ...(settings[section]?.toObject?.() ?? settings[section]), ...req.body };
+    if (section === "website") checkVideoHero(next);
+    if (section === "branding") checkBranding(next);
+    settings[section] = next;
     settings.updatedBy = req.user.id;
     await settings.save();
 
@@ -97,5 +103,34 @@ router.patch(
     res.json({ success: true, settings });
   })
 );
+
+// The Video Hero design cannot go live half-configured, and only videos from
+// this store's own Cloudinary account may play on the homepage.
+function checkVideoHero(website) {
+  const hero = website?.videoHero;
+  const videos = hero?.videos || [];
+  if (videos.length > 20) throw ApiError.badRequest("A hero playlist can hold up to 20 videos");
+  if (videos.some((video) => !storage.cloudinary.ownsVideo(video?.url))) {
+    throw ApiError.badRequest("Hero videos must be uploaded through the video library");
+  }
+  if (new Set(videos.map((video) => video.url)).size !== videos.length) {
+    throw ApiError.badRequest("A video can appear in the hero playlist only once");
+  }
+  if (website?.homeTemplate === "video") {
+    if (!videos.length) throw ApiError.badRequest("Choose at least one video before turning on Video Hero");
+    if (!String(hero?.text || "").trim()) throw ApiError.badRequest("Add the hero text before turning on Video Hero");
+  }
+}
+
+// The logo and favicon land on every storefront page, so they must be images
+// uploaded to this store's own Cloudinary account (or empty, for the defaults).
+function checkBranding(branding) {
+  for (const [key, label] of [["logo", "logo"], ["favicon", "favicon"]]) {
+    const url = branding?.[key];
+    if (url && !storage.cloudinary.ownsImage(url)) {
+      throw ApiError.badRequest(`Upload the ${label} here rather than pasting a link`);
+    }
+  }
+}
 
 module.exports = router;

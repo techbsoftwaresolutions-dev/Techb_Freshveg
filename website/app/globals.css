@@ -1036,6 +1036,103 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .hero-carousel .banner-dot { background: rgba(255, 255, 255, 0.6); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06); }
 .hero-carousel .banner-dot.current { background: var(--brand); }
 .hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: right center; }
+
+/* Video Hero design (components/VideoHero.jsx): the playlist fills the whole
+   screen below the header — out of the page column to both edges — with the
+   words and CTA low on the left over a dark wash that fades out to the right,
+   so the footage stays clear there. --header-h is measured by the component;
+   the fallbacks are the header's usual height, for the first paint. Its own background is the first video's
+   poster, so nothing shows black while it loads. */
+.video-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  width: 100vw;
+  height: calc(100vh - var(--header-h, 129px));
+  height: calc(100svh - var(--header-h, 129px)); /* phones: the visible height, not under the address bar */
+  min-height: 460px;
+  /* the hero sits in the centred page column; this pulls it to both edges */
+  margin: 0 calc(50% - 50vw) 8px;
+  background: var(--brand-deep) center / cover no-repeat;
+  isolation: isolate;
+}
+.video-hero-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.video-hero-media.current { opacity: 1; }
+.video-hero-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(8, 28, 15, 0.72) 0%, rgba(8, 28, 15, 0.45) 35%, rgba(8, 28, 15, 0) 62%),
+    linear-gradient(0deg, rgba(8, 28, 15, 0.45) 0%, rgba(8, 28, 15, 0) 45%);
+}
+.video-hero-copy {
+  position: relative;
+  z-index: 1;
+  /* text starts where the page column does, so it lines up with the header */
+  box-sizing: content-box;
+  width: min(44vw, 600px);
+  padding-left: max(24px, calc(50vw - var(--max) / 2 + 20px));
+  padding-bottom: clamp(36px, 8vh, 80px);
+}
+.video-hero-text {
+  margin: 0 0 24px;
+  font-family: var(--font);
+  font-size: clamp(26px, 2.5vw, 36px);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: #fff;
+  white-space: pre-line;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+.video-hero-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(100%, 420px);
+  height: 56px;
+  padding: 0 22px;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--brand-dark);
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.video-hero-cta:hover { background: var(--brand-soft); color: var(--brand-dark); transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) {
+  .video-hero-media { transition: none; }
+}
+@media (max-width: 720px) {
+  /* the column here is just the screen less its 16px gutter: step over it */
+  /* ...and stops above the bottom tab bar, which is fixed over the page here */
+  .video-hero {
+    width: auto;
+    margin: 0 -16px 8px;
+    height: calc(100svh - var(--header-h, 163px) - 64px - env(safe-area-inset-bottom));
+    min-height: 400px;
+  }
+  .video-hero-shade {
+    background:
+      linear-gradient(90deg, rgba(8, 28, 15, 0.55) 0%, rgba(8, 28, 15, 0.15) 70%, rgba(8, 28, 15, 0) 100%),
+      linear-gradient(0deg, rgba(8, 28, 15, 0.7) 0%, rgba(8, 28, 15, 0) 60%);
+  }
+  .video-hero-copy { box-sizing: border-box; width: 100%; padding: 0 16px 24px; }
+  .video-hero-text { font-size: clamp(22px, 6.4vw, 28px); line-height: 1.22; margin-bottom: 16px; max-width: 22ch; }
+  .video-hero-cta { width: 100%; height: 52px; font-size: 16px; border-radius: 14px; }
+}
 .hero-points {
   display: flex;
   gap: 22px;
@@ -4870,6 +4967,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 .pin-pop-areas button:hover, .pin-pop-areas button:focus-visible { background: var(--brand-soft); }
 .pin-pop-area-icon { width: 16px; height: 16px; flex: 0 0 auto; color: var(--brand); }
 .pin-pop-area-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pin-pop-area-city { font-weight: 400; color: var(--text-muted); }
 .pin-pop-area-code { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 @media (max-width: 720px) {
   .pin-pop { position: fixed; top: 120px; left: 16px; right: 16px; width: auto; }

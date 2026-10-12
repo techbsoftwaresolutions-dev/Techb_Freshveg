@@ -68,3 +68,10 @@ backend/uploads/
 
 # One-time admin password written by npm run seed:farmers
 backend/farmers-admin-login.txt
+
+# Environment files hold secrets (database, Cloudinary, WhatsApp, JWT) — never
+# commit them. The .env.example templates are the shareable versions.
+.env
+.env.*
+*.env
+!.env.example

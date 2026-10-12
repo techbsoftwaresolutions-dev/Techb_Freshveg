@@ -37,14 +37,16 @@ const PERMISSIONS = {
 
 const ALL = Object.keys(PERMISSIONS);
 
+// The keys are stored on every account and named by the order state machine
+// and the delivery app, so they stay as they are; the labels are what people
+// see. store_manager is the Store Supervisor, delivery_partner the Delivery Boy.
 const ROLES = {
   super_admin: { label: "Super Admin", permissions: ALL },
-  admin: {
-    label: "Admin",
-    permissions: ALL.filter((p) => p !== "users.manage"),
-  },
+  // Same permissions as a super admin; what an admin may do to *accounts* is
+  // narrowed by MANAGES below (no granting or touching Super Admin).
+  admin: { label: "Admin", permissions: ALL },
   store_manager: {
-    label: "Store Manager",
+    label: "Store Supervisor",
     permissions: [
       "catalog.view", "catalog.manage",
       "inventory.view", "inventory.adjust",
@@ -62,7 +64,7 @@ const ROLES = {
     permissions: ["catalog.view", "orders.view", "customers.view", "customers.manage"],
   },
   delivery_partner: {
-    label: "Delivery Partner",
+    label: "Delivery Boy",
     permissions: ["delivery.view", "delivery.fulfil", "orders.view"],
   },
   customer: { label: "Customer", permissions: [] },
@@ -71,6 +73,24 @@ const ROLES = {
 const STAFF_ROLES = Object.keys(ROLES).filter(
   (r) => r !== "customer" && r !== "delivery_partner"
 );
+
+// The four roles the Users page hands out. picker and support stay valid for
+// the accounts that already hold them, but are no longer assigned.
+const USER_ROLES = ["super_admin", "admin", "store_manager", "delivery_partner"];
+
+// Which roles each role may give out. Only a super admin grants Super Admin;
+// roles not listed here manage no accounts at all, whatever they are granted.
+const MANAGES = {
+  super_admin: USER_ROLES,
+  admin: ["admin", "store_manager", "delivery_partner"],
+};
+
+const canAssignRole = (actorRole, role) => (MANAGES[actorRole] || []).includes(role);
+
+// May this actor edit an existing account? Anyone who manages accounts may,
+// except that a Super Admin's account is only touched by another Super Admin.
+const canManageAccount = (actorRole, targetRole) =>
+  Boolean(MANAGES[actorRole]) && (targetRole !== "super_admin" || actorRole === "super_admin");
 
 // A user's effective permissions: the role's defaults plus anything granted
 // individually, minus anything explicitly revoked.
@@ -82,4 +102,6 @@ function effectivePermissions(user) {
   return [...base];
 }
 
-module.exports = { PERMISSIONS, ROLES, ALL, STAFF_ROLES, effectivePermissions };
+module.exports = {
+  PERMISSIONS, ROLES, ALL, STAFF_ROLES, USER_ROLES, effectivePermissions, canAssignRole, canManageAccount,
+};

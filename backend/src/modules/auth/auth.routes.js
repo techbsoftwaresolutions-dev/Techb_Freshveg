@@ -32,6 +32,7 @@ const publicUser = (user) => ({
   phone: user.phone,
   email: user.email,
   role: user.role,
+  roleLabel: ROLES[user.role]?.label || user.role,
   permissions: user.permissions,
   status: user.status,
   walletBalance: user.walletBalance,

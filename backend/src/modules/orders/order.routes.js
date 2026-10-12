@@ -39,6 +39,7 @@ router.post(
       cartId: req.body.cart,
       userId: req.user.id,
       addressId: req.body.address,
+      deliveryAreaId: req.body.deliveryArea,
       paymentMethod: req.body.paymentMethod || "cod",
       slot: req.body.slot,
       note: req.body.note,

@@ -27,3 +27,18 @@ export function img(url, width = 600) {
   if (typeof url !== "string" || !url.includes("res.cloudinary.com") || !url.includes("/image/upload/")) return url;
   return url.replace("/image/upload/", `/image/upload/f_auto,q_auto,w_${width}/`);
 }
+
+// An uploaded favicon as a square PNG of `size` px, padded rather than
+// cropped so a logo that is not square still shows whole. The home-screen
+// icon pads with white: iOS paints transparent corners black.
+export function iconUrl(url, size, background = "transparent") {
+  if (typeof url !== "string" || !url.includes("/image/upload/")) return url;
+  return url.replace("/image/upload/", `/image/upload/c_pad,w_${size},h_${size},b_${background},f_png/`);
+}
+
+// A Cloudinary video's first frame as a still — the hero's poster while the
+// video loads, and its fallback when it cannot play.
+export function videoPoster(url, width = 1600) {
+  if (typeof url !== "string" || !url.includes("/video/upload/")) return undefined;
+  return url.replace("/video/upload/", `/video/upload/so_0,q_auto,w_${width},c_limit/`).replace(/\.\w+$/, ".jpg");
+}

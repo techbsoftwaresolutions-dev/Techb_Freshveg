@@ -7,10 +7,11 @@ import Footer from "@/components/Footer";
 import MobileNav from "@/components/MobileNav";
 import PwaSupport from "@/components/PwaSupport";
 import ReviewPrompt from "@/components/ReviewPrompt";
-import { getCategories, getServiceAreas, SITE_URL } from "@/lib/api";
+import { getCategories, getPublicSettings, getServiceAreas, SITE_URL } from "@/lib/api";
+import { iconUrl } from "@/lib/format";
 import { BUSINESS, HOME_DESCRIPTION, HOME_TITLE, KEYWORDS, SHARE_IMAGE, SITE_NAME, jsonLdHtml, siteJsonLd } from "@/lib/seo";
 
-export const metadata = {
+const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: HOME_TITLE,
@@ -74,6 +75,18 @@ export const metadata = {
   formatDetection: { telephone: false },
 };
 
+// The browser-tab icon is the one uploaded in Admin → Settings → Branding,
+// or the bundled one in /public until there is one.
+export async function generateMetadata() {
+  const favicon = (await getPublicSettings())?.settings?.branding?.favicon;
+  return {
+    ...metadata,
+    icons: favicon
+      ? { icon: iconUrl(favicon, 64), apple: iconUrl(favicon, 180, "white") }
+      : { icon: "/icon.png", apple: "/apple-icon.png" },
+  };
+}
+
 // Self-hosted by next/font at build time, so there is no request to Google from
 // the shopper's browser and no layout shift while it loads.
 const poppins = Poppins({
@@ -103,8 +116,9 @@ export const viewport = {
 export default async function RootLayout({ children }) {
   // The category bar is on every page, so it is fetched once in the layout and
   // cached — not re-requested per route.
-  const [data, areaData] = await Promise.all([getCategories(), getServiceAreas()]);
+  const [data, areaData, settingsData] = await Promise.all([getCategories(), getServiceAreas(), getPublicSettings()]);
   const categories = data?.categories || [];
+  const logoUrl = settingsData?.settings?.branding?.logo || "";
 
   return (
     <html lang="en-IN" className={`${poppins.variable} ${serif.variable}`}>
@@ -115,7 +129,7 @@ export default async function RootLayout({ children }) {
           {/* Header reads useSearchParams, which needs a Suspense boundary so
               the rest of the page can still be statically rendered. */}
           <Suspense fallback={<div style={{ height: "var(--header-total)" }} />}>
-            <Header categories={categories} />
+            <Header categories={categories} logoUrl={logoUrl} />
           </Suspense>
 
           <main>{children}</main>
