@@ -1,9 +1,9 @@
-// The web app manifest — what makes "Add to Home Screen" install FreshMart as
+// The web app manifest — what makes "Add to Home Screen" install Hosur Basket as
 // an app with its own icon and window rather than a browser bookmark.
 export default function manifest() {
   return {
-    name: "FreshMart — Fresh Food, Better Life",
-    short_name: "FreshMart",
+    name: "Hosur Basket — Fresh Food, Better Life",
+    short_name: "Hosur Basket",
     description: "Fresh fruit, vegetables, groceries and household essentials, delivered from your neighbourhood store.",
     id: "/",
     start_url: "/?source=pwa",

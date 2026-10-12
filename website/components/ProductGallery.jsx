@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { img } from "@/lib/format";
 
 // The single client island on the media side of the product page: which
 // shot is enlarged. Everything else there stays server-rendered HTML.
@@ -12,7 +13,7 @@ export default function ProductGallery({ media = [], name, badge }) {
   return (
     <div className="gallery">
       <div className="gallery-main card-media" style={{ aspectRatio: "1 / 1", border: "1px solid var(--border)" }}>
-        {current ? <img src={current.url} alt={name} /> : null}
+        {current ? <img src={img(current.url, 900)} alt={name} /> : null}
         {badge}
       </div>
 
@@ -27,7 +28,7 @@ export default function ProductGallery({ media = [], name, badge }) {
               aria-label={`Show photo ${index + 1} of ${shots.length}`}
               aria-pressed={index === active}
             >
-              <img src={shot.url} alt="" />
+              <img src={img(shot.url, 160)} alt="" />
             </button>
           ))}
         </div>

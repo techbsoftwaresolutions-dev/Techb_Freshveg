@@ -1,0 +1,201 @@
+- generic [active] [ref=f3e1]:
+  - main [ref=f3e2]:
+    - generic [ref=f3e3]:
+      - generic [ref=f3e4]:
+        - link "Back" [ref=f3e5] [cursor=pointer]:
+          - /url: /
+        - generic [ref=f3e8]: All products
+        - button "Search" [ref=f3e9] [cursor=pointer]
+      - generic [ref=f3e13]:
+        - navigation "Categories" [ref=f3e14]:
+          - link "All" [ref=f3e15] [cursor=pointer]:
+            - /url: /c
+          - link "Fresh Fruits" [ref=f3e20] [cursor=pointer]:
+            - /url: /c/fruits-vegetables
+          - link "Fresh Vegetables" [ref=f3e23] [cursor=pointer]:
+            - /url: /c/fresh-vegetables
+          - link "Grocery & Daily Needs" [ref=f3e26] [cursor=pointer]:
+            - /url: /c/grocery
+          - link "Fancy & Personal Care" [ref=f3e29] [cursor=pointer]:
+            - /url: /c/fancy-personal-care
+          - link "Household" [ref=f3e32] [cursor=pointer]:
+            - /url: /c/household
+          - link "General Store" [ref=f3e35] [cursor=pointer]:
+            - /url: /c/general-store
+        - generic [ref=f3e38]:
+          - generic [ref=f3e39]:
+            - button "Sort by" [ref=f3e42] [cursor=pointer]
+            - button "Offers" [ref=f3e48] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f3e49]: "%"
+              - text: Offers
+          - generic [ref=f3e51]:
+            - article [ref=f3e52]:
+              - generic [ref=f3e53]:
+                - link "banana" [ref=f3e54] [cursor=pointer]:
+                  - /url: /p/banana
+                  - img "banana" [ref=f3e55]
+                - button "Save to your list" [ref=f3e56] [cursor=pointer]
+              - link [ref=f3e59] [cursor=pointer]:
+                - /url: /p/banana
+                - heading "banana" [level=3] [ref=f3e60]
+              - generic [ref=f3e61]: 3 kg
+              - generic [ref=f3e62]:
+                - generic [ref=f3e63]: ₹55
+                - button "Add to cart" [ref=f3e64] [cursor=pointer]: Add
+            - article [ref=f3e65]:
+              - generic [ref=f3e66]:
+                - link "Surf Excel Easy Wash Detergent" [ref=f3e67] [cursor=pointer]:
+                  - /url: /p/surf-excel-easy-wash-detergent
+                  - img "Surf Excel Easy Wash Detergent" [ref=f3e68]
+                  - generic [ref=f3e69]: 11% OFF
+                - button "Save to your list" [ref=f3e70] [cursor=pointer]
+              - link [ref=f3e73] [cursor=pointer]:
+                - /url: /p/surf-excel-easy-wash-detergent
+                - heading "Surf Excel Easy Wash Detergent" [level=3] [ref=f3e74]
+              - generic [ref=f3e75]: 1 kg
+              - generic [ref=f3e76]:
+                - generic [ref=f3e77]: ₹129₹145
+                - button "Add to cart" [ref=f3e78] [cursor=pointer]: Add
+            - article [ref=f3e79]:
+              - generic [ref=f3e80]:
+                - link "Amul Gold Milk" [ref=f3e81] [cursor=pointer]:
+                  - /url: /p/amul-gold-milk
+                  - img "Amul Gold Milk" [ref=f3e82]
+                - button "Save to your list" [ref=f3e83] [cursor=pointer]
+              - link [ref=f3e86] [cursor=pointer]:
+                - /url: /p/amul-gold-milk
+                - heading "Amul Gold Milk" [level=3] [ref=f3e87]
+              - generic [ref=f3e88]: 500 ml
+              - generic [ref=f3e89]:
+                - generic [ref=f3e90]: ₹34
+                - button "Add to cart" [ref=f3e91] [cursor=pointer]: Add
+            - article [ref=f3e92]:
+              - generic [ref=f3e93]:
+                - link "Himalaya Neem Face Wash" [ref=f3e94] [cursor=pointer]:
+                  - /url: /p/himalaya-neem-face-wash
+                  - img "Himalaya Neem Face Wash" [ref=f3e95]
+                  - generic [ref=f3e96]: 13% OFF
+                - button "Save to your list" [ref=f3e97] [cursor=pointer]
+              - link [ref=f3e100] [cursor=pointer]:
+                - /url: /p/himalaya-neem-face-wash
+                - heading "Himalaya Neem Face Wash" [level=3] [ref=f3e101]
+              - generic [ref=f3e102]: 150 ml
+              - generic [ref=f3e103]:
+                - generic [ref=f3e104]: ₹165₹190
+                - button "Add to cart" [ref=f3e105] [cursor=pointer]: Add
+            - article [ref=f3e106]:
+              - generic [ref=f3e107]:
+                - link "Dragon" [ref=f3e108] [cursor=pointer]:
+                  - /url: /p/dragon
+                  - img "Dragon" [ref=f3e109]
+                  - generic [ref=f3e110]: 25% OFF
+                - button "Save to your list" [ref=f3e111] [cursor=pointer]
+              - link [ref=f3e114] [cursor=pointer]:
+                - /url: /p/dragon
+                - heading "Dragon" [level=3] [ref=f3e115]
+              - generic [ref=f3e116]: 1 kg
+              - generic [ref=f3e117]:
+                - generic [ref=f3e118]: ₹60₹80
+                - button "Add to cart" [ref=f3e119] [cursor=pointer]: Add
+            - article [ref=f3e120]:
+              - generic [ref=f3e121]:
+                - link "Lemon" [ref=f3e122] [cursor=pointer]:
+                  - /url: /p/lemon
+                  - img "Lemon" [ref=f3e123]
+                - button "Save to your list" [ref=f3e124] [cursor=pointer]
+              - link [ref=f3e127] [cursor=pointer]:
+                - /url: /p/lemon
+                - heading "Lemon" [level=3] [ref=f3e128]
+              - generic [ref=f3e129]: 2 kg
+              - generic [ref=f3e130]:
+                - generic [ref=f3e131]: ₹50
+                - button "Add to cart" [ref=f3e132] [cursor=pointer]: Add
+            - article [ref=f3e133]:
+              - generic [ref=f3e134]:
+                - link "apple" [ref=f3e135] [cursor=pointer]:
+                  - /url: /p/apple
+                  - img "apple" [ref=f3e136]
+                - button "Save to your list" [ref=f3e137] [cursor=pointer]
+              - link [ref=f3e140] [cursor=pointer]:
+                - /url: /p/apple
+                - heading "apple" [level=3] [ref=f3e141]
+              - generic [ref=f3e142]: 3 kg
+              - generic [ref=f3e143]:
+                - generic [ref=f3e144]: ₹55
+                - button "Add to cart" [ref=f3e145] [cursor=pointer]: Add
+            - article [ref=f3e146]:
+              - generic [ref=f3e147]:
+                - link "Fortune Sunflower Oil" [ref=f3e148] [cursor=pointer]:
+                  - /url: /p/fortune-sunflower-oil
+                  - img "Fortune Sunflower Oil" [ref=f3e149]
+                  - generic [ref=f3e150]: 10% OFF
+                - button "Save to your list" [ref=f3e151] [cursor=pointer]
+              - link [ref=f3e154] [cursor=pointer]:
+                - /url: /p/fortune-sunflower-oil
+                - heading "Fortune Sunflower Oil" [level=3] [ref=f3e155]
+              - generic [ref=f3e156]: 1 ltr
+              - generic [ref=f3e157]:
+                - generic [ref=f3e158]: ₹149₹165
+                - button "Add to cart" [ref=f3e159] [cursor=pointer]: Add
+            - article [ref=f3e160]:
+              - generic [ref=f3e161]:
+                - link "Hair Clip Set" [ref=f3e162] [cursor=pointer]:
+                  - /url: /p/hair-clip-set
+                  - img "Hair Clip Set" [ref=f3e163]
+                  - generic [ref=f3e164]: 30% OFF
+                - button "Save to your list" [ref=f3e165] [cursor=pointer]
+              - link [ref=f3e168] [cursor=pointer]:
+                - /url: /p/hair-clip-set
+                - heading "Hair Clip Set" [level=3] [ref=f3e169]
+              - generic [ref=f3e170]: 1 piece
+              - generic [ref=f3e171]:
+                - generic [ref=f3e172]: ₹69₹99
+                - button "Add to cart" [ref=f3e173] [cursor=pointer]: Add
+            - article [ref=f3e174]:
+              - generic [ref=f3e175]:
+                - link "Hair Clip Set" [ref=f3e176] [cursor=pointer]:
+                  - /url: /p/hair-clip-set-2
+                  - img "Hair Clip Set" [ref=f3e177]
+                  - generic [ref=f3e178]: 15% OFF
+                - button "Save to your list" [ref=f3e179] [cursor=pointer]
+              - link [ref=f3e182] [cursor=pointer]:
+                - /url: /p/hair-clip-set-2
+                - heading "Hair Clip Set" [level=3] [ref=f3e183]
+              - generic [ref=f3e184]: 1 piece
+              - generic [ref=f3e185]:
+                - generic [ref=f3e186]: ₹169₹199
+                - button "Add to cart" [ref=f3e187] [cursor=pointer]: Add
+            - article [ref=f3e188]:
+              - generic [ref=f3e189]:
+                - generic "Orange" [ref=f3e190]:
+                  - img "Orange" [ref=f3e191]
+                  - generic [ref=f3e192]: Out of stock
+                - button "Save to your list" [ref=f3e194] [cursor=pointer]
+              - heading "Orange" [level=3] [ref=f3e198]
+              - generic [ref=f3e199]: 1 kg
+              - generic [ref=f3e200]:
+                - generic [ref=f3e201]: ₹45₹50
+                - button "Sold out" [disabled] [ref=f3e202]
+            - article [ref=f3e203]:
+              - generic [ref=f3e204]:
+                - generic "Dragon Fruit" [ref=f3e205]:
+                  - img "Dragon Fruit" [ref=f3e206]
+                  - generic [ref=f3e207]: Out of stock
+                - button "Save to your list" [ref=f3e209] [cursor=pointer]
+              - heading "Dragon Fruit" [level=3] [ref=f3e213]
+              - generic [ref=f3e214]: 1 kg
+              - generic [ref=f3e215]:
+                - generic [ref=f3e216]: ₹50₹60
+                - button "Sold out" [disabled] [ref=f3e217]
+  - navigation "Main" [ref=f3e218]:
+    - link "Home" [ref=f3e219] [cursor=pointer]:
+      - /url: /
+    - link "Categories" [ref=f3e226] [cursor=pointer]:
+      - /url: /c
+    - link "Cart" [ref=f3e234] [cursor=pointer]:
+      - /url: /cart
+    - link "Orders" [ref=f3e241] [cursor=pointer]:
+      - /url: /orders
+    - link "Account" [ref=f3e247] [cursor=pointer]:
+      - /url: /account
+  - alert [ref=f3e253]

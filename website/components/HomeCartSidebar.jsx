@@ -1,5 +1,6 @@
 "use client";
 
+import FreeDeliveryProgress from "./FreeDeliveryProgress";
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "./Providers";
@@ -92,13 +93,9 @@ export default function HomeCartSidebar() {
               </div>
             ) : null}
 
-            {summary?.amountToFreeDelivery > 0 ? (
-              <p className="notice info" style={{ fontSize: 12.5, padding: "9px 11px" }}>
-                Add {rupees(summary.amountToFreeDelivery)} more for free delivery
-              </p>
-            ) : null}
+            <FreeDeliveryProgress variant="compact" />
 
-            {!cart.cart?.couponCode ? (
+            {!cart.offers.applied.some((o) => o.code) ? (
               <form onSubmit={applyCoupon} className="mini-cart-coupon">
                 <input
                   type="text"

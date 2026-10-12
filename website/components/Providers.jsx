@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api, loadSession, saveSession } from "@/lib/client-api";
 
 const AuthContext = createContext(null);
@@ -108,7 +108,9 @@ export function Providers({ children }) {
   const [cart, setCart] = useState(null);
   const [pending, setPending] = useState({});
   const [cartError, setCartError] = useState("");
+  const [soldOut, setSoldOut] = useState({}); // variantId -> true, learnt from a refused add
   const storeId = store?.id || null;
+  useEffect(() => setSoldOut({}), [storeId]);
 
   const refreshCart = useCallback(async () => {
     if (!storeId) return null;
@@ -136,30 +138,53 @@ export function Providers({ children }) {
       .catch(() => refreshCart());
   }, [user, storeId, refreshCart]);
 
+  // Cart changes go to the server one after another. Each response carries
+  // the whole cart, so if two were in flight together the older reply could
+  // land last and wipe out the newer item. Queued, the last reply is always
+  // the newest cart. (The API also handles one change per cart at a time.)
+  const queue = useRef(Promise.resolve());
+
   const run = useCallback(
-    async (variantId, work) => {
+    (variantId, work) => {
       setPending((p) => ({ ...p, [variantId]: true }));
-      try {
-        const data = await work();
-        setCart(data.cart);
-        setCartError("");
-        return data.cart;
-      } catch (err) {
-        setCartError(err.message);
-        // The server knows the real quantity — "only 2 left" is the usual
-        // cause, so re-read rather than guessing.
-        await refreshCart();
-        throw err;
-      } finally {
+      const job = queue.current.then(async () => {
+        try {
+          const data = await work();
+          setCart(data.cart);
+          setCartError("");
+          return data.cart;
+        } catch (err) {
+          // The server knows the real quantity — "only 2 left" is the usual
+          // cause, so re-read rather than guessing. The message is set after
+          // the re-read, which would otherwise clear it.
+          await refreshCart();
+          // None left at all (sold since the page was drawn, or a different
+          // store from the one the page was drawn for): the card turns into
+          // "Out of stock" instead of saying so in a message.
+          if (err.status === 409 && !err.details?.available) setSoldOut((s) => ({ ...s, [variantId]: true }));
+          else setCartError(err.message);
+          throw err;
+        }
+      });
+      queue.current = job.catch(() => {});
+      return job.finally(() => {
         setPending((p) => {
           const next = { ...p };
           delete next[variantId];
           return next;
         });
-      }
+      });
     },
     [refreshCart]
   );
+
+  // A failed change (out of stock, limit reached) is said once, briefly,
+  // wherever the tap happened — the cart itself has already been re-read.
+  useEffect(() => {
+    if (!cartError) return undefined;
+    const timer = setTimeout(() => setCartError(""), 4000);
+    return () => clearTimeout(timer);
+  }, [cartError]);
 
   const cartApi = useMemo(
     () => ({
@@ -172,6 +197,7 @@ export function Providers({ children }) {
       lineCount: cart?.items?.length || 0,
       error: cartError,
       pending,
+      soldOut,
       refresh: refreshCart,
       add: (variantId, quantity) =>
         run(variantId, () => api.post("/cart/items", { variant: variantId, quantity, store: storeId })),
@@ -192,7 +218,7 @@ export function Providers({ children }) {
         cart?.items?.find((i) => String(i.variant) === String(variantId))?.quantity || 0,
       lineFor: (variantId) => cart?.items?.find((i) => String(i.variant) === String(variantId)) || null,
     }),
-    [cart, cartError, pending, refreshCart, run, storeId]
+    [cart, cartError, pending, soldOut, refreshCart, run, storeId]
   );
 
 
@@ -270,7 +296,14 @@ export function Providers({ children }) {
     <AuthContext.Provider value={auth}>
       <StoreContext.Provider value={storeValue}>
         <CartContext.Provider value={cartApi}>
-          <WishlistContext.Provider value={wishlistApi}>{children}</WishlistContext.Provider>
+          <WishlistContext.Provider value={wishlistApi}>
+            {children}
+            {cartError ? (
+              <div className="cart-toast" role="alert">
+                {cartError}
+              </div>
+            ) : null}
+          </WishlistContext.Provider>
         </CartContext.Provider>
       </StoreContext.Provider>
     </AuthContext.Provider>

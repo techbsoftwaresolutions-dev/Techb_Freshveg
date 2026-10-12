@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { img } from "@/lib/format";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const ROTATE_MS = 6000;
@@ -66,7 +67,7 @@ export default function BannerCarousel({ banners = [] }) {
       {banner.image ? (
         <>
           <img
-            src={banner.image}
+            src={img(banner.image, 1200)}
             alt=""
             className="banner-image"
             style={{ objectPosition: `${banner.focalX ?? 50}% ${banner.focalY ?? 50}%` }}

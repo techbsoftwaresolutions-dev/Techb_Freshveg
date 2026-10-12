@@ -1,12 +1,10 @@
 "use client";
 
 import { useCart } from "./Providers";
-import { formatQty, unitSuffix } from "@/lib/format";
 
 // The only interactive island on an otherwise server-rendered product card.
-// Quantity rules come from the cart line the API returns — so a loose vegetable
-// steps in quarter kilos and a packed one steps in whole packs, without this
-// component knowing which is which.
+// A cart quantity is a count of this variant — packs or pieces — so every tap
+// adds or removes exactly one; the pack's weight stays on the card.
 export default function AddToCart({ variantId, disabled, size = "sm", qty = 1, fullWidth = false }) {
   const cart = useCart();
 
@@ -16,14 +14,14 @@ export default function AddToCart({ variantId, disabled, size = "sm", qty = 1, f
   const quantity = line?.quantity || 0;
   const busy = Boolean(cart.pending[variantId]);
 
-  if (disabled) {
+  if (disabled || (quantity <= 0 && cart.soldOut[variantId])) {
     return (
       <button
-        className="add-btn"
+        className="add-btn add-oos"
         disabled
         style={{ opacity: 0.5, cursor: "not-allowed", ...(fullWidth ? { width: "100%" } : null) }}
       >
-        Sold out
+        Out of stock
       </button>
     );
   }
@@ -35,25 +33,31 @@ export default function AddToCart({ variantId, disabled, size = "sm", qty = 1, f
         onClick={() => cart.add(variantId, qty).catch(() => {})}
         disabled={busy}
         aria-label="Add to cart"
+        aria-busy={busy}
         style={{
           ...(size === "lg" ? { height: 48, minWidth: 150, fontSize: 15 } : null),
           ...(fullWidth ? { width: "100%" } : null),
         }}
       >
-        {busy ? "…" : "Add to Cart"}
+        {busy ? (
+          <Dots />
+        ) : (
+          <>
+            {/* the phone's card has room for only "Add" (see .add-short) */}
+            <span className="add-full">Add to Cart</span>
+            <span className="add-short">Add</span>
+          </>
+        )}
       </button>
     );
   }
 
-  const step = line?.stepQty ?? 1;
-  const min = line?.minOrderQty ?? step;
+  const min = Math.max(1, line?.minOrderQty ?? 1);
   const max = line?.maxOrderQty ?? 50;
-  const suffix = unitSuffix(line);
 
   const change = (next) => {
-    const rounded = Math.round(next * 100) / 100;
-    if (rounded < min - 0.0001) cart.remove(variantId).catch(() => {});
-    else cart.setQuantity(variantId, Math.min(rounded, max)).catch(() => {});
+    if (next < min) cart.remove(variantId).catch(() => {});
+    else cart.setQuantity(variantId, Math.min(next, max)).catch(() => {});
   };
 
   return (
@@ -64,17 +68,26 @@ export default function AddToCart({ variantId, disabled, size = "sm", qty = 1, f
         ...(fullWidth ? { width: "100%", justifyContent: "space-between" } : null),
       }}
     >
-      <button onClick={() => change(quantity - step)} disabled={busy} aria-label="Reduce quantity">
+      <button onClick={() => change(quantity - 1)} disabled={busy} aria-label="Reduce quantity">
         −
       </button>
-      <span className="value">{busy ? "…" : formatQty(quantity, suffix)}</span>
-      <button
-        onClick={() => change(quantity + step)}
-        disabled={busy || quantity + step > max + 0.0001}
-        aria-label="Increase quantity"
-      >
+      <span className="value" aria-busy={busy}>
+        {busy ? <Dots /> : quantity}
+      </span>
+      <button onClick={() => change(quantity + 1)} disabled={busy || quantity + 1 > max} aria-label="Increase quantity">
         +
       </button>
     </div>
+  );
+}
+
+// "..." while the cart request is out — three dots that pulse in turn.
+function Dots() {
+  return (
+    <span className="dots" role="status" aria-label="Updating cart">
+      <i />
+      <i />
+      <i />
+    </span>
   );
 }

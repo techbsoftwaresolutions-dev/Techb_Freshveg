@@ -38,15 +38,9 @@ const config = {
   // this staying off that list.
   port,
   apiPrefix: process.env.API_PREFIX || "/api/v1",
-  // Absolute origin for links this API hands out that outlive the request —
-  // an uploaded photo's URL, most notably. A relative "/uploads/..." only
-  // resolves against whatever origin the browser is currently on, and the
-  // storefront and admin apps run on different origins than this API — so
-  // that link works in neither. Override in production with the API's real
-  // public origin (behind the proxy/CDN it actually sits behind).
-  publicUrl: (process.env.PUBLIC_URL || `http://localhost:${port}`).replace(/\/+$/, ""),
-
   mongoUri: required("MONGODB_URI", "mongodb://127.0.0.1:27017/commerce_engine"),
+  // Optional, comma-separated, e.g. "8.8.8.8,1.1.1.1" — see config/db.js.
+  dnsServers: (process.env.DNS_SERVERS || "").split(",").map((s) => s.trim()).filter(Boolean),
 
   jwt: {
     secret: required("JWT_SECRET", "dev-only-insecure-secret"),

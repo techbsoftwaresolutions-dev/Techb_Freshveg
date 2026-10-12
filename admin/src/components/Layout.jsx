@@ -6,7 +6,6 @@ import {
   IconDashboard,
   IconCalendar,
   IconCategories,
-  IconAttributes,
   IconProducts,
   IconBrands,
   IconReviews,
@@ -53,12 +52,6 @@ const NAV = [
         label: "Categories",
         permission: "catalog.view",
         icon: IconCategories,
-      },
-      {
-        to: "/catalog/attributes",
-        label: "Attributes",
-        permission: "catalog.view",
-        icon: IconAttributes,
       },
       {
         to: "/catalog/products",
@@ -330,8 +323,8 @@ export default function Layout() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="mark">C</span>
-          <span>Commerce</span>
+          <span className="mark">HB</span>
+          <span>Hosur Basket</span>
         </div>
         <nav>
           {groups.map((group, index) => {
@@ -518,5 +511,5 @@ function titleFor(pathname) {
   const match = Object.keys(map)
     .filter((key) => pathname.startsWith(key))
     .sort((a, b) => b.length - a.length)[0];
-  return map[match] || "Commerce Admin";
+  return map[match] || "Hosur Basket Admin";
 }

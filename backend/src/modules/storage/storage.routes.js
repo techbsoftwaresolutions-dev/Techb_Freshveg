@@ -1,4 +1,3 @@
-const path = require("path");
 const express = require("express");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
@@ -9,12 +8,10 @@ const router = express.Router();
 
 // Image uploads for products, banners, review photos and proof of delivery.
 //
-// Where the bytes end up is decided in providers.js — local disk when nothing
-// is configured, Cloudinary when its keys are set. Everything in this file is
-// about whether to accept the file at all, which is the same either way.
+// The bytes always go to Cloudinary (see providers.js); this file decides
+// whether to accept the file at all. Nothing is written to or served from this
+// server's disk.
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
-const PUBLIC_PREFIX = "/uploads";
 const MAX_BYTES = storage.MAX_BYTES;
 
 // Allow-list, not a block-list: the set of things a grocery catalogue needs is
@@ -50,20 +47,19 @@ function sniff(buffer) {
 
 router.use(requireAuth);
 
-// Which provider is live, so the admin can see where an upload will land
-// instead of inferring it from the shape of the URL that comes back.
+// Whether uploads will work, and if not, which variables are missing — so a
+// half-configured account is visible before someone tries to upload.
 router.get(
   "/config",
   asyncHandler(async (_req, res) => {
-    const provider = storage.resolve();
+    const missing = storage.missingConfig();
     res.json({
       success: true,
-      provider: provider.name,
+      provider: "cloudinary",
+      configured: missing.length === 0,
+      missing,
       maxBytes: MAX_BYTES,
       accepts: Object.keys(ALLOWED),
-      // Named so a half-configured account is obvious rather than silently
-      // falling back to disk and looking like it worked.
-      cloudinaryConfigured: storage.cloudinary.configured,
       folder: process.env.CLOUDINARY_FOLDER || null,
     });
   })
@@ -97,8 +93,3 @@ router.post(
 );
 
 module.exports = router;
-
-// Exported so app.js can serve the directory statically without repeating the
-// path in two places.
-module.exports.UPLOAD_DIR = UPLOAD_DIR;
-module.exports.PUBLIC_PREFIX = PUBLIC_PREFIX;

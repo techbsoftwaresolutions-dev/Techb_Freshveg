@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { MorphingSquare } from "@/components/ui/morphing-square";
+import FreeDeliveryProgress from "@/components/FreeDeliveryProgress";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "@/components/Providers";
+import { api } from "@/lib/client-api";
 import AddToCart from "@/components/AddToCart";
 import EmptyState from "@/components/EmptyState";
 import { rupees } from "@/lib/format";
@@ -11,9 +14,12 @@ import { rupees } from "@/lib/format";
 export default function CartPage() {
   const cart = useCart();
   const { signedIn } = useAuth();
-  const { store } = useStore();
   const router = useRouter();
+  const { store } = useStore();
+  const billRef = useRef(null);
 
+  // Phone only: the coupon box starts folded to one line.
+  const [offersOpen, setOffersOpen] = useState(false);
   const [code, setCode] = useState("");
   const [couponError, setCouponError] = useState("");
   const [applying, setApplying] = useState(false);
@@ -23,7 +29,7 @@ export default function CartPage() {
   if (!cart.cart) {
     return (
       <div className="wrap">
-        <div className="page-loading">Loading your cart…</div>
+        <div className="page-loading"><MorphingSquare message="Loading your cart…" /></div>
       </div>
     );
   }
@@ -45,6 +51,20 @@ export default function CartPage() {
     );
   }
 
+  // Empties the cart through the API's own "clear" and re-reads it.
+  async function clearCart() {
+    if (!window.confirm("Remove all items from your cart?")) return;
+    try {
+      await api.del("/cart", { store: store?.id });
+    } catch {
+      // fall through — the refresh below shows what the cart really holds
+    }
+    await cart.refresh();
+  }
+
+  const checkout = () => router.push(signedIn ? "/checkout" : "/login?next=/checkout");
+  const itemCount = cart.items.length;
+
   async function applyCoupon(event) {
     event.preventDefault();
     setApplying(true);
@@ -61,44 +81,26 @@ export default function CartPage() {
     }
   }
 
-  // How far along the free-delivery threshold the cart is, for the bar. The
-  // cart's own summary carries the threshold it priced against; the store's
-  // is only a fallback for an older API.
-  const threshold = summary?.freeDeliveryThreshold || store?.freeDeliveryAbove;
-  const progress =
-    threshold && summary?.amountToFreeDelivery > 0
-      ? Math.min(100, Math.max(4, ((threshold - summary.amountToFreeDelivery) / threshold) * 100))
-      : null;
-
   return (
-    <div className="wrap">
-      <header className="page-title">
-        <h1>My Cart</h1>
-        <p>
-          {cart.items.length} item{cart.items.length === 1 ? "" : "s"}
-        </p>
+    <div className="wrap cart-page">
+      <header className="page-title cart-title">
+        <div>
+          <h1>My Cart</h1>
+          <p>
+            {itemCount} item{itemCount === 1 ? "" : "s"}
+          </p>
+        </div>
+        <button type="button" className="cart-clear" onClick={clearCart}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5" />
+          </svg>
+          Clear Cart
+        </button>
       </header>
 
       <div className="split cart">
         <div className="stack">
-          {summary?.amountToFreeDelivery > 0 ? (
-            <div className="delivery-meter">
-              <span>
-                Add <strong>{rupees(summary.amountToFreeDelivery)}</strong> more for <strong>free delivery</strong>
-              </span>
-              {progress !== null ? (
-                <span className="delivery-meter-bar" aria-hidden="true">
-                  <span style={{ width: `${progress}%` }} />
-                </span>
-              ) : null}
-            </div>
-          ) : summary?.deliveryFree ? (
-            <div className="delivery-meter done">
-              <span>
-                <strong>Free delivery unlocked</strong> on this order
-              </span>
-            </div>
-          ) : null}
+          <FreeDeliveryProgress variant="inline" />
 
           {cart.unavailable.length ? (
             <p className="notice error">
@@ -146,8 +148,33 @@ export default function CartPage() {
         </div>
 
         <div className="sticky stack">
-          <div className="panel">
-            <h3>Offers &amp; coupons</h3>
+          <div className={`panel offers-card${offersOpen ? " open" : ""}`}>
+            <h3 className="offers-h3">Offers &amp; coupons</h3>
+            <button
+              type="button"
+              className="offers-toggle"
+              aria-expanded={offersOpen}
+              onClick={() => setOffersOpen((open) => !open)}
+            >
+              <span className="offers-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 18 18 6" />
+                  <circle cx="7.5" cy="7.5" r="2" />
+                  <circle cx="16.5" cy="16.5" r="2" />
+                </svg>
+              </span>
+              <span className="offers-copy">
+                <strong>Offers &amp; coupons</strong>
+                <span>
+                  {cart.offers.applied.length
+                    ? `${cart.offers.applied.length} offer${cart.offers.applied.length === 1 ? "" : "s"} applied`
+                    : "Enter coupon code to get discount"}
+                </span>
+              </span>
+              <svg className="offers-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
             {cart.offers.applied.length ? (
               <div className="applied-offers">
                 {cart.offers.applied.map((offer) => (
@@ -166,8 +193,10 @@ export default function CartPage() {
               </div>
             ) : null}
 
-            {!cart.cart.couponCode ? (
-              <form onSubmit={applyCoupon} className="coupon-form">
+            {/* A stored coupon that no longer qualifies is not in `applied`,
+                so the box must stay open to replace it. */}
+            {!cart.offers.applied.some((o) => o.code) ? (
+              <form onSubmit={applyCoupon} className="coupon-form offers-body">
                 <input
                   type="text"
                   value={code}
@@ -184,7 +213,7 @@ export default function CartPage() {
             {couponError ? <p className="notice error" style={{ marginTop: 10, marginBottom: 0 }}>{couponError}</p> : null}
           </div>
 
-          <div className="panel">
+          <div className="panel bill-card" id="bill" ref={billRef}>
             <h3>Bill details</h3>
             <div className="bill">
               <Row label="Item total" value={rupees(summary.mrpTotal)} />
@@ -220,15 +249,35 @@ export default function CartPage() {
             ) : null}
 
             <button
-              className="btn primary block lg"
+              className="btn primary block lg bill-checkout"
               style={{ marginTop: 16 }}
               disabled={!summary.meetsMinimum}
-              onClick={() => router.push(signedIn ? "/checkout" : "/login?next=/checkout")}
+              onClick={checkout}
             >
               {signedIn ? "Proceed to checkout" : "Sign in to checkout"}
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Phone: the total and the way forward stay in reach at the bottom. */}
+      <div className="cart-bar">
+        <div className="cart-bar-total">
+          <strong>{rupees(summary.total)}</strong>
+          <span>
+            {itemCount} item{itemCount === 1 ? "" : "s"} ·{" "}
+            <button type="button" onClick={() => billRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+              View details
+            </button>
+          </span>
+        </div>
+        <button type="button" className="cart-bar-cta" disabled={!summary.meetsMinimum} onClick={checkout}>
+          <span className="cta-full">{signedIn ? "Proceed to checkout" : "Sign in to checkout"}</span>
+          <span className="cta-short">{signedIn ? "Checkout" : "Sign in"}</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m9 5 7 7-7 7" />
+          </svg>
+        </button>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-const { mongoose, baseOptions, money, percent, objectId } = require("../../core/schemaBase");
+const { mongoose, baseOptions, money, percent, objectId, wholeUnit } = require("../../core/schemaBase");
 
 // A Variant is the sellable unit — the thing with a SKU, a price and stock.
 // "Tomato 1 KG", "India Gate Basmati 5 KG", "Hair Clip / Pink".
@@ -59,11 +59,12 @@ const variantSchema = new mongoose.Schema(
 
     weightGrams: { type: Number, default: 0, min: 0 }, // shipping / slot capacity
 
-    // Order quantity rules. Loose vegetables use stepQty 0.25 with unit "kg";
-    // packaged goods leave it at 1.
-    minOrderQty: { type: Number, default: 1, min: 0 },
+    // Order quantity rules. A cart quantity counts this variant — whole packs
+    // or pieces, never a weight — so these are whole numbers; a fractional
+    // value (the old 0.25 kg step) is rounded up to a whole unit on save.
+    minOrderQty: { type: Number, default: 1, min: 0, set: wholeUnit },
     maxOrderQty: { type: Number, default: 50, min: 0 },
-    stepQty: { type: Number, default: 1, min: 0 },
+    stepQty: { type: Number, default: 1, min: 0, set: wholeUnit },
 
     lowStockThreshold: { type: Number, default: 5 },
 

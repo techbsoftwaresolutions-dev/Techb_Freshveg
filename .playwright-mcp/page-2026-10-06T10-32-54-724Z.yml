@@ -1,0 +1,130 @@
+- generic [active] [ref=f8e1]:
+  - banner [ref=f8e2]:
+    - generic [ref=f8e4]:
+      - generic [ref=f8e5]: Freshness You Can Trust
+      - generic [ref=f8e7]: Free delivery on orders above ₹399
+      - link "Track Order" [ref=f8e8] [cursor=pointer]:
+        - /url: /orders
+      - link "Help Center" [ref=f8e14] [cursor=pointer]:
+        - /url: /help
+      - link "My Account" [ref=f8e18] [cursor=pointer]:
+        - /url: /account
+    - generic [ref=f8e25]:
+      - link "Hosur Basket Fresh Food • Better Life" [ref=f8e26] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f8e33]:
+          - generic [ref=f8e34]: Hosur Basket
+          - generic [ref=f8e35]: Fresh Food • Better Life
+      - search [ref=f8e36]:
+        - searchbox "Search products" [ref=f8e37]
+        - button "Search" [ref=f8e38] [cursor=pointer]
+      - generic [ref=f8e42]:
+        - button "Location Set location" [ref=f8e43] [cursor=pointer]:
+          - generic [ref=f8e47]:
+            - generic [ref=f8e48]: Location
+            - generic [ref=f8e49]: Set location
+        - link "0 Cart ₹0" [ref=f8e53] [cursor=pointer]:
+          - /url: /cart
+          - generic [ref=f8e54]: "0"
+          - generic [ref=f8e60]:
+            - generic [ref=f8e61]: Cart
+            - generic [ref=f8e62]: ₹0
+    - navigation "Categories" [ref=f8e63]:
+      - generic [ref=f8e64]:
+        - link "All Categories" [ref=f8e65] [cursor=pointer]:
+          - /url: /c
+        - link "Fresh Fruits" [ref=f8e68] [cursor=pointer]:
+          - /url: /c/fruits-vegetables
+        - link "Fresh Vegetables" [ref=f8e69] [cursor=pointer]:
+          - /url: /c/fresh-vegetables
+        - link "Grocery & Daily Needs" [ref=f8e70] [cursor=pointer]:
+          - /url: /c/grocery
+        - link "Fancy & Personal Care" [ref=f8e71] [cursor=pointer]:
+          - /url: /c/fancy-personal-care
+        - link "Household" [ref=f8e72] [cursor=pointer]:
+          - /url: /c/household
+        - link "General Store" [ref=f8e73] [cursor=pointer]:
+          - /url: /c/general-store
+        - link "Offers" [ref=f8e75] [cursor=pointer]:
+          - /url: /c?sort=discount
+  - main [ref=f8e76]:
+    - status [ref=f8e79]:
+      - generic [ref=f8e81]: Loading your cart…
+  - contentinfo [ref=f8e82]:
+    - generic [ref=f8e83]:
+      - generic [ref=f8e84]:
+        - generic [ref=f8e85]:
+          - link "Hosur Basket Fresh Food • Better Life" [ref=f8e86] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f8e90]:
+              - generic [ref=f8e91]: Hosur Basket
+              - generic [ref=f8e92]: Fresh Food • Better Life
+          - paragraph [ref=f8e93]: Fresh fruit, vegetables, groceries and household essentials, delivered from your neighbourhood store.
+        - generic [ref=f8e94]:
+          - heading "Shop" [level=4] [ref=f8e95]
+          - list [ref=f8e96]:
+            - listitem [ref=f8e97]:
+              - link "Fresh Fruits" [ref=f8e98] [cursor=pointer]:
+                - /url: /c/fruits-vegetables
+            - listitem [ref=f8e99]:
+              - link "Fresh Vegetables" [ref=f8e100] [cursor=pointer]:
+                - /url: /c/fresh-vegetables
+            - listitem [ref=f8e101]:
+              - link "Grocery & Daily Needs" [ref=f8e102] [cursor=pointer]:
+                - /url: /c/grocery
+            - listitem [ref=f8e103]:
+              - link "Fancy & Personal Care" [ref=f8e104] [cursor=pointer]:
+                - /url: /c/fancy-personal-care
+            - listitem [ref=f8e105]:
+              - link "Household" [ref=f8e106] [cursor=pointer]:
+                - /url: /c/household
+            - listitem [ref=f8e107]:
+              - link "General Store" [ref=f8e108] [cursor=pointer]:
+                - /url: /c/general-store
+        - generic [ref=f8e109]:
+          - heading "Customer Care" [level=4] [ref=f8e110]
+          - list [ref=f8e111]:
+            - listitem [ref=f8e112]:
+              - link "Help Center" [ref=f8e113] [cursor=pointer]:
+                - /url: /help
+            - listitem [ref=f8e114]:
+              - link "Track Order" [ref=f8e115] [cursor=pointer]:
+                - /url: /orders
+            - listitem [ref=f8e116]:
+              - link "Returns & Refunds" [ref=f8e117] [cursor=pointer]:
+                - /url: /orders
+            - listitem [ref=f8e118]:
+              - link "Contact Us" [ref=f8e119] [cursor=pointer]:
+                - /url: tel:+919003597158
+            - listitem [ref=f8e120]:
+              - link "Terms & Conditions" [ref=f8e121] [cursor=pointer]:
+                - /url: /terms
+        - generic [ref=f8e122]:
+          - heading "My Account" [level=4] [ref=f8e123]
+          - list [ref=f8e124]:
+            - listitem [ref=f8e125]:
+              - link "Account" [ref=f8e126] [cursor=pointer]:
+                - /url: /account
+            - listitem [ref=f8e127]:
+              - link "My Orders" [ref=f8e128] [cursor=pointer]:
+                - /url: /orders
+            - listitem [ref=f8e129]:
+              - link "Cart" [ref=f8e130] [cursor=pointer]:
+                - /url: /cart
+            - listitem [ref=f8e131]:
+              - link "Sign In" [ref=f8e132] [cursor=pointer]:
+                - /url: /login
+        - generic [ref=f8e133]:
+          - heading "Get in Touch" [level=4] [ref=f8e134]
+          - list [ref=f8e135]:
+            - listitem [ref=f8e136]:
+              - link "+91 90035 97158" [ref=f8e137] [cursor=pointer]:
+                - /url: tel:+919003597158
+            - listitem [ref=f8e138]:
+              - link "hosurbasket.com" [ref=f8e139] [cursor=pointer]:
+                - /url: https://hosurbasket.com
+            - listitem [ref=f8e140]: Hosur, Tamil Nadu
+      - generic [ref=f8e141]:
+        - generic [ref=f8e142]: © 2026 Hosur Basket. All rights reserved.
+        - generic [ref=f8e143]: Prices include all taxes
+  - alert [ref=f8e144]

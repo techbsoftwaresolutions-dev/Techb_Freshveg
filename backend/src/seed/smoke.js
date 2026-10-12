@@ -247,8 +247,8 @@ async function main() {
 
   const loose = await call("GET", "/storefront/products/potato-loose");
   check(
-    "a loose product inherits the department's quarter-kilo step",
-    loose.variants[0].stepQty === 0.25 && loose.variants[0].minOrderQty === 0.25,
+    "a loose product is also carted in whole units",
+    loose.variants[0].stepQty === 1 && loose.variants[0].minOrderQty === 1,
     { step: loose.variants[0]?.stepQty, min: loose.variants[0]?.minOrderQty }
   );
   check("cost price never reaches the storefront", tomato.variants.every((v) => v.costPrice === undefined));

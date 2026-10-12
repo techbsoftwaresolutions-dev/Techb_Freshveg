@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import SelectMenu from "../../components/SelectMenu";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pill } from "../../components/ui";
+import { IconChevronDown, IconSearch } from "../../components/Icons";
 
 // The category editor is where the engine is configured. Three tabs, matching
 // the three things a category owns: its own details, the capability switches
@@ -51,6 +52,124 @@ function TreeNode({ node, selectedId, onSelect, depth = 0 }) {
   );
 }
 
+// Phone view of the same tree: one scrolling list, rows that expand in place,
+// and a bottom sheet for the less common actions so a row never carries a row
+// of buttons (or a Delete next to Edit).
+function MobileCategoryList({ tree, editable, saving, onOpen, onAddChild, onDelete }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(() => new Set());
+  const [menu, setMenu] = useState(null);
+
+  const term = query.trim().toLowerCase();
+  // A search keeps every match plus the ancestors that lead to it, expanded.
+  const visible = useMemo(() => {
+    if (!term) return tree;
+    const prune = (nodes) =>
+      nodes.flatMap((n) => {
+        const kids = prune(n.children || []);
+        return n.name.toLowerCase().includes(term) || kids.length ? [{ ...n, children: kids }] : [];
+      });
+    return prune(tree);
+  }, [tree, term]);
+
+  const toggle = (id) =>
+    setOpen((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const rows = (nodes, depth = 0) =>
+    nodes.map((node) => {
+      const kids = node.children || [];
+      const expanded = term ? true : open.has(node.id);
+      return (
+        <div key={node.id}>
+          <div className={`cat-m-row${depth ? " child" : ""}`} style={{ paddingLeft: 6 + depth * 18 }}>
+            {kids.length ? (
+              <button
+                type="button"
+                className="cat-m-twisty"
+                aria-expanded={expanded}
+                aria-label={`${expanded ? "Collapse" : "Expand"} ${node.name}`}
+                onClick={() => toggle(node.id)}
+              >
+                <IconChevronDown width="16" height="16" style={{ transform: expanded ? "none" : "rotate(-90deg)" }} />
+              </button>
+            ) : (
+              <span className="cat-m-twisty" aria-hidden="true" />
+            )}
+            <button type="button" className="cat-m-main" onClick={() => onOpen(node)}>
+              <span className="cat-m-name">{node.name}</span>
+              <span className="cat-m-meta">
+                {kids.length ? `${kids.length} sub · ` : ""}
+                {node.productCount || 0} {node.productCount === 1 ? "product" : "products"}
+                {node.status !== "active" ? <Pill tone="warn">{node.status}</Pill> : null}
+              </span>
+            </button>
+            <button type="button" className="cat-m-more" aria-label={`Actions for ${node.name}`} onClick={() => setMenu(node)}>
+              ⋮
+            </button>
+          </div>
+          {expanded && kids.length ? rows(kids, depth + 1) : null}
+        </div>
+      );
+    });
+
+  const pick = (action) => () => {
+    const node = menu;
+    setMenu(null);
+    action(node);
+  };
+
+  return (
+    <div className="cat-m">
+      <label className="cat-m-search">
+        <IconSearch width="18" height="18" aria-hidden="true" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search categories"
+          aria-label="Search categories"
+        />
+      </label>
+
+      {visible.length ? (
+        <div className="cat-m-list">{rows(visible)}</div>
+      ) : (
+        <Empty title={term ? "No matches" : "No categories yet"} hint={term ? "Try a different name." : undefined} />
+      )}
+
+      {menu ? (
+        <>
+          <div className="cat-m-backdrop" onClick={() => setMenu(null)} aria-hidden="true" />
+          <div className="cat-m-sheet" role="menu" aria-label={`Actions for ${menu.name}`}>
+            <div className="cat-m-sheet-title">{menu.name}</div>
+            <button type="button" role="menuitem" onClick={pick(onOpen)}>
+              {editable ? "Edit" : "View"}
+            </button>
+            {editable ? (
+              <>
+                <button type="button" role="menuitem" onClick={pick(onAddChild)}>
+                  Add subcategory
+                </button>
+                <button type="button" role="menuitem" className="danger" disabled={saving} onClick={pick(onDelete)}>
+                  Delete…
+                </button>
+              </>
+            ) : null}
+            <button type="button" className="cancel" onClick={() => setMenu(null)}>
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 export default function Categories() {
   const { can } = useAuth();
   const editable = can("catalog.manage");
@@ -68,6 +187,9 @@ export default function Categories() {
   const [blockingProducts, setBlockingProducts] = useState([]);
   const [notice, setNotice] = useState("");
   const navigate = useNavigate();
+  // Phone only: false shows the list, true shows the editor for selectedId.
+  // Desktop ignores it and always shows both side by side.
+  const [mobileEditing, setMobileEditing] = useState(() => Boolean(new URLSearchParams(window.location.search).get("select")));
   // ?select=<id> opens that category — how the new-category page lands you on
   // what you just created.
   const [params] = useSearchParams();
@@ -200,8 +322,8 @@ export default function Categories() {
   const ownBindingIds = new Set((detail?.attributeBindings || []).map((b) => b.attribute?.id || b.attribute));
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={`page cats-page${mobileEditing ? " m-editing" : ""}`}>
+      <div className="page-head cats-head">
         <div>
           <h1>Categories</h1>
         </div>
@@ -211,6 +333,24 @@ export default function Categories() {
           </button>
         )}
       </div>
+
+      <button type="button" className="cat-m-back" onClick={() => setMobileEditing(false)}>
+        ← All categories
+      </button>
+
+      <MobileCategoryList
+        tree={tree}
+        editable={editable}
+        saving={saving}
+        onOpen={(node) => {
+          setSelectedId(node.id);
+          setTab("details");
+          setMobileEditing(true);
+          window.scrollTo(0, 0);
+        }}
+        onAddChild={(node) => navigate(`/catalog/categories/new?parent=${node.id}`)}
+        onDelete={removeCategory}
+      />
 
       <Banner tone="error">{error}</Banner>
       {blockingProducts.length > 0 && (
@@ -227,7 +367,7 @@ export default function Categories() {
       )}
       <Banner tone="ok">{notice}</Banner>
 
-      <div className="grid split">
+      <div className="grid split cats-desktop">
         <div style={{ display: "grid", gap: 14 }}>
           {detail && schema ? (
             <>
@@ -306,7 +446,7 @@ export default function Categories() {
           )}
         </div>
 
-        <Card title="Tree" tight>
+        <Card title="Tree" tight className="cats-tree-card">
           <div className="tree" style={{ padding: 10 }}>
             {tree.length ? (
               tree.map((node) => (
@@ -432,7 +572,7 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
         <Field label="Name">
           <input type="text" value={form.name} onChange={set("name")} disabled={!editable} />
         </Field>
-        <Field label="Parent category" help="Move this category — and everything under it — somewhere else. Leave empty for a top-level department.">
+        <Field label="Parent category" >
           <select value={form.parent} onChange={set("parent")} disabled={!editable}>
             <option value="">— Top level —</option>
             {parentOptions.map((option) => (
@@ -444,11 +584,11 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
         </Field>
       </div>
       <div className="grid cols-2">
-        <Field label="Icon" help="An emoji shown on the app's category tiles, used when no photo is set.">
+        <Field label="Icon" >
           <input type="text" value={form.icon} onChange={set("icon")} disabled={!editable} maxLength={4} />
         </Field>
       </div>
-      <Field label="Tile photo" help="Upload a photo, or paste an image URL directly. Shown on the app's category tiles instead of the icon.">
+      <Field label="Tile photo" >
         <div className="inline" style={{ gap: 10, alignItems: "center" }}>
           {form.image ? (
             <div
@@ -485,14 +625,6 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
             {uploadError}
           </span>
         ) : null}
-        <input
-          type="text"
-          value={form.image}
-          onChange={set("image")}
-          placeholder="Or paste an image URL"
-          disabled={!editable}
-          style={{ marginTop: 8 }}
-        />
       </Field>
       <Field label="Description">
         <textarea value={form.description} onChange={set("description")} disabled={!editable} />
@@ -818,7 +950,7 @@ function NewCategoryModal({ parentId, tree, saving, onClose, onCreate }) {
             maxLength={4}
             value={form.icon}
             onChange={(e) => setForm({ ...form, icon: e.target.value })}
- placeholder=""
+            placeholder=""
           />
         </Field>
       </div>

@@ -46,7 +46,10 @@ const paymentSchema = new mongoose.Schema(
     codSettledAt: Date,
 
     attempt: { type: Number, default: 1 },
-    idempotencyKey: { type: String, default: "" },
+    // No default: the unique index is sparse, which skips a *missing* field but
+    // not an empty string — a "" default made every payment after the first a
+    // duplicate key.
+    idempotencyKey: { type: String },
   },
   baseOptions
 );

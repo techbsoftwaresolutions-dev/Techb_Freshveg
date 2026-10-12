@@ -10,9 +10,32 @@ import EmptyState from "@/components/EmptyState";
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
 
+// Phone: a compact back-arrow header stands in for the site header (its search
+// bar, category bar and the footer step aside while this is on the page — see
+// the .cat-mobile-head rules in globals.css). Hidden on desktop.
+function MobileHead() {
+  return (
+    <div className="cat-mobile-head">
+      <Link href="/orders" aria-label="Back to my orders" className="cat-mobile-btn">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M19 12H5M11 6l-6 6 6 6" />
+        </svg>
+      </Link>
+      <span className="cat-mobile-title">Order details</span>
+    </div>
+  );
+}
+
 export default function OrderPage() {
   return (
-    <Suspense fallback={<div className="wrap"><div className="empty">Loading…</div></div>}>
+    <Suspense
+      fallback={
+        <div className="wrap orders-page">
+          <MobileHead />
+          <div className="empty">Loading…</div>
+        </div>
+      }
+    >
       <OrderDetail />
     </Suspense>
   );
@@ -68,6 +91,11 @@ function OrderDetail() {
     return () => clearInterval(poller.current);
   }, [tracking, load]);
 
+  // The review prompt (components/ReviewPrompt) listens for this.
+  useEffect(() => {
+    if (tracking?.status === "DELIVERED") window.dispatchEvent(new Event("reviews:check"));
+  }, [tracking?.status]);
+
   async function cancel() {
     if (!confirm("Cancel this order? This cannot be undone.")) return;
     setCancelling(true);
@@ -83,7 +111,8 @@ function OrderDetail() {
 
   if (!ready || loading) {
     return (
-      <div className="wrap">
+      <div className="wrap orders-page">
+        <MobileHead />
         <div className="empty">Loading your order…</div>
       </div>
     );
@@ -91,7 +120,8 @@ function OrderDetail() {
 
   if (!tracking) {
     return (
-      <div className="wrap">
+      <div className="wrap orders-page">
+        <MobileHead />
         <EmptyState icon="box" title="Couldn't load this order" actions={[{ href: "/orders", label: "Back to my orders" }]}>
           {error}
         </EmptyState>
@@ -104,7 +134,8 @@ function OrderDetail() {
     !["OUT_FOR_DELIVERY", "ARRIVED", "PICKED_UP"].includes(tracking.status);
 
   return (
-    <div className="wrap">
+    <div className="wrap orders-page">
+      <MobileHead />
       {justPlaced ? (
         <div className="placed-banner" role="status">
           <strong>Thank you! Your order is placed.</strong>

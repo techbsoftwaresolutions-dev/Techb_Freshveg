@@ -17,31 +17,32 @@ async function resolveStore(storeId) {
 }
 
 async function getOrCreateCart({ userId, sessionId, storeId }) {
-  const store = await resolveStore(storeId);
-
   const owner = userId ? { customer: userId } : { sessionId, customer: null };
   if (!userId && !sessionId) throw ApiError.badRequest("A session id is required for guest carts");
 
-  let cart = await Cart.findOne({ ...owner, store: store._id, status: "active" });
+  // With a store id the store and the cart are looked up side by side — each
+  // query is a round trip to the database.
+  const [store, found] = storeId
+    ? await Promise.all([resolveStore(storeId), Cart.findOne({ ...owner, store: storeId, status: "active" })])
+    : [await resolveStore(null), null];
+
+  let cart = found || (await Cart.findOne({ ...owner, store: store._id, status: "active" }));
   if (!cart) cart = await Cart.create({ ...owner, store: store._id });
 
+  cart.$locals.store = store; // summarise() reuses it instead of reading it again
   return cart;
 }
 
-// Quantity rules live on the variant (min / max / step), which the category
-// supplies by default — loose vegetables step in 0.25 kg, packaged goods in 1.
+// A cart quantity is a count of the variant — packs or pieces, never kilos.
+// The variant's min / max / step are whole numbers (see variant.model), and
+// anything a client posts is rounded to a whole unit here as well.
 function normaliseQuantity(variant, requested) {
-  const step = variant.stepQty || 1;
-  const min = variant.minOrderQty || step;
+  const min = Math.max(1, Math.ceil(variant.minOrderQty || 1));
   const max = variant.maxOrderQty || Infinity;
 
   if (requested <= 0) return 0;
 
-  // Snap to the nearest step so a client cannot post 0.37 kg of something sold
-  // in quarter kilos.
-  const snapped = Math.round(requested / step) * step;
-  const rounded = Number(snapped.toFixed(3));
-
+  const rounded = Math.round(requested);
   if (rounded < min) return min;
   if (rounded > max) {
     throw ApiError.badRequest(`You can order at most ${max} of this item`, { max });
@@ -50,19 +51,21 @@ function normaliseQuantity(variant, requested) {
 }
 
 async function addItem(cart, variantId, quantity = null) {
-  const variant = await Variant.findById(variantId);
+  const [variant, stock] = await Promise.all([
+    Variant.findById(variantId),
+    inventoryService.availability(cart.store, variantId),
+  ]);
   if (!variant || variant.status !== "active") throw ApiError.notFound("This item is not available");
 
   const existing = cart.findItem(variantId);
-  const requested = quantity ?? (existing ? existing.quantity + (variant.stepQty || 1) : variant.minOrderQty || 1);
+  const requested = quantity ?? (existing ? existing.quantity + 1 : 1);
   const finalQty = normaliseQuantity(variant, requested);
 
-  const stock = await inventoryService.availability(cart.store, variantId);
   if (stock.available < finalQty) {
-    throw ApiError.conflict(
-      stock.available > 0 ? `Only ${stock.available} left` : "Out of stock at your store",
-      { available: stock.available }
-    );
+    // Whole units only — a stock row can still hold part of a unit reserved
+    // by an older order placed by weight.
+    const units = Math.floor(stock.available);
+    throw ApiError.conflict(units > 0 ? `Only ${units} left` : "Out of stock at your store", { available: units });
   }
 
   if (existing) {
@@ -107,14 +110,16 @@ async function hydrate(cart, { includeSaved = false } = {}) {
   const items = includeSaved ? cart.items : cart.activeItems;
   if (!items.length) return [];
 
+  // The cart line already records its product, so all three lookups go out
+  // together.
   const variantIds = items.map((i) => i.variant);
-  const [variants, stock] = await Promise.all([
+  const [variants, stock, products] = await Promise.all([
     Variant.find({ _id: { $in: variantIds } }),
     inventoryService.availabilityMap(cart.store, variantIds),
+    Product.find({ _id: { $in: items.map((i) => i.product) } }).select(
+      "name slug media brand category categoryPath unit taxRatePct"
+    ),
   ]);
-
-  const products = await Product.find({ _id: { $in: variants.map((v) => v.product) } })
-    .select("name slug media brand category categoryPath unit taxRatePct");
 
   const variantById = new Map(variants.map((v) => [v._id.toString(), v]));
   const productById = new Map(products.map((p) => [p._id.toString(), p]));
@@ -168,12 +173,16 @@ async function hydrate(cart, { includeSaved = false } = {}) {
 // The cart as the client should render it: lines, live totals, applied and
 // rejected offers.
 async function summarise(cart, { couponCode, paymentMethod } = {}) {
-  const store = await Store.findById(cart.store);
-  const lines = await hydrate(cart);
-  const saved = (await hydrate(cart, { includeSaved: true })).filter((l) => l.savedForLater);
-
-  const customer = cart.customer ? await User.findById(cart.customer) : null;
-  const orderCount = customer ? await Order.countDocuments({ customer: customer._id }) : 0;
+  // One hydrate covers both the live lines and the saved-for-later ones, and
+  // everything that doesn't depend on another lookup runs in parallel.
+  const [store, all, customer, orderCount] = await Promise.all([
+    cart.$locals.store || Store.findById(cart.store),
+    hydrate(cart, { includeSaved: true }),
+    cart.customer ? User.findById(cart.customer) : null,
+    cart.customer ? Order.countDocuments({ customer: cart.customer }) : 0,
+  ]);
+  const lines = all.filter((l) => !l.savedForLater && l.quantity > 0);
+  const saved = all.filter((l) => l.savedForLater);
 
   const sellable = lines.filter((l) => !l.savedForLater && l.inStock);
 

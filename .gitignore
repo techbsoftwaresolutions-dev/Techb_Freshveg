@@ -63,3 +63,5 @@ build/
 *.mp4
 *.psd
 large images/videos
+# Images live on Cloudinary only - never store uploads on disk
+backend/uploads/

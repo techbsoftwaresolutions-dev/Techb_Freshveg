@@ -1,0 +1,410 @@
+- generic [active] [ref=f6e1]:
+  - main [ref=f6e3]:
+    - generic [ref=f6e6]:
+      - generic [ref=f6e7]:
+        - generic [ref=f6e9]:
+          - img "Fresh from the market" [ref=f6e11]
+          - tablist "Choose a banner" [ref=f6e12]:
+            - tab "Fresh from the market" [selected] [ref=f6e13] [cursor=pointer]
+            - tab "Fresh from the market" [ref=f6e14] [cursor=pointer]
+            - tab "Fresh from the market" [ref=f6e15] [cursor=pointer]
+        - generic [ref=f6e16]:
+          - generic [ref=f6e17]: Fresh • Healthy • Everyday
+          - heading "Fresh from the market, at your door" [level=1] [ref=f6e18]:
+            - text: Fresh from the market,
+            - generic [ref=f6e19]: at your door
+          - paragraph [ref=f6e20]: Fruit and vegetables picked today, groceries for the week, and everything else the house needs — from Samagra Mart — Hosur.
+          - generic [ref=f6e21]:
+            - link "Shop Now" [ref=f6e22] [cursor=pointer]:
+              - /url: /c
+            - link "Browse Categories" [ref=f6e25] [cursor=pointer]:
+              - /url: /c
+              - generic [ref=f6e31]: Browse
+              - text: Categories
+          - list [ref=f6e32]:
+            - listitem [ref=f6e33]:
+              - generic [ref=f6e37]: 100% FreshProducts
+            - listitem [ref=f6e38]:
+              - generic [ref=f6e44]: Fast & ReliableDelivery
+            - listitem [ref=f6e45]:
+              - generic [ref=f6e49]: SecurePayments
+      - generic [ref=f6e50]:
+        - generic [ref=f6e51]:
+          - heading "Shop by Category" [level=2] [ref=f6e52]
+          - link "View All" [ref=f6e53] [cursor=pointer]:
+            - /url: /c
+        - navigation "Departments" [ref=f6e56]:
+          - link "Fresh Fruits" [ref=f6e57] [cursor=pointer]:
+            - /url: /c/fruits-vegetables
+          - link "Fresh Vegetables" [ref=f6e60] [cursor=pointer]:
+            - /url: /c/fresh-vegetables
+          - link "Grocery & Daily Needs" [ref=f6e63] [cursor=pointer]:
+            - /url: /c/grocery
+          - link "Fancy & Personal Care" [ref=f6e66] [cursor=pointer]:
+            - /url: /c/fancy-personal-care
+          - link "Household" [ref=f6e69] [cursor=pointer]:
+            - /url: /c/household
+          - link "General Store" [ref=f6e72] [cursor=pointer]:
+            - /url: /c/general-store
+          - link "More" [ref=f6e75] [cursor=pointer]:
+            - /url: /c
+      - generic [ref=f6e83]:
+        - article [ref=f6e84]:
+          - generic [ref=f6e85]:
+            - heading "Weekend Grocery Sale" [level=3] [ref=f6e86]
+            - generic [ref=f6e87]: ₹100 OFF
+            - paragraph [ref=f6e88]:
+              - text: ₹100 off on grocery orders above ₹500. Use code
+              - strong [ref=f6e89]: WEEKEND100
+              - text: .
+            - link "Shop Now" [ref=f6e90] [cursor=pointer]:
+              - /url: /c/grocery
+        - article [ref=f6e93]:
+          - generic [ref=f6e94]:
+            - heading "20% off fresh vegetables" [level=3] [ref=f6e95]
+            - generic [ref=f6e96]: 20% OFF
+            - paragraph [ref=f6e97]: Every day, on all fresh vegetables.
+            - link "Shop Now" [ref=f6e98] [cursor=pointer]:
+              - /url: /c?sort=discount
+        - article [ref=f6e101]:
+          - generic [ref=f6e102]:
+            - heading "First order — 30% off" [level=3] [ref=f6e103]
+            - generic [ref=f6e104]: 30% OFF
+            - paragraph [ref=f6e105]:
+              - text: Welcome offer, up to ₹150 off your first order. Use code
+              - strong [ref=f6e106]: FIRST30
+              - text: .
+            - link "Shop Now" [ref=f6e107] [cursor=pointer]:
+              - /url: /c?sort=discount
+      - generic [ref=f6e110]:
+        - generic [ref=f6e111]:
+          - heading "Best Sellers" [level=2] [ref=f6e112]
+          - link "View All" [ref=f6e113] [cursor=pointer]:
+            - /url: /c
+        - generic [ref=f6e117]:
+          - article [ref=f6e118]:
+            - generic [ref=f6e119]:
+              - link "apple" [ref=f6e120] [cursor=pointer]:
+                - /url: /p/apple
+                - img "apple" [ref=f6e121]
+              - button "Save to your list" [ref=f6e122] [cursor=pointer]
+            - link [ref=f6e125] [cursor=pointer]:
+              - /url: /p/apple
+              - heading "apple" [level=3] [ref=f6e126]
+            - generic [ref=f6e127]: 3 kg
+            - generic [ref=f6e128]:
+              - generic [ref=f6e129]: ₹55
+              - button "Add to cart" [ref=f6e130] [cursor=pointer]: Add to Cart
+          - article [ref=f6e131]:
+            - generic [ref=f6e132]:
+              - link "Lemon" [ref=f6e133] [cursor=pointer]:
+                - /url: /p/lemon
+                - img "Lemon" [ref=f6e134]
+              - button "Save to your list" [ref=f6e135] [cursor=pointer]
+            - link [ref=f6e138] [cursor=pointer]:
+              - /url: /p/lemon
+              - heading "Lemon" [level=3] [ref=f6e139]
+            - generic [ref=f6e140]: 2 kg
+            - generic [ref=f6e141]:
+              - generic [ref=f6e142]: ₹50
+              - button "Add to cart" [ref=f6e143] [cursor=pointer]: Add to Cart
+          - article [ref=f6e144]:
+            - generic [ref=f6e145]:
+              - link "banana" [ref=f6e146] [cursor=pointer]:
+                - /url: /p/banana
+                - img "banana" [ref=f6e147]
+              - button "Save to your list" [ref=f6e148] [cursor=pointer]
+            - link [ref=f6e151] [cursor=pointer]:
+              - /url: /p/banana
+              - heading "banana" [level=3] [ref=f6e152]
+            - generic [ref=f6e153]: 3 kg
+            - generic [ref=f6e154]:
+              - generic [ref=f6e155]: ₹55
+              - button "Add to cart" [ref=f6e156] [cursor=pointer]: Add to Cart
+          - article [ref=f6e157]:
+            - generic [ref=f6e158]:
+              - link "Dragon" [ref=f6e159] [cursor=pointer]:
+                - /url: /p/dragon
+                - img "Dragon" [ref=f6e160]
+                - generic [ref=f6e161]: 25% OFF
+              - button "Save to your list" [ref=f6e162] [cursor=pointer]
+            - link [ref=f6e165] [cursor=pointer]:
+              - /url: /p/dragon
+              - heading "Dragon" [level=3] [ref=f6e166]
+            - generic [ref=f6e167]: 1 kg
+            - generic [ref=f6e168]:
+              - generic [ref=f6e169]: ₹60₹80
+              - button "Add to cart" [ref=f6e170] [cursor=pointer]: Add to Cart
+          - article [ref=f6e171]:
+            - generic [ref=f6e172]:
+              - link "Surf Excel Easy Wash Detergent" [ref=f6e173] [cursor=pointer]:
+                - /url: /p/surf-excel-easy-wash-detergent
+                - img "Surf Excel Easy Wash Detergent" [ref=f6e174]
+                - generic [ref=f6e175]: 11% OFF
+              - button "Save to your list" [ref=f6e176] [cursor=pointer]
+            - link [ref=f6e179] [cursor=pointer]:
+              - /url: /p/surf-excel-easy-wash-detergent
+              - heading "Surf Excel Easy Wash Detergent" [level=3] [ref=f6e180]
+            - generic [ref=f6e181]: 1 kg
+            - generic [ref=f6e182]:
+              - generic [ref=f6e183]: ₹129₹145
+              - button "Add to cart" [ref=f6e184] [cursor=pointer]: Add to Cart
+          - article [ref=f6e185]:
+            - generic [ref=f6e186]:
+              - link "Himalaya Neem Face Wash" [ref=f6e187] [cursor=pointer]:
+                - /url: /p/himalaya-neem-face-wash
+                - img "Himalaya Neem Face Wash" [ref=f6e188]
+                - generic [ref=f6e189]: 13% OFF
+              - button "Save to your list" [ref=f6e190] [cursor=pointer]
+            - link [ref=f6e193] [cursor=pointer]:
+              - /url: /p/himalaya-neem-face-wash
+              - heading "Himalaya Neem Face Wash" [level=3] [ref=f6e194]
+            - generic [ref=f6e195]: 150 ml
+            - generic [ref=f6e196]:
+              - generic [ref=f6e197]: ₹165₹190
+              - button "Add to cart" [ref=f6e198] [cursor=pointer]: Add to Cart
+          - article [ref=f6e199]:
+            - generic [ref=f6e200]:
+              - link "Amul Gold Milk" [ref=f6e201] [cursor=pointer]:
+                - /url: /p/amul-gold-milk
+                - img "Amul Gold Milk" [ref=f6e202]
+              - button "Save to your list" [ref=f6e203] [cursor=pointer]
+            - link [ref=f6e206] [cursor=pointer]:
+              - /url: /p/amul-gold-milk
+              - heading "Amul Gold Milk" [level=3] [ref=f6e207]
+            - generic [ref=f6e208]: 500 ml
+            - generic [ref=f6e209]:
+              - generic [ref=f6e210]: ₹34
+              - button "Add to cart" [ref=f6e211] [cursor=pointer]: Add to Cart
+      - generic [ref=f6e212]:
+        - link "Fresh picks, every morning" [ref=f6e213] [cursor=pointer]:
+          - /url: /c/fruits-vegetables
+          - generic [ref=f6e215]:
+            - strong [ref=f6e216]: Fresh picks, every morning
+            - generic [ref=f6e217]: Fruit and vegetables sorted before the store opens.
+            - generic [ref=f6e218]: Shop Now
+        - tablist "Choose a promotion" [ref=f6e221]:
+          - tab "Fresh picks, every morning" [selected] [ref=f6e222] [cursor=pointer]
+          - tab "The weekly shop, sorted" [ref=f6e223] [cursor=pointer]
+          - tab "First order? 30% off" [ref=f6e224] [cursor=pointer]
+      - generic [ref=f6e225]:
+        - generic [ref=f6e226]:
+          - heading "Fresh Fruits" [level=2] [ref=f6e227]
+          - link "View All" [ref=f6e228] [cursor=pointer]:
+            - /url: /c/fruits-vegetables
+        - generic [ref=f6e232]:
+          - article [ref=f6e233]:
+            - generic [ref=f6e234]:
+              - link "banana" [ref=f6e235] [cursor=pointer]:
+                - /url: /p/banana
+                - img "banana" [ref=f6e236]
+              - button "Save to your list" [ref=f6e237] [cursor=pointer]
+            - link [ref=f6e240] [cursor=pointer]:
+              - /url: /p/banana
+              - heading "banana" [level=3] [ref=f6e241]
+            - generic [ref=f6e242]: 3 kg
+            - generic [ref=f6e243]:
+              - generic [ref=f6e244]: ₹55
+              - button "Add to cart" [ref=f6e245] [cursor=pointer]: Add to Cart
+          - article [ref=f6e246]:
+            - generic [ref=f6e247]:
+              - link "Lemon" [ref=f6e248] [cursor=pointer]:
+                - /url: /p/lemon
+                - img "Lemon" [ref=f6e249]
+              - button "Save to your list" [ref=f6e250] [cursor=pointer]
+            - link [ref=f6e253] [cursor=pointer]:
+              - /url: /p/lemon
+              - heading "Lemon" [level=3] [ref=f6e254]
+            - generic [ref=f6e255]: 2 kg
+            - generic [ref=f6e256]:
+              - generic [ref=f6e257]: ₹50
+              - button "Add to cart" [ref=f6e258] [cursor=pointer]: Add to Cart
+          - article [ref=f6e259]:
+            - generic [ref=f6e260]:
+              - link "apple" [ref=f6e261] [cursor=pointer]:
+                - /url: /p/apple
+                - img "apple" [ref=f6e262]
+              - button "Save to your list" [ref=f6e263] [cursor=pointer]
+            - link [ref=f6e266] [cursor=pointer]:
+              - /url: /p/apple
+              - heading "apple" [level=3] [ref=f6e267]
+            - generic [ref=f6e268]: 3 kg
+            - generic [ref=f6e269]:
+              - generic [ref=f6e270]: ₹55
+              - button "Add to cart" [ref=f6e271] [cursor=pointer]: Add to Cart
+          - article [ref=f6e272]:
+            - generic [ref=f6e273]:
+              - link "Dragon" [ref=f6e274] [cursor=pointer]:
+                - /url: /p/dragon
+                - img "Dragon" [ref=f6e275]
+                - generic [ref=f6e276]: 25% OFF
+              - button "Save to your list" [ref=f6e277] [cursor=pointer]
+            - link [ref=f6e280] [cursor=pointer]:
+              - /url: /p/dragon
+              - heading "Dragon" [level=3] [ref=f6e281]
+            - generic [ref=f6e282]: 1 kg
+            - generic [ref=f6e283]:
+              - generic [ref=f6e284]: ₹60₹80
+              - button "Add to cart" [ref=f6e285] [cursor=pointer]: Add to Cart
+          - article [ref=f6e286]:
+            - generic [ref=f6e287]:
+              - generic "Orange" [ref=f6e288]:
+                - img "Orange" [ref=f6e289]
+                - generic [ref=f6e290]: Out of stock
+              - button "Save to your list" [ref=f6e292] [cursor=pointer]
+            - heading "Orange" [level=3] [ref=f6e296]
+            - generic [ref=f6e297]: 1 kg
+            - generic [ref=f6e298]:
+              - generic [ref=f6e299]: ₹45₹50
+              - button "Sold out" [disabled] [ref=f6e300]
+          - article [ref=f6e301]:
+            - generic [ref=f6e302]:
+              - generic "Dragon Fruit" [ref=f6e303]:
+                - img "Dragon Fruit" [ref=f6e304]
+                - generic [ref=f6e305]: Out of stock
+              - button "Save to your list" [ref=f6e307] [cursor=pointer]
+            - heading "Dragon Fruit" [level=3] [ref=f6e311]
+            - generic [ref=f6e312]: 1 kg
+            - generic [ref=f6e313]:
+              - generic [ref=f6e314]: ₹50₹60
+              - button "Sold out" [disabled] [ref=f6e315]
+          - article [ref=f6e316]:
+            - generic [ref=f6e317]:
+              - generic "papaya" [ref=f6e318]:
+                - img "papaya" [ref=f6e319]
+                - generic [ref=f6e320]: Out of stock
+              - button "Save to your list" [ref=f6e322] [cursor=pointer]
+            - heading "papaya" [level=3] [ref=f6e326]
+            - generic [ref=f6e327]: 2 kg
+            - generic [ref=f6e328]:
+              - generic [ref=f6e329]: ₹68₹70
+              - button "Sold out" [disabled] [ref=f6e330]
+      - generic [ref=f6e331]:
+        - generic [ref=f6e332]:
+          - heading "Explore Categories" [level=2] [ref=f6e333]
+          - link "View All Categories" [ref=f6e334] [cursor=pointer]:
+            - /url: /c
+        - generic [ref=f6e337]:
+          - link "Fresh Fruits Fresh produce, sourced daily from the local market. Shop Now" [ref=f6e338] [cursor=pointer]:
+            - /url: /c/fruits-vegetables
+            - generic [ref=f6e340]:
+              - strong [ref=f6e341]: Fresh Fruits
+              - generic [ref=f6e342]: Fresh produce, sourced daily from the local market.
+              - generic [ref=f6e343]: Shop Now
+          - link "Fresh Vegetables Shop Now" [ref=f6e346] [cursor=pointer]:
+            - /url: /c/fresh-vegetables
+            - generic [ref=f6e348]:
+              - strong [ref=f6e349]: Fresh Vegetables
+              - generic [ref=f6e350]: Shop Now
+          - link "Grocery & Daily Needs Staples, oils, spices and everything for the kitchen. Shop Now" [ref=f6e353] [cursor=pointer]:
+            - /url: /c/grocery
+            - generic [ref=f6e355]:
+              - strong [ref=f6e356]: Grocery & Daily Needs
+              - generic [ref=f6e357]: Staples, oils, spices and everything for the kitchen.
+              - generic [ref=f6e358]: Shop Now
+          - link "Fancy & Personal Care Accessories, skin care and everyday beauty. Shop Now" [ref=f6e361] [cursor=pointer]:
+            - /url: /c/fancy-personal-care
+            - generic [ref=f6e363]:
+              - strong [ref=f6e364]: Fancy & Personal Care
+              - generic [ref=f6e365]: Accessories, skin care and everyday beauty.
+              - generic [ref=f6e366]: Shop Now
+          - link "Household Cleaning, detergents and kitchen essentials. Shop Now" [ref=f6e369] [cursor=pointer]:
+            - /url: /c/household
+            - generic [ref=f6e371]:
+              - strong [ref=f6e372]: Household
+              - generic [ref=f6e373]: Cleaning, detergents and kitchen essentials.
+              - generic [ref=f6e374]: Shop Now
+      - list [ref=f6e378]:
+        - listitem [ref=f6e379]:
+          - generic [ref=f6e384]:
+            - strong [ref=f6e385]: Fresh Produce
+            - generic [ref=f6e386]: Sourced daily from the local market
+        - listitem [ref=f6e387]:
+          - generic [ref=f6e394]:
+            - strong [ref=f6e395]: Fast Delivery
+            - generic [ref=f6e396]: Out of the store in about 25 minutes
+        - listitem [ref=f6e397]:
+          - generic [ref=f6e402]:
+            - strong [ref=f6e403]: Secure Payments
+            - generic [ref=f6e404]: UPI, card or cash on delivery
+        - listitem [ref=f6e405]:
+          - generic [ref=f6e411]:
+            - strong [ref=f6e412]: Easy Returns
+            - generic [ref=f6e413]: Raise a return from your order
+  - contentinfo [ref=f6e414]:
+    - generic [ref=f6e415]:
+      - generic [ref=f6e416]:
+        - generic [ref=f6e417]:
+          - link "Hosur Basket Fresh Food • Better Life" [ref=f6e418] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f6e422]:
+              - generic [ref=f6e423]: Hosur Basket
+              - generic [ref=f6e424]: Fresh Food • Better Life
+          - paragraph [ref=f6e425]: Fresh fruit, vegetables, groceries and household essentials, delivered from your neighbourhood store.
+        - generic [ref=f6e426]:
+          - heading "Shop" [level=4] [ref=f6e427]
+          - list [ref=f6e428]:
+            - listitem [ref=f6e429]:
+              - link "Fresh Fruits" [ref=f6e430] [cursor=pointer]:
+                - /url: /c/fruits-vegetables
+            - listitem [ref=f6e431]:
+              - link "Fresh Vegetables" [ref=f6e432] [cursor=pointer]:
+                - /url: /c/fresh-vegetables
+            - listitem [ref=f6e433]:
+              - link "Grocery & Daily Needs" [ref=f6e434] [cursor=pointer]:
+                - /url: /c/grocery
+            - listitem [ref=f6e435]:
+              - link "Fancy & Personal Care" [ref=f6e436] [cursor=pointer]:
+                - /url: /c/fancy-personal-care
+            - listitem [ref=f6e437]:
+              - link "Household" [ref=f6e438] [cursor=pointer]:
+                - /url: /c/household
+            - listitem [ref=f6e439]:
+              - link "General Store" [ref=f6e440] [cursor=pointer]:
+                - /url: /c/general-store
+        - generic [ref=f6e441]:
+          - heading "Customer Care" [level=4] [ref=f6e442]
+          - list [ref=f6e443]:
+            - listitem [ref=f6e444]:
+              - link "Help Center" [ref=f6e445] [cursor=pointer]:
+                - /url: /help
+            - listitem [ref=f6e446]:
+              - link "Track Order" [ref=f6e447] [cursor=pointer]:
+                - /url: /orders
+            - listitem [ref=f6e448]:
+              - link "Returns & Refunds" [ref=f6e449] [cursor=pointer]:
+                - /url: /orders
+            - listitem [ref=f6e450]:
+              - link "Contact Us" [ref=f6e451] [cursor=pointer]:
+                - /url: tel:+919003597158
+            - listitem [ref=f6e452]:
+              - link "Terms & Conditions" [ref=f6e453] [cursor=pointer]:
+                - /url: /terms
+        - generic [ref=f6e454]:
+          - heading "My Account" [level=4] [ref=f6e455]
+          - list [ref=f6e456]:
+            - listitem [ref=f6e457]:
+              - link "Account" [ref=f6e458] [cursor=pointer]:
+                - /url: /account
+            - listitem [ref=f6e459]:
+              - link "My Orders" [ref=f6e460] [cursor=pointer]:
+                - /url: /orders
+            - listitem [ref=f6e461]:
+              - link "Cart" [ref=f6e462] [cursor=pointer]:
+                - /url: /cart
+            - listitem [ref=f6e463]:
+              - link "Sign In" [ref=f6e464] [cursor=pointer]:
+                - /url: /login
+        - generic [ref=f6e465]:
+          - heading "Get in Touch" [level=4] [ref=f6e466]
+          - list [ref=f6e467]:
+            - listitem [ref=f6e468]:
+              - link "+91 90035 97158" [ref=f6e469] [cursor=pointer]:
+                - /url: tel:+919003597158
+            - listitem [ref=f6e470]:
+              - link "hosurbasket.com" [ref=f6e471] [cursor=pointer]:
+                - /url: https://hosurbasket.com
+            - listitem [ref=f6e472]: Hosur, Tamil Nadu
+      - generic [ref=f6e473]:
+        - generic [ref=f6e474]: © 2026 Hosur Basket. All rights reserved.
+        - generic [ref=f6e475]: Prices include all taxes

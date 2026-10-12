@@ -345,6 +345,7 @@ export function SortBar({ total }) {
         <button
           type="button"
           className={`sort-select${open ? " open" : ""}`}
+          data-default={current === ""}
           aria-haspopup="listbox"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
@@ -386,6 +387,30 @@ export function SortBar({ total }) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+// Phone shortcut: show only discounted products. Tap again to clear.
+export function OffersChip() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const on = params.get("offers") === "true";
+
+  const toggle = () => {
+    const query = new URLSearchParams(params.toString());
+    if (on) query.delete("offers");
+    else query.set("offers", "true");
+    query.delete("page");
+    const qs = query.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  return (
+    <button type="button" className={`cat-chip${on ? " on" : ""}`} aria-pressed={on} onClick={toggle}>
+      <span className="cat-chip-pct" aria-hidden="true">%</span>
+      Offers
+    </button>
   );
 }
 

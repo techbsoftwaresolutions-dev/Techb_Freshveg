@@ -10,7 +10,10 @@ export default function Products() {
   const [searchParams] = useSearchParams();
 
   const [data, setData] = useState({ items: [], meta: null });
-  const [categories, setCategories] = useState([]);
+  const [roots, setRoots] = useState([]);
+  // Tab = a main (top-level) category; the dropdown then narrows to one of its
+  // sub-categories. The API gets whichever is most specific as `category`.
+  const [tab, setTab] = useState("");
   // A search typed into the admin's topbar lands here as ?search=, so that
   // box is a real shortcut into this page rather than a decoration.
   const [filters, setFilters] = useState({
@@ -28,7 +31,7 @@ export default function Products() {
   useEffect(() => {
     api
       .get("/catalog/categories/tree", { status: "active" })
-      .then(({ tree }) => setCategories(flatten(tree)))
+      .then(({ tree }) => setRoots(tree))
       .catch(() => {});
   }, []);
 
@@ -45,6 +48,12 @@ export default function Products() {
     );
     return () => clearTimeout(timer);
   }, [filters]);
+
+  const pickTab = (id) => {
+    setTab(id);
+    setFilters((f) => ({ ...f, category: id, page: 1 }));
+  };
+  const subcategories = flatten(tab ? roots.find((r) => r.id === tab)?.children || [] : roots);
 
   const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));
 
@@ -101,6 +110,21 @@ export default function Products() {
       <Banner tone="error">{error}</Banner>
 
       <div className="toolbar">
+        <button className={`btn sm${tab === "" ? " primary" : ""}`} onClick={() => pickTab("")}>
+          All
+        </button>
+        {roots.map((root) => (
+          <button
+            key={root.id}
+            className={`btn sm${tab === root.id ? " primary" : ""}`}
+            onClick={() => pickTab(root.id)}
+          >
+            {root.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="toolbar">
         <input
           type="search"
           placeholder="Search products…"
@@ -109,8 +133,8 @@ export default function Products() {
           style={{ minWidth: 220 }}
         />
         <select value={filters.category} onChange={(e) => set("category", e.target.value)}>
-          <option value="">All categories</option>
-          {categories.map((c) => (
+          <option value={tab}>{tab ? "All sub-categories" : "All categories"}</option>
+          {subcategories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>

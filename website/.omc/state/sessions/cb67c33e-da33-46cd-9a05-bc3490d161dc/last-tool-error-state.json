@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__resize_window",
+  "tool_input_preview": "{\"width\":390,\"height\":780}",
+  "error": "No preview is open. Use `preview_start` or `navigate` with {\"url\": \"https://…\"} to open a browser tab at a URL, or `preview_start` with {\"name\": \"…\"} to start a dev server from .claude/launch.json.",
+  "timestamp": "2026-10-06T07:00:21.308Z",
+  "retry_count": 1
+}

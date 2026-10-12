@@ -309,3 +309,11 @@ export function IconChevronDown(props) {
     </Svg>
   );
 }
+
+export function IconDownload(props) {
+  return (
+    <Svg {...props}>
+      <path d="M12 4v10M7.5 10.5L12 15l4.5-4.5M5 19h14" />
+    </Svg>
+  );
+}

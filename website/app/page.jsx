@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { img } from "@/lib/format";
 import { getBanners, getHome } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
@@ -8,6 +9,7 @@ import HomeSidebar from "@/components/HomeSidebar";
 import HeroCarousel from "@/components/HeroCarousel";
 import FlashDeal from "@/components/FlashDeal";
 import TrustStrip from "@/components/TrustStrip";
+import AppDownload from "@/components/AppDownload";
 
 // Flip to true to bring the left department sidebar back on the homepage —
 // see the comment beside its render call for what else that involves.
@@ -16,9 +18,9 @@ const SHOW_HOME_SIDEBAR = false;
 export const metadata = {
   // The layout's title template deliberately does not apply to the root
   // segment, so the brand is spelled out here rather than appended.
-  title: "FreshMart — fresh fruit, vegetables & groceries delivered",
+  title: "Hosur Basket — fresh fruit, vegetables & groceries delivered",
   description:
-    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your neighbourhood FreshMart store.",
+    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your neighbourhood Hosur Basket store.",
   alternates: { canonical: "/" },
 };
 
@@ -123,7 +125,7 @@ export default async function HomePage() {
                   <Link key={department.id} href={`/c/${department.slug}`} className="top-cat">
                     <span className="top-cat-icon">
                       {department.image ? (
-                        <img src={department.image} alt="" className="top-cat-photo" />
+                        <img src={img(department.image, 160)} alt="" className="top-cat-photo" />
                       ) : (
                         <CategoryIcon name={department.name} />
                       )}
@@ -145,7 +147,7 @@ export default async function HomePage() {
             <div className="promo-row" id="offers">
               {offers.slice(0, 3).map((offer, index) => (
                 <article key={offer.id} className={`promo tone-${index % 3}`}>
-                  {offer.image ? <img src={offer.image} alt="" className="promo-image" /> : null}
+                  {offer.image ? <img src={img(offer.image, 600)} alt="" className="promo-image" /> : null}
                   <div className="promo-copy">
                     <h3>{offer.title}</h3>
                     {offer.badge ? <span className="promo-badge">{offer.badge}</span> : null}
@@ -224,7 +226,7 @@ export default async function HomePage() {
                   <Link key={department.id} href={`/c/${department.slug}`} className="shop-card">
                     <span className="shop-card-media">
                       {department.image ? (
-                        <img src={department.image} alt="" />
+                        <img src={img(department.image, 240)} alt="" loading="lazy" />
                       ) : (
                         <CategoryIcon name={department.name} />
                       )}
@@ -246,6 +248,8 @@ export default async function HomePage() {
           ) : null}
 
           <TrustStrip prepTimeMinutes={store?.prepTimeMinutes} />
+
+          <AppDownload />
         </div>
       </div>
     </div>

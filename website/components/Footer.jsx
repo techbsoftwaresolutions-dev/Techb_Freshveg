@@ -12,7 +12,7 @@ export default function Footer({ categories = [] }) {
             <Link href="/" className="footer-logo">
               <FooterMark />
               <span>
-                <span className="footer-logo-name">FreshMart</span>
+                <span className="footer-logo-name">Hosur Basket</span>
                 <span className="footer-logo-tag">Fresh Food • Better Life</span>
               </span>
             </Link>
@@ -36,10 +36,10 @@ export default function Footer({ categories = [] }) {
           <div>
             <h4>Customer Care</h4>
             <ul>
-              <li><Link href="/account">Help Center</Link></li>
+              <li><Link href="/help">Help Center</Link></li>
               <li><Link href="/orders">Track Order</Link></li>
               <li><Link href="/orders">Returns &amp; Refunds</Link></li>
-              <li><a href="tel:+919876543109">Contact Us</a></li>
+              <li><a href="tel:+919003597158">Contact Us</a></li>
               <li><Link href="/terms">Terms &amp; Conditions</Link></li>
             </ul>
           </div>
@@ -58,7 +58,10 @@ export default function Footer({ categories = [] }) {
             <h4>Get in Touch</h4>
             <ul className="footer-contact">
               <li>
-                <a href="tel:+919876543109">+91 98765 43109</a>
+                <a href="tel:+919003597158">+91 90035 97158</a>
+              </li>
+              <li>
+                <a href="https://hosurbasket.com">hosurbasket.com</a>
               </li>
               <li>Hosur, Tamil Nadu</li>
             </ul>
@@ -66,7 +69,7 @@ export default function Footer({ categories = [] }) {
         </div>
 
         <div className="footer-base">
-          <span>© {new Date().getFullYear()} FreshMart. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Hosur Basket. All rights reserved.</span>
           <span>Prices include all taxes</span>
         </div>
       </div>

@@ -2,7 +2,9 @@ require("dotenv").config();
 
 export default {
   expo: {
-    name: "Samagra Partner",
+    // The name under the icon. The scheme and app IDs below are left as they
+    // are — an ID is permanent once published.
+    name: "Hosur Basket Partner",
     slug: "commerce-delivery-app",
     version: "0.1.0",
     orientation: "portrait",

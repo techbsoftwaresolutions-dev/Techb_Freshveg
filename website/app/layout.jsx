@@ -6,27 +6,28 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import MobileNav from "@/components/MobileNav";
 import PwaSupport from "@/components/PwaSupport";
+import ReviewPrompt from "@/components/ReviewPrompt";
 import { getCategories, SITE_URL } from "@/lib/api";
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "FreshMart — fresh fruit, vegetables & groceries delivered",
+    default: "Hosur Basket — fresh fruit, vegetables & groceries delivered",
     // Every page supplies its own name; the brand is appended once, here.
-    template: "%s | FreshMart",
+    template: "%s | Hosur Basket",
   },
   description:
-    "Order fresh fruit, vegetables, groceries, personal care and household essentials from your neighbourhood store. Same-day delivery, free above ₹399.",
+    "Order fresh fruit, vegetables, groceries, personal care and household essentials from your neighbourhood store. Same-day delivery, with free delivery above a minimum order.",
   openGraph: {
     type: "website",
-    siteName: "FreshMart",
+    siteName: "Hosur Basket",
     locale: "en_IN",
   },
   robots: { index: true, follow: true },
-  applicationName: "FreshMart",
+  applicationName: "Hosur Basket",
   // Launched from the iPhone home screen: full screen, with the status bar
   // drawn over the dark green utility strip.
-  appleWebApp: { capable: true, title: "FreshMart", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Hosur Basket", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
 };
 
@@ -72,6 +73,7 @@ export default async function RootLayout({ children }) {
             <MobileNav />
           </Suspense>
           <PwaSupport />
+          <ReviewPrompt />
         </Providers>
       </body>
     </html>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { discountPct, rupees } from "@/lib/format";
+import { discountPct, img, rupees } from "@/lib/format";
 import AddToCart from "./AddToCart";
 import WishlistButton from "./WishlistButton";
 
@@ -36,9 +36,10 @@ export default function ProductCard({ product }) {
         <MediaWrap {...mediaProps} className="card-media" aria-label={product.name}>
           {image ? (
             <img
-              src={image}
+              src={img(image, 500)}
               alt={product.name}
               loading="lazy"
+              decoding="async"
               style={{ objectPosition: `${focalX}% ${focalY}%` }}
             />
           ) : null}
@@ -53,7 +54,9 @@ export default function ProductCard({ product }) {
       </div>
 
       <NameWrap {...nameProps}>
-        <h3 className="card-name">{product.name}</h3>
+        <h3 className="card-name" title={product.name}>
+          {product.name}
+        </h3>
       </NameWrap>
       <div className="card-pack">{size}</div>
 

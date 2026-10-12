@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, when } from "../../components/ui";
@@ -9,6 +10,7 @@ import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, wh
 const TABS = [
   { key: "stock", label: "Stock on hand" },
   { key: "low", label: "Low stock" },
+  { key: "out", label: "Out of stock" },
   { key: "expiring", label: "Expiring soon" },
   { key: "movements", label: "Movement log" },
 ];
@@ -17,7 +19,10 @@ export default function Inventory() {
   const { can } = useAuth();
   const editable = can("inventory.adjust");
 
-  const [tab, setTab] = useState("stock");
+  // ?tab=out opens a tab directly (the dashboard's Out of Stock card links here).
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.some((t) => t.key === params.get("tab")) ? params.get("tab") : "stock";
+  const setTab = (key) => setParams(key === "stock" ? {} : { tab: key }, { replace: true });
   const [stores, setStores] = useState([]);
   const [store, setStore] = useState("");
   const [data, setData] = useState({ items: [], meta: null });
@@ -40,6 +45,7 @@ export default function Inventory() {
     setLoading(true);
     const path =
       tab === "low" ? "/inventory/low-stock"
+      : tab === "out" ? "/inventory/out-of-stock"
       : tab === "expiring" ? "/inventory/expiring"
       : tab === "movements" ? "/inventory/movements"
       : "/inventory";
@@ -144,7 +150,11 @@ export default function Inventory() {
                   key: "status",
                   label: "",
                   render: (row) =>
-                    row.available <= 0 ? (
+                    row.neverStocked ? (
+                      <Pill tone="danger">Never stocked</Pill>
+                    ) : row.soldOut ? (
+                      <Pill tone="danger">Marked sold out</Pill>
+                    ) : row.available < 1 ? (
                       <Pill tone="danger">Out of stock</Pill>
                     ) : row.isLow ? (
                       <Pill tone="warn">Low</Pill>
@@ -170,8 +180,16 @@ export default function Inventory() {
               rows={data.items}
               empty={
                 <Empty
-                  title={tab === "low" ? "Nothing is running low" : "No stock recorded"}
-                  hint={tab === "low" ? "Every item is above its threshold." : "Receive stock to get started."}
+                  title={
+                    tab === "low" ? "Nothing is running low"
+                    : tab === "out" ? "Nothing is out of stock"
+                    : "No stock recorded"
+                  }
+                  hint={
+                    tab === "low" ? "Every item is above its threshold."
+                    : tab === "out" ? "Every item on sale at this store has at least one unit available."
+                    : "Receive stock to get started."
+                  }
                 />
               }
             />

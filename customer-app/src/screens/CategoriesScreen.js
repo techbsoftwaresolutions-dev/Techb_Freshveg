@@ -39,6 +39,7 @@ export default function CategoriesScreen({ navigation }) {
 
   const active = categories[activeIndex];
   const freeDeliveryAbove = store?.freeDeliveryAbove ?? store?.settings?.freeDeliveryAbove;
+  const freeDeliveryOn = (store?.freeDeliveryEnabled ?? store?.settings?.freeDeliveryEnabled) !== false;
 
   return (
     // One ScrollView for the whole screen — the left department list and the
@@ -142,7 +143,7 @@ export default function CategoriesScreen({ navigation }) {
           </Notice>
         )}
 
-        {freeDeliveryAbove ? (
+        {freeDeliveryOn && freeDeliveryAbove ? (
           <View style={styles.promoStrip}>
             <Text style={styles.promoText}>
               Free delivery on orders above <Text style={styles.promoBold}>{rupees(freeDeliveryAbove)}</Text>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AddToCart from "./AddToCart";
 import { useCart } from "./Providers";
-import { discountPct, formatQty, rupees, unitSuffix } from "@/lib/format";
+import { discountPct, rupees } from "@/lib/format";
 
 // Picking a pack changes the price and the stock line, so this part of the
 // product page is a client island. Everything around it stays server HTML.
@@ -14,22 +14,25 @@ export default function VariantPicker({ product, variants }) {
   const [buying, setBuying] = useState(false);
 
   const [variantId, setVariantId] = useState(() => {
+    // The default pack when it can be bought, else the first that can.
+    const buyable = (v) => (v.availability?.available ?? 0) >= 1;
     const preferred =
+      variants.find((v) => v.id === product.defaultVariant && buyable(v)) ||
+      variants.find(buyable) ||
       variants.find((v) => v.id === product.defaultVariant) ||
-      variants.find((v) => (v.availability?.available ?? 0) > 0) ||
       variants[0];
     return preferred?.id || null;
   });
 
   const variant = variants.find((v) => v.id === variantId) || variants[0];
 
-  // How many to add on the first tap — a shopper who already knows they want
-  // three shouldn't have to hit "ADD" then "+" twice. Resets whenever the
-  // selected pack changes, since its step/min rules can differ from the last
-  // one's (loose produce steps in quarter kilos, a packed item in whole units).
-  const [pendingQty, setPendingQty] = useState(() => variant?.minOrderQty ?? variant?.stepQty ?? 1);
+  // How many packs to add on the first tap — a shopper who already knows they
+  // want three shouldn't have to hit "ADD" then "+" twice. Resets whenever the
+  // selected pack changes, since its minimum can differ from the last one's.
+  const minOf = (v) => Math.max(1, v?.minOrderQty ?? 1);
+  const [pendingQty, setPendingQty] = useState(() => minOf(variant));
   useEffect(() => {
-    setPendingQty(variant?.minOrderQty ?? variant?.stepQty ?? 1);
+    setPendingQty(minOf(variant));
   }, [variantId]);
 
   if (!variant) return null;
@@ -37,10 +40,8 @@ export default function VariantPicker({ product, variants }) {
   const available = variant.availability?.available ?? 0;
   const off = discountPct(variant.mrp, variant.sellingPrice);
   const alreadyInCart = cart.quantityOf(variant.id) > 0;
-  const qtyStep = variant.stepQty ?? 1;
-  const qtyMin = variant.minOrderQty ?? qtyStep;
+  const qtyMin = minOf(variant);
   const qtyMax = variant.maxOrderQty ?? 50;
-  const qtySuffix = unitSuffix(variant);
 
   // No wrapping panel of its own any more: the product page puts this
   // inside the same card as "Product details", so the pack picker, price,
@@ -52,7 +53,7 @@ export default function VariantPicker({ product, variants }) {
             <h3>Choose a pack</h3>
             <div className="pack-options">
               {variants.map((option) => {
-                const soldOut = (option.availability?.available ?? 0) <= 0;
+                const soldOut = (option.availability?.available ?? 0) < 1;
                 const selected = option.id === variantId;
                 // Only the selected pack gets an AddToCart control below, so
                 // without this a pack you already have in your cart looks
@@ -81,23 +82,23 @@ export default function VariantPicker({ product, variants }) {
           </section>
         ) : null}
 
-      {!alreadyInCart && available > 0 ? (
+      {!alreadyInCart && available >= 1 ? (
         <div className="pdp-qty">
           <span>Quantity</span>
           <div className="qty">
             <button
               type="button"
-              onClick={() => setPendingQty((q) => Math.max(qtyMin, Math.round((q - qtyStep) * 100) / 100))}
-              disabled={pendingQty <= qtyMin + 0.0001}
+              onClick={() => setPendingQty((q) => Math.max(qtyMin, q - 1))}
+              disabled={pendingQty <= qtyMin}
               aria-label="Reduce quantity"
             >
               −
             </button>
-            <span className="value">{formatQty(pendingQty, qtySuffix)}</span>
+            <span className="value">{pendingQty}</span>
             <button
               type="button"
-              onClick={() => setPendingQty((q) => Math.min(qtyMax, Math.round((q + qtyStep) * 100) / 100))}
-              disabled={pendingQty + qtyStep > qtyMax + 0.0001}
+              onClick={() => setPendingQty((q) => Math.min(qtyMax, q + 1))}
+              disabled={pendingQty + 1 > qtyMax}
               aria-label="Increase quantity"
             >
               +
@@ -134,9 +135,9 @@ export default function VariantPicker({ product, variants }) {
 
       <div className="pdp-actions">
         <div>
-          <AddToCart variantId={variant.id} disabled={available <= 0} size="lg" qty={pendingQty} fullWidth />
+          <AddToCart variantId={variant.id} disabled={available < 1} size="lg" qty={pendingQty} fullWidth />
         </div>
-        {available > 0 ? (
+        {available >= 1 ? (
           <button
             type="button"
             className="btn lg pdp-buy-now"
@@ -147,8 +148,7 @@ export default function VariantPicker({ product, variants }) {
                 if (cart.quantityOf(variant.id) <= 0) await cart.add(variant.id, pendingQty);
                 router.push("/checkout");
               } catch {
-                // AddToCart's own error handling already surfaces the
-                // problem via cart.error — nothing more to do here.
+                // The cart's error toast already says what went wrong.
               } finally {
                 setBuying(false);
               }
@@ -158,15 +158,10 @@ export default function VariantPicker({ product, variants }) {
           </button>
         ) : null}
       </div>
-      {available > 0 && available <= 5 ? (
-        <div className="pdp-low-stock">Hurry — only {available} left</div>
+      {available >= 1 && available <= 5 ? (
+        <div className="pdp-low-stock">Hurry — only {Math.floor(available)} left</div>
       ) : null}
 
-      {cart.error ? (
-        <p className="notice error" style={{ marginTop: 12 }}>
-          {cart.error}
-        </p>
-      ) : null}
     </>
   );
 }

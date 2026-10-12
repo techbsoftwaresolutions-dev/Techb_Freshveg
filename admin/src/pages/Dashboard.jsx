@@ -116,6 +116,7 @@ export default function Dashboard() {
   const [orders, setOrders] = useState([]);
   const [ordersTotal, setOrdersTotal] = useState(0);
   const [lowStock, setLowStock] = useState([]);
+  const [outOfStock, setOutOfStock] = useState({ items: [], total: 0 });
   const [tickets, setTickets] = useState([]);
   const [productsTotal, setProductsTotal] = useState(0);
   const [customersTotal, setCustomersTotal] = useState(0);
@@ -150,6 +151,9 @@ export default function Dashboard() {
       can("reports.view")
         ? api.get("/audit", { limit: 6 })
         : Promise.resolve({ items: [] }),
+      can("inventory.view")
+        ? api.get("/inventory/out-of-stock", { limit: 6 })
+        : Promise.resolve({ items: [], meta: null }),
     ])
       .then(
         ([
@@ -161,6 +165,7 @@ export default function Dashboard() {
           customerData,
           topProductData,
           activityData,
+          outData,
         ]) => {
           setData(dashboard);
           setOrders(orderData.items || []);
@@ -171,6 +176,7 @@ export default function Dashboard() {
           setCustomersTotal(customerData.meta?.total || 0);
           setTopProducts(topProductData.products || []);
           setActivity(activityData.items || []);
+          setOutOfStock({ items: outData.items || [], total: outData.meta?.total || 0 });
         },
       )
       .catch((err) => setError(err.message))
@@ -274,7 +280,7 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid dashboard-cols" style={{ marginBottom: 14 }}>
+      <div className="grid dashboard-cols swap" style={{ marginBottom: 14 }}>
         <div style={{ display: "grid", gap: 14 }}>
           <Card
             title="Sales Overview"
@@ -336,6 +342,100 @@ export default function Dashboard() {
           </Card>
 
           <Card
+            title="Top Selling Products"
+            actions={
+              <Link className="btn sm" to="/reports">
+                View all
+              </Link>
+            }
+            tight
+          >
+            {topProducts.length ? (
+              <div className="rank-list">
+                {topProducts.map((product, index) => (
+                  <div className="rank-item" key={product.id || product.name}>
+                    <span className="rank-num">{index + 1}</span>
+                    {product.image ? (
+                      <img src={product.image} alt="" className="rank-thumb" />
+                    ) : (
+                      <span className="rank-thumb rank-thumb-fallback">
+                        <IconProducts />
+                      </span>
+                    )}
+                    <div className="rank-body">
+                      <div className="rank-row">
+                        <span className="row-title">{product.name}</span>
+                        <strong>{rupees(product.revenue)}</strong>
+                      </div>
+                      <div className="row-sub">{product.units} units</div>
+                      <div className="rank-bar">
+                        <span
+                          style={{
+                            width: `${Math.round(((product.revenue || 0) / maxProductRevenue) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Empty
+                title="No sales yet"
+                hint="Top sellers show up once orders come in."
+              />
+            )}
+          </Card>
+
+          <Card
+            title="Recent Activity"
+            actions={
+              <Link className="btn sm" to="/settings/audit">
+                View all
+              </Link>
+            }
+            tight
+          >
+            {activity.length ? (
+              <div className="activity-list">
+                {activity.map((entry) => {
+                  const EntryIcon = ACTIVITY_ICONS[entry.entity] || IconAudit;
+                  const thumb = entry.thumbnail;
+                  return (
+                    <div className="activity-item" key={entry.id}>
+                      {thumb ? (
+                        <img src={thumb} alt="" className="activity-icon activity-thumb" />
+                      ) : (
+                        <span className="activity-icon">
+                          <EntryIcon />
+                        </span>
+                      )}
+                      <div className="activity-body">
+                        <div className="row-title">
+                          {cleanSummary(entry.summary) || `${entry.action} ${entry.entity}`}
+                        </div>
+                        <div className="row-sub">
+                          {entry.actorName || "System"}
+                        </div>
+                      </div>
+                      <span className="activity-time">
+                        {when(entry.createdAt)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Empty
+                title="No admin activity yet"
+                hint="Staff changes will show up here."
+              />
+            )}
+          </Card>
+        </div>
+
+        <div style={{ display: "grid", gap: 14 }}>
+          <Card
             title="Recent Orders"
             actions={
               <Link className="btn sm" to="/orders">
@@ -391,54 +491,56 @@ export default function Dashboard() {
               <Empty title="No orders yet" />
             )}
           </Card>
-        </div>
 
-        <div style={{ display: "grid", gap: 14 }}>
-          <Card
-            title="Top Selling Products"
-            actions={
-              <Link className="btn sm" to="/reports">
-                View all
-              </Link>
-            }
-            tight
-          >
-            {topProducts.length ? (
-              <div className="rank-list">
-                {topProducts.map((product, index) => (
-                  <div className="rank-item" key={product.id || product.name}>
-                    <span className="rank-num">{index + 1}</span>
-                    {product.image ? (
-                      <img src={product.image} alt="" className="rank-thumb" />
-                    ) : (
-                      <span className="rank-thumb rank-thumb-fallback">
-                        <IconProducts />
-                      </span>
-                    )}
-                    <div className="rank-body">
-                      <div className="rank-row">
-                        <span className="row-title">{product.name}</span>
-                        <strong>{rupees(product.revenue)}</strong>
-                      </div>
-                      <div className="row-sub">{product.units} units</div>
-                      <div className="rank-bar">
-                        <span
-                          style={{
-                            width: `${Math.round(((product.revenue || 0) / maxProductRevenue) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Empty
-                title="No sales yet"
-                hint="Top sellers show up once orders come in."
-              />
-            )}
-          </Card>
+          {can("inventory.view") ? (
+            <Card
+              title={`Out of Stock${outOfStock.total ? ` (${outOfStock.total})` : ""}`}
+              actions={
+                <Link className="btn sm" to="/inventory?tab=out">
+                  View all
+                </Link>
+              }
+              tight
+            >
+              {outOfStock.items.length ? (
+                <div className="table-wrap">
+                  <table className="data">
+                    <tbody>
+                      {outOfStock.items.map((row) => {
+                        const image = row.product?.media?.find((m) => m.type === "image")?.url;
+                        return (
+                          <tr key={row.id}>
+                            <td>
+                              <div className="inline" style={{ gap: 10 }}>
+                                {image ? (
+                                  <img src={image} alt="" className="rank-thumb" />
+                                ) : (
+                                  <span className="rank-thumb rank-thumb-fallback">
+                                    <IconProducts />
+                                  </span>
+                                )}
+                                <div className="stack">
+                                  <span className="row-title">{row.product?.name}</span>
+                                  <span className="row-sub">
+                                    {[row.variant?.name, row.store?.name].filter(Boolean).join(" · ")}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="num">
+                              <Pill tone="danger">{row.neverStocked ? "Never stocked" : "Out of stock"}</Pill>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty title="Everything is in stock" hint="Every item on sale has at least one unit available." />
+              )}
+            </Card>
+          ) : null}
 
           <Card
             title="Running Low Stock"
@@ -534,52 +636,6 @@ export default function Dashboard() {
             </Card>
           ) : null}
         </div>
-
-        <Card
-          title="Recent Activity"
-          actions={
-            <Link className="btn sm" to="/settings/audit">
-              View all
-            </Link>
-          }
-          tight
-        >
-          {activity.length ? (
-            <div className="activity-list">
-              {activity.map((entry) => {
-                const EntryIcon = ACTIVITY_ICONS[entry.entity] || IconAudit;
-                const thumb = entry.thumbnail;
-                return (
-                  <div className="activity-item" key={entry.id}>
-                    {thumb ? (
-                      <img src={thumb} alt="" className="activity-icon activity-thumb" />
-                    ) : (
-                      <span className="activity-icon">
-                        <EntryIcon />
-                      </span>
-                    )}
-                    <div className="activity-body">
-                      <div className="row-title">
-                        {cleanSummary(entry.summary) || `${entry.action} ${entry.entity}`}
-                      </div>
-                      <div className="row-sub">
-                        {entry.actorName || "System"}
-                      </div>
-                    </div>
-                    <span className="activity-time">
-                      {when(entry.createdAt)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <Empty
-              title="No admin activity yet"
-              hint="Staff changes will show up here."
-            />
-          )}
-        </Card>
       </div>
 
       <div className="feature-row">
