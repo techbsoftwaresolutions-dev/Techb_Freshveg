@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import FooterGate from "@/components/FooterGate";
 import MobileNav from "@/components/MobileNav";
 import PwaSupport from "@/components/PwaSupport";
 import ReviewPrompt from "@/components/ReviewPrompt";
@@ -67,7 +68,9 @@ export default async function RootLayout({ children }) {
 
           <main>{children}</main>
 
-          <Footer categories={categories} />
+          <FooterGate>
+            <Footer categories={categories} />
+          </FooterGate>
 
           <Suspense fallback={null}>
             <MobileNav />

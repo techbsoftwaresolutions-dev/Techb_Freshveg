@@ -4253,3 +4253,31 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     .cart-line-qty .qty button { width: 30px; }
   }
 }
+
+/* Dev-only OTP roll: digits scroll past one column at a time, then settle. */
+.otp-roll {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.55em;
+  height: 54px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 22px;
+  font-weight: 600;
+}
+.otp-roll-col { display: block; height: 1.3em; width: 0.7em; overflow: hidden; text-align: center; }
+.otp-roll-strip {
+  display: flex;
+  flex-direction: column;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.15, 0.7, 0.2, 1);
+}
+.otp-roll-strip > span { display: block; height: 1.3em; line-height: 1.3em; }
+
+/* The footer wrapper adds no box of its own; on a phone's tab screens (home, categories, cart, orders, account) it is hidden. */
+.footer-gate { display: contents; }
+@media (max-width: 720px) {
+  .footer-gate.hide-on-phone { display: none; }
+}

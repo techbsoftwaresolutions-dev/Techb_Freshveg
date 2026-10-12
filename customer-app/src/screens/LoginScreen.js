@@ -42,6 +42,7 @@ export default function LoginScreen({ navigation }) {
       // Outside production the API returns the code, so the app is usable
       // before an SMS provider is connected.
       setDevCode(data.devCode || null);
+      if (data.devCode) setCode(data.devCode); // dev: no copy and paste
       setStep("code");
       startCountdown(data.expiresInSeconds ? Math.min(30, data.expiresInSeconds) : 30);
     } catch (err) {

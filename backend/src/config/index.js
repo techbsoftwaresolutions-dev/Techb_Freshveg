@@ -26,6 +26,14 @@ const required = (key, devFallback) => {
   return devFallback;
 };
 
+// Development only: one fixed OTP for every phone number, so test logins (any
+// number, any of the apps) don't depend on copying a random code off the
+// screen. Set DEV_FIXED_OTP to another 6-digit code, or to "off" to get random
+// codes again. It can never be on in production — a fixed code there would let
+// anyone sign in as anybody.
+const devOtp = process.env.DEV_FIXED_OTP === undefined ? "482915" : process.env.DEV_FIXED_OTP.trim();
+const fixedOtp = !isProduction && /^\d{6}$/.test(devOtp) ? devOtp : "";
+
 const port = Number(process.env.PORT || 5055);
 
 const config = {
@@ -48,6 +56,8 @@ const config = {
     refreshSecret: required("JWT_REFRESH_SECRET", "dev-only-insecure-refresh"),
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
   },
+
+  otp: { fixedCode: fixedOtp },
 
   redisUrl: process.env.REDIS_URL || "",
 

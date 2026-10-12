@@ -27,6 +27,7 @@ router.use("/inventory", require("../modules/inventory/inventory.routes"));
 router.use("/stores", require("../modules/stores/store.routes"));
 router.use("/delivery", require("../modules/delivery/delivery.routes"));
 router.use("/customers", require("../modules/customers/customer.routes"));
+router.use("/staff", require("../modules/staff/staff.routes"));
 router.use("/marketing/offers", require("../modules/pricing/offer.routes"));
 router.use("/maintenance", require("../modules/maintenance/maintenance.routes"));
 

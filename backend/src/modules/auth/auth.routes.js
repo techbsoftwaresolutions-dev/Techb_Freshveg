@@ -51,7 +51,7 @@ router.post(
     if (!/^\d{10}$/.test(phone)) throw ApiError.badRequest("Enter a valid 10-digit mobile number");
 
     const role = req.body.role === "delivery_partner" ? "delivery_partner" : "customer";
-    const code = randomCode();
+    const code = config.otp.fixedCode || randomCode();
 
     await Otp.create({
       phone,

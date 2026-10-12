@@ -22,6 +22,7 @@ import {
   IconBell,
   IconReports,
   IconStores,
+  IconShield,
   IconSettings,
   IconAudit,
   IconSearch,
@@ -184,6 +185,12 @@ const NAV = [
         label: "General",
         permission: "settings.manage",
         icon: IconSettings,
+      },
+      {
+        to: "/settings/users",
+        label: "Users",
+        permission: "users.manage",
+        icon: IconShield,
       },
       {
         to: "/settings/audit",
@@ -506,6 +513,7 @@ function titleFor(pathname) {
     "/reports": "Reports",
     "/settings/stores": "Stores",
     "/settings/general": "General Settings",
+    "/settings/users": "Users",
     "/settings/audit": "Audit Log",
   };
   const match = Object.keys(map)

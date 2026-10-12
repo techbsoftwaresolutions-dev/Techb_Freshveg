@@ -39,10 +39,9 @@ const ALL = Object.keys(PERMISSIONS);
 
 const ROLES = {
   super_admin: { label: "Super Admin", permissions: ALL },
-  admin: {
-    label: "Admin",
-    permissions: ALL.filter((p) => p !== "users.manage"),
-  },
+  // Admin can manage staff too (Settings → Users), but the Users screen stops
+  // an admin creating, editing or promoting anyone to super admin.
+  admin: { label: "Admin", permissions: ALL },
   store_manager: {
     label: "Store Manager",
     permissions: [

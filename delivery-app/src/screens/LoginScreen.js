@@ -38,6 +38,7 @@ export default function LoginScreen() {
     try {
       const data = await requestOtp(phone);
       setDevCode(data.devCode || null);
+      if (data.devCode) setCode(data.devCode); // dev: no copy and paste
       setStep("code");
       countdown(30);
     } catch (err) {
