@@ -91,6 +91,7 @@ router.patch(
     const next = { ...(settings[section]?.toObject?.() ?? settings[section]), ...req.body };
     if (section === "website") checkVideoHero(next);
     if (section === "branding") checkBranding(next);
+    if (section === "app") checkAppHero(next, settings.website);
     settings[section] = next;
     settings.updatedBy = req.user.id;
     await settings.save();
@@ -119,6 +120,16 @@ function checkVideoHero(website) {
   if (website?.homeTemplate === "video") {
     if (!videos.length) throw ApiError.badRequest("Choose at least one video before turning on Video Hero");
     if (!String(hero?.text || "").trim()) throw ApiError.badRequest("Add the hero text before turning on Video Hero");
+  }
+}
+
+// The app's Video Hero plays the website's playlist, so it needs videos there.
+function checkAppHero(app, website) {
+  if (!["classic", "video"].includes(app.homeHero)) {
+    throw ApiError.badRequest("The app header style must be classic or video");
+  }
+  if (app.homeHero === "video" && !website?.videoHero?.videos?.length) {
+    throw ApiError.badRequest("Add videos under Website → Configure video hero before turning on the app's Video Hero");
   }
 }
 

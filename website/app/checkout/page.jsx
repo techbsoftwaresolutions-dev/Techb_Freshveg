@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useAuth, useCart, useStore } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
+import { payOnline } from "@/lib/razorpay";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function CheckoutPage() {
   const [copied, setCopied] = useState(false);
   const [methods, setMethods] = useState(null);
   const [note, setNote] = useState("");
+  const [walletBusy, setWalletBusy] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
@@ -66,6 +68,21 @@ export default function CheckoutPage() {
   }
 
   const summary = cart.summary;
+  const walletOn = (summary?.walletApplied || 0) > 0;
+
+  // Wallet is applied by re-pricing the cart on the server, so the total
+  // shown is the one the order is written with — same as the app.
+  async function toggleWallet(on) {
+    setWalletBusy(true);
+    setError("");
+    try {
+      await cart.setCredits({ wallet: on ? user?.walletBalance || 0 : 0 });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setWalletBusy(false);
+    }
+  }
 
   if (!ready || !summary) {
     return (
@@ -75,29 +92,52 @@ export default function CheckoutPage() {
     );
   }
 
+  // "upi_app" is UPI through Razorpay (GPay, PhonePe, any UPI app); to the API
+  // it is an online payment like any other.
+  const payingOnline = method === "online" || method === "upi_app";
+
   async function placeOrder() {
-    setPlacing(true);
+    setPlacing("Placing order…");
     setError("");
+    let order;
     try {
-      const { order } = await api.post("/orders", {
+      ({ order } = await api.post("/orders", {
         cart: cart.cart.id,
         address: addressId,
         // The delivery area picked in "Deliver to"; the API re-checks it.
         deliveryArea: areaId || undefined,
-        paymentMethod: method,
+        paymentMethod: payingOnline ? "online" : method,
         note,
         source: "web",
-      });
-      await Promise.all([cart.refresh(), refreshUser()]);
-      router.push(`/orders/${order.id}?placed=1`);
+      }));
     } catch (err) {
       setError(err.message);
       setPlacing(false);
+      return;
     }
+
+    // Online: the order now exists, awaiting payment, with its stock held. It
+    // is only shown as placed once the API has verified the payment; anything
+    // short of that lands on the order page, which offers "Pay now" again.
+    let next = `/orders/${order.id}?placed=1`;
+    if (payingOnline) {
+      const upiOnly = method === "upi_app";
+      setPlacing(upiOnly ? "Opening UPI…" : "Opening payment…");
+      const result = await payOnline(order.id, {
+        upiOnly,
+        onVerifying: () => setPlacing("Verifying payment…"),
+      }).catch(() => ({ status: "failed" }));
+      // The order page carries on from here — "Pay now" retries the same way.
+      if (result.status !== "paid") next = `/orders/${order.id}?payment=${result.status}${upiOnly ? "&via=upi" : ""}`;
+    }
+
+    await Promise.all([cart.refresh(), refreshUser()]).catch(() => {});
+    router.push(next);
   }
 
   const codMethod = methods?.find((m) => m.key === "cod");
   const upiMethod = methods?.find((m) => m.key === "upi");
+  const onlineMethod = methods?.find((m) => m.key === "online");
 
   const steps = [
     { label: "Delivery address", done: Boolean(addressId) },
@@ -253,6 +293,42 @@ export default function CheckoutPage() {
                   </label>
                 ) : null}
 
+                {onlineMethod ? (
+                  <label className={`choice choice-main${method === "upi_app" ? " on" : ""}`}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={method === "upi_app"}
+                      disabled={!onlineMethod.available}
+                      onChange={() => setMethod("upi_app")}
+                    />
+                    <span className="choice-radio" aria-hidden="true" />
+                    <span className="choice-copy">
+                      <strong>UPI</strong>
+                      <span>Google Pay, PhonePe, Paytm or any UPI app</span>
+                    </span>
+                    {!onlineMethod.available ? <span className="pill accent">{onlineMethod.reason}</span> : null}
+                  </label>
+                ) : null}
+
+                {onlineMethod ? (
+                  <label className={`choice choice-main${method === "online" ? " on" : ""}`}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={method === "online"}
+                      disabled={!onlineMethod.available}
+                      onChange={() => setMethod("online")}
+                    />
+                    <span className="choice-radio" aria-hidden="true" />
+                    <span className="choice-copy">
+                      <strong>Cards, netbanking &amp; wallets</strong>
+                      <span>Debit/credit cards, netbanking, wallets or UPI — paid securely via Razorpay</span>
+                    </span>
+                    {!onlineMethod.available ? <span className="pill accent">{onlineMethod.reason}</span> : null}
+                  </label>
+                ) : null}
+
                 {upiMethod ? (
                   <>
                     <label className={`choice choice-main${method === "upi" && upiTab === "manual" ? " on" : ""}`}>
@@ -291,6 +367,17 @@ export default function CheckoutPage() {
                 ) : null}
               </div>
             )}
+
+            {method === "upi_app" ? (
+              <div className="upi-pay-box">
+                <span className="upi-pay-label">How it works</span>
+                <span className="upi-pay-note">
+                  Tap <strong>Pay {rupees(summary.total)} with UPI</strong> below. On a computer, scan the QR code
+                  with your UPI app; on a phone, pick Google Pay, PhonePe or Paytm, or enter your UPI ID. Approve
+                  the payment in the app and you&apos;ll be taken to your order confirmation.
+                </span>
+              </div>
+            ) : null}
 
             {method === "upi" && upiMethod ? (
               <div className="upi-pay-box">
@@ -345,6 +432,20 @@ export default function CheckoutPage() {
             ) : null}
           </section>
 
+          {user?.walletBalance > 0 && cart.cart?.credits?.wallet !== false ? (
+            <section className="panel">
+              <label className={`choice choice-main${walletOn ? " on" : ""}`}>
+                <input type="checkbox" checked={walletOn} disabled={walletBusy} onChange={(e) => toggleWallet(e.target.checked)} />
+                <span className="choice-radio choice-check" aria-hidden="true" />
+                <span className="choice-copy">
+                  <strong>Use wallet balance</strong>
+                  <span>{rupees(user.walletBalance)} available</span>
+                </span>
+                {summary.walletApplied > 0 ? <span className="pill save">− {rupees(summary.walletApplied)}</span> : null}
+              </label>
+            </section>
+          ) : null}
+
           <section className="panel">
             <div className="panel-head">
               <h3>
@@ -380,6 +481,12 @@ export default function CheckoutPage() {
                 <span className="label">Delivery</span>
                 <span>{summary.deliveryFree ? "FREE" : rupees(summary.deliveryCharge)}</span>
               </div>
+              {summary.walletApplied > 0 ? (
+                <div className="bill-row save-row">
+                  <span className="label">Wallet</span>
+                  <span>− {rupees(summary.walletApplied)}</span>
+                </div>
+              ) : null}
               {/* Every charge in the total is listed, so the rows add up to it. */}
               {summary.packagingCharge > 0 ? (
                 <div className="bill-row">
@@ -420,10 +527,20 @@ export default function CheckoutPage() {
             <button
               className="btn primary block lg"
               style={{ marginTop: 16 }}
-              disabled={!addressId || !summary.meetsMinimum || placing}
+              disabled={
+                !addressId ||
+                !summary.meetsMinimum ||
+                Boolean(placing) ||
+                (payingOnline && !onlineMethod?.available)
+              }
               onClick={placeOrder}
             >
-              {placing ? "Placing order…" : "Place order"}
+              {placing ||
+                (method === "upi_app"
+                  ? `Pay ${rupees(summary.total)} with UPI`
+                  : method === "online"
+                    ? `Pay ${rupees(summary.total)}`
+                    : "Place order")}
             </button>
           </div>
         </div>

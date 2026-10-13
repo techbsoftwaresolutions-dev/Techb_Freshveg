@@ -1,29 +1,48 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "../components/Text";
 import { api } from "../api/client";
+import { onlinePaymentSupported, payOnline } from "../api/razorpay";
+import { useCart } from "../context/CartContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
 
+// What a payment attempt came back with, as a notice.
+function paymentNotice(result) {
+  if (!result) return null;
+  if (result.status === "dismissed") {
+    return { tone: "warn", text: "Payment not completed. Your order is held for 30 minutes — pay now, or cancel it." };
+  }
+  if (result.status === "failed") {
+    return { tone: "error", text: result.message || "The payment didn't go through. Please try again." };
+  }
+  if (result.status === "pending") {
+    return { tone: "warn", text: `${result.message} This screen updates on its own.` };
+  }
+  return null;
+}
+
 export default function OrderTrackScreen({ route, navigation }) {
   const { orderId } = route.params;
+  const cart = useCart();
 
   const [tracking, setTracking] = useState(null);
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [notice, setNotice] = useState(paymentNotice(route.params.payment));
   const [error, setError] = useState("");
   const poller = useRef(null);
 
   const load = useCallback(async () => {
     try {
-      const [track, mine] = await Promise.all([
-        api.get(`/orders/${orderId}/track`),
-        api.get("/orders/mine", { limit: 30 }),
-      ]);
+      const track = await api.get(`/orders/${orderId}/track`);
       setTracking(track.tracking);
-      setOrder(mine.items.find((o) => o.id === orderId) || null);
+      setOrder(track.order);
       setError("");
       return track.tracking;
     } catch (err) {
@@ -34,26 +53,46 @@ export default function OrderTrackScreen({ route, navigation }) {
     }
   }, [orderId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // On every visit, so coming back from a return or a review shows the
+  // order's new state (focus also fires on first open).
+  useEffect(() => navigation.addListener("focus", load), [navigation, load]);
 
   // Poll while the order is live. A websocket would be better, but polling a
   // small endpoint every 20s is honest about what exists today and costs
   // nothing while the order is closed.
+  // Every few seconds while an online payment is being confirmed.
+  const awaitingPayment = tracking?.status === "PAYMENT_PENDING" && order?.payment.method === "online";
   useEffect(() => {
     clearInterval(poller.current);
     if (!tracking || CLOSED.includes(tracking.status)) return undefined;
 
-    poller.current = setInterval(load, 20000);
+    poller.current = setInterval(load, awaitingPayment ? 5000 : 20000);
     return () => clearInterval(poller.current);
-  }, [tracking, load]);
+  }, [tracking, load, awaitingPayment]);
+
+  useEffect(() => {
+    if (tracking && tracking.status !== "PAYMENT_PENDING") setNotice(null);
+  }, [tracking]);
+
+  async function payNow() {
+    setPaying(true);
+    setError("");
+    try {
+      setNotice(paymentNotice(await payOnline(orderId)));
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPaying(false);
+    }
+  }
 
   async function cancel() {
     setCancelling(true);
     try {
       await api.post(`/orders/${orderId}/cancel`, { reason: "Cancelled from the app" });
-      await load();
+      // Cancelling an unpaid online order gives the cart back (API side).
+      await Promise.all([load(), cart.refresh()]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -70,10 +109,33 @@ export default function OrderTrackScreen({ route, navigation }) {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}>
       {error ? <Notice tone="error">{error}</Notice> : null}
+      {awaitingPayment && notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
 
-      <Card style={{ padding: spacing.lg, alignItems: "center" }}>
+      {/* The website's order hero: an icon for the state, the customer-facing
+          status, and the order code. */}
+      <View
+        style={[
+          styles.hero,
+          tracking.status === "DELIVERED" ? styles.heroDone : isClosed ? styles.heroStopped : null,
+        ]}
+      >
+        <View
+          style={[
+            styles.heroIcon,
+            tracking.status === "DELIVERED" ? styles.heroIconDone : isClosed ? styles.heroIconStopped : null,
+          ]}
+        >
+          <Ionicons
+            name={tracking.status === "DELIVERED" ? "checkmark" : isClosed ? "close" : "bus-outline"}
+            size={26}
+            color={tracking.status === "DELIVERED" ? colors.onPrimary : isClosed ? colors.danger : colors.primary}
+          />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.statusLabel}>{tracking.statusLabel}</Text>
-        <Text style={type.tiny}>{tracking.code}</Text>
+        <Text style={type.small}>
+          Order <Text style={{ fontWeight: "600", color: colors.text }}>{tracking.code}</Text>
+        </Text>
 
         {tracking.expectedBy && !isClosed ? (
           <Text style={[type.small, { marginTop: spacing.sm }]}>
@@ -98,7 +160,8 @@ export default function OrderTrackScreen({ route, navigation }) {
             })}
           </Text>
         ) : null}
-      </Card>
+        </View>
+      </View>
 
       {/* The handover code. Only shown while it is actually needed. */}
       {tracking.otp ? (
@@ -147,7 +210,7 @@ export default function OrderTrackScreen({ route, navigation }) {
                     step.state === "active" && styles.dotActive,
                   ]}
                 >
-                  {step.state === "done" ? <Text style={styles.tick}>✓</Text> : null}
+                  {step.state === "done" ? <Ionicons name="checkmark" size={12} color={colors.onPrimary} /> : null}
                 </View>
                 {index < visible.length - 1 ? (
                   <View style={[styles.connector, step.state === "done" && { backgroundColor: colors.primary }]} />
@@ -206,14 +269,38 @@ export default function OrderTrackScreen({ route, navigation }) {
               label="Delivery"
               value={order.pricing.deliveryFree ? "FREE" : rupees(order.pricing.deliveryCharge)}
             />
+            {/* Every charge in the total is listed, so the rows add up to it. */}
+            {order.pricing.packagingCharge > 0 ? <Row label="Packaging" value={rupees(order.pricing.packagingCharge)} /> : null}
+            {order.pricing.walletApplied > 0 ? (
+              <Row label="Wallet" value={`− ${rupees(order.pricing.walletApplied)}`} tone="save" />
+            ) : null}
+            {order.pricing.roundOff ? <Row label="Round off" value={rupees(order.pricing.roundOff, { decimals: true })} /> : null}
             <Divider style={{ marginVertical: 6 }} />
-            <Row label="Total paid" value={rupees(order.pricing.total)} bold />
+            <Row label={order.payment.status === "paid" ? "Total paid" : "Total"} value={rupees(order.pricing.total)} bold />
             <Text style={type.tiny}>
-              {order.payment.method.toUpperCase()} · {order.payment.status}
+              {order.payment.method === "cod" ? "Cash on delivery" : order.payment.method === "online" ? "Online (Razorpay)" : order.payment.method.toUpperCase()} ·{" "}
+              {order.payment.status}
             </Text>
           </View>
         </Card>
       ) : null}
+
+      {awaitingPayment && onlinePaymentSupported ? (
+        <Button title={`Pay ${rupees(order.pricing.total)} now`} loading={paying} disabled={cancelling} onPress={payNow} />
+      ) : null}
+
+      {tracking.status === "DELIVERED" ? (
+        <View style={{ flexDirection: "row", gap: spacing.sm }}>
+          <Button title="Rate items" variant="outline" onPress={() => navigation.navigate("RateOrder", { orderId })} style={{ flex: 1 }} />
+          <Button title="Return items" variant="outline" onPress={() => navigation.navigate("ReturnRequest", { orderId })} style={{ flex: 1 }} />
+        </View>
+      ) : null}
+
+      <Button
+        title="Get help with this order"
+        variant="ghost"
+        onPress={() => navigation.navigate("Support", { order: { id: orderId, code: tracking.code } })}
+      />
 
       {canCancel ? (
         <Button
@@ -251,7 +338,29 @@ function Row({ label, value, tone, bold }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  statusLabel: { fontSize: 19, fontWeight: "800", color: colors.text, textAlign: "center" },
+  hero: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.primarySoft,
+  },
+  heroDone: { backgroundColor: colors.saveSoft, borderColor: colors.saveSoft },
+  heroStopped: { backgroundColor: colors.dangerSoft, borderColor: colors.dangerSoft },
+  heroIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroIconDone: { backgroundColor: colors.save },
+  heroIconStopped: { backgroundColor: colors.surface },
+  statusLabel: { fontSize: 19, fontWeight: "700", color: colors.text },
 
   otpCard: { padding: spacing.lg, alignItems: "center", backgroundColor: colors.primarySoft, borderColor: colors.primary },
   otp: { fontSize: 32, fontWeight: "800", letterSpacing: 10, color: colors.primaryDark, marginTop: 4 },

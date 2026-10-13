@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../components/Text";
 import { api } from "../api/client";
 import { useCart } from "../context/CartContext";
 import { useStore } from "../context/StoreContext";
@@ -158,7 +159,7 @@ export default function ProductDetailScreen({ route, navigation }) {
 
           {/* Price */}
           <Card style={styles.priceCard}>
-            <View style={{ flex: 1 }}>
+            <View>
               <View style={styles.priceRow}>
                 <Text style={styles.price}>{rupees(variant?.sellingPrice)}</Text>
                 {discount > 0 ? <Text style={styles.mrp}>{rupees(variant.mrp)}</Text> : null}
@@ -173,10 +174,15 @@ export default function ProductDetailScreen({ route, navigation }) {
             </View>
 
             {outOfStock ? (
-              <Pill tone="danger">Out of stock</Pill>
+              <Pill tone="danger" style={{ alignSelf: "flex-start" }}>Out of stock</Pill>
             ) : (
-              <View style={{ alignItems: "flex-end", gap: 4 }}>
+              <View style={{ gap: 6 }}>
+                {/* The website's pair: Add to Basket, and Buy now (add, then
+                    straight to the basket). */}
+                <View style={styles.buyRow}>
+                  <View style={{ flex: 1 }}>
                 <QtyStepper
+                  wide
                   quantity={quantity}
                   step={variant?.stepQty ?? 1}
                   min={variant?.minOrderQty ?? 1}
@@ -187,6 +193,18 @@ export default function ProductDetailScreen({ route, navigation }) {
                   onChange={(q) => cart.setQuantity(variantId, q).catch(() => {})}
                   onRemove={() => cart.remove(variantId).catch(() => {})}
                 />
+                  </View>
+                  <Button
+                    title="Buy now"
+                    variant="outline"
+                    style={{ flex: 1, minHeight: 40 }}
+                    loading={Boolean(cart.pending[variantId]) && !quantity}
+                    onPress={async () => {
+                      if (!quantity) await cart.add(variantId).catch(() => {});
+                      navigation.navigate("Main", { screen: "CartTab" });
+                    }}
+                  />
+                </View>
                 {available <= 5 ? (
                   <Text style={styles.lowStock}>Only {available} left</Text>
                 ) : null}
@@ -233,7 +251,10 @@ export default function ProductDetailScreen({ route, navigation }) {
 
           {related?.length ? (
             <>
-              <Text style={styles.sectionTitle}>You might also like</Text>
+              <View style={styles.serifHead}>
+                <Text style={type.section}>You might also like</Text>
+                <View style={styles.serifDash} />
+              </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.md }}>
                 {related.map((item) => {
                   const relatedVariantId = item.defaultVariant;
@@ -284,9 +305,16 @@ function formatSpec(value) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  // The website's product photo: a rounded white card with a margin.
   gallery: {
-    height: 230,
+    height: 320,
+    margin: spacing.lg,
+    marginBottom: 0,
+    borderRadius: radius.lg,
+    overflow: "hidden",
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -310,15 +338,14 @@ const styles = StyleSheet.create({
   image: { width: "100%", height: "100%" },
   discountRibbon: {
     position: "absolute",
-    top: spacing.lg,
-    left: 0,
-    backgroundColor: colors.save,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    borderTopRightRadius: radius.sm,
-    borderBottomRightRadius: radius.sm,
+    top: 10,
+    left: 10,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  discountText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+  discountText: { color: "#fff", fontWeight: "700", fontSize: 11.5 },
 
   body: { padding: spacing.lg },
   brand: { ...type.small, marginTop: 2 },
@@ -343,14 +370,15 @@ const styles = StyleSheet.create({
   variantSoldOut: { fontSize: 10, color: colors.danger, marginTop: 1 },
 
   priceCard: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: spacing.md,
-    padding: spacing.md,
+    padding: spacing.lg,
     marginTop: spacing.lg,
   },
+  buyRow: { flexDirection: "row", gap: spacing.sm },
+  serifHead: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: spacing.xl, marginBottom: spacing.md },
+  serifDash: { width: 22, height: 3, borderRadius: 2, backgroundColor: colors.primary },
   priceRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
-  price: { fontSize: 22, fontWeight: "800", color: colors.text },
+  price: { fontSize: 24, fontWeight: "700", color: colors.primaryDeep },
   mrp: { fontSize: 14, color: colors.textFaint, textDecorationLine: "line-through" },
   lowStock: { fontSize: 10.5, color: colors.danger, fontWeight: "700" },
 

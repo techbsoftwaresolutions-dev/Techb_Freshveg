@@ -24,6 +24,7 @@ import Users, { DeliveryBoys, NewUserPage } from "./pages/users/Users";
 import DeliveryAreas, { DeliveryAreaFormPage } from "./pages/delivery/DeliveryAreas";
 import Banners, { BannerFormPage } from "./pages/marketing/Banners";
 import Notifications, { TemplateFormPage } from "./pages/marketing/Notifications";
+import Referrals from "./pages/marketing/Referrals";
 import Reports from "./pages/reports/Reports";
 import Stores, { StoreFormPage } from "./pages/settings/Stores";
 import General from "./pages/settings/General";
@@ -105,6 +106,7 @@ function Shell() {
           path="marketing/notifications"
           element={<Guard permission="marketing.view"><Notifications /></Guard>}
         />
+        <Route path="marketing/referrals" element={<Guard permission="marketing.view"><Referrals /></Guard>} />
 
         <Route path="reports" element={<Guard permission="reports.view"><Reports /></Guard>} />
 

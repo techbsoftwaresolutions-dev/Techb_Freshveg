@@ -255,6 +255,13 @@ export function Providers({ children }) {
         setCart(data.cart);
         return data.cart;
       },
+      // Wallet / loyalty to put against this cart. The API re-prices and caps
+      // it, so the total shown is the one the order is written with.
+      setCredits: async (credits) => {
+        const data = await api.post("/cart/credits", { ...credits, store: storeId });
+        setCart(data.cart);
+        return data.cart;
+      },
       quantityOf: (variantId) =>
         cart?.items?.find((i) => String(i.variant) === String(variantId))?.quantity || 0,
       lineFor: (variantId) => cart?.items?.find((i) => String(i.variant) === String(variantId)) || null,

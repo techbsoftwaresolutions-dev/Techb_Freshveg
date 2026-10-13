@@ -1,30 +1,31 @@
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  FlatList,
-  Image,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Dimensions, FlatList, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text } from "../components/Text";
 import { api } from "../api/client";
 import { useCart } from "../context/CartContext";
 import { useStore } from "../context/StoreContext";
-import { colors, radius, rupees, spacing, type } from "../theme";
-import { Card, EmptyState, Loading, Notice, Pill, SectionHeader } from "../components/ui";
+import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
+import { Card, EmptyState, IconTile, Loading, Notice, SectionHeader } from "../components/ui";
 import ProductCard from "../components/ProductCard";
+import VideoHeroBanner, { HeroShade } from "../components/VideoHeroBanner";
 
-const CARD_WIDTH = 150;
+const CARD_WIDTH = 176;
 
+// The website's mobile home, top to bottom: logo + location pill, the search
+// pill, category chips, the hero banners, "Shop by Category", the farm story
+// band, offers, then one product rail per department.
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { store, pincode, storeId } = useStore();
   const cart = useCart();
 
   const [data, setData] = useState(null);
+  const [banners, setBanners] = useState([]);
+  const [logoUrl, setLogoUrl] = useState("");
+  const [videoHero, setVideoHero] = useState(null);
+  const [heroCopy, setHeroCopy] = useState({ text: "", ctaLabel: "" });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -33,8 +34,30 @@ export default function HomeScreen({ navigation }) {
     try {
       // The whole home screen is one request — round trips are the expensive
       // thing on a phone connection, not payload size.
-      const home = await api.get("/storefront/home", { store: storeId || undefined });
+      // Banners are the admin's (Marketing → Banners), the same "home_hero"
+      // set the website shows. A banner failure never blocks the shelves.
+      // The logo is the one uploaded in Admin → Settings → Branding, as on the
+      // website; the bundled artwork stands in when none is set.
+      // The hero style is Admin → Settings → Apps (app.homeHero): "video"
+      // plays the website's Video Hero playlist; with no playable list, or no
+      // settings at all, the classic banners show.
+      const [home, live, settings] = await Promise.all([
+        api.get("/storefront/home", { store: storeId || undefined }),
+        api.get("/banners/live", { placement: "home_hero" }).catch(() => ({ banners: [] })),
+        api.get("/settings/public").catch(() => null),
+      ]);
       setData(home);
+      setBanners(live.banners || []);
+      setLogoUrl(settings?.settings?.branding?.logo || "");
+      const site = settings?.settings;
+      const video = site?.app?.homeHero === "video" && site.website?.videoHero?.videos?.length ? site.website.videoHero : null;
+      setVideoHero(video);
+      // The admin's words for the app's hero (Settings → Apps); Video Hero
+      // falls back to the website's hero text.
+      setHeroCopy({
+        text: site?.app?.heroText?.trim() || (video ? video.text : ""),
+        ctaLabel: site?.app?.heroCtaLabel ?? "Shop Now",
+      });
       setError("");
     } catch (err) {
       setError(err.message);
@@ -55,63 +78,124 @@ export default function HomeScreen({ navigation }) {
 
   if (loading) return <Loading label="Loading the store" />;
 
+  const categories = data?.categories || [];
+  const openCategory = (category) => navigation.navigate("ProductList", { slug: category.slug, title: category.name });
+
   return (
     <ScrollView
       style={styles.screen}
       contentContainerStyle={{ paddingBottom: spacing.xxl }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      stickyHeaderIndices={[0]}
     >
+      {/* Header: logo, location pill, search, chips — stays on top while scrolling. */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable style={styles.locationRow} onPress={() => navigation.navigate("Location")}>
-          <Text style={styles.locationLabel}>Deliver to</Text>
-          <Text style={styles.locationValue} numberOfLines={1}>
- {pincode ||"Set your pincode"} {store?.name ?`· ${store.name}` :""} ▾
+        <View style={styles.headerRow}>
+          <View style={styles.logoBox} accessibilityRole="image" accessibilityLabel="The Farmers Basket">
+            <Image source={logoUrl ? { uri: logoUrl } : require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
+          </View>
+          <Pressable
+            style={styles.locationPill}
+            onPress={() => navigation.navigate("Location")}
+            accessibilityRole="button"
+            accessibilityLabel="Change delivery location"
+          >
+            <Ionicons name="location-outline" size={18} color={colors.primary} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {store?.address?.city || pincode || "Set location"}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={colors.primaryDark} />
+          </Pressable>
+        </View>
+
+        <Pressable
+          style={styles.search}
+          onPress={() => navigation.navigate("Search")}
+          accessibilityRole="search"
+          accessibilityLabel="Search products"
+        >
+          <Ionicons name="search-outline" size={19} color={colors.textMuted} />
+          <Text style={styles.searchPlaceholder} numberOfLines={1}>
+            Search for “Tomatoes”
           </Text>
+          <View style={styles.searchButton}>
+            <Ionicons name="search" size={18} color={colors.onPrimary} />
+          </View>
         </Pressable>
 
-        {store ? (
-          <Pill tone={data?.store?.isOpen === false ? "danger" : "primary"}>
-            {data?.store?.isOpen === false
-              ? "Closed"
-              : `${data?.store?.prepTimeMinutes ?? 30} min`}
-          </Pill>
-        ) : null}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          <Pressable style={styles.chip} onPress={() => navigation.navigate("CategoriesTab")}>
+            <Ionicons name="menu" size={17} color={colors.primary} />
+            <Text style={styles.chipText}>All Categories</Text>
+          </Pressable>
+          {categories.map((category) => (
+            <Pressable key={category.id} style={styles.chip} onPress={() => openCategory(category)}>
+              <Text style={styles.chipText}>{category.name}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
 
-      <Pressable style={styles.searchBar} onPress={() => navigation.navigate("Search")}>
-        <Text style={styles.searchPlaceholder}>Search vegetables, fruits, milk…</Text>
-      </Pressable>
-
       {error ? (
-        <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.md }}>
+        <View style={styles.padded}>
           <Notice tone="error">{error}</Notice>
         </View>
       ) : null}
 
       {data?.store?.isOpen === false ? (
-        <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.md }}>
-          <Notice tone="warn">
-            {store?.name} is closed right now. You can still browse and build your cart.
-          </Notice>
+        <View style={styles.padded}>
+          <Notice tone="warn">{store?.name || "The store"} is closed right now. You can still browse and build your cart.</Notice>
         </View>
       ) : null}
 
-      {/* Offers */}
+      {videoHero ? (
+        <VideoHeroBanner
+          // A new playlist is a new player.
+          key={videoHero.videos.map((video) => video.url).join(" ")}
+          videos={videoHero.videos}
+          text={heroCopy.text}
+          ctaLabel={heroCopy.ctaLabel}
+          onPress={() => navigation.navigate("CategoriesTab")}
+        />
+      ) : (
+        <BannerStrip banners={banners} copy={heroCopy} navigation={navigation} />
+      )}
+
+      {/* Shop by Category — round photos, three to a row, in a white panel. */}
+      {categories.length ? (
+        <View style={styles.section}>
+          <SectionHeader title="Shop by Category" actionLabel="View All" onAction={() => navigation.navigate("CategoriesTab")} />
+          <Card style={styles.categoryPanel}>
+            {categories.map((category) => (
+              <Pressable key={category.id} style={styles.categoryTile} onPress={() => openCategory(category)} accessibilityRole="link">
+                <View style={styles.categoryCircle}>
+                  {category.image ? (
+                    <Image source={{ uri: category.image }} style={styles.categoryImage} resizeMode="cover" />
+                  ) : (
+                    <Ionicons name="leaf-outline" size={28} color={colors.primary} />
+                  )}
+                </View>
+                <Text style={styles.categoryName} numberOfLines={2}>
+                  {category.name}
+                </Text>
+              </Pressable>
+            ))}
+          </Card>
+        </View>
+      ) : null}
+
+
       {data?.offers?.length ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.offerRow}
-        >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.offerRow}>
           {data.offers.map((offer) => (
             <Card key={offer.id} style={styles.offerCard}>
-              <View style={styles.offerRowInner}>
-                <View style={styles.offerText}>
-                  <Text style={styles.offerBadge}>{offer.badge || "OFFER"}</Text>
+              <View style={styles.offerInner}>
+                <IconTile name="pricetag-outline" />
+                <View style={{ flex: 1 }}>
                   <Text style={styles.offerTitle} numberOfLines={2}>
                     {offer.title}
                   </Text>
-                  <Text style={styles.offerDesc} numberOfLines={2}>
+                  <Text style={type.small} numberOfLines={2}>
                     {offer.description}
                   </Text>
                   {offer.code ? (
@@ -122,74 +206,30 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.autoApplied}>Applied automatically</Text>
                   )}
                 </View>
-                {offer.image ? (
-                  <Image source={{ uri: offer.image }} style={styles.offerImage} resizeMode="contain" />
-                ) : null}
               </View>
             </Card>
           ))}
         </ScrollView>
       ) : null}
 
-      {/* Categories — the six departments, straight from the engine. Add a
-          seventh in the admin and it appears here on the next pull. */}
-      <SectionHeader title="Shop by category" actionLabel="See all" onAction={() => navigation.navigate("CategoriesTab")} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryGrid}
-      >
-        {(data?.categories || []).map((category) => (
-          <Pressable
-            key={category.id}
-            style={styles.categoryTile}
-            onPress={() =>
-              navigation.navigate("ProductList", { slug: category.slug, title: category.name })
-            }
-          >
-            <View style={[styles.categoryIcon, { backgroundColor: category.color || colors.primarySoft }]}>
-              {category.image ? (
-                <Image source={{ uri: category.image }} style={styles.categoryImage} resizeMode="cover" />
-              ) : (
-                <Text style={{ fontSize: 26 }}>{category.icon || ""}</Text>
-              )}
-            </View>
-            <Text style={styles.categoryName} numberOfLines={2}>
-              {category.name}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-
-      {/* Featured */}
       {data?.featured?.length ? (
-        <Rail
-          title="Deals of the day"
-          products={data.featured}
-          cart={cart}
-          navigation={navigation}
-        />
+        <Rail title="Best Sellers" products={data.featured} cart={cart} navigation={navigation} onSeeAll={() => navigation.navigate("CategoriesTab")} />
       ) : null}
 
       {/* One rail per department, so the home screen grows by itself. */}
       {(data?.rails || []).map((rail) => (
         <Rail
           key={rail.category.id}
-          title={`${rail.category.icon || ""} ${rail.category.name}`.trim()}
+          title={rail.category.name}
           products={rail.products}
           cart={cart}
           navigation={navigation}
-          onSeeAll={() =>
-            navigation.navigate("ProductList", { slug: rail.category.slug, title: rail.category.name })
-          }
+          onSeeAll={() => openCategory(rail.category)}
         />
       ))}
 
       {!data?.rails?.length && !data?.featured?.length ? (
-        <EmptyState
-          title="Nothing stocked yet"
-          hint="Once products are published in the admin they will show up here."
-        />
+        <EmptyState icon="basket-outline" title="Nothing stocked yet" hint="Once products are published in the admin they will show up here." />
       ) : null}
     </ScrollView>
   );
@@ -197,14 +237,16 @@ export default function HomeScreen({ navigation }) {
 
 function Rail({ title, products, cart, navigation, onSeeAll }) {
   return (
-    <View style={{ marginBottom: spacing.xl }}>
-      <SectionHeader title={title} actionLabel={onSeeAll ? "See all" : undefined} onAction={onSeeAll} />
+    <View style={styles.section}>
+      <SectionHeader title={title} actionLabel={onSeeAll ? "View All" : undefined} onAction={onSeeAll} />
       <FlatList
         horizontal
         data={products}
         keyExtractor={(item) => item.id}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.md }}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.md, paddingBottom: 4 }}
+        initialNumToRender={3}
+        windowSize={5}
         renderItem={({ item }) => {
           const variantId = item.defaultVariant;
           // Once an item is in the cart its line carries the real step, unit
@@ -215,14 +257,15 @@ function Rail({ title, products, cart, navigation, onSeeAll }) {
           return (
             <ProductCard
               width={CARD_WIDTH}
+              wideAdd
               product={item}
               variant={line}
               quantity={line?.quantity || 0}
               busy={Boolean(cart.pending[variantId])}
               onPress={() => navigation.navigate("ProductDetail", { slug: item.slug })}
-              onAdd={() => cart.add(variantId).catch(() => {})}
-              onChange={(quantity) => cart.setQuantity(variantId, quantity).catch(() => {})}
-              onRemove={() => cart.remove(variantId).catch(() => {})}
+              onAdd={() => cart.add(variantId).catch(() => { })}
+              onChange={(quantity) => cart.setQuantity(variantId, quantity).catch(() => { })}
+              onRemove={() => cart.remove(variantId).catch(() => { })}
             />
           );
         }}
@@ -231,78 +274,229 @@ function Rail({ title, products, cart, navigation, onSeeAll }) {
   );
 }
 
+// Where a banner tap goes — the same target kinds the website maps to links.
+function openBanner(target, navigation) {
+  if (!target?.value) return;
+  if (target.kind === "category") navigation.navigate("ProductList", { slug: target.value, title: "" });
+  else if (target.kind === "product") navigation.navigate("ProductDetail", { slug: target.value });
+  else if (target.kind === "search") navigation.navigate("Search", { q: target.value });
+  else if (target.kind === "url" && /^https?:\/\//.test(target.value)) Linking.openURL(target.value).catch(() => { });
+}
+
+// The classic hero: the admin's banners, or — as on the website, until one is
+// added — the bundled harvest photo.
+// With hero text set in Settings → Apps, each banner carries it over a shade.
+function BannerStrip({ banners, copy, navigation }) {
+  const width = Dimensions.get("window").width - spacing.lg * 2;
+  const words = copy.text ? (
+    <>
+      <HeroShade fromLeft />
+      <HeroShade style={styles.bannerShade} />
+      <View style={styles.bannerCopy}>
+        <Text style={styles.bannerText} numberOfLines={3}>
+          {copy.text}
+        </Text>
+        {copy.ctaLabel ? (
+          <View style={styles.bannerCta}>
+            <Text style={styles.bannerCtaText}>{copy.ctaLabel}</Text>
+            <Ionicons name="chevron-forward" size={15} color={colors.primaryDark} />
+          </View>
+        ) : null}
+      </View>
+    </>
+  ) : null;
+
+  if (!banners.length) {
+    return (
+      <Pressable
+        style={styles.padded}
+        onPress={() => navigation.navigate("CategoriesTab")}
+        accessibilityRole="link"
+        accessibilityLabel={copy.text || "Basket of farm-fresh vegetables. Shop all categories"}
+      >
+        <View style={[styles.bannerFrame, { width }]}>
+          <Image source={require("../../assets/hero.webp")} style={styles.bannerFill} resizeMode="cover" />
+          {words}
+        </View>
+      </Pressable>
+    );
+  }
+  return (
+    <ScrollView
+      horizontal
+      pagingEnabled={banners.length > 1}
+      showsHorizontalScrollIndicator={false}
+      snapToInterval={width + spacing.sm}
+      decelerationRate="fast"
+      contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingTop: spacing.lg }}
+    >
+      {banners.map((banner) => (
+        <Pressable
+          key={banner.id}
+          onPress={() => openBanner(banner.target, navigation)}
+          accessibilityRole={banner.target?.kind && banner.target.kind !== "none" ? "link" : "image"}
+          accessibilityLabel={copy.text || banner.title || "Offer banner"}
+        >
+          <View style={[styles.bannerFrame, { width, backgroundColor: banner.backgroundColor || colors.surfaceAlt }]}>
+            <Image source={{ uri: banner.mobileImage || banner.image }} style={styles.bannerFill} resizeMode="cover" />
+            {words}
+          </View>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  padded: { paddingHorizontal: spacing.lg, marginTop: spacing.lg },
+  section: { marginTop: spacing.xl },
 
   header: {
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
-    backgroundColor: colors.primary,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
     gap: spacing.md,
   },
-  locationRow: { flex: 1 },
-  locationLabel: { color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: "600" },
-  locationValue: { color: "#fff", fontSize: 14, fontWeight: "700", marginTop: 1 },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
+  // The artwork carries a wide white margin; the box crops it (as .logo does).
+  logoBox: { width: 104, height: 52, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  logo: { width: 104, height: 52, transform: [{ scale: 1.25 }] },
+  locationPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    maxWidth: 190,
+    height: 42,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+  },
+  locationText: { fontSize: 15, fontWeight: "600", color: colors.primaryDark, flexShrink: 1 },
 
-  searchBar: {
+  search: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginTop: 2,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.md,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    height: 50,
+    paddingLeft: 14,
+    paddingRight: 5,
+    borderRadius: 14,
+    backgroundColor: "#F2F4F3",
     borderWidth: 1,
     borderColor: colors.border,
   },
-  searchIcon: { fontSize: 14 },
-  searchPlaceholder: { color: colors.textFaint, fontSize: 14 },
+  searchPlaceholder: { flex: 1, color: colors.textFaint, fontSize: 14.5 },
+  searchButton: {
+    width: 44,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-  offerRow: { paddingHorizontal: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
-  offerCard: { width: 230, padding: spacing.md },
-  offerRowInner: { flexDirection: "row", alignItems: "center" },
-  offerText: { flex: 1 },
-  offerImage: { width: 56, height: 56, marginLeft: spacing.sm },
-  offerBadge: { color: colors.save, fontWeight: "800", fontSize: 13, marginBottom: 4 },
+  chips: { gap: spacing.sm, paddingRight: spacing.lg },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  chipText: { fontSize: 13.5, fontWeight: "500", color: colors.text },
+
+  // Taller once it carries words, so they never crowd the photo.
+  bannerFrame: { minHeight: 160, borderRadius: radius.lg, overflow: "hidden", justifyContent: "flex-end" },
+  bannerFill: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  bannerShade: { top: "20%" },
+  bannerCopy: { padding: spacing.md, paddingTop: 48, gap: spacing.sm, alignItems: "flex-start" },
+  bannerText: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "700",
+    color: "#fff",
+    textShadowColor: "rgba(0, 0, 0, 0.25)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
+  },
+  bannerCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    height: 34,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    backgroundColor: "#fff",
+  },
+  bannerCtaText: { fontSize: 13.5, fontWeight: "700", color: colors.primaryDark },
+
+  categoryPanel: {
+    marginHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: spacing.lg,
+  },
+  categoryTile: { width: "33.33%", alignItems: "center", paddingHorizontal: 4 },
+  categoryCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    overflow: "hidden",
+    backgroundColor: colors.primarySoft,
+    borderWidth: 3,
+    borderColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadow.card,
+  },
+  categoryImage: { width: "100%", height: "100%" },
+  categoryName: { fontSize: 12.5, fontWeight: "500", color: colors.text, textAlign: "center", marginTop: 6 },
+
+  storyBand: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primarySoft,
+    padding: spacing.lg,
+  },
+  eyebrow: { fontSize: 11, fontWeight: "600", letterSpacing: 1.5, color: colors.primary },
+  storyTitle: { fontFamily: fontFamily.serif, fontSize: 22, color: colors.primaryDeep, marginTop: 4 },
+  storyFeatures: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  storyFeature: { flex: 1, alignItems: "center", gap: 6 },
+  storyIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  storyFeatureText: { fontSize: 11.5, textAlign: "center", color: colors.text, lineHeight: 15 },
+
+  offerRow: { paddingHorizontal: spacing.lg, gap: spacing.md, paddingTop: spacing.lg },
+  offerCard: { width: 260, padding: spacing.md },
+  offerInner: { flexDirection: "row", gap: spacing.md },
   offerTitle: { ...type.h3, marginBottom: 2 },
-  offerDesc: { ...type.small, minHeight: 32 },
   codeChip: {
     alignSelf: "flex-start",
     marginTop: spacing.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
+    paddingVertical: 2,
+    borderRadius: 6,
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: colors.primary,
   },
-  codeText: { color: colors.primaryDark, fontWeight: "800", fontSize: 11.5 },
+  codeText: { color: colors.primaryDark, fontWeight: "700", fontSize: 12 },
   autoApplied: { ...type.tiny, marginTop: spacing.sm, color: colors.save, fontWeight: "600" },
-
-  categoryGrid: {
-    flexDirection: "row",
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  categoryTile: { width: 78, alignItems: "center", marginRight: spacing.md },
-  categoryIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: radius.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-    overflow: "hidden",
-  },
-  categoryImage: {
-    width: "100%",
-    height: "100%",
-  },
-  categoryName: { ...type.tiny, textAlign: "center", color: colors.text, fontWeight: "600", paddingHorizontal: 2 },
 });

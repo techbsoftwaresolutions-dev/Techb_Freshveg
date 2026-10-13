@@ -76,28 +76,49 @@ const razorpay = {
     return payload;
   },
 
-  async createOrder({ amount, orderCode, customer }) {
+  async createOrder({ amount, orderCode, customer, brand }) {
     const created = await this.call("/orders", {
       body: {
         amount, // Razorpay also works in paise, so no conversion here
         currency: "INR",
         receipt: orderCode,
-        notes: { orderCode, customerPhone: customer?.phone || "" },
+        notes: { orderCode },
       },
     });
 
     return {
       providerOrderId: created.id,
       amount: created.amount,
-      // What the app or website hands to the Razorpay checkout widget.
-      checkout: {
-        key: this.keyId,
-        orderId: created.id,
-        amount: created.amount,
-        currency: created.currency,
-        name: "Samagra Mart",
-        prefill: { contact: customer?.phone || "", name: customer?.name || "" },
+      checkout: this.checkout({ providerOrderId: created.id, amount: created.amount, orderCode, customer, brand }),
+    };
+  },
+
+  /**
+   * What the app or website hands to the Razorpay checkout — already in
+   * Razorpay's own option names, so the web Checkout.js and the native SDK take
+   * it as-is. Only the public key id travels; the secret never leaves here.
+   */
+  checkout({ providerOrderId, amount, orderCode, customer, brand }) {
+    return {
+      key: this.keyId,
+      order_id: providerOrderId,
+      amount,
+      currency: "INR",
+      name: brand || "Fresh Market",
+      description: `Order ${orderCode}`,
+      prefill: { name: customer?.name || "", email: customer?.email || "", contact: customer?.phone || "" },
+      notes: { orderCode },
+      // UPI first, with cards / netbanking / wallets still offered below it.
+      config: {
+        display: {
+          blocks: { upi: { name: "Pay using UPI", instruments: [{ method: "upi" }] } },
+          sequence: ["block.upi"],
+          preferences: { show_default_blocks: true },
+        },
       },
+      // Closes the sheet well before an unpaid order is released (jobs/rules.js).
+      timeout: 15 * 60,
+      theme: { color: "#295110" },
     };
   },
 
@@ -108,7 +129,7 @@ const razorpay = {
    * made-up payment id and get a free order. It is an HMAC of
    * "<order_id>|<payment_id>" with the key secret, compared in constant time.
    */
-  async verify({ providerOrderId, providerPaymentId, signature }) {
+  async verify({ providerOrderId, providerPaymentId, signature, amount }) {
     if (!providerOrderId || !providerPaymentId || !signature) {
       return { ok: false, reason: "Missing payment confirmation fields" };
     }
@@ -124,14 +145,39 @@ const razorpay = {
 
     if (!ok) return { ok: false, reason: "Payment signature did not match" };
 
-    // Trust but verify: ask the gateway what it thinks the payment's state is,
-    // rather than believing the client's word that it succeeded.
+    // Trust but verify: a good signature proves Razorpay saw this payment, not
+    // that the money was taken. Ask the gateway for the payment's real state.
     const payment = await this.call(`/payments/${providerPaymentId}`, { method: "GET" });
-    if (!["captured", "authorized"].includes(payment.status)) {
-      return { ok: false, reason: `Payment is ${payment.status}`, payload: payment };
-    }
+    return this.settled(payment, { providerOrderId, amount });
+  },
 
-    return { ok: true, providerPaymentId, payload: payment };
+  /**
+   * Turns a gateway payment entity into a verdict: captured for the expected
+   * order and amount → ok; authorized → captured here, server side, for the
+   * amount we expect; failed → failed; anything else → still pending.
+   */
+  async settled(payment, { providerOrderId, amount }) {
+    if (payment.order_id !== providerOrderId || payment.amount !== amount || payment.currency !== "INR") {
+      return { ok: false, failed: true, reason: "Payment does not match this order", payload: payment };
+    }
+    if (payment.status === "authorized") {
+      // If the account's auto-capture got there first, the capture call is
+      // refused — re-read rather than fail.
+      const id = payment.id;
+      payment = await this.call(`/payments/${id}/capture`, { body: { amount, currency: "INR" } })
+        .catch(() => this.call(`/payments/${id}`, { method: "GET" }));
+    }
+    if (payment.status === "captured") return { ok: true, providerPaymentId: payment.id, payload: payment };
+    if (payment.status === "failed") {
+      return { ok: false, failed: true, reason: payment.error_description || "Payment failed", payload: payment };
+    }
+    return { ok: false, pending: true, reason: `Payment is ${payment.status}`, payload: payment };
+  },
+
+  /** Every payment attempt Razorpay saw against one of its orders — used to reconcile. */
+  async orderPayments(providerOrderId) {
+    const result = await this.call(`/orders/${providerOrderId}/payments`, { method: "GET" });
+    return result.items || [];
   },
 
   async refund({ providerPaymentId, amount, notes }) {

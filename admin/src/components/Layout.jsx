@@ -184,6 +184,12 @@ const NAV = [
         permission: "marketing.view",
         icon: IconBell,
       },
+      {
+        to: "/marketing/referrals",
+        label: "Referrals",
+        permission: "marketing.view",
+        icon: IconOffers,
+      },
     ],
   },
   {
@@ -533,6 +539,7 @@ function titleFor(pathname) {
     "/marketing/offers": "Offers & Coupons",
     "/marketing/banners": "Banners",
     "/marketing/notifications": "Notifications",
+    "/marketing/referrals": "Referrals",
     "/reports": "Reports",
     "/settings/stores": "Stores",
     "/settings/general": "General Settings",

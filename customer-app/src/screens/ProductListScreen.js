@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "../components/Text";
 import { api } from "../api/client";
 import { useCart } from "../context/CartContext";
 import { useStore } from "../context/StoreContext";
@@ -124,6 +126,9 @@ export default function ProductListScreen({ route, navigation }) {
               onPress={() => setSubcategory(null)}
             >
               {!subcategory ? <View style={styles.railMarker} /> : null}
+              <View style={styles.railThumb}>
+                <Ionicons name="basket-outline" size={20} color={colors.primary} />
+              </View>
               <Text style={[styles.railLabel, !subcategory && styles.railLabelActive]} numberOfLines={2}>
                 All
               </Text>
@@ -137,7 +142,13 @@ export default function ProductListScreen({ route, navigation }) {
                   onPress={() => setSubcategory(isActive ? null : child.slug)}
                 >
                   {isActive ? <View style={styles.railMarker} /> : null}
-                  {child.icon ? <Text style={{ fontSize: 20 }}>{child.icon}</Text> : null}
+                  <View style={styles.railThumb}>
+                    {child.image ? (
+                      <Image source={{ uri: child.image }} style={styles.railThumbImage} resizeMode="cover" />
+                    ) : (
+                      <Ionicons name="leaf-outline" size={18} color={colors.primary} />
+                    )}
+                  </View>
                   <Text style={[styles.railLabel, isActive && styles.railLabelActive]} numberOfLines={2}>
                     {child.name}
                   </Text>
@@ -162,8 +173,9 @@ export default function ProductListScreen({ route, navigation }) {
                 setFiltersOpen((v) => !v);
               }}
             >
+              <Ionicons name="options-outline" size={15} color={filtersOpen || activeFilterCount > 0 ? colors.primaryDark : colors.text} />
               <Text style={[styles.toolbarText, (filtersOpen || activeFilterCount > 0) && styles.toolbarTextActive]}>
-                Filter{activeFilterCount ? ` (${activeFilterCount})` : ""}
+                Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
               </Text>
             </Pressable>
 
@@ -179,8 +191,9 @@ export default function ProductListScreen({ route, navigation }) {
                   style={[styles.toolbarText, (sortMenuOpen || sort) && styles.toolbarTextActive]}
                   numberOfLines={1}
                 >
-                  {activeSortLabel} ▾
+                  {sort ? activeSortLabel : "Sort by"}
                 </Text>
+                <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
               </Pressable>
               {sortMenuOpen ? (
                 <View style={styles.sortMenu}>
@@ -212,8 +225,11 @@ export default function ProductListScreen({ route, navigation }) {
                 setSort(priceDropActive ? "" : "discount");
               }}
             >
+              <View style={styles.offerDot}>
+                <Ionicons name="pricetag" size={10} color={colors.onPrimary} />
+              </View>
               <Text style={[styles.toolbarText, priceDropActive && styles.toolbarTextActive]}>
-                Price Drop
+                Offers
               </Text>
             </Pressable>
           </View>
@@ -294,7 +310,8 @@ export default function ProductListScreen({ route, navigation }) {
                 const variantId = item.defaultVariant;
                 const line = cart.items.find((i) => String(i.variant) === String(variantId));
                 return (
-                  <View style={{ flex: 1 }}>
+                  // Half the row even when a product is alone on the last row.
+                  <View style={{ flex: 1, maxWidth: "50%" }}>
                     <ProductCard
                       product={item}
                       variant={line}
@@ -345,46 +362,60 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   body: { flex: 1, flexDirection: "row" },
 
-  rail: { width: 62, backgroundColor: colors.surfaceAlt },
-  railItem: { alignItems: "center", paddingVertical: spacing.md, paddingHorizontal: 4, gap: 4 },
+  // flexGrow/flexShrink 0: a ScrollView grows by default on the web build,
+  // which let this rail swallow half the screen.
+  rail: { width: 80, flexGrow: 0, flexShrink: 0, backgroundColor: colors.surfaceAlt, borderRightWidth: 1, borderRightColor: colors.border },
+  railItem: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 4, gap: 5 },
   railItemActive: { backgroundColor: colors.surface },
   railMarker: {
     position: "absolute",
     left: 0,
-    top: 10,
-    bottom: 10,
+    top: 8,
+    bottom: 8,
     width: 3,
     backgroundColor: colors.primary,
     borderTopRightRadius: 3,
     borderBottomRightRadius: 3,
   },
-  railLabel: { ...type.tiny, textAlign: "center", fontFamily: fontFamily.semibold },
-  railLabelActive: { color: colors.primaryDark },
+  railThumb: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  railThumbImage: { width: "100%", height: "100%" },
+  railLabel: { fontSize: 11, lineHeight: 14, textAlign: "center", fontFamily: fontFamily.medium, color: colors.textMuted },
+  railLabelActive: { color: colors.primary, fontFamily: fontFamily.semibold },
 
-  panel: { flex: 1, backgroundColor: colors.surface },
+  panel: { flex: 1, backgroundColor: colors.bg },
 
   toolbar: {
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    gap: 6,
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   toolbarBtn: {
-    height: 34,
-    paddingHorizontal: spacing.md,
+    flexDirection: "row",
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 10,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
+    ...shadow.card,
   },
+  offerDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
   toolbarBtnActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  toolbarText: { fontSize: 12.5, lineHeight: 15, color: colors.textMuted, fontFamily: fontFamily.semibold, includeFontPadding: false },
+  toolbarText: { fontSize: 12.5, lineHeight: 16, color: colors.text, fontFamily: fontFamily.medium, includeFontPadding: false },
   toolbarTextActive: { color: colors.primaryDark },
 
   sortWrap: { position: "relative" },

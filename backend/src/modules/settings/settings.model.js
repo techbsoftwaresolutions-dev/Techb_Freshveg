@@ -36,7 +36,7 @@ const settingsSchema = new mongoose.Schema(
     payment: {
       codEnabled: { type: Boolean, default: true },
       onlineEnabled: { type: Boolean, default: false },
-      provider: { type: String, enum: ["none", "razorpay", "stripe"], default: "none" },
+      provider: { type: String, enum: ["none", "razorpay"], default: "none" },
       // Keys are read from the environment, never stored here — a settings
       // document ends up in backups, logs and admin screens.
       testMode: { type: Boolean, default: true },
@@ -99,6 +99,16 @@ const settingsSchema = new mongoose.Schema(
       reviewsEnabled: { type: Boolean, default: true },
       reviewsNeedApproval: { type: Boolean, default: true },
       wishlistEnabled: { type: Boolean, default: true },
+      // The customer app's home hero, chosen in Admin → Settings → Apps and
+      // independent of the website's homeTemplate. "classic" is the banner
+      // strip; "video" plays the website's Video Hero playlist
+      // (website.videoHero), so the videos are uploaded once.
+      homeHero: { type: String, enum: ["classic", "video"], default: "classic" },
+      // The words over the app's hero, on either style. Empty text: Video
+      // Hero falls back to the website's hero text, Classic shows the banner
+      // alone.
+      heroText: { type: String, maxlength: 300, trim: true, default: "" },
+      heroCtaLabel: { type: String, maxlength: 30, trim: true, default: "Shop Now" },
     },
 
     website: {

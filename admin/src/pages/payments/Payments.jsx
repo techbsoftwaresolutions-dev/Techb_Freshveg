@@ -94,6 +94,7 @@ function Transactions() {
           <option value="">All methods</option>
           <option value="cod">Cash on delivery</option>
           <option value="upi">UPI</option>
+          <option value="online">Online (Razorpay)</option>
           <option value="card">Card</option>
           <option value="netbanking">Net banking</option>
         </select>

@@ -102,6 +102,16 @@ async function placeOrder({ cartId, userId, addressId, deliveryAreaId, paymentMe
       { shortfall: summary.summary.shortfallToMinimum }
     );
   }
+  // Checked before any stock is reserved: an unknown method would otherwise
+  // only fail at save, and an online order with no working gateway could
+  // never be paid.
+  if (!Order.schema.path("payment.method").enumValues.includes(paymentMethod)) {
+    throw ApiError.badRequest("Choose a payment method");
+  }
+  if (paymentService.isOnline(paymentMethod)) {
+    const reason = await paymentService.onlineUnavailableReason(summary.summary.total);
+    if (reason) throw ApiError.badRequest(reason);
+  }
   if (paymentMethod === "cod") {
     if (!store.settings.codEnabled) throw ApiError.badRequest("Cash on delivery is not available at this store");
     if (summary.summary.total > store.settings.maxCodValue) {
@@ -309,6 +319,10 @@ async function transition(order, to, actor = {}, note = "") {
 
     case "CANCELLED":
     case "REJECTED":
+      // An online order abandoned before payment: give the customer their
+      // cart back (unless they have started a new one), so giving up on the
+      // payment sheet does not mean shopping again from scratch.
+      if (order.status === "PAYMENT_PENDING") await restoreCart(order);
       await releaseStock(order, actor, to === "CANCELLED" ? "Order cancelled" : "Order rejected");
       order.cancellation = { reason: note, by: actor.id, byRole: role, at: new Date() };
       // Points and wallet spent on this order go back before the refund, so a
@@ -343,6 +357,44 @@ async function transition(order, to, actor = {}, note = "") {
   whatsappService.enqueueForStatus(order, to);
 
   return order;
+}
+
+/**
+ * Moves an order on once its online payment is captured. The customer's
+ * confirm, the gateway webhook and the reconciliation sweep can all learn of
+ * the same payment, but only the one that flipped the payment row to captured
+ * (payment.service markCaptured) calls this — so it runs once per payment.
+ */
+async function applyCapturedPayment(payment, note) {
+  const order = await Order.findById(payment.order);
+  if (!order) return null;
+
+  if (order.status === "PAYMENT_PENDING") {
+    order.payment.provider = payment.provider;
+    order.payment.transactionId = payment.providerPaymentId;
+    await transition(order, "PAYMENT_CONFIRMED", { role: "system" }, note);
+    await transition(order, "ORDER_CONFIRMED", { role: "system" });
+    return order;
+  }
+
+  // Money arrived for an order that can no longer take it — cancelled (or
+  // expired) while the customer was paying, or already paid by another
+  // attempt. Send it back rather than keep it.
+  await paymentService.refundUnapplied(
+    payment,
+    order.payment.status === "paid" ? "Duplicate payment for this order" : `Paid after the order was ${order.status.toLowerCase()}`
+  );
+  return order;
+}
+
+async function restoreCart(order) {
+  const cart = await Cart.findOne({ convertedOrder: order._id, status: "converted" });
+  if (!cart) return;
+  const fresh = await Cart.exists({ customer: cart.customer, store: cart.store, status: "active" });
+  if (fresh) return;
+  cart.status = "active";
+  cart.convertedOrder = undefined;
+  await cart.save();
 }
 
 // Every status change the customer should hear about goes out through the
@@ -490,6 +542,7 @@ function trackingView(order) {
 module.exports = {
   placeOrder,
   transition,
+  applyCapturedPayment,
   assignDeliveryPartner,
   completeDelivery,
   trackingView,

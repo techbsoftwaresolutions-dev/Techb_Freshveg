@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"navigate\",\"input\":{\"url\":\"http://localhost:3100/\"}},{\"name\":\"computer\",\"input\":{\"action\":\"wait\",\"duration\":3}},{\"name\":\"computer\",\"input\":{\"action\":\"screenshot\",\"scale\":0.6}},{\"na...",
+  "error": "[navigate] {\n  \"serverId\": \"preview-local_e3b377b9-8573-421f-ab50-cec87ff578f4\",\n  \"tabId\": \"seed\",\n  \"reused\": false,\n  \"type\": \"browser\",\n  \"navOk\": true\n}\nBrowser pane opened. Use serverId \"preview-local_e3b377b9-8573-421f-ab50-cec87ff578f4\" with read_page / computer / navigate.\n[computer:wait] waited 3s\n\n\nTab Context:\n- Executed on tabId: seed\n- Available tabs:\n  • tabId seed: \"Fresh Vegetables Online in Bangalore | Free Delivery, Direct from Farmers\" (\"http://localhost:3100/\")\n[computer:scr...",
+  "timestamp": "2026-10-13T10:23:53.971Z",
+  "retry_count": 1
+}

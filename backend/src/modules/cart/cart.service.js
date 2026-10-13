@@ -3,6 +3,7 @@ const Variant = require("../catalog/variant.model");
 const Product = require("../catalog/product.model");
 const Store = require("../stores/store.model");
 const User = require("../auth/user.model");
+const Settings = require("../settings/settings.model");
 const Order = require("../orders/order.model");
 const ApiError = require("../../core/ApiError");
 const inventoryService = require("../inventory/inventory.service");
@@ -175,11 +176,12 @@ async function hydrate(cart, { includeSaved = false } = {}) {
 async function summarise(cart, { couponCode, paymentMethod } = {}) {
   // One hydrate covers both the live lines and the saved-for-later ones, and
   // everything that doesn't depend on another lookup runs in parallel.
-  const [store, all, customer, orderCount] = await Promise.all([
+  const [store, all, customer, orderCount, settings] = await Promise.all([
     cart.$locals.store || Store.findById(cart.store),
     hydrate(cart, { includeSaved: true }),
     cart.customer ? User.findById(cart.customer) : null,
     cart.customer ? Order.countDocuments({ customer: cart.customer }) : 0,
+    Settings.load(),
   ]);
   const lines = all.filter((l) => !l.savedForLater && l.quantity > 0);
   const saved = all.filter((l) => l.savedForLater);
@@ -199,8 +201,10 @@ async function summarise(cart, { couponCode, paymentMethod } = {}) {
       : null,
     couponCode: couponCode ?? cart.couponCode ?? null,
     paymentMethod,
-    walletRequested: cart.walletRequested || 0,
-    loyaltyPointsRequested: cart.loyaltyPointsRequested || 0,
+    // Admin → Settings → Payments can switch wallet / points off at checkout;
+    // a cart that asked for them earlier simply stops getting them.
+    walletRequested: settings.payment.allowWallet ? cart.walletRequested || 0 : 0,
+    loyaltyPointsRequested: settings.payment.allowLoyalty ? cart.loyaltyPointsRequested || 0 : 0,
   });
 
   // Re-attach display fields the pricing service does not care about.
@@ -214,6 +218,8 @@ async function summarise(cart, { couponCode, paymentMethod } = {}) {
     savedForLater: saved,
     unavailable: decorated.filter((l) => !l.savedForLater && !l.inStock),
     ...priced,
+    // So checkout can hide a credit the admin has switched off.
+    credits: { wallet: settings.payment.allowWallet, loyalty: settings.payment.allowLoyalty },
     couponCode: cart.couponCode || null,
     deliverySlot: cart.deliverySlot,
   };

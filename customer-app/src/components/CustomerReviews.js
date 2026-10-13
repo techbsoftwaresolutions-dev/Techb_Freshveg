@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "./Text";
 import { api } from "../api/client";
 import { colors, fontFamily, radius, spacing, type } from "../theme";
 import { Card, Loading } from "./ui";
@@ -20,18 +22,7 @@ function Stars({ value, size = 13 }) {
   return (
     <View style={{ flexDirection: "row" }}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Text
-          key={n}
-          style={{
-            fontSize: size,
-            lineHeight: size + 2,
-            fontFamily: fontFamily.regular,
-            color: n <= rounded ? "#F5A623" : colors.border,
-            marginRight: 1,
-          }}
-        >
-          ★
-        </Text>
+        <Ionicons key={n} name={n <= rounded ? "star" : "star-outline"} size={size} color={n <= rounded ? "#F5A623" : colors.borderStrong} style={{ marginRight: 1 }} />
       ))}
     </View>
   );

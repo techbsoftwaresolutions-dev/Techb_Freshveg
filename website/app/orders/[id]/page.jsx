@@ -3,12 +3,20 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useAuth } from "@/components/Providers";
+import { useAuth, useCart } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees, when } from "@/lib/format";
+import { payOnline } from "@/lib/razorpay";
 import EmptyState from "@/components/EmptyState";
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+
+// What the checkout (or a "Pay now" here) came back with, as a banner.
+const PAYMENT_NOTICES = {
+  dismissed: { tone: "warn", text: "Payment not completed. Your order is held for 30 minutes — pay now, or cancel it." },
+  failed: { tone: "error", text: "The payment didn't go through. No money was taken for this order — try again." },
+  pending: { tone: "warn", text: "Payment received — we're confirming it with your bank. This page updates on its own." },
+};
 
 // Phone: a compact back-arrow header stands in for the site header (its search
 // bar, category bar and the footer step aside while this is on the page — see
@@ -47,12 +55,15 @@ function OrderDetail() {
   const params = useSearchParams();
   const justPlaced = params.get("placed") === "1";
   const { ready, signedIn } = useAuth();
+  const cart = useCart();
 
   const [tracking, setTracking] = useState(null);
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [paying, setPaying] = useState("");
+  const [paymentNotice, setPaymentNotice] = useState(PAYMENT_NOTICES[params.get("payment")] || null);
   const poller = useRef(null);
 
   useEffect(() => {
@@ -61,12 +72,9 @@ function OrderDetail() {
 
   const load = useCallback(async () => {
     try {
-      const [track, mine] = await Promise.all([
-        api.get(`/orders/${id}/track`),
-        api.get("/orders/mine", { limit: 30 }),
-      ]);
+      const track = await api.get(`/orders/${id}/track`);
       setTracking(track.tracking);
-      setOrder(mine.items.find((o) => o.id === id) || null);
+      setOrder(track.order);
       setError("");
       return track.tracking;
     } catch (err) {
@@ -84,12 +92,42 @@ function OrderDetail() {
   // Poll while the order is live. A websocket would be better; polling a small
   // endpoint every 20s is honest about what exists today and stops the moment
   // the order closes.
+  // While an online payment is being confirmed, check every few seconds so
+  // the customer sees "confirmed" as soon as the API does.
+  const awaitingPayment = tracking?.status === "PAYMENT_PENDING" && order?.payment.method === "online";
   useEffect(() => {
     clearInterval(poller.current);
     if (!tracking || CLOSED.includes(tracking.status)) return undefined;
-    poller.current = setInterval(load, 20000);
+    poller.current = setInterval(load, awaitingPayment ? 5000 : 20000);
     return () => clearInterval(poller.current);
-  }, [tracking, load]);
+  }, [tracking, load, awaitingPayment]);
+
+  // Once the API has the payment, the "confirming" banner has done its job.
+  useEffect(() => {
+    if (tracking && tracking.status !== "PAYMENT_PENDING") setPaymentNotice(null);
+  }, [tracking]);
+
+  async function payNow() {
+    setPaying("Opening payment…");
+    setError("");
+    try {
+      const result = await payOnline(id, {
+        // Retry the way the customer chose at checkout.
+        upiOnly: params.get("via") === "upi",
+        onVerifying: () => setPaying("Verifying payment…"),
+      });
+      setPaymentNotice(
+        result.status === "failed" && result.message
+          ? { tone: "error", text: result.message }
+          : PAYMENT_NOTICES[result.status] || null
+      );
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPaying("");
+    }
+  }
 
   // The review prompt (components/ReviewPrompt) listens for this.
   useEffect(() => {
@@ -101,7 +139,8 @@ function OrderDetail() {
     setCancelling(true);
     try {
       await api.post(`/orders/${id}/cancel`, { reason: "Cancelled from the website" });
-      await load();
+      // Cancelling an unpaid online order gives the cart back (API side).
+      await Promise.all([load(), cart.refresh()]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -142,6 +181,13 @@ function OrderDetail() {
           <span>The store is preparing it now — you can follow every step below.</span>
         </div>
       ) : null}
+
+      {awaitingPayment && paymentNotice ? (
+        <p className={`notice ${paymentNotice.tone}`} role="status">
+          {paymentNotice.text}
+        </p>
+      ) : null}
+      {error && tracking ? <p className="notice error">{error}</p> : null}
 
       <nav className="crumbs">
         <Link href="/">Home</Link> › <Link href="/orders">My orders</Link> › <span>{tracking.code}</span>
@@ -286,10 +332,34 @@ function OrderDetail() {
               </div>
 
               <p className="payment-line">
-                Payment: <strong>{order.payment.method === "cod" ? "Cash on delivery" : order.payment.method.toUpperCase()}</strong>
+                Payment:{" "}
+                <strong>
+                  {order.payment.method === "cod"
+                    ? "Cash on delivery"
+                    : order.payment.method === "online"
+                      ? "Online (Razorpay)"
+                      : order.payment.method.toUpperCase()}
+                </strong>
                 {" · "}
                 {order.payment.status.replace(/_/g, " ").toLowerCase()}
               </p>
+
+              {awaitingPayment ? (
+                <button
+                  className="btn primary block lg"
+                  style={{ marginTop: 14 }}
+                  onClick={payNow}
+                  disabled={Boolean(paying) || cancelling}
+                >
+                  {paying || `Pay ${rupees(order.pricing.total)} now`}
+                </button>
+              ) : null}
+
+              {tracking.status === "DELIVERED" ? <ReturnPanel orderId={id} onDone={load} /> : null}
+
+              <Link href={`/help?order=${id}&code=${encodeURIComponent(tracking.code)}`} className="btn block" style={{ marginTop: 14 }}>
+                Get help with this order
+              </Link>
 
               {canCancel ? (
                 <button
@@ -305,6 +375,111 @@ function OrderDetail() {
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+// Raise a return on a delivered order. Which lines qualify, and for how long,
+// is the API's answer (each item's category sets its window) — the same
+// endpoints the app uses.
+function ReturnPanel({ orderId, onDone }) {
+  const [open, setOpen] = useState(false);
+  const [check, setCheck] = useState(null);
+  const [picked, setPicked] = useState([]);
+  const [reason, setReason] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  async function start() {
+    setOpen(true);
+    setError("");
+    try {
+      setCheck(await api.get(`/returns/orders/${orderId}/returnable`));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function submit() {
+    setSending(true);
+    setError("");
+    try {
+      await api.post(`/returns/orders/${orderId}/request`, {
+        items: picked.map((orderItem) => ({ orderItem })),
+        reason: reason.trim(),
+      });
+      setOpen(false);
+      await onDone();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button className="btn block" style={{ marginTop: 14 }} onClick={start}>
+        Return items
+      </button>
+    );
+  }
+
+  return (
+    <div className="return-panel" style={{ marginTop: 14 }}>
+      <h3>Return items</h3>
+      {error ? <p className="notice error">{error}</p> : null}
+      {!check ? (
+        error ? null : <p className="muted-line">Checking what can be returned…</p>
+      ) : !check.eligible ? (
+        <p className="notice warn">{check.reason}</p>
+      ) : (
+        <>
+          <div className="choice-list">
+            {check.items.map((item) => (
+              <label
+                key={item.orderItem}
+                className={`choice choice-main${picked.includes(item.orderItem) ? " on" : ""}${item.eligible ? "" : " off"}`}
+              >
+                <input
+                  type="checkbox"
+                  disabled={!item.eligible}
+                  checked={picked.includes(item.orderItem)}
+                  onChange={(e) =>
+                    setPicked((p) => (e.target.checked ? [...p, item.orderItem] : p.filter((x) => x !== item.orderItem)))
+                  }
+                />
+                <span className="choice-radio choice-check" aria-hidden="true" />
+                <span className="choice-copy">
+                  <strong>
+                    {item.name}
+                    {item.variantName ? ` · ${item.variantName}` : ""}
+                  </strong>
+                  <span>
+                    {item.eligible
+                      ? `${rupees(item.amount)} · ${item.daysLeft} day${item.daysLeft === 1 ? "" : "s"} left to return`
+                      : item.reason}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="What went wrong? e.g. damaged, wrong item"
+            style={{ marginTop: 10 }}
+          />
+          <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+            <button className="btn primary" onClick={submit} disabled={!picked.length || sending}>
+              {sending ? "Sending…" : "Request return"}
+            </button>
+            <button className="btn" onClick={() => setOpen(false)} disabled={sending}>
+              Cancel
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

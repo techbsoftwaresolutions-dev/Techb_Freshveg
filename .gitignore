@@ -75,3 +75,8 @@ backend/farmers-admin-login.txt
 .env.*
 *.env
 !.env.example
+
+# expo prebuild output for the customer app (react-native-razorpay needs a
+# native build) - regenerated from app.config.js, never edited by hand.
+customer-app/android/
+customer-app/ios/

@@ -49,8 +49,6 @@ const config = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
   },
 
-  redisUrl: process.env.REDIS_URL || "",
-
   currency: process.env.DEFAULT_CURRENCY || "INR",
   country: process.env.DEFAULT_COUNTRY || "IN",
 };

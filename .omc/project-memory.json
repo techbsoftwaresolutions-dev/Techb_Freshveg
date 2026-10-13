@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1791786097554,
+  "lastScanned": 1791874020861,
   "projectRoot": "D:\\TechB\\fresh market\\Techb_Freshveg",
   "techStack": {
     "languages": [],
@@ -33,7 +33,7 @@
       "path": "admin",
       "purpose": null,
       "fileCount": 6,
-      "lastAccessed": 1791786097432,
+      "lastAccessed": 1791874020698,
       "keyFiles": [
         "index.html",
         "package-lock.json",
@@ -45,7 +45,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1791786097433,
+      "lastAccessed": 1791874020698,
       "keyFiles": [
         "package-lock.json",
         "package.json"
@@ -55,7 +55,7 @@
       "path": "customer-app",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1791786097434,
+      "lastAccessed": 1791874020699,
       "keyFiles": [
         "app.config.js",
         "App.js",
@@ -68,7 +68,7 @@
       "path": "delivery-app",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1791786097435,
+      "lastAccessed": 1791874020699,
       "keyFiles": [
         "app.config.js",
         "App.js",
@@ -81,7 +81,7 @@
       "path": "deploy",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1791786097435,
+      "lastAccessed": 1791874020700,
       "keyFiles": [
         "farmersbasket-app.env",
         "package-one-app.js"
@@ -91,7 +91,7 @@
       "path": "website",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1791786097437,
+      "lastAccessed": 1791874020701,
       "keyFiles": [
         "jsconfig.json",
         "next.config.mjs",
@@ -104,7 +104,7 @@
       "path": "admin\\dist",
       "purpose": "Distribution/build output",
       "fileCount": 1,
-      "lastAccessed": 1791786097438,
+      "lastAccessed": 1791874020703,
       "keyFiles": [
         "index.html"
       ]
@@ -113,14 +113,14 @@
       "path": "admin\\node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1791786097439,
+      "lastAccessed": 1791874020710,
       "keyFiles": []
     },
     "admin\\public": {
       "path": "admin\\public",
       "purpose": "Public files",
       "fileCount": 3,
-      "lastAccessed": 1791786097440,
+      "lastAccessed": 1791874020711,
       "keyFiles": [
         "apple-touch-icon.png",
         "favicon.png"
@@ -130,35 +130,55 @@
       "path": "admin\\src",
       "purpose": "Source code",
       "fileCount": 2,
-      "lastAccessed": 1791786097440,
+      "lastAccessed": 1791874020711,
       "keyFiles": [
         "App.jsx",
         "main.jsx"
+      ]
+    },
+    "backend\\docs": {
+      "path": "backend\\docs",
+      "purpose": "Documentation",
+      "fileCount": 1,
+      "lastAccessed": 1791874020714,
+      "keyFiles": [
+        "WHATSAPP.md"
       ]
     },
     "backend\\node_modules": {
       "path": "backend\\node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1791786097444,
+      "lastAccessed": 1791874020723,
       "keyFiles": []
     },
     "backend\\src": {
       "path": "backend\\src",
       "purpose": "Source code",
       "fileCount": 3,
-      "lastAccessed": 1791786097445,
+      "lastAccessed": 1791874020725,
       "keyFiles": [
         "app.js",
         "build-info.js",
         "server.js"
       ]
     },
+    "backend\\test": {
+      "path": "backend\\test",
+      "purpose": "Test files",
+      "fileCount": 3,
+      "lastAccessed": 1791874020725,
+      "keyFiles": [
+        "deliveryAreas.test.js",
+        "helpers.js",
+        "whatsapp.test.js"
+      ]
+    },
     "customer-app\\assets": {
       "path": "customer-app\\assets",
       "purpose": "Static assets",
       "fileCount": 3,
-      "lastAccessed": 1791786097446,
+      "lastAccessed": 1791874020727,
       "keyFiles": [
         "adaptive-icon.png",
         "icon.png",
@@ -169,14 +189,14 @@
       "path": "customer-app\\node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1791786097451,
+      "lastAccessed": 1791874020732,
       "keyFiles": []
     },
     "delivery-app\\assets": {
       "path": "delivery-app\\assets",
       "purpose": "Static assets",
       "fileCount": 3,
-      "lastAccessed": 1791786097452,
+      "lastAccessed": 1791874020741,
       "keyFiles": [
         "adaptive-icon.png",
         "icon.png",
@@ -187,25 +207,25 @@
       "path": "delivery-app\\node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1791786097461,
+      "lastAccessed": 1791874020749,
       "keyFiles": []
     },
     "website\\app": {
       "path": "website\\app",
       "purpose": "Application code",
-      "fileCount": 10,
-      "lastAccessed": 1791786097462,
+      "fileCount": 8,
+      "lastAccessed": 1791874020751,
       "keyFiles": [
-        "apple-icon.png",
         "globals.css",
-        "icon.png"
+        "layout.jsx",
+        "loading.jsx"
       ]
     },
     "website\\assets": {
       "path": "website\\assets",
       "purpose": "Static assets",
       "fileCount": 10,
-      "lastAccessed": 1791786097463,
+      "lastAccessed": 1791874020752,
       "keyFiles": [
         "Farmers Basket Fresh Produce Logo.webp",
         "Fresh Fruit Basket in Sunlit Greenery.webp",
@@ -215,8 +235,8 @@
     "website\\components": {
       "path": "website\\components",
       "purpose": "UI components",
-      "fileCount": 38,
-      "lastAccessed": 1791786097464,
+      "fileCount": 39,
+      "lastAccessed": 1791874020753,
       "keyFiles": [
         "AccountIcons.jsx",
         "AccountMobile.jsx",
@@ -227,7 +247,7 @@
       "path": "website\\lib",
       "purpose": "Library code",
       "fileCount": 6,
-      "lastAccessed": 1791786097465,
+      "lastAccessed": 1791874020754,
       "keyFiles": [
         "api.js",
         "client-api.js",
@@ -236,6 +256,12 @@
     }
   },
   "hotPaths": [
+    {
+      "path": "website/app/checkout/page.jsx",
+      "accessCount": 7,
+      "lastAccessed": 1791876087431,
+      "type": "file"
+    },
     {
       "path": "website/app/globals.css",
       "accessCount": 6,
@@ -261,6 +287,12 @@
       "type": "file"
     },
     {
+      "path": "website",
+      "accessCount": 4,
+      "lastAccessed": 1791892520768,
+      "type": "directory"
+    },
+    {
       "path": "backend/src/config/db.js",
       "accessCount": 3,
       "lastAccessed": 1791077683499,
@@ -273,9 +305,9 @@
       "type": "directory"
     },
     {
-      "path": "website",
+      "path": "",
       "accessCount": 3,
-      "lastAccessed": 1791359397096,
+      "lastAccessed": 1791892491852,
       "type": "directory"
     },
     {
@@ -297,12 +329,6 @@
       "type": "file"
     },
     {
-      "path": "",
-      "accessCount": 2,
-      "lastAccessed": 1791359413454,
-      "type": "directory"
-    },
-    {
       "path": "admin/src/pages/Dashboard.jsx",
       "accessCount": 2,
       "lastAccessed": 1791363359497,
@@ -312,6 +338,12 @@
       "path": "backend/src/modules/inventory/inventory.routes.js",
       "accessCount": 2,
       "lastAccessed": 1791363379497,
+      "type": "file"
+    },
+    {
+      "path": "website/lib/razorpay.js",
+      "accessCount": 2,
+      "lastAccessed": 1791876057878,
       "type": "file"
     },
     {
@@ -510,6 +542,18 @@
       "path": ".playwright-mcp/um-form-errors.jpg",
       "accessCount": 1,
       "lastAccessed": 1791801082275,
+      "type": "file"
+    },
+    {
+      "path": "website/app/orders/[id]/page.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791876088787,
+      "type": "file"
+    },
+    {
+      "path": "customer-app/src/screens/AccountScreen.js",
+      "accessCount": 1,
+      "lastAccessed": 1791881794812,
       "type": "file"
     }
   ],

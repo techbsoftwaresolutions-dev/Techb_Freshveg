@@ -1,5 +1,5 @@
-// require("dotenv").config();
-import "dotenv/config";
+// Expo's CLI loads .env (and .env.local) into process.env before reading
+// this file, in development and in EAS builds alike — no dotenv needed.
 
 export default {
   expo: {

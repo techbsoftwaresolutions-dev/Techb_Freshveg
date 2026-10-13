@@ -105,4 +105,4 @@ async function paginate(Model, filter, reqQuery, options = {}) {
 // characters like ( or *.
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-module.exports = { paging, sorting, paginate, leanToApi, escapeRegex, MAX_LIMIT };
+module.exports = { paging, paginate, leanToApi, escapeRegex };

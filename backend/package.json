@@ -14,8 +14,6 @@
     "sync-indexes": "node src/seed/syncIndexes.js",
     "smoke": "node src/seed/smoke.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "migrate:images": "node src/seed/migrateImagesToCloudinary.js",
-    "migrate:whole-units": "node src/seed/migrateWholeUnits.js",
     "demo": "node src/seed/demoServer.js",
     "jobs:run": "node -e \"require(\"./src/jobs/scheduler\").trigger(process.argv[1]).then(r=>console.log(r))\""
   },
@@ -30,8 +28,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.6.0",
     "morgan": "^1.10.0",
-    "qrcode": "^1.5.4",
-    "zod": "^3.23.8"
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "mongodb-memory-server": "^11.2.0",

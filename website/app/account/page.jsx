@@ -206,6 +206,18 @@ export default function AccountPage() {
               <span>Update your name and email</span>
             </span>
           </Link>
+          <Link href="/account/refer" className="list-row">
+            <span className="list-row-main">
+              <strong>Refer &amp; earn</strong>
+              <span>Your code, rewards, and use a friend&apos;s code</span>
+            </span>
+          </Link>
+          <Link href="/help" className="list-row">
+            <span className="list-row-main">
+              <strong>Help &amp; support</strong>
+              <span>Raise a request or follow up on one</span>
+            </span>
+          </Link>
           <Link href="/terms" className="list-row">
             <span className="list-row-main">
               <strong>Terms &amp; Conditions</strong>

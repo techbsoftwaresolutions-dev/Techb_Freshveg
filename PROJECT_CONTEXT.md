@@ -35,9 +35,8 @@ delivery-app/  Expo / React Native rider app
 | Category | Technology | Purpose |
 | --- | --- | --- |
 | Backend runtime | Node.js ≥ 20 (CommonJS), Express 4 | REST API (`backend/src`) |
-| Backend libs | `mongoose` 8, `zod` (middleware exists; most routes validate by hand), `jsonwebtoken`, `bcryptjs`, `helmet`, `cors`, `compression`, `morgan`, `express-rate-limit`, `dotenv` | Core API plumbing |
+| Backend libs | `mongoose` 8, `jsonwebtoken`, `bcryptjs`, `helmet`, `cors`, `compression`, `morgan`, `express-rate-limit`, `dotenv` (routes validate by hand + Mongoose schemas) | Core API plumbing |
 | Database | MongoDB (Mongoose ODM). Dev/demo: `mongodb-memory-server` | Persistence |
-| Cache | In-process `Map`; Redis if `REDIS_URL` set (lazy `require("redis")` — package is **not** in `package.json`) | `backend/src/core/cache.js` |
 | Authentication | JWT access + refresh tokens; phone OTP (customers, riders); phone+password (staff) | `backend/src/modules/auth` |
 | Authorization | Role → permission map in code, per-user grant/revoke, `requirePermission` middleware | `auth/roles.js`, `middleware/auth.js` |
 | Admin frontend | React 19, React Router 7, Vite 6, Recharts | `admin/` (port 5180) |
@@ -47,7 +46,7 @@ delivery-app/  Expo / React Native rider app
 | Styling | Admin: hand-written CSS with design tokens + dark mode (`admin/src/styles/index.css`). Website: one 2.9k-line `app/globals.css`. Apps: `StyleSheet` + `theme/index.js`. No Tailwind / UI kit anywhere. | |
 | Maps | **None.** (Distance maths is a hand-rolled haversine in `delivery.service.js`; no map SDK in any app.) | |
 | Storage | **Cloudinary only** (signed raw REST, no SDK). No local-disk storage; uploads return 503 if Cloudinary keys are missing | `backend/src/modules/storage` |
-| Payments | Razorpay (REST, hand-written) + a `manual` provider; `stripe` appears only in a settings enum | `payments/gateways.js` |
+| Payments | Razorpay (REST, hand-written) + a `manual` provider (COD / UPI-to-store) | `payments/gateways.js` |
 | Notifications | Template engine + channel stubs (push/SMS/email/WhatsApp **not implemented**); in-app works | `notifications/` |
 | Jobs | In-process `setInterval` scheduler | `backend/src/jobs` |
 | Deployment | **No Docker, CI, Procfile, vercel/netlify/eas config in the repo.** | §23 |
@@ -70,7 +69,7 @@ Techb_Freshveg/
 │       ├── config/                # index.js (env + dev fallbacks), db.js (mongoose connect)
 │       ├── core/                  # ApiError, asyncHandler, cache, money (paise helpers), query (paginate),
 │       │                          #   schemaBase (shared schema opts + money()/percent()/objectId()), sequence (atomic counters), slugify
-│       ├── middleware/            # auth.js, errorHandler.js, validate.js (zod)
+│       ├── middleware/            # auth.js, errorHandler.js
 │       ├── routes/index.js        # mounts every module under /api/v1
 │       ├── jobs/                  # scheduler.js + rules.js (abandoned carts, win-back, etc.)
 │       ├── seed/                  # run.js, data.js, notificationTemplates.js, demoServer.js, memoryServer.js, smoke.js, syncIndexes.js
@@ -126,7 +125,6 @@ flowchart LR
     API[Express API :5055<br/>/api/v1] --> DB[(MongoDB)]
     API --> CLD[Cloudinary]
     API -. optional .-> RZP[Razorpay]
-    API -. optional .-> REDIS[(Redis)]
     JOBS[in-process scheduler] --> API
 ```
 
@@ -460,7 +458,6 @@ MaintenanceAsset · MaintenanceRequest       Settings (single doc key:"global") 
 | `MONGODB_URI` | Mongo connection (needs DB name for Atlas) | **Prod yes** | backend |
 | `JWT_SECRET`, `JWT_REFRESH_SECRET` | Token signing | **Prod yes** | backend |
 | `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN` | Token lifetimes (7d / 30d) | No | backend |
-| `REDIS_URL` | Enable Redis cache (needs `redis` package installed) | No | `core/cache.js` |
 | `DEFAULT_CURRENCY`, `DEFAULT_COUNTRY` | INR / IN | No | `config` |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (+ optional `CLOUDINARY_FOLDER`) | Image storage — all three required for uploads | **Yes (uploads)** | `storage/providers.js` |
 | `MAX_UPLOAD_BYTES` | Upload size cap (5 MB) | No | storage |
@@ -482,7 +479,6 @@ Only `*.env.example` files and `website/.env.local` (**tracked in git**, contain
 | MongoDB | `config/db.js` | 8 s server selection timeout; process exits if unreachable at boot. |
 | Razorpay | `payments/gateways.js` (REST, no SDK) | Unconfigured provider silently **falls back to `manual`** (instant success). `verify` checks HMAC then fetches the payment from Razorpay. Branding `name: "Samagra Mart"` hard-coded in checkout payload. |
 | Cloudinary | `storage/providers.js` (signed REST) | The only image store. Missing keys ⇒ `POST /uploads` 503 naming them, warning at boot, `GET /uploads/config` reports `configured`/`missing`. Legacy disk images: `npm run migrate:images [-- --dry-run]`. |
-| Redis | `core/cache.js` | Optional, lazy; degrades to in-memory with a warning. |
 | FCM / SMS / SMTP / WhatsApp | `notifications/channels.js` | **Stubs.** Return `skipped` (no key) or `failed: not implemented`. |
 | Google Fonts | website `next/font` (self-hosted at build), customer app `@expo-google-fonts/inter` | |
 | Maps / geocoding / analytics | **none** | |
@@ -506,7 +502,7 @@ Common to all four frontends: **Context providers, hand-rolled `api` client (get
 - **Entry:** `server.js` → `connectDb()` (exit on failure) → `scheduler.start()` → `app.listen` → graceful SIGINT/SIGTERM.
 - **`app.js`:** `trust proxy`, helmet, cors, compression, `express.json(2mb)`, urlencoded, morgan (non-prod), `/api/health`, `routes`, `notFound`, `errorHandler`.
 - **Layering:** `*.routes.js` (HTTP + permission gates, mostly thin but several contain real logic: returns, delivery queue, reports, storefront) → `*.service.js` (business rules) → Mongoose models. Not every module has a service (e.g. `reviews`, `support`, `customers` do logic in routes).
-- **Validation:** mostly manual checks + Mongoose schema validation; `middleware/validate.js` (zod) exists but **no route imports it** (confirmed by grep).
+- **Validation:** manual checks + Mongoose schema validation (the unused zod middleware was removed).
 - **Errors:** throw `ApiError.<kind>()`; `errorHandler` maps Mongoose `ValidationError`→422 (field map), duplicate key→409, bad ObjectId→404, JWT errors→401. `asyncHandler` wraps handlers.
 - **Request lifecycle:**
 ```text
@@ -642,14 +638,13 @@ No UI library. Each app has its own tokens:
 | `mongoose` | All persistence; schema-level validation and virtuals |
 | `jsonwebtoken`, `bcryptjs`, `express-rate-limit` | Auth, password hash, OTP/login throttling |
 | `helmet`, `cors`, `compression`, `morgan` | HTTP hardening/logging |
-| `zod` | Validation middleware (`middleware/validate.js`) — little used |
 | `mongodb-memory-server` (dev) | `npm run demo` / `smoke` with no DB install |
 | `recharts` (admin) | Dashboard/report charts |
 | `react-router-dom` 7 (admin), `next` 15 (website) | Routing |
 | `expo` 57, `react-native` 0.86, `@react-navigation/*`, `@react-native-async-storage/async-storage`, `expo-constants`, `react-native-safe-area-context`, `react-native-screens`, `react-native-web` | Mobile apps (+ web build); `@expo-google-fonts/inter` + `expo-font` customer app only |
 | `dotenv` | Backend config; Expo `app.config.js` reads `.env` for `API_BASE_URL` |
 
-Note: `redis` is required lazily but **not declared** as a dependency; payment/storage/Razorpay/Cloudinary use raw `fetch` (Node 20) by design.
+Note: payment/storage/Razorpay/Cloudinary use raw `fetch` (Node 20) by design.
 
 ---
 
@@ -688,7 +683,6 @@ Note: `redis` is required lazily but **not declared** as a dependency; payment/s
 | `.gitignore` junk | `.gitignore` | Low | Invalid `*.` line / prose. `website/.env.local` is tracked. |
 | Brand inconsistency | website vs backend/apps | Low | "FreshMart" vs "Samagra Mart". |
 | Customer uploads blocked | `storage.routes.js:75` | Medium (**Inferred**) | Comment says customers upload review photos/proof, but `requireAnyPermission` needs staff permissions; customers have none → 403. |
-| Redis undeclared | `core/cache.js` | Low | `REDIS_URL` set without `npm i redis` falls back with a warning. |
 | Redundant ternary | `order.service.js` (`payment.status`) | Trivial | `paymentMethod === "cod" ? "pending" : "pending"`. |
 | Uncommitted change | git status | Info | `delivery-app/package-lock.json` modified at analysis time. |
 
@@ -702,13 +696,13 @@ Note: `redis` is required lazily but **not declared** as a dependency; payment/s
 | Access token lifetime | Default 7 d, perms baked into JWT, refresh tokens unrotated/irrevocable | Revoking a user/role is slow; stolen refresh token valid 30 d | Short access TTL, rotate/store refresh tokens |
 | `pricing.service` loyalty value | `* 10` hard-coded vs `Settings.loyalty.pointValuePaise` | Admin setting has no effect on checkout | Read settings once in `priceCart` caller |
 | Business logic in route files | returns, delivery queue, reports, storefront, reviews, support | Hard to reuse/test | Extract services as done for orders/payments |
-| `validate.js` (zod) unused | Manual validation inconsistently applied | Weak input validation (e.g. address body saved as-is) | Adopt per-route schemas |
+| No request-schema layer | Manual validation inconsistently applied | Weak input validation (e.g. address body saved as-is) | Adopt per-route schemas (add a validator back when it has callers) |
 | No tests/CI | Only `smoke.js` | Regressions undetected | Add automated runner (CI) |
 | Scheduler in API process | Each instance runs all jobs | Duplicate notifications at scale | Single worker / distributed lock / queue (comment already notes BullMQ path) |
 | Open CORS | `app.use(cors())` | Any origin can call the API | Restrict origins |
 | Duplicate API clients | 4 near-identical `client.js` files | Fixes must be copied 4× | Shared package or copy-discipline |
 | Customer-facing gaps | No UI for returns, support, notifications, wallet/referral/loyalty screens, wishlist (app) | Backend features unreachable by shoppers | Build screens or de-scope |
-| Unused/placeholder settings | `Settings.payment.provider:"stripe"`, `User.stores` scoping, `users.manage`, offer `free_item`, `customerTags` | Config that silently does nothing | Implement or remove |
+| Unused/placeholder settings | `User.stores` scoping, `users.manage`, offer `free_item`, `customerTags` | Config that silently does nothing | Implement or remove |
 | Emoji tab icons | customer/delivery navigators | Rendering varies by device | Real icon set when brand requires |
 
 ---

@@ -759,7 +759,6 @@ function MediaUploader({ media, name, editable, onChange }) {
                   maxLength={125}
                 />
               </label>
-              <div className="media-url" title={item.url}>{item.url}</div>
             </div>
           ))}
         </div>

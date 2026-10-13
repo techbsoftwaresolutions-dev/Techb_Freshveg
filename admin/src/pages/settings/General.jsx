@@ -26,17 +26,29 @@ const HOME_TEMPLATES = [
   {
     key: "classic",
     name: "Classic",
-    description: "Hero banner, vegetable shelves, “From Our Farms” story, best sellers and the “Why Farmers Basket?” cards.",
   },
   {
     key: "fresh",
     name: "Farm Fresh",
-    description: "“Farm Fresh Goodness” hero, colourful category tiles, featured products, organic collection banner and fruit & vegetable rows.",
   },
   {
     key: "video",
     name: "Video Hero",
-    description: "The Classic page with a full-card background video as its hero — your words and a Shop Now button on the left.",
+  },
+];
+
+// The customer app's home hero (settings.app.homeHero) — independent of the
+// website's design above, though Video Hero plays the website's playlist.
+const APP_HEROES = [
+  {
+    key: "classic",
+    name: "Classic Banner",
+    description: "Your Marketing → Banners images, swiped across the top of the home screen.",
+  },
+  {
+    key: "video",
+    name: "Video Hero",
+    description: "The Video Hero playlist loops behind your hero text and button, as on the website.",
   },
 ];
 
@@ -191,7 +203,6 @@ export default function General() {
                 <select value={draft.provider || "none"} onChange={set("provider")}>
                   <option value="none">None — cash and wallet only</option>
                   <option value="razorpay">Razorpay</option>
-                  <option value="stripe">Stripe</option>
                 </select>
               </Field>
               <Field label="Refunds">
@@ -359,6 +370,67 @@ export default function General() {
 
         {section === "app" ? (
           <>
+            <div className="section-label">Customer App Header Style</div>
+            <p className="muted" style={{ margin: "0 0 4px", fontSize: 13 }}>
+              Choose how the hero section appears on the Fresh Market customer app.
+            </p>
+            <div className="template-picker" role="radiogroup" aria-label="Customer app header style">
+              {APP_HEROES.map((hero) => {
+                const selected = (draft.homeHero || "classic") === hero.key;
+                // Video Hero plays the website's playlist, so it needs one first.
+                const blocked = hero.key === "video" && !videoConfigured;
+                return (
+                  <button
+                    key={hero.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={blocked}
+                    className={`template-option${selected ? " selected" : ""}`}
+                    style={blocked ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+                    onClick={() => setDraft((d) => ({ ...d, homeHero: hero.key }))}
+                  >
+                    <TemplateThumb kind={hero.key} />
+                    <span className="template-option-name">
+                      {hero.name}
+                      {selected ? <span className="template-option-tick">Selected</span> : null}
+                    </span>
+                    <span className="template-option-desc">
+                      {blocked ? "Add videos first: Website tab → Configure video hero." : hero.description}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {(draft.homeHero || "classic") !== (settings?.app?.homeHero || "classic") ? (
+              <p className="muted" style={{ margin: "10px 0 0", fontSize: 13 }}>
+                Not saved yet — the app keeps showing the{" "}
+                {APP_HEROES.find((hero) => hero.key === (settings?.app?.homeHero || "classic"))?.name} until you save.
+              </p>
+            ) : null}
+
+            <div className="grid cols-2" style={{ marginTop: 14 }}>
+              <Field
+                label="Hero text"
+                help={`Shown over the hero in the app. Leave empty to ${
+                  (draft.homeHero || "classic") === "video" ? "use the website's Video Hero text" : "show the banner alone"
+                }. ${(draft.heroText || "").length}/300`}
+              >
+                <textarea
+                  value={draft.heroText || ""}
+                  onChange={set("heroText")}
+                  maxLength={300}
+                  rows={3}
+                  placeholder={(draft.homeHero || "classic") === "video" ? savedVideoHero?.text || "" : "e.g. Fresh from 800+ farms, every morning"}
+                />
+              </Field>
+              <Field label="Button label" help="Opens all categories (a banner with its own link goes there). Empty hides the button.">
+                <input type="text" value={draft.heroCtaLabel ?? "Shop Now"} onChange={set("heroCtaLabel")} maxLength={30} />
+              </Field>
+            </div>
+
+            <div className="divider" />
+
             <div className="inline" style={{ gap: 20, flexWrap: "wrap", marginBottom: 14 }}>
               <label className="checkbox">
                 <input type="checkbox" checked={Boolean(draft.reviewsEnabled)} onChange={set("reviewsEnabled")} />
@@ -399,10 +471,6 @@ export default function General() {
         {section === "website" ? (
           <>
             <div className="section-label">Homepage design</div>
-            <p className="muted" style={{ marginTop: 0 }}>
-              Every customer sees the design chosen here. The website switches within a minute of saving —
-              no redeploy needed.
-            </p>
             <div className="template-picker" role="radiogroup" aria-label="Homepage design">
               {HOME_TEMPLATES.map((template) => {
                 const selected = (draft.homeTemplate || "classic") === template.key;
@@ -455,21 +523,15 @@ export default function General() {
 
         {section === "branding" ? (
           <>
-            <p className="muted" style={{ marginTop: 0 }}>
-              Shown on the customer website. Leave either one empty to keep the built-in Farmers Basket artwork.
-              Changes appear within a minute of saving.
-            </p>
             <div className="grid cols-2">
               <ImageSetting
                 label="Logo"
-                help="Shown in the website header. A PNG with a transparent background works best, at least 300px tall."
                 value={draft.logo || ""}
                 onChange={(url) => setDraft((d) => ({ ...d, logo: url }))}
                 shape="logo"
               />
               <ImageSetting
                 label="Favicon"
-                help="The small icon in the browser tab and on phone home screens. Use a square PNG, at least 192 × 192px."
                 value={draft.favicon || ""}
                 onChange={(url) => setDraft((d) => ({ ...d, favicon: url }))}
                 shape="favicon"

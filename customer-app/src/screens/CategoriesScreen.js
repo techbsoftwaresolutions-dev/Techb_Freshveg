@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "../components/Text";
 import { api } from "../api/client";
 import { useStore } from "../context/StoreContext";
-import { colors, fontFamily, radius, rupees, spacing, type } from "../theme";
+import { colors, fontFamily, radius, rupees, shadow, spacing } from "../theme";
 import { EmptyState, Loading, Notice } from "../components/ui";
 
 // A small, repeating palette for the department and subcategory icon tiles —
 // categories don't carry a brand color of their own, so this is what stands
 // in for the mockup's per-department gradients (no SVG/gradient library in
 // this project, so flat color is the honest equivalent).
-const RAIL_COLORS = ["#E8714A", "#53925E", "#E8B957", "#D98AA0", "#6E8CB2", "#9A7B56"];
-const STAT_COLORS = ["#6D5DF6", "#E6912A", "#1FA98C", "#D9663F", "#2F6BE0", "#C97B8C"];
 
 // Departments down the left, their subcategories on the right — the layout
 // every Indian grocery app converged on, because it fits a deep tree on a
@@ -51,18 +51,20 @@ export default function CategoriesScreen({ navigation }) {
       <View style={styles.rail}>
         {categories.map((category, index) => {
           const isActive = index === activeIndex;
-          const tileColor = RAIL_COLORS[index % RAIL_COLORS.length];
           return (
             <Pressable
               key={category.id}
               onPress={() => setActiveIndex(index)}
               style={[styles.railItem, isActive && styles.railItemActive]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
             >
-              <View style={[styles.railIcon, { backgroundColor: tileColor }]}>
+              {isActive ? <View style={styles.railBar} /> : null}
+              <View style={styles.railIcon}>
                 {category.image ? (
                   <Image source={{ uri: category.image }} style={styles.railIconImage} resizeMode="cover" />
                 ) : (
-                  <Text style={styles.railIconGlyph}>{category.icon || "•"}</Text>
+                  <Ionicons name="leaf-outline" size={20} color={colors.primary} />
                 )}
               </View>
               <Text style={[styles.railLabel, isActive && styles.railLabelActive]} numberOfLines={2}>
@@ -86,7 +88,7 @@ export default function CategoriesScreen({ navigation }) {
             </Text>
           </View>
           <View style={styles.ctaArrow}>
-            <Text style={styles.ctaArrowGlyph}>→</Text>
+            <Ionicons name="arrow-forward" size={18} color={colors.primary} />
           </View>
         </Pressable>
 
@@ -97,7 +99,8 @@ export default function CategoriesScreen({ navigation }) {
               navigation.navigate("ProductList", { slug: active.slug, title: active.name, openFilter: true })
             }
           >
-            <Text style={styles.pillText}>Filter</Text>
+            <Ionicons name="options-outline" size={16} color={colors.text} />
+            <Text style={styles.pillText}>Filters</Text>
           </Pressable>
           <Pressable
             style={styles.pill}
@@ -105,7 +108,9 @@ export default function CategoriesScreen({ navigation }) {
               navigation.navigate("ProductList", { slug: active.slug, title: active.name, openSort: true })
             }
           >
-            <Text style={styles.pillText}>Sort By ▾</Text>
+            <Ionicons name="swap-vertical" size={16} color={colors.text} />
+            <Text style={styles.pillText}>Sort by</Text>
+            <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
           </Pressable>
         </View>
 
@@ -117,11 +122,11 @@ export default function CategoriesScreen({ navigation }) {
                 style={styles.statCard}
                 onPress={() => navigation.navigate("ProductList", { slug: child.slug, title: child.name })}
               >
-                <View style={[styles.statIcon, { backgroundColor: STAT_COLORS[index % STAT_COLORS.length] }]}>
+                <View style={styles.statIcon}>
                   {child.image ? (
                     <Image source={{ uri: child.image }} style={styles.statIconImage} resizeMode="cover" />
                   ) : (
-                    <Text style={styles.statIconGlyph}>{child.icon || "•"}</Text>
+                    <Ionicons name="leaf-outline" size={18} color={colors.primary} />
                   )}
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -134,6 +139,7 @@ export default function CategoriesScreen({ navigation }) {
                     </Text>
                   ) : null}
                 </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
               </Pressable>
             ))}
           </View>
@@ -145,6 +151,7 @@ export default function CategoriesScreen({ navigation }) {
 
         {freeDeliveryOn && freeDeliveryAbove ? (
           <View style={styles.promoStrip}>
+            <Ionicons name="bus-outline" size={18} color={colors.primary} />
             <Text style={styles.promoText}>
               Free delivery on orders above <Text style={styles.promoBold}>{rupees(freeDeliveryAbove)}</Text>
             </Text>
@@ -159,30 +166,33 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   screenContent: { flexDirection: "row", minHeight: "100%" },
 
-  rail: { width: 92, flexGrow: 0, flexShrink: 0, backgroundColor: colors.surfaceAlt, paddingVertical: spacing.sm, paddingBottom: spacing.xxl },
-  railItem: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 6, gap: 7, marginHorizontal: 6, marginBottom: 2, borderRadius: radius.lg },
-  railItemActive: { backgroundColor: colors.accentSoft },
+  // The website's category rail: pale column, active item white with a green
+  // bar on its left edge and a green label.
+  rail: { width: 92, flexGrow: 0, flexShrink: 0, backgroundColor: colors.surfaceAlt, paddingVertical: spacing.sm, paddingBottom: spacing.xxl, borderRightWidth: 1, borderRightColor: colors.border },
+  railItem: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 6, gap: 6 },
+  railItemActive: { backgroundColor: colors.surface },
+  railBar: { position: "absolute", left: 0, top: 8, bottom: 8, width: 3, borderRadius: 2, backgroundColor: colors.primary },
   railIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 50,
+    height: 50,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    backgroundColor: colors.primarySoft,
   },
   railIconImage: { width: "100%", height: "100%" },
-  railIconGlyph: { fontSize: 22, color: "#fff" },
-  railLabel: { fontSize: 10.8, lineHeight: 13.5, fontFamily: fontFamily.bold, color: colors.textMuted, textAlign: "center" },
-  railLabelActive: { color: colors.text },
+  railLabel: { fontSize: 11.5, lineHeight: 15, fontFamily: fontFamily.medium, color: colors.textMuted, textAlign: "center" },
+  railLabelActive: { color: colors.primary, fontFamily: fontFamily.semibold },
 
   panel: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg, paddingBottom: spacing.xxl },
 
   ctaCard: {
-    backgroundColor: colors.saveSoft,
+    backgroundColor: colors.primary,
     borderRadius: radius.lg,
     padding: spacing.lg,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     marginBottom: spacing.md,
   },
   // A Text sibling in a row, with no width of its own, can mis-measure and
@@ -190,30 +200,31 @@ const styles = StyleSheet.create({
   // something to measure against, with the arrow button pinned at a fixed
   // size beside it rather than squeezed by whatever the text decides.
   ctaTextWrap: { flex: 1, minWidth: 0, paddingRight: spacing.sm },
-  ctaText: { fontSize: 18, lineHeight: 23, fontFamily: fontFamily.extrabold, color: colors.save },
+  ctaText: { fontSize: 17, lineHeight: 23, fontFamily: fontFamily.semibold, color: colors.onPrimary },
   ctaArrow: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
-  ctaArrowGlyph: { fontSize: 16, fontFamily: fontFamily.bold, color: colors.save },
 
   pillRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 14,
+    height: 38,
+    ...shadow.card,
   },
-  pillText: { fontSize: 12, fontFamily: fontFamily.bold, color: colors.text },
+  pillText: { fontSize: 13, fontFamily: fontFamily.medium, color: colors.text },
 
   statList: { gap: spacing.sm },
   statCard: {
@@ -221,24 +232,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
+    ...shadow.card,
   },
-  statIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  statIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    backgroundColor: colors.primarySoft,
+  },
   statIconImage: { width: "100%", height: "100%" },
-  statIconGlyph: { fontSize: 18, color: "#fff" },
-  statTitle: { fontSize: 13.5, fontFamily: fontFamily.extrabold, color: colors.text },
-  statSub: { fontSize: 11, fontFamily: fontFamily.semibold, color: colors.textMuted, marginTop: 1 },
+  statTitle: { fontSize: 14, fontFamily: fontFamily.semibold, color: colors.text },
+  statSub: { fontSize: 12, fontFamily: fontFamily.regular, color: colors.textFaint, marginTop: 1 },
 
+  // The website's free-delivery strip.
   promoStrip: {
-    backgroundColor: "#111417",
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.primarySoft,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     marginTop: spacing.lg,
   },
-  promoText: { fontSize: 11.5, fontFamily: fontFamily.semibold, color: "#fff" },
-  promoBold: { fontFamily: fontFamily.extrabold, color: "#64E0B4" },
+  promoText: { flex: 1, fontSize: 12.5, fontFamily: fontFamily.medium, color: colors.primaryDark },
+  promoBold: { fontFamily: fontFamily.bold, color: colors.primary },
 });

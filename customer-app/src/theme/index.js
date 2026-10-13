@@ -1,33 +1,33 @@
-// One place for colour, spacing and type. A grocery app lives or dies on
-// scanability, so the palette is deliberately quiet — green only carries
-// meaning (fresh, in stock, savings), never decoration.
+// One place for colour, spacing and type — taken from the website's own
+// design tokens (website/app/globals.css :root), so the app and the site's
+// mobile view read as one brand. Change a value there, change it here.
 
 export const colors = {
-  bg: "#F7F8FA",
+  bg: "#F6F8F7", // --bg-alt: inner pages sit on this, cards on white
   surface: "#FFFFFF",
-  surfaceAlt: "#F2F4F7",
-  border: "#E6E8EC",
-  borderStrong: "#D5D9E0",
+  surfaceAlt: "#F2F9F3", // --brand-mist
+  border: "#E4E8E6",
+  borderStrong: "#CFD6D3",
 
-  text: "#14171F",
-  textMuted: "#61697A",
-  textFaint: "#9AA1AF",
+  text: "#12261B",
+  textMuted: "#5B6B62",
+  textFaint: "#8C9A92",
 
-  // Fresh-produce green as the primary, because most of the catalogue is food.
-  primary: "#16A34A",
-  primaryDark: "#12813B",
-  primarySoft: "#E8F7EE",
+  primary: "#1B7A3A", // --brand
+  primaryDark: "#135C2B", // --brand-dark
+  primaryDeep: "#0F4A23", // --brand-deep
+  primarySoft: "#E8F5EC", // --brand-soft
   onPrimary: "#FFFFFF",
 
-  accent: "#2F6DF6",
-  accentSoft: "#EAF1FF",
+  accent: "#B45309",
+  accentSoft: "#FDF3E4",
 
-  danger: "#D6382F",
-  dangerSoft: "#FDECEA",
-  warn: "#B7791F",
-  warnSoft: "#FDF4E3",
+  danger: "#B91C1C",
+  dangerSoft: "#FDECEC",
+  warn: "#B45309",
+  warnSoft: "#FDF3E4",
   save: "#0E7C5A",
-  saveSoft: "#E4F5EF",
+  saveSoft: "#E3F4EE",
 };
 
 export const spacing = {
@@ -39,44 +39,47 @@ export const spacing = {
   xxl: 32,
 };
 
+// --radius 10px, --radius-lg 16px.
 export const radius = {
   sm: 8,
-  md: 12,
+  md: 10,
   lg: 16,
   pill: 999,
 };
 
-// Named after the loaded font files in App.js (via @expo-google-fonts/inter).
-// Every entry below names one explicitly rather than relying on the
-// platform default, so text renders the same everywhere no matter what
-// system font a phone has selected (see the comment in App.js).
+// Poppins for everything, DM Serif Display for section headings — the
+// website's two faces. Loaded in App.js; components/Text.js picks the weight.
 export const fontFamily = {
-  regular: "Inter_400Regular",
-  medium: "Inter_500Medium",
-  semibold: "Inter_600SemiBold",
-  bold: "Inter_700Bold",
-  extrabold: "Inter_800ExtraBold",
+  regular: "Poppins_400Regular",
+  medium: "Poppins_500Medium",
+  semibold: "Poppins_600SemiBold",
+  bold: "Poppins_700Bold",
+  extrabold: "Poppins_800ExtraBold",
+  serif: "DMSerifDisplay_400Regular",
 };
 
 export const type = {
-  h1: { fontSize: 22, fontFamily: fontFamily.bold, color: colors.text, letterSpacing: -0.3 },
-  h2: { fontSize: 17, fontFamily: fontFamily.bold, color: colors.text, letterSpacing: -0.2 },
+  h1: { fontSize: 24, fontFamily: fontFamily.bold, color: colors.text, letterSpacing: -0.3 },
+  h2: { fontSize: 17, fontFamily: fontFamily.semibold, color: colors.text },
   h3: { fontSize: 15, fontFamily: fontFamily.semibold, color: colors.text },
   body: { fontSize: 14, fontFamily: fontFamily.regular, color: colors.text },
-  small: { fontSize: 12.5, fontFamily: fontFamily.regular, color: colors.textMuted },
-  tiny: { fontSize: 11, fontFamily: fontFamily.regular, color: colors.textFaint },
+  small: { fontSize: 13, fontFamily: fontFamily.regular, color: colors.textMuted },
+  tiny: { fontSize: 11.5, fontFamily: fontFamily.regular, color: colors.textFaint },
+  // The website's section headings ("Best Sellers —").
+  section: { fontSize: 22, fontFamily: fontFamily.serif, color: colors.text },
 };
 
+// --shadow-card: 0 1px 3px rgba(10,30,20,.06), 0 4px 14px rgba(10,30,20,.05).
 export const shadow = {
   card: {
-    shadowColor: "#0B0F1A",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#0A1E14",
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
   bar: {
-    shadowColor: "#0B0F1A",
+    shadowColor: "#0A1E14",
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: -2 },

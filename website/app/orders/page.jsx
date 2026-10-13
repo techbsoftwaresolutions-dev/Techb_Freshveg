@@ -14,6 +14,8 @@ export default function OrdersPage() {
   const { ready, signedIn } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [next, setNext] = useState(null); // next page of older orders, or null
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     if (ready && !signedIn) router.replace("/login?next=/orders");
@@ -22,14 +24,30 @@ export default function OrdersPage() {
   useEffect(() => {
     if (!signedIn) return;
     api
-      .get("/orders/mine", { limit: 30 })
-      .then((data) => setOrders(data.items))
+      .get("/orders/mine", { limit: 20 })
+      .then((data) => {
+        setOrders(data.items);
+        setNext(data.meta?.hasNext ? 2 : null);
+      })
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
   }, [signedIn]);
 
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const data = await api.get("/orders/mine", { limit: 20, page: next });
+      setOrders((current) => [...current, ...data.items.filter((o) => !current.some((c) => c.id === o.id))]);
+      setNext(data.meta?.hasNext ? next + 1 : null);
+    } catch {
+      // The button stays, so the customer can simply try again.
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   const waiting = !ready || loading;
-  const count = `${orders.length} order${orders.length === 1 ? "" : "s"}`;
+  const count = `${orders.length}${next ? "+" : ""} order${orders.length === 1 && !next ? "" : "s"}`;
 
   return (
     <div className="wrap orders-page">
@@ -61,6 +79,11 @@ export default function OrdersPage() {
               <OrderCard key={order.id} order={order} />
             ))}
           </div>
+          {next ? (
+            <button className="btn block" style={{ marginTop: 16 }} onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? "Loading…" : "Show older orders"}
+            </button>
+          ) : null}
         </>
       )}
     </div>

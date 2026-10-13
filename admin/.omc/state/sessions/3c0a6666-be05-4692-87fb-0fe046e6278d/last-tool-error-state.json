@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__javascript_tool",
+  "tool_input_preview": "{\"action\":\"javascript_exec\",\"text\":\"const setVal = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: tru...",
+  "error": "javascript_tool failed: TypeError: Cannot read properties of null (reading 'click')\n    at <anonymous>:4:46",
+  "timestamp": "2026-10-13T11:59:56.064Z",
+  "retry_count": 1
+}

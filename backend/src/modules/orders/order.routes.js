@@ -75,7 +75,9 @@ router.get(
       throw ApiError.forbidden("Not your order");
     }
 
-    res.json({ success: true, tracking: orderService.trackingView(order) });
+    // The order itself rides along, so a detail screen needs one request and
+    // works for any order — not only the ones on the first page of /mine.
+    res.json({ success: true, tracking: orderService.trackingView(order), order });
   })
 );
 

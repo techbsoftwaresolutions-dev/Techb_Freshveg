@@ -21,48 +21,32 @@ const router = express.Router();
 //
 // Mounted before requireAuth: a gateway has no bearer token. Authenticity is
 // established by the signature instead, which is why the raw body matters —
-// re-serialised JSON would not hash to the same value.
+// re-serialised JSON would not hash to the same value. app.js keeps the exact
+// bytes on req.rawBody for /webhook paths (the JSON parser has already run by
+// the time a route sees the request).
 
 router.post(
   "/webhook/:provider",
-  express.raw({ type: "application/json" }),
   asyncHandler(async (req, res) => {
     const provider = gateways.providers[req.params.provider];
     if (!provider?.verifyWebhook) return res.status(404).json({ success: false });
 
-    const raw = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : JSON.stringify(req.body);
-    const signature = req.headers["x-razorpay-signature"] || req.headers["stripe-signature"];
+    const raw = req.rawBody;
+    const signature = req.headers["x-razorpay-signature"];
 
-    if (!provider.verifyWebhook(raw, signature)) {
+    if (!raw || !provider.verifyWebhook(raw, signature)) {
       // Do not explain why — an attacker probing signatures learns nothing.
       return res.status(400).json({ success: false });
     }
 
-    const event = JSON.parse(raw);
-    const entity = event?.payload?.payment?.entity;
+    // The webhook may beat the customer back from the gateway, so this is
+    // often what actually advances the order. A redelivered event finds the
+    // payment already captured and does nothing.
+    const captured = await paymentService.handleWebhook(JSON.parse(raw.toString("utf8")));
+    if (captured) await orderService.applyCapturedPayment(captured, "Paid online (gateway webhook)");
 
-    if (entity?.order_id) {
-      const payment = await Payment.findOne({ providerOrderId: entity.order_id });
-      if (payment && payment.status !== "captured" && entity.status === "captured") {
-        payment.status = "captured";
-        payment.providerPaymentId = entity.id;
-        payment.amountCaptured = entity.amount;
-        payment.capturedAt = new Date();
-        payment.providerPayload = entity;
-        await payment.save();
-
-        // The webhook may beat the customer back from the gateway, so this is
-        // often what actually advances the order.
-        const order = await Order.findById(payment.order);
-        if (order && order.status === "PAYMENT_PENDING") {
-          await orderService.transition(order, "PAYMENT_CONFIRMED", { role: "system" }, "Gateway webhook");
-          await orderService.transition(order, "ORDER_CONFIRMED", { role: "system" });
-        }
-      }
-    }
-
-    // Always 200 once the signature is good: a gateway that gets an error
-    // retries for hours.
+    // 200 once handled. A database error above surfaces as a 500 instead, so
+    // the gateway retries rather than the event being lost.
     res.json({ success: true });
   })
 );
@@ -127,38 +111,56 @@ router.post(
     if (!order) throw ApiError.notFound("Order not found");
     if (String(order.customer) !== req.user.id) throw ApiError.forbidden("Not your order");
 
+    // Only an order still waiting for its payment can be paid; the method is
+    // the one the order was placed with, not whatever the request says.
+    if (order.status !== "PAYMENT_PENDING") {
+      throw ApiError.conflict(order.payment.status === "paid" ? "This order is already paid" : "This order is no longer awaiting payment");
+    }
+
     const customer = await User.findById(req.user.id);
-    const result = await paymentService.initiate(order, {
-      method: req.body.method || order.payment.method,
+    const { payment, checkout } = await paymentService.initiate(order, {
+      method: order.payment.method,
       customer,
       idempotencyKey: req.body.idempotencyKey,
     });
 
-    res.json({ success: true, payment: result.payment, checkout: result.checkout });
+    res.json({
+      success: true,
+      payment: { id: payment.id, status: payment.status, amount: payment.amount, currency: payment.currency },
+      checkout,
+    });
   })
 );
 
-// Called by the client after the gateway sheet closes. The signature is what
-// makes this trustworthy — see gateways.razorpay.verify.
+// Called by the client when the gateway sheet reports success. The signature
+// and a read-back from the gateway are what make this trustworthy — see
+// gateways.razorpay.verify. Answers 200 once paid, 202 while the gateway is
+// still settling (the webhook or the reconciliation sweep finishes the job).
 router.post(
   "/:paymentId/confirm",
   asyncHandler(async (req, res) => {
-    const payment = await Payment.findById(req.params.paymentId);
+    const payment = await Payment.findById(req.params.paymentId).catch(() => null);
     if (!payment) throw ApiError.notFound("Payment not found");
     if (String(payment.customer) !== req.user.id) throw ApiError.forbidden("Not your payment");
 
-    const confirmed = await paymentService.confirm(payment._id, {
+    const result = await paymentService.confirm(payment._id, {
       providerPaymentId: req.body.providerPaymentId,
       signature: req.body.signature,
+      providerOrderId: req.body.providerOrderId,
     });
+    if (result.captured) await orderService.applyCapturedPayment(result.payment, "Paid online");
 
-    const order = await Order.findById(confirmed.order);
-    if (order && order.status === "PAYMENT_PENDING") {
-      await orderService.transition(order, "PAYMENT_CONFIRMED", { role: "system" }, "Paid online");
-      await orderService.transition(order, "ORDER_CONFIRMED", { role: "system" });
+    const order = await Order.findById(payment.order);
+    const paid = order?.payment.status === "paid" && order.payment.transactionId === result.payment.providerPaymentId;
+    if (!paid && result.payment.status === "refunded") {
+      throw ApiError.conflict("This order could not take your payment, so it is being refunded to you");
     }
-
-    res.json({ success: true, payment: confirmed, order });
+    res.status(paid ? 200 : 202).json({
+      success: true,
+      paid,
+      pending: !paid,
+      order: order ? { id: order.id, code: order.code, status: order.status, payment: { status: order.payment.status } } : null,
+    });
   })
 );
 

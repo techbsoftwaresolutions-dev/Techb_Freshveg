@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text, TextInput } from "../components/Text";
 import { api, API_BASE_URL } from "../api/client";
+import { onlinePaymentSupported, payOnline } from "../api/razorpay";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { colors, radius, rupees, spacing, type } from "../theme";
+import { colors, radius, rupees, shadow, spacing, type } from "../theme";
 import { Button, Card, Divider, Loading, Notice, Pill } from "../components/ui";
+import AddressForm from "../components/AddressForm";
 
 export default function CheckoutScreen({ navigation }) {
   const { user, refreshUser } = useAuth();
@@ -51,30 +55,54 @@ export default function CheckoutScreen({ navigation }) {
 
   const codMethod = methods?.find((m) => m.key === "cod");
   const upiMethod = methods?.find((m) => m.key === "upi");
+  // Offered by the API once Razorpay is set up; shown only where this build
+  // can open the Razorpay sheet (not in Expo Go).
+  const onlineMethod = onlinePaymentSupported ? methods?.find((m) => m.key === "online") : null;
+
+  // "upi_app" is UPI through Razorpay (GPay, PhonePe, any UPI app) — to the
+  // API an online payment like any other, as on the website.
+  const payingOnline = method === "online" || method === "upi_app";
 
   const codBlocked = useMemo(
-    () => method === "cod" && codMethod && codMethod.available === false,
-    [method, codMethod]
+    () => (method === "cod" && codMethod && codMethod.available === false) || (payingOnline && !onlineMethod?.available),
+    [method, codMethod, onlineMethod, payingOnline]
   );
 
   async function placeOrder() {
     setPlacing(true);
     setError("");
+    let order;
     try {
-      const { order } = await api.post("/orders", {
+      ({ order } = await api.post("/orders", {
         cart: cart.cart.id,
         address: addressId,
-        paymentMethod: method,
+        paymentMethod: payingOnline ? "online" : method,
         note,
         source: "app",
-      });
-
-      await Promise.all([cart.refresh(), refreshUser()]);
-      navigation.replace("OrderPlaced", { orderId: order.id, code: order.code });
+      }));
     } catch (err) {
       setError(err.message);
-    } finally {
       setPlacing(false);
+      return;
+    }
+
+    // Online: the order exists, awaiting payment, with its stock held. It is
+    // only shown as placed once the API has verified the payment; otherwise
+    // the tracking screen says what happened and offers "Pay now" again.
+    let result = { status: "paid" };
+    if (payingOnline) {
+      result = await payOnline(order.id, { upiOnly: method === "upi_app" }).catch((err) => ({
+        status: "failed",
+        message: err.message,
+      }));
+    }
+
+    await Promise.all([cart.refresh(), refreshUser()]).catch(() => {});
+    setPlacing(false);
+    if (result.status === "paid") {
+      navigation.replace("OrderPlaced", { orderId: order.id, code: order.code });
+    } else {
+      navigation.replace("OrderTrack", { orderId: order.id, payment: result });
     }
   }
 
@@ -86,9 +114,9 @@ export default function CheckoutScreen({ navigation }) {
         {error ? <Notice tone="error">{error}</Notice> : null}
 
         {/* Address */}
-        <Card style={{ padding: spacing.md }}>
+        <Card style={styles.panel}>
           <View style={styles.cardHead}>
-            <Text style={type.h3}>Delivery address</Text>
+            <StepTitle n={1} title="Delivery address" />
             <Pressable onPress={() => setAddingAddress(true)}>
               <Text style={styles.link}>+ Add new</Text>
             </Pressable>
@@ -106,7 +134,7 @@ export default function CheckoutScreen({ navigation }) {
               onPress={() => setAddressId(address.id)}
               style={[styles.option, addressId === address.id && styles.optionActive]}
             >
-              <View style={styles.radio}>
+              <View style={[styles.radio, (addressId === address.id) && styles.radioOn]}>
                 {addressId === address.id ? <View style={styles.radioDot} /> : null}
               </View>
               <View style={{ flex: 1 }}>
@@ -137,8 +165,8 @@ export default function CheckoutScreen({ navigation }) {
         </Card>
 
         {/* Payment */}
-        <Card style={{ padding: spacing.md }}>
-          <Text style={type.h3}>Payment method</Text>
+        <Card style={styles.panel}>
+          <StepTitle n={2} title="Payment method" />
 
           {methods === null ? (
             <Text style={[type.small, { marginTop: spacing.sm }]}>Loading payment options…</Text>
@@ -149,7 +177,7 @@ export default function CheckoutScreen({ navigation }) {
                   onPress={() => setMethod("cod")}
                   style={[styles.option, method === "cod" && styles.optionActive]}
                 >
-                  <View style={styles.radio}>
+                  <View style={[styles.radio, (method === "cod") && styles.radioOn]}>
                     {method === "cod" ? <View style={styles.radioDot} /> : null}
                   </View>
                   <View style={{ flex: 1 }}>
@@ -157,6 +185,40 @@ export default function CheckoutScreen({ navigation }) {
                     <Text style={type.tiny}>Pay the delivery partner</Text>
                   </View>
                   {codMethod.available === false ? <Pill tone="warn">{codMethod.reason}</Pill> : null}
+                </Pressable>
+              ) : null}
+
+              {onlineMethod ? (
+                <Pressable
+                  onPress={() => setMethod("upi_app")}
+                  style={[styles.option, method === "upi_app" && styles.optionActive]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: method === "upi_app" }}
+                >
+                  <View style={[styles.radio, (method === "upi_app") && styles.radioOn]}>
+                    {method === "upi_app" ? <View style={styles.radioDot} /> : null}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.optionTitle}>UPI</Text>
+                    <Text style={type.tiny}>Google Pay, PhonePe, Paytm or any UPI app</Text>
+                  </View>
+                  {onlineMethod.available === false ? <Pill tone="warn">{onlineMethod.reason}</Pill> : null}
+                </Pressable>
+              ) : null}
+
+              {onlineMethod ? (
+                <Pressable
+                  onPress={() => setMethod("online")}
+                  style={[styles.option, method === "online" && styles.optionActive]}
+                >
+                  <View style={[styles.radio, (method === "online") && styles.radioOn]}>
+                    {method === "online" ? <View style={styles.radioDot} /> : null}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.optionTitle}>Cards, netbanking & wallets</Text>
+                    <Text style={type.tiny}>Debit/credit cards, netbanking, wallets or UPI via Razorpay</Text>
+                  </View>
+                  {onlineMethod.available === false ? <Pill tone="warn">{onlineMethod.reason}</Pill> : null}
                 </Pressable>
               ) : null}
 
@@ -169,7 +231,7 @@ export default function CheckoutScreen({ navigation }) {
                     }}
                     style={[styles.option, method === "upi" && upiTab === "manual" && styles.optionActive]}
                   >
-                    <View style={styles.radio}>
+                    <View style={[styles.radio, (method === "upi" && upiTab === "manual") && styles.radioOn]}>
                       {method === "upi" && upiTab === "manual" ? <View style={styles.radioDot} /> : null}
                     </View>
                     <View style={{ flex: 1 }}>
@@ -184,7 +246,7 @@ export default function CheckoutScreen({ navigation }) {
                     }}
                     style={[styles.option, method === "upi" && upiTab === "scan" && styles.optionActive]}
                   >
-                    <View style={styles.radio}>
+                    <View style={[styles.radio, (method === "upi" && upiTab === "scan") && styles.radioOn]}>
                       {method === "upi" && upiTab === "scan" ? <View style={styles.radioDot} /> : null}
                     </View>
                     <View style={{ flex: 1 }}>
@@ -230,11 +292,12 @@ export default function CheckoutScreen({ navigation }) {
         </Card>
 
         {/* Wallet */}
-        {user?.walletBalance > 0 ? (
-          <Card style={{ padding: spacing.md }}>
+        {/* Hidden when the admin has switched wallet use off at checkout. */}
+        {user?.walletBalance > 0 && cart.cart?.credits?.wallet !== false ? (
+          <Card style={styles.panel}>
             <Pressable style={styles.walletRow} onPress={() => setUseWallet((v) => !v)}>
               <View style={[styles.checkbox, useWallet && styles.checkboxOn]}>
-                {useWallet ? <Text style={styles.checkmark}>✓</Text> : null}
+                {useWallet ? <Ionicons name="checkmark" size={14} color={colors.onPrimary} /> : null}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.optionTitle}>Use wallet balance</Text>
@@ -248,8 +311,8 @@ export default function CheckoutScreen({ navigation }) {
         ) : null}
 
         {/* Note */}
-        <Card style={{ padding: spacing.md }}>
-          <Text style={type.h3}>Delivery instructions</Text>
+        <Card style={styles.panel}>
+          <StepTitle n={3} title="Delivery instructions" note="Optional" />
           <TextInput
             value={note}
             onChangeText={setNote}
@@ -261,7 +324,7 @@ export default function CheckoutScreen({ navigation }) {
         </Card>
 
         {/* Summary */}
-        <Card style={{ padding: spacing.md }}>
+        <Card style={styles.panel}>
           <Text style={type.h3}>Order summary</Text>
           <View style={{ marginTop: spacing.sm, gap: 6 }}>
             <Row label={`${summary.itemCount} ${summary.itemCount === 1 ? "item" : "items"}`} value={rupees(summary.subtotal)} />
@@ -273,9 +336,12 @@ export default function CheckoutScreen({ navigation }) {
               value={summary.deliveryFree ? "FREE" : rupees(summary.deliveryCharge)}
               tone={summary.deliveryFree ? "save" : undefined}
             />
+            {/* Every charge in the total is listed, so the rows add up to it. */}
+            {summary.packagingCharge > 0 ? <Row label="Packaging" value={rupees(summary.packagingCharge)} /> : null}
             {summary.walletApplied > 0 ? (
               <Row label="Wallet" value={`− ${rupees(summary.walletApplied)}`} tone="save" />
             ) : null}
+            {summary.roundOff ? <Row label="Round off" value={rupees(summary.roundOff, { decimals: true })} /> : null}
             <Divider style={{ marginVertical: spacing.sm }} />
             <Row label="To pay" value={rupees(summary.total)} bold />
           </View>
@@ -290,110 +356,48 @@ export default function CheckoutScreen({ navigation }) {
 
       <View style={styles.bar}>
         <View style={{ flex: 1 }}>
-          <Text style={type.tiny}>{method === "cod" ? "Pay on delivery" : "Payable"}</Text>
+          <Text style={type.tiny}>{method === "cod" ? "Pay on delivery" : "To pay"}</Text>
           <Text style={styles.barTotal}>{rupees(summary.total)}</Text>
         </View>
         <Button
-          title="Place order"
+          title={
+            method === "upi_app"
+              ? `Pay ${rupees(summary.total)} with UPI`
+              : method === "online"
+                ? `Pay ${rupees(summary.total)}`
+                : "Place order"
+          }
           loading={placing}
           disabled={!addressId || !summary.meetsMinimum || codBlocked}
           onPress={placeOrder}
+          style={{ minWidth: 180 }}
         />
       </View>
     </View>
   );
 }
 
-function AddressForm({ onCancel, onSaved }) {
-  const [form, setForm] = useState({
-    label: "Home",
-    line1: "",
-    landmark: "",
-    city: "",
-    pincode: "",
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
-
-  async function save() {
-    setSaving(true);
-    setError("");
-    try {
-      const data = await api.post("/auth/me/addresses", form);
-      onSaved(data.addresses);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
+// The website's numbered panel heading: a green step number and the title.
+function StepTitle({ n, title, note }) {
   return (
-    <View style={styles.form}>
-      {error ? <Notice tone="error">{error}</Notice> : null}
-
-      <View style={{ flexDirection: "row", gap: spacing.sm }}>
-        {["Home", "Work", "Other"].map((label) => (
-          <Pressable
-            key={label}
-            onPress={() => set("label")(label)}
-            style={[styles.labelChip, form.label === label && styles.labelChipActive]}
-          >
-            <Text style={[styles.labelChipText, form.label === label && { color: colors.primaryDark }]}>
-              {label}
-            </Text>
-          </Pressable>
-        ))}
+    <View style={styles.stepTitle}>
+      <View style={styles.stepNum}>
+        <Text style={styles.stepNumText}>{n}</Text>
       </View>
-
-      <Input placeholder="Flat / house, street" value={form.line1} onChangeText={set("line1")} />
-      <Input placeholder="Landmark (optional)" value={form.landmark} onChangeText={set("landmark")} />
-      <View style={{ flexDirection: "row", gap: spacing.sm }}>
-        <Input placeholder="City" value={form.city} onChangeText={set("city")} style={{ flex: 1 }} />
-        <Input
-          placeholder="Pincode"
-          value={form.pincode}
-          onChangeText={(text) => set("pincode")(text.replace(/\D/g, "").slice(0, 6))}
-          keyboardType="number-pad"
-          style={{ flex: 1 }}
-        />
-      </View>
-
-      <View style={{ flexDirection: "row", gap: spacing.sm }}>
-        <Button title="Cancel" variant="ghost" size="sm" onPress={onCancel} style={{ flex: 1 }} />
-        <Button
-          title="Save address"
-          size="sm"
-          loading={saving}
-          disabled={!form.line1 || !form.city || form.pincode.length !== 6}
-          onPress={save}
-          style={{ flex: 2 }}
-        />
-      </View>
+      <Text style={type.h3}>{title}</Text>
+      {note ? <Text style={type.tiny}>{note}</Text> : null}
     </View>
-  );
-}
-
-function Input({ style, ...props }) {
-  return (
-    <TextInput
-      placeholderTextColor={colors.textFaint}
-      style={[styles.input, style]}
-      {...props}
-    />
   );
 }
 
 function Row({ label, value, tone, bold }) {
   return (
     <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-      <Text style={[type.small, bold && { color: colors.text, fontWeight: "800", fontSize: 14 }]}>{label}</Text>
+      <Text style={[type.small, { fontSize: 14 }, bold && { color: colors.text, fontWeight: "700", fontSize: 17 }]}>{label}</Text>
       <Text
         style={[
           type.body,
-          { fontWeight: bold ? "800" : "600", fontSize: bold ? 16 : 14 },
+          { fontWeight: bold ? "700" : "500", fontSize: bold ? 18 : 14 },
           tone === "save" && { color: colors.save },
         ]}
       >
@@ -405,53 +409,63 @@ function Row({ label, value, tone, bold }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  panel: { padding: spacing.lg },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  link: { color: colors.primary, fontWeight: "700", fontSize: 13 },
+  link: { color: colors.primary, fontWeight: "600", fontSize: 13.5 },
 
+  stepTitle: { flexDirection: "row", alignItems: "center", gap: 10 },
+  stepNum: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
+  stepNumText: { color: colors.onPrimary, fontSize: 13, fontWeight: "700" },
+
+  // The website's .choice: a bordered card that turns green when chosen.
   option: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
+    borderRadius: 12,
     borderWidth: 1.5,
     borderColor: colors.border,
-    marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    marginTop: spacing.md,
   },
-  optionActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  optionTitle: { ...type.body, fontWeight: "700", fontSize: 13.5 },
+  optionActive: { borderColor: colors.primary, backgroundColor: colors.surfaceAlt },
+  optionTitle: { ...type.body, fontWeight: "600", fontSize: 14 },
 
   radio: {
-    width: 19,
-    height: 19,
+    width: 20,
+    height: 20,
     borderRadius: 10,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.primary },
+  radioOn: { borderColor: colors.primary },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
 
   checkbox: {
     width: 20,
     height: 20,
     borderRadius: 5,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.borderStrong,
     alignItems: "center",
     justifyContent: "center",
   },
   checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  checkmark: { color: "#fff", fontSize: 12, fontWeight: "900" },
-  walletRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },
-  walletApplied: { color: colors.save, fontWeight: "800" },
+  checkmark: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  walletRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  walletApplied: { color: colors.save, fontWeight: "700" },
 
   upiBox: {
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.primarySoft,
     backgroundColor: colors.surfaceAlt,
     gap: 4,
   },
@@ -459,37 +473,16 @@ const styles = StyleSheet.create({
   upiQr: { width: 180, height: 180, borderRadius: 10, backgroundColor: "#fff" },
 
   noteInput: {
-    marginTop: spacing.sm,
-    minHeight: 62,
+    marginTop: spacing.md,
+    minHeight: 72,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     padding: spacing.md,
     color: colors.text,
-    fontSize: 13.5,
+    fontSize: 14,
     textAlignVertical: "top",
   },
-
-  form: { gap: spacing.sm, marginTop: spacing.md },
-  input: {
-    height: 40,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.md,
-    color: colors.text,
-    fontSize: 13.5,
-  },
-  labelChip: {
-    paddingHorizontal: spacing.md,
-    height: 30,
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  labelChipActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  labelChipText: { fontSize: 12.5, fontWeight: "600", color: colors.textMuted },
 
   bar: {
     position: "absolute",
@@ -499,10 +492,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    ...shadow.bar,
   },
-  barTotal: { fontSize: 18, fontWeight: "800", color: colors.text },
+  barTotal: { fontSize: 20, fontWeight: "700", color: colors.text },
 });

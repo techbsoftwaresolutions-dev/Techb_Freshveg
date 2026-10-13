@@ -1,11 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text, TextInput } from "../components/Text";
 import { useAuth } from "../context/AuthContext";
-import { colors, radius, spacing, type } from "../theme";
+import { colors, radius, shadow, spacing, type } from "../theme";
 import { Button, Notice } from "../components/ui";
 
 export default function LoginScreen({ navigation }) {
   const { requestOtp, verifyOtp } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState("phone");
   const [phone, setPhone] = useState("");
@@ -69,23 +73,37 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.screen}
     >
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>The Farmers Basket</Text>
-        <Text style={styles.heroSub}>Farm-fresh vegetables, fruits and milk, delivered.</Text>
-      </View>
+      <Pressable
+        onPress={() => navigation.goBack()}
+        style={[styles.close, { top: insets.top + spacing.sm }]}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      >
+        <Ionicons name="close" size={24} color={colors.text} />
+      </Pressable>
 
+      {/* The website's sign-in card: logo, welcome, one field, one button. */}
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 56 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.sheet}>
+        <View style={styles.logoBox}>
+          <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
+        </View>
+
         {error ? <Notice tone="error" style={{ marginBottom: spacing.md }}>{error}</Notice> : null}
 
         {step === "phone" ? (
           <>
-            <Text style={type.h2}>Enter your mobile number</Text>
-            <Text style={[type.small, { marginTop: 4, marginBottom: spacing.lg }]}>
-              We'll send you a one-time code to sign in.
+            <Text style={styles.title}>Welcome to The Farmers Basket</Text>
+            <Text style={styles.subtitle}>
+              Sign in or create an account with your mobile number. No password to remember.
             </Text>
 
+            <Text style={styles.label}>Mobile number</Text>
             <View style={styles.phoneRow}>
-              <Text style={styles.prefix}>+91</Text>
+              <View style={styles.prefixBox}>
+                <Text style={styles.prefix}>+91</Text>
+              </View>
               <TextInput
                 value={phone}
                 onChangeText={(text) => setPhone(text.replace(/\D/g, "").slice(0, 10))}
@@ -99,17 +117,18 @@ export default function LoginScreen({ navigation }) {
             </View>
 
             <Button
-              title="Send code"
+              title="Continue"
               onPress={sendOtp}
               loading={busy}
               disabled={phone.length !== 10}
               style={{ marginTop: spacing.lg }}
             />
+            <Text style={styles.terms}>By continuing you agree to receive a one-time code by SMS on this number.</Text>
           </>
         ) : (
           <>
-            <Text style={type.h2}>Enter the code</Text>
-            <Text style={[type.small, { marginTop: 4 }]}>
+            <Text style={styles.title}>Enter the code</Text>
+            <Text style={[styles.subtitle, { marginBottom: 0 }]}>
               Sent to +91 {phone}.{" "}
               <Text style={styles.link} onPress={() => setStep("phone")}>
                 Change
@@ -161,43 +180,62 @@ export default function LoginScreen({ navigation }) {
         )}
 
         <Pressable onPress={() => navigation.goBack()} style={{ marginTop: spacing.xl, alignSelf: "center" }}>
-          <Text style={type.small}>Keep browsing without signing in</Text>
+          <Text style={[type.small, styles.link]}>Keep browsing without signing in</Text>
         </Pressable>
       </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.primary },
-  hero: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-  heroMark: { fontSize: 56, marginBottom: spacing.md },
-  heroTitle: { fontSize: 26, fontWeight: "800", color: "#fff" },
-  heroSub: { color: "rgba(255,255,255,0.85)", marginTop: 4, fontSize: 13.5 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flexGrow: 1, justifyContent: "center", padding: spacing.lg, paddingBottom: spacing.xxl },
+  close: {
+    position: "absolute",
+    right: spacing.lg,
+    zIndex: 2,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.xl,
-    paddingBottom: spacing.xxl,
+    ...shadow.card,
   },
+  logoBox: { alignSelf: "center", width: 150, height: 84, overflow: "hidden", marginBottom: spacing.md },
+  logo: { width: 150, height: 84, transform: [{ scale: 1.2 }] },
+  title: { fontSize: 21, fontWeight: "700", color: colors.text, textAlign: "center" },
+  subtitle: { ...type.small, textAlign: "center", marginTop: 6, marginBottom: spacing.lg, lineHeight: 19 },
+  label: { fontSize: 13, fontWeight: "500", color: colors.text, marginBottom: 6 },
 
   phoneRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.borderStrong,
     borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
     height: 50,
+    overflow: "hidden",
   },
-  prefix: { fontSize: 15, fontWeight: "700", color: colors.textMuted, marginRight: spacing.sm },
-  phoneInput: { flex: 1, fontSize: 16, color: colors.text, letterSpacing: 1.5 },
+  prefixBox: { height: "100%", paddingHorizontal: 14, justifyContent: "center", backgroundColor: colors.bg, borderRightWidth: 1, borderRightColor: colors.border },
+  prefix: { fontSize: 15, fontWeight: "600", color: colors.textMuted },
+  phoneInput: { flex: 1, height: "100%", paddingHorizontal: spacing.md, fontSize: 16, color: colors.text, letterSpacing: 1 },
+  terms: { ...type.tiny, textAlign: "center", marginTop: spacing.md },
 
   codeInput: {
     marginTop: spacing.lg,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.borderStrong,
     borderRadius: radius.md,
     height: 54,
@@ -212,11 +250,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
     borderRadius: radius.md,
-    height: 44,
+    height: 48,
     paddingHorizontal: spacing.md,
     fontSize: 14,
     color: colors.text,
   },
 
-  link: { color: colors.primary, fontWeight: "700" },
+  link: { color: colors.primary, fontWeight: "600" },
 });

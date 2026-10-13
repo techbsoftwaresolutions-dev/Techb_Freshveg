@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__computer",
+  "tool_input_preview": "{\"action\":\"screenshot\",\"scale\":0.5}",
+  "error": "screenshot failed: Screenshot timed out after 5s: the page did not finish rendering in time. Retry; the pane does not need to be displayed. Claude's window may be behind another window, which can stop the page from drawing; if this repeats, continue with `get_page_text` or `find`, or ask the user to bring it forward.",
+  "timestamp": "2026-10-13T11:17:37.306Z",
+  "retry_count": 1
+}

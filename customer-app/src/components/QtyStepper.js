@@ -1,7 +1,13 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fontFamily, radius, formatQty } from "../theme";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "./Text";
+import { colors, formatQty, radius } from "../theme";
 
+// The website's add control: a solid green "Add" (or full-width "Add to
+// Basket") that turns into a "− 3 +" stepper once the item is in the basket.
+// `soft` is the cart's pale-green stepper.
+//
 // The stepper does not assume 1. Loose vegetables come back from the API with
 // stepQty 0.25 and unit "kg", so tapping + on a tomato adds a quarter kilo and
 // the label reads "1.25 kg" — the same control, driven by the category's rules.
@@ -13,10 +19,8 @@ export default function QtyStepper({
   unit = "",
   busy = false,
   compact = false,
-  // A small floating circle meant to sit half on top of a product photo
-  // (the quick-add button on a listing card), rather than the normal
-  // rectangular control used on the product detail page.
-  overlay = false,
+  wide = false,
+  soft = false,
   onAdd,
   onChange,
   onRemove,
@@ -37,45 +41,36 @@ export default function QtyStepper({
   };
 
   if (quantity <= 0) {
-    if (overlay) {
-      return (
-        <Pressable
-          onPress={busy ? undefined : onAdd}
-          style={({ pressed }) => [styles.overlayAdd, pressed && { opacity: 0.85 }]}
-          accessibilityRole="button"
-          accessibilityLabel="Add to cart"
-        >
-          {busy ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Text style={styles.overlayAddSymbol}>+</Text>
-          )}
-        </Pressable>
-      );
-    }
-
     return (
       <Pressable
         onPress={busy ? undefined : onAdd}
         style={({ pressed }) => [
-          styles.addButton,
-          compact && styles.addButtonCompact,
-          pressed && { opacity: 0.8 },
+          styles.add,
+          compact && styles.compact,
+          wide && styles.wide,
+          pressed && { backgroundColor: colors.primaryDark },
         ]}
         accessibilityRole="button"
-        accessibilityLabel="Add to cart"
+        accessibilityLabel="Add to basket"
+        accessibilityState={{ busy }}
       >
         {busy ? (
-          <ActivityIndicator size="small" color={colors.primary} />
+          <ActivityIndicator size="small" color={colors.onPrimary} />
         ) : (
-          <Text style={styles.addText}>ADD</Text>
+          <>
+            {wide ? <Ionicons name="cart-outline" size={16} color={colors.onPrimary} /> : null}
+            <Text style={[styles.addText, wide && { fontSize: 13.5 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+              {wide ? "Add to Basket" : "Add"}
+            </Text>
+          </>
         )}
       </Pressable>
     );
   }
 
+  const fg = soft ? colors.primaryDark : colors.onPrimary;
   return (
-    <View style={[styles.stepper, compact && styles.stepperCompact, overlay && styles.stepperOverlay]}>
+    <View style={[styles.stepper, soft && styles.stepperSoft, compact && styles.compact, wide && styles.wide]}>
       <Pressable
         onPress={busy ? undefined : decrease}
         style={styles.stepButton}
@@ -83,14 +78,14 @@ export default function QtyStepper({
         accessibilityRole="button"
         accessibilityLabel="Reduce quantity"
       >
-        <Text style={styles.stepSymbol}>−</Text>
+        <Ionicons name="remove" size={18} color={fg} />
       </Pressable>
 
       <View style={styles.quantityBox}>
         {busy ? (
-          <ActivityIndicator size="small" color={colors.onPrimary} />
+          <ActivityIndicator size="small" color={fg} />
         ) : (
-          <Text style={[styles.quantityText, overlay && styles.quantityTextOverlay]} numberOfLines={1}>
+          <Text style={[styles.quantityText, { color: fg }]} numberOfLines={1} accessibilityLiveRegion="polite">
             {formatQty(quantity, unit)}
           </Text>
         )}
@@ -103,81 +98,39 @@ export default function QtyStepper({
         accessibilityRole="button"
         accessibilityLabel="Increase quantity"
       >
-        <Text style={styles.stepSymbol}>+</Text>
+        <Ionicons name="add" size={18} color={fg} />
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  addButton: {
-    minWidth: 78,
-    height: 34,
-    borderRadius: radius.sm,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
+  add: {
+    minWidth: 76,
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 6,
   },
-  addButtonCompact: { minWidth: 64, height: 30 },
-  addText: { color: colors.primary, fontFamily: fontFamily.extrabold, fontSize: 13, letterSpacing: 0.4 },
-
-  // The floating circle on a product card's photo — half the button sits on
-  // the image, half on the white card below it, so it needs its own shadow
-  // rather than relying on the card's.
-  overlayAdd: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#0B0F1A",
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  overlayAddSymbol: {
-    color: colors.primary,
-    fontFamily: fontFamily.extrabold,
-    fontSize: 18,
-    lineHeight: 20,
-    includeFontPadding: false,
-  },
+  addText: { color: colors.onPrimary, fontWeight: "600", fontSize: 14 },
+  compact: { minWidth: 68, height: 36 },
+  wide: { alignSelf: "stretch", minWidth: undefined, paddingHorizontal: 8, gap: 5 },
 
   stepper: {
-    minWidth: 78,
-    height: 34,
-    borderRadius: radius.sm,
+    minWidth: 92,
+    height: 40,
+    borderRadius: radius.md,
     backgroundColor: colors.primary,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
   },
-  stepperCompact: { minWidth: 64, height: 30 },
-  stepperOverlay: {
-    minWidth: 64,
-    height: 28,
-    borderRadius: 14,
-    shadowColor: "#0B0F1A",
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  stepButton: { paddingHorizontal: 9, height: "100%", alignItems: "center", justifyContent: "center" },
-  stepSymbol: {
-    color: colors.onPrimary,
-    fontSize: 17,
-    lineHeight: 20,
-    fontFamily: fontFamily.bold,
-    includeFontPadding: false,
-  },
-  quantityBox: { flex: 1, alignItems: "center", justifyContent: "center" },
-  quantityText: { color: colors.onPrimary, fontFamily: fontFamily.extrabold, fontSize: 12.5 },
-  quantityTextOverlay: { fontSize: 11.5 },
+  stepperSoft: { backgroundColor: colors.primarySoft },
+  stepButton: { width: 34, height: "100%", alignItems: "center", justifyContent: "center" },
+  quantityBox: { flex: 1, alignItems: "center", justifyContent: "center", minWidth: 22 },
+  quantityText: { fontWeight: "700", fontSize: 14 },
 });

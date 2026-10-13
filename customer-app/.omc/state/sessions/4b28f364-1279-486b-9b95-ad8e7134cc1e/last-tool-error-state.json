@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"computer\",\"input\":{\"action\":\"screenshot\",\"scale\":0.45}},{\"name\":\"computer\",\"input\":{\"action\":\"left_click\",\"ref\":\"ref_342\",\"action_summary\":\"Opens checkout from the sandbox cart\"}}...",
+  "error": "actions[0] (computer:screenshot) failed: screenshot failed: Screenshot timed out after 5s: the page did not finish rendering in time. Retry; the pane does not need to be displayed. Claude's window is minimized or hidden, which can stop the page from drawing; if this repeats, continue with `get_page_text` or `find`, or ask the user to bring it forward. (0 completed, 3 remaining)",
+  "timestamp": "2026-10-13T10:46:43.681Z",
+  "retry_count": 1
+}

@@ -1,0 +1,7 @@
+{
+  "tool_name": "PowerShell",
+  "tool_input_preview": "{\"command\":\"Get-NetTCPConnection -LocalPort 5056,5190,8090 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { $p = Get-CimInstance Win32_Process -Filter \\\"ProcessId=$($_.OwningProcess)\\\"; ...",
+  "error": "Exit code 1",
+  "timestamp": "2026-10-13T12:25:36.778Z",
+  "retry_count": 1
+}
