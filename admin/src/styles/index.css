@@ -1465,3 +1465,6 @@ textarea { min-height: 76px; resize: vertical; }
   font-size: 12px;
 }
 .perm-chip.more { color: var(--accent); border-color: var(--accent); cursor: pointer; }
+
+/* Inline edit controls in a table cell (e.g. Orders → Delivery). */
+.row-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

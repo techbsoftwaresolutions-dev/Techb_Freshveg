@@ -14,6 +14,7 @@ export default {
     ios: { supportsTablet: false, bundleIdentifier: "com.samagramart.partner" },
     android: { package: "com.samagramart.partner", adaptiveIcon: { backgroundColor: "#1D3A8A" } },
     web: { bundler: "metro" },
+    plugins: [["expo-camera", { cameraPermission: "Hosur Basket Partner uses the camera to scan the customer's order QR." }]],
     extra: {
       apiBaseUrl: process.env.API_BASE_URL,
     },

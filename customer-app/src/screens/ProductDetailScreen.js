@@ -8,6 +8,7 @@ import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../com
 import QtyStepper from "../components/QtyStepper";
 import ProductCard from "../components/ProductCard";
 import CustomerReviews from "../components/CustomerReviews";
+import ShareRow from "../components/ShareRow";
 
 export default function ProductDetailScreen({ route, navigation }) {
   const { slug } = route.params;
@@ -217,6 +218,8 @@ export default function ProductDetailScreen({ route, navigation }) {
               </Card>
             </>
           ) : null}
+
+          <ShareRow slug={slug} name={product.name} />
 
           {product.description ? (
             <>

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../api/client";
 import { colors, clockTime, formatAddress, radius, rupees, spacing, type } from "../theme";
+import QrScanModal from "../components/QrScanModal";
 import {
   Button, Card, Divider, EmptyState, Loading, Notice, Pill,
   callNumber, openMaps,
@@ -38,6 +39,20 @@ const STEP_COPY = {
   },
 };
 
+// Orders assigned to this rider that the store is still preparing: the rider
+// can read the whole job but has nothing to press yet.
+const PREPARING = [
+  "ORDER_PLACED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "ORDER_CONFIRMED",
+  "ORDER_ACCEPTED", "PICKING", "PACKING", "READY_FOR_PICKUP",
+];
+const PREPARING_STEP = {
+  heading: "Store is preparing",
+  sub: "This order is yours. You can start once the store marks it ready.",
+  leg: "pickup",
+  action: null,
+  waiting: true,
+};
+
 export default function DeliveryScreen({ route, navigation }) {
   const { orderId } = route.params;
 
@@ -47,6 +62,9 @@ export default function DeliveryScreen({ route, navigation }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [otp, setOtp] = useState("");
+  // The customer's order QR, once scanned. Required before the OTP step.
+  const [scanned, setScanned] = useState("");
+  const [scanning, setScanning] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -56,7 +74,9 @@ export default function DeliveryScreen({ route, navigation }) {
         api.get("/orders/delivery/queue"),
       ]);
       setOrder(detail.order);
-      setPickup(queue.orders.find((o) => o.id === orderId)?.pickup || null);
+      setPickup(
+        [...queue.orders, ...(queue.upcoming || [])].find((o) => o.id === orderId)?.pickup || null
+      );
       setError("");
     } catch (err) {
       setError(err.message);
@@ -68,6 +88,15 @@ export default function DeliveryScreen({ route, navigation }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // While the store is still preparing it, check back so the "Start" button
+  // appears the moment the order is ready.
+  const waiting = order && PREPARING.includes(order.status);
+  useEffect(() => {
+    if (!waiting) return undefined;
+    const timer = setInterval(load, 10000);
+    return () => clearInterval(timer);
+  }, [waiting, load]);
 
   async function advance(status) {
     setBusy(true);
@@ -86,7 +115,7 @@ export default function DeliveryScreen({ route, navigation }) {
     setBusy(true);
     setError("");
     try {
-      await api.post(`/orders/${orderId}/deliver`, { otp });
+      await api.post(`/orders/${orderId}/deliver`, { otp, scanned });
       // Nothing left to do on this order, so go back to the queue rather than
       // leaving the rider on a dead screen.
       navigation.replace("Delivered", { orderId, code: order.code });
@@ -101,7 +130,7 @@ export default function DeliveryScreen({ route, navigation }) {
   if (loading) return <Loading label="Loading the order" />;
  if (!order) return<EmptyState icon="" title="Couldn't load this order" hint={error} />;
 
-  const step = STEP_COPY[order.status];
+  const step = STEP_COPY[order.status] || (PREPARING.includes(order.status) ? PREPARING_STEP : null);
 
   if (!step) {
     return (
@@ -209,21 +238,37 @@ export default function DeliveryScreen({ route, navigation }) {
           </View>
         </Card>
 
-        {/* Handover */}
+        {/* Handover: 1) scan the customer's QR, 2) enter their OTP */}
         {order.status === "ARRIVED" ? (
           <Card style={{ padding: spacing.md, gap: spacing.md }}>
-            <Text style={type.h3}>Handover code</Text>
+            <Text style={type.h3}>Step 1 · Scan customer's QR</Text>
             <Text style={type.small}>
+              Ask the customer to open this order in their app and show the QR code.
+            </Text>
+            {scanned ? (
+              <Notice tone="success">QR verified for {order.code}</Notice>
+            ) : null}
+            <Button
+              title={scanned ? "Scan again" : "Scan QR"}
+              variant={scanned ? "outline" : "primary"}
+              onPress={() => setScanning(true)}
+            />
+
+            <Divider />
+
+            <Text style={[type.h3, !scanned && { opacity: 0.45 }]}>Step 2 · Handover code</Text>
+            <Text style={[type.small, !scanned && { opacity: 0.45 }]}>
               Ask the customer to read the 4-digit code from their order screen.
             </Text>
             <TextInput
               value={otp}
+              editable={Boolean(scanned)}
               onChangeText={(text) => setOtp(text.replace(/\D/g, "").slice(0, 4))}
               placeholder="0000"
               placeholderTextColor={colors.textFaint}
               keyboardType="number-pad"
               maxLength={4}
-              style={styles.otpInput}
+              style={[styles.otpInput, !scanned && { opacity: 0.45 }]}
             />
           </Card>
         ) : null}
@@ -244,6 +289,16 @@ export default function DeliveryScreen({ route, navigation }) {
         />
       </ScrollView>
 
+      <QrScanModal
+        visible={scanning}
+        expected={`HBORDER:${order.code}`}
+        onClose={() => setScanning(false)}
+        onScanned={(value) => {
+          setScanned(value);
+          setScanning(false);
+        }}
+      />
+
       {/* One primary action, always in the same place under the thumb. */}
       <View style={styles.actionBar}>
         {order.status === "ARRIVED" ? (
@@ -251,9 +306,11 @@ export default function DeliveryScreen({ route, navigation }) {
             title="Confirm delivery"
             subtitle={collectCash ? `after collecting ${rupees(order.pricing?.total)}` : undefined}
             loading={busy}
-            disabled={otp.length !== 4}
+            disabled={!scanned || otp.length !== 4}
             onPress={handOver}
           />
+        ) : step.waiting ? (
+          <Button title="Waiting for the store to finish…" disabled onPress={load} />
         ) : (
           <Button
             title={step.action.label}

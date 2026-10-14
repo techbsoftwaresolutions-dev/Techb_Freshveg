@@ -5,7 +5,7 @@ import { api } from "../api/client";
 import { clockTime, colors, formatAddress, rupees, spacing, type } from "../theme";
 import { Card, EmptyState, Loading, Pill } from "../components/ui";
 
-export default function HistoryScreen() {
+export default function HistoryScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,7 +81,11 @@ export default function HistoryScreen() {
           </View>
 
           {group.orders.map((order) => (
-            <Card key={order.id} style={styles.card}>
+            <Card
+              key={order.id}
+              style={styles.card}
+              onPress={() => navigation.navigate("DeliveredDetail", { orderId: order.id })}
+            >
               <View style={{ flex: 1 }}>
                 <View style={styles.cardHead}>
                   <Text style={styles.code}>{order.code}</Text>

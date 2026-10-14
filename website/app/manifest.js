@@ -9,6 +9,8 @@ export default function manifest() {
     start_url: "/?source=pwa",
     scope: "/",
     display: "standalone",
+    display_override: ["standalone", "minimal-ui"],
+    prefer_related_applications: false,
     orientation: "portrait",
     background_color: "#ffffff",
     theme_color: "#0f4a23",
@@ -21,9 +23,15 @@ export default function manifest() {
       { src: "/app-icon/512?maskable=1", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "My cart", short_name: "Cart", url: "/cart" },
-      { name: "My orders", short_name: "Orders", url: "/orders" },
-      { name: "All categories", short_name: "Categories", url: "/c" },
+      { name: "My cart", short_name: "Cart", url: "/cart", icons: [{ src: "/app-icon/96", sizes: "96x96", type: "image/png" }] },
+      { name: "My orders", short_name: "Orders", url: "/orders", icons: [{ src: "/app-icon/96", sizes: "96x96", type: "image/png" }] },
+      { name: "All categories", short_name: "Categories", url: "/c", icons: [{ src: "/app-icon/96", sizes: "96x96", type: "image/png" }] },
+    ],
+    // Chrome's richer install dialog needs at least one wide (desktop) and one
+    // narrow (phone) screenshot.
+    screenshots: [
+      { src: "/app-screenshot/wide", sizes: "1280x720", type: "image/png", form_factor: "wide", label: "Hosur Basket" },
+      { src: "/app-screenshot/narrow", sizes: "720x1280", type: "image/png", form_factor: "narrow", label: "Hosur Basket" },
     ],
   };
 }

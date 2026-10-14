@@ -10,16 +10,20 @@ const DISMISS_FOR_MS = 14 * 24 * 60 * 60 * 1000;
 
 // Registers the service worker and offers "Install app" on phones.
 //
-// The worker is only registered in a production build. In `next dev` the
-// build files are not content-hashed, so caching them would serve yesterday's
-// code after an edit.
+// The worker is only registered in a production build (or with
+// NEXT_PUBLIC_PWA_DEV=1). In `next dev` the build files are not content-hashed,
+// so caching them would serve yesterday's code after an edit.
 export default function PwaSupport() {
   const { mounted, canPrompt, installed } = useInstallPrompt();
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    // Set NEXT_PUBLIC_PWA_DEV=1 in .env.local to try installing from `next dev`.
+    const enabled = process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_PWA_DEV === "1";
+    if (enabled && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/", updateViaCache: "none" })
+        .catch(() => {});
     }
     setDismissed(recentlyDismissed());
   }, []);

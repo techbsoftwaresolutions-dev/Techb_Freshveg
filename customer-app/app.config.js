@@ -36,6 +36,8 @@ export default {
       // Read by src/api/client.js. Set API_BASE_URL in .env — on a physical
       // device this has to be your machine's LAN IP, not localhost.
       apiBaseUrl: process.env.API_BASE_URL,
+      // Website used for shared product links (src/components/ShareRow.js).
+      webBaseUrl: process.env.WEB_BASE_URL,
     },
   },
 };

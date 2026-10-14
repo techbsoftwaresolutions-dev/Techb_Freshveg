@@ -230,6 +230,7 @@ async function transition(order, to, actor = {}, note = "") {
     );
   }
 
+  const from = order.status;
   const role = actor.role || "system";
   const permitted = allowedTransitions(order.status, role);
   if (role !== "system" && !permitted.includes(to)) {
@@ -312,6 +313,12 @@ async function transition(order, to, actor = {}, note = "") {
   // Tell the customer last, once the state change has actually stuck — a
   // notification about something that then failed to save is worse than none.
   await announce(order, to);
+
+  // A rider was already chosen while the store was preparing this order, so
+  // hand it over the moment it is ready instead of waiting for a second click.
+  if (to === "READY_FOR_PICKUP" && from !== "ASSIGNED_TO_DELIVERY" && order.delivery?.partner) {
+    return transition(order, "ASSIGNED_TO_DELIVERY", { role: "system" }, `Assigned to ${order.delivery.partnerName}`);
+  }
 
   return order;
 }

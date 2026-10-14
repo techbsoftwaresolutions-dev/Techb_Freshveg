@@ -132,6 +132,7 @@ router.post(
       method: req.body.method || order.payment.method,
       customer,
       idempotencyKey: req.body.idempotencyKey,
+      gateway: req.body.gateway,
     });
 
     res.json({ success: true, payment: result.payment, checkout: result.checkout });

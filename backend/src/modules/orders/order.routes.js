@@ -1,4 +1,5 @@
 const express = require("express");
+const QRCode = require("qrcode");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
 const { paginate } = require("../../core/query");
@@ -13,10 +14,15 @@ const Order = require("./order.model");
 const User = require("../auth/user.model");
 const Store = require("../stores/store.model");
 const orderService = require("./order.service");
+const audit = require("../audit/audit.service");
 const { STATUSES, allowedTransitions, buildTimeline, describeAction } = require("./orderStatus");
 
 const router = express.Router();
 router.use(requireAuth);
+
+// What the customer's handover QR encodes. The rider scans it before entering
+// the OTP, which proves they are standing at the right order.
+const orderQrValue = (order) => `HBORDER:${order.code}`;
 
 // The whole status table, so the admin and delivery apps build their action
 // buttons from the engine rather than hardcoding a copy of it.
@@ -74,7 +80,14 @@ router.get(
       throw ApiError.forbidden("Not your order");
     }
 
-    res.json({ success: true, tracking: orderService.trackingView(order) });
+    const tracking = orderService.trackingView(order);
+    // The QR is only handed out while the rider can actually use it (the same
+    // window as the OTP), and only to the order's owner.
+    if (tracking.otp && isOwner) {
+      tracking.qr = await QRCode.toDataURL(orderQrValue(order), { width: 280, margin: 1 });
+    }
+
+    res.json({ success: true, tracking });
   })
 );
 
@@ -234,6 +247,7 @@ router.get(
           id: partner.id,
           name: partner.name,
           phone: partner.phone,
+          stores: (partner.stores || []).map(String),
           assignedToday: stats.assigned,
           deliveredToday: stats.delivered,
           openNow: stats.assigned - stats.delivered,
@@ -257,9 +271,45 @@ router.post(
   })
 );
 
+// Permanently removes an order (admins only). An order that is still open is
+// cancelled first, so its reserved stock goes back on the shelf and any money
+// taken is refunded; a finished order is simply removed.
+router.delete(
+  "/:id",
+  requireRole("admin", "super_admin"),
+  asyncHandler(async (req, res) => {
+    const order = await Order.findById(req.params.id);
+    if (!order) throw ApiError.notFound("Order not found");
+
+    const actor = { id: req.user.id, name: req.user.name, role: req.user.role };
+    const terminal = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+    if (!terminal.includes(order.status) && STATUSES[order.status]?.next?.includes("CANCELLED")) {
+      await orderService.transition(order, "CANCELLED", actor, "Order deleted by admin");
+    }
+
+    await audit.record({
+      req,
+      action: "delete",
+      entity: "Order",
+      entityId: order.id,
+      label: `${order.code} (${order.status})`,
+    });
+    await Order.deleteOne({ _id: order._id });
+    res.json({ success: true });
+  })
+);
+
 // ---------------------------------------------------------------- delivery app
 
 const LIVE_STATUSES = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"];
+
+// Orders an admin has already given to a rider while the store is still
+// preparing them. The rider sees them as "coming up" and they become live the
+// moment the order reaches Ready for pickup.
+const UPCOMING_STATUSES = [
+  "ORDER_PLACED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "ORDER_CONFIRMED",
+  "ORDER_ACCEPTED", "PICKING", "PACKING", "READY_FOR_PICKUP",
+];
 
 // The partner app's home screen in one request: what is in hand right now, and
 // what today has been worth. Everything here is computed from real orders —
@@ -274,8 +324,10 @@ router.get(
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const [orders, deliveredToday, stores] = await Promise.all([
+    const [orders, upcomingOrders, deliveredToday, stores] = await Promise.all([
       Order.find({ "delivery.partner": partnerId, status: { $in: LIVE_STATUSES } })
+        .sort({ "delivery.assignedAt": 1 }),
+      Order.find({ "delivery.partner": partnerId, status: { $in: UPCOMING_STATUSES } })
         .sort({ "delivery.assignedAt": 1 }),
       Order.find({
         "delivery.partner": partnerId,
@@ -301,7 +353,7 @@ router.get(
 
     // Each live order carries its pickup store, so the app can offer "navigate
     // to store" without a second lookup per card.
-    const withPickup = orders.map((order) => {
+    const withPickupInfo = (order) => {
       const store = storeById.get(String(order.store));
       return {
         ...order.toJSON(),
@@ -315,13 +367,17 @@ router.get(
             }
           : null,
       };
-    });
+    };
+    const withPickup = orders.map(withPickupInfo);
+    const upcoming = upcomingOrders.map(withPickupInfo);
 
     res.json({
       success: true,
       orders: withPickup,
+      upcoming,
       stats: {
         pending: orders.length,
+        upcoming: upcoming.length,
         deliveredToday: deliveredToday.length,
         assignedToday: orders.length + deliveredToday.length,
         earnings,
@@ -366,6 +422,11 @@ router.post(
 
     if (req.user.role === "delivery_partner" && String(order.delivery.partner) !== req.user.id) {
       throw ApiError.forbidden("This order is assigned to another partner");
+    }
+
+    // Riders must scan the customer's order QR first; staff can override.
+    if (req.user.role === "delivery_partner" && String(req.body.scanned || "").trim() !== orderQrValue(order)) {
+      throw ApiError.badRequest("Scan the customer's order QR before completing the delivery");
     }
 
     await orderService.completeDelivery(order, req.body, {

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 
 import { useAuth } from "../context/AuthContext";
 import { colors, type } from "../theme";
@@ -12,21 +13,27 @@ import LoginScreen from "../screens/LoginScreen";
 import QueueScreen from "../screens/QueueScreen";
 import DeliveryScreen from "../screens/DeliveryScreen";
 import DeliveredScreen from "../screens/DeliveredScreen";
-import HistoryScreen from "../screens/HistoryScreen";
+import DeliveredDetailScreen from "../screens/DeliveredDetailScreen";
+import OrdersScreen from "../screens/OrdersScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 
 const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const ICONS = { Queue: "\u{1F6F5}", History: "\u{1F4CB}", Profile: "\u{1F464}" };
+// [active, inactive] icon per tab.
+const ICONS = {
+  Queue: ["home", "home-outline"],
+  Orders: ["clipboard", "clipboard-outline"],
+  Profile: ["person", "person-outline"],
+};
 
 function MainTabs() {
   return (
     <Tabs.Navigator
       screenOptions={({ route }) => ({
         headerShown: route.name !== "Queue",
-        tabBarIcon: ({ focused }) => (
-          <Text style={{ fontSize: 21, opacity: focused ? 1 : 0.5 }}>{ICONS[route.name]}</Text>
+        tabBarIcon: ({ focused, color }) => (
+          <Ionicons name={ICONS[route.name][focused ? 0 : 1]} size={24} color={color} />
         ),
         tabBarActiveTintColor: colors.primaryDark,
         tabBarInactiveTintColor: colors.textFaint,
@@ -37,8 +44,8 @@ function MainTabs() {
         headerShadowVisible: false,
       })}
     >
-      <Tabs.Screen name="Queue" component={QueueScreen} options={{ title: "My runs" }} />
-      <Tabs.Screen name="History" component={HistoryScreen} options={{ title: "History" }} />
+      <Tabs.Screen name="Queue" component={QueueScreen} options={{ title: "Home" }} />
+      <Tabs.Screen name="Orders" component={OrdersScreen} options={{ title: "Orders" }} />
       <Tabs.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile" }} />
     </Tabs.Navigator>
   );
@@ -68,6 +75,7 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Delivery" component={DeliveryScreen} options={{ title: "Delivery" }} />
+            <Stack.Screen name="DeliveredDetail" component={DeliveredDetailScreen} options={{ title: "Delivery details" }} />
             <Stack.Screen
               name="Delivered"
               component={DeliveredScreen}
@@ -85,9 +93,17 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: colors.surface,
     borderTopColor: colors.border,
-    height: 62,
-    paddingBottom: 7,
-    paddingTop: 7,
+    height: 72,
+    paddingBottom: 12,
+    paddingTop: 8,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderTopWidth: 0,
+    shadowColor: "#0A2A14",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 12,
   },
   tabLabel: { fontSize: 11.5, fontWeight: "700" },
 });

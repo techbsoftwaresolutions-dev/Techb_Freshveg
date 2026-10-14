@@ -6,6 +6,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees, when } from "@/lib/format";
+import { payWithRazorpay } from "@/lib/razorpay";
 import EmptyState from "@/components/EmptyState";
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
@@ -53,6 +54,8 @@ function OrderDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payMessage, setPayMessage] = useState(params.get("payerror") || "");
   const poller = useRef(null);
 
   useEffect(() => {
@@ -109,6 +112,20 @@ function OrderDetail() {
     }
   }
 
+  async function payNow() {
+    setPaying(true);
+    setPayMessage("");
+    try {
+      const result = await payWithRazorpay(id);
+      if (!result.paid) setPayMessage("Payment was not completed. You can try again whenever you are ready.");
+      await load();
+    } catch (err) {
+      setPayMessage(err.message);
+    } finally {
+      setPaying(false);
+    }
+  }
+
   if (!ready || loading) {
     return (
       <div className="wrap orders-page">
@@ -136,7 +153,19 @@ function OrderDetail() {
   return (
     <div className="wrap orders-page">
       <MobileHead />
-      {justPlaced ? (
+      {tracking.status === "PAYMENT_PENDING" && order?.payment?.method === "upi" ? (
+        <div className="notice warn" role="status" style={{ marginBottom: 14 }}>
+          <strong>Payment pending.</strong> Your order is saved but not confirmed until it is paid.
+          {payMessage ? <span style={{ display: "block", marginTop: 4 }}>{payMessage}</span> : null}
+          <div style={{ marginTop: 10 }}>
+            <button type="button" className="btn primary" onClick={payNow} disabled={paying}>
+              {paying ? "Opening Razorpay…" : "Pay now with Razorpay"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {justPlaced && tracking.status !== "PAYMENT_PENDING" ? (
         <div className="placed-banner" role="status">
           <strong>Thank you! Your order is placed.</strong>
           <span>The store is preparing it now — you can follow every step below.</span>
@@ -199,6 +228,13 @@ function OrderDetail() {
             <div className="otp-card">
               <span>Share this code with your delivery partner</span>
               <strong className="tabular">{tracking.otp}</strong>
+              {tracking.qr ? (
+                <div className="otp-qr">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={tracking.qr} alt="Order QR for your delivery partner" width={180} height={180} />
+                  <small>Show this QR to your delivery partner to scan first</small>
+                </div>
+              ) : null}
             </div>
           ) : null}
 

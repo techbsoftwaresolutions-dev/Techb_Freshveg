@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useAuth, useCart } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
+import { payWithRazorpay } from "@/lib/razorpay";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -13,7 +14,7 @@ export default function CheckoutPage() {
 
   const [addressId, setAddressId] = useState(null);
   const [method, setMethod] = useState("cod");
-  const [upiTab, setUpiTab] = useState("manual");
+  const [upiTab, setUpiTab] = useState("razorpay");
   const [copied, setCopied] = useState(false);
   const [methods, setMethods] = useState(null);
   const [note, setNote] = useState("");
@@ -44,7 +45,13 @@ export default function CheckoutPage() {
     if (!storeId || cartTotal == null) return;
     api
       .get("/payments/methods", { store: storeId, total: cartTotal })
-      .then((data) => setMethods(data.methods || []))
+      .then((data) => {
+        const list = data.methods || [];
+        setMethods(list);
+        const upi = list.find((m) => m.key === "upi");
+        // Default to whichever UPI route this store actually offers.
+        if (upi) setUpiTab(upi.razorpay ? "razorpay" : "manual");
+      })
       .catch(() => setMethods([]));
   }, [storeId, cartTotal]);
 
@@ -86,6 +93,19 @@ export default function CheckoutPage() {
         source: "web",
       });
       await Promise.all([cart.refresh(), refreshUser()]);
+
+      // UPI through Razorpay: the order exists (awaiting payment), now open
+      // the payment window. If it is closed unpaid the customer lands on the
+      // order page, where "Pay now" lets them try again.
+      if (method === "upi" && upiTab === "razorpay") {
+        try {
+          const result = await payWithRazorpay(order.id);
+          router.push(`/orders/${order.id}?placed=1${result.paid ? "&paid=1" : ""}`);
+        } catch (err) {
+          router.push(`/orders/${order.id}?placed=1&payerror=${encodeURIComponent(err.message)}`);
+        }
+        return;
+      }
       router.push(`/orders/${order.id}?placed=1`);
     } catch (err) {
       setError(err.message);
@@ -250,7 +270,27 @@ export default function CheckoutPage() {
                   </label>
                 ) : null}
 
-                {upiMethod ? (
+                {upiMethod?.razorpay ? (
+                  <label className={`choice choice-main${method === "upi" && upiTab === "razorpay" ? " on" : ""}`}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={method === "upi" && upiTab === "razorpay"}
+                      onChange={() => {
+                        setMethod("upi");
+                        setUpiTab("razorpay");
+                      }}
+                    />
+                    <span className="choice-radio" aria-hidden="true" />
+                    <span className="choice-copy">
+                      <strong>Pay with Razorpay</strong>
+                      <span>UPI apps, cards and netbanking — confirmed instantly</span>
+                    </span>
+                    <span className="pill accent">Recommended</span>
+                  </label>
+                ) : null}
+
+                {upiMethod?.manual ? (
                   <>
                     <label className={`choice choice-main${method === "upi" && upiTab === "manual" ? " on" : ""}`}>
                       <input
@@ -289,7 +329,14 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {method === "upi" && upiMethod ? (
+            {method === "upi" && upiTab === "razorpay" && upiMethod?.razorpay ? (
+              <p className="notice info" style={{ marginTop: 14, marginBottom: 0 }}>
+                A secure Razorpay window opens when you place the order. Choose your UPI app, pay{" "}
+                {rupees(summary.total)}, and your order is confirmed automatically.
+              </p>
+            ) : null}
+
+            {method === "upi" && upiTab !== "razorpay" && upiMethod?.manual ? (
               <div className="upi-pay-box">
                 {upiTab === "manual" ? (
                   <>
@@ -334,7 +381,7 @@ export default function CheckoutPage() {
               </div>
             ) : null}
 
-            {method === "upi" ? (
+            {method === "upi" && upiTab !== "razorpay" ? (
               <p className="notice warn" style={{ marginTop: 14, marginBottom: 0 }}>
                 No payment gateway is connected — the order is created awaiting payment, and we confirm
                 it once we see it land.
@@ -420,7 +467,7 @@ export default function CheckoutPage() {
               disabled={!addressId || !summary.meetsMinimum || placing}
               onClick={placeOrder}
             >
-              {placing ? "Placing order…" : "Place order"}
+              {placing ? "Placing order…" : method === "upi" && upiTab === "razorpay" ? "Pay & place order" : "Place order"}
             </button>
           </div>
         </div>

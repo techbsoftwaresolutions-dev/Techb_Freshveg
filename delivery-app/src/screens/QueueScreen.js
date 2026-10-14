@@ -1,210 +1,293 @@
-import React, { useCallback, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import React from "react";
+import { Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import { colors, formatAddress, radius, relativeTime, rupees, spacing, type } from "../theme";
-import { Button, Card, EmptyState, Loading, Notice, Pill, Stat } from "../components/ui";
+import useQueue from "../hooks/useQueue";
+import { colors, radius, rupees, shadow, spacing, type } from "../theme";
+import { Card, Loading, Notice } from "../components/ui";
+import { LiveRunCard, UpcomingRunCard } from "../components/RunCards";
 
-// What the rider should do next, per status. The engine owns the transitions;
-// this only decides the wording on the card.
-const NEXT_ACTION = {
-  ASSIGNED_TO_DELIVERY: { label: "Go to store", tone: "primary" },
-  PICKED_UP: { label: "Start delivery", tone: "primary" },
-  OUT_FOR_DELIVERY: { label: "Continue", tone: "primary" },
-  ARRIVED: { label: "Hand over", tone: "success" },
-};
+const LOGO = require("../../assets/hb-logo.png");
+const BANNER = require("../../assets/home-header.png");
+const BANNER_RATIO = 1520 / 376;
+// The banner fades into this green at the top, so the status bar area blends in.
+const HEADER_GREEN = "#0C8A45";
 
-const STAGE_LABEL = {
-  ASSIGNED_TO_DELIVERY: "Pick up from store",
-  PICKED_UP: "Picked up",
-  OUT_FOR_DELIVERY: "On the way",
-  ARRIVED: "At the door",
-};
-
+// Home: who you are, today's numbers, the cash you are holding, and the runs
+// that need you (live ones first, then orders still being prepared).
 export default function QueueScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-
-  const [orders, setOrders] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
-
-  const load = useCallback(async () => {
-    try {
-      const data = await api.get("/orders/delivery/queue");
-      setOrders(data.orders);
-      setStats(data.stats);
-      setError("");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  // Refetch every time the screen comes forward. A rider backgrounds this app
-  // constantly, and a stale queue is the one thing that must not happen.
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  const { width } = useWindowDimensions();
+  const bannerHeight = Math.round(width / BANNER_RATIO);
+  const { orders, upcoming, stats, loading, refreshing, error, refresh } = useQueue();
 
   if (loading) return <Loading label="Loading your runs" />;
 
-  return (
-    <View style={styles.screen}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-        <Text style={styles.greeting}>Hi, {user?.name?.split(" ")[0] || "partner"}</Text>
-        <Text style={styles.headerSub}>
-          {orders.length
-            ? `${orders.length} ${orders.length === 1 ? "delivery" : "deliveries"} in hand`
-            : "Nothing assigned right now"}
-        </Text>
+  const open = (item) => navigation.navigate("Delivery", { orderId: item.id });
+  const subtitle = orders.length
+    ? `${orders.length} ${orders.length === 1 ? "delivery" : "deliveries"} in hand`
+    : upcoming.length
+      ? `${upcoming.length} coming up — the store is preparing`
+      : "Nothing assigned right now";
 
-        <View style={styles.statRow}>
-          <Stat label="Delivered today" value={stats?.deliveredToday ?? 0} tone="success" />
-          <Stat label="In hand" value={stats?.pending ?? 0} tone="primary" />
-          <Stat label="Earned today" value={rupees(stats?.earnings)} tone="cash" />
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ paddingBottom: spacing.xxl }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}
+    >
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + spacing.md, height: insets.top + bannerHeight + 92 }]}>
+        {/* The rider banner sits along the bottom; its white wave is the header's curve. */}
+        <Image
+          pointerEvents="none"
+          source={BANNER}
+          resizeMode="cover"
+          style={[styles.banner, { height: bannerHeight }]}
+        />
+
+        <View style={styles.topRow}>
+          <View style={styles.brand}>
+            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+            <View>
+              <Text style={styles.brandName}>Hosur Basket</Text>
+              <Text style={styles.brandTag}>Fresh Produce • Better Life</Text>
+            </View>
+          </View>
+          <View style={styles.topActions}>
+            <View style={styles.iconBtn}>
+              <Ionicons name="notifications-outline" size={22} color="#fff" />
+              {upcoming.length + orders.length > 0 ? <View style={styles.dot} /> : null}
+            </View>
+            <Pressable style={styles.avatar} onPress={() => navigation.navigate("Profile")}>
+              <Ionicons name="person" size={22} color={colors.primaryDark} />
+            </Pressable>
+          </View>
         </View>
 
-        {stats?.codCollected > 0 ? (
-          <View style={styles.codBar}>
-            <Text style={styles.codText}>
-              Cash to deposit: {rupees(stats.codCollected)}
-            </Text>
-          </View>
-        ) : null}
+        <Text style={styles.greeting}>Hi, {user?.name?.split(" ")[0] || "partner"}</Text>
+        <Text style={styles.sub} numberOfLines={1} adjustsFontSizeToFit>{subtitle}</Text>
+      </View>
+
+      {/* Stats overlap the header */}
+      <View style={styles.statRow}>
+        <StatCard
+          icon="truck-delivery-outline"
+          tint={colors.success}
+          soft={colors.successSoft}
+          value={stats?.deliveredToday ?? 0}
+          label="Delivered today"
+          onPress={() => navigation.navigate("Orders")}
+        />
+        <StatCard
+          icon="package-variant-closed"
+          tint={colors.blue}
+          soft={colors.blueSoft}
+          value={stats?.pending ?? 0}
+          label="In hand"
+          onPress={() => navigation.navigate("Orders")}
+        />
+      </View>
+
+      {/* Cash to deposit */}
+      <View style={styles.cashCard}>
+        <View style={styles.cashIcon}>
+          <Ionicons name="wallet-outline" size={22} color="#fff" />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.cashLabel} numberOfLines={1}>Cash to deposit:</Text>
+          <Text style={styles.cashValue} numberOfLines={1} adjustsFontSizeToFit>
+            {rupees(stats?.codCollected)}
+          </Text>
+        </View>
+        <View style={styles.cashDivider} />
+        <Pressable
+          style={styles.depositBtn}
+          onPress={() =>
+            Alert.alert(
+              "Deposit cash",
+              `Hand ${rupees(stats?.codCollected)} to the store manager at the end of your shift.`
+            )
+          }
+        >
+          <Text style={styles.depositText}>Deposit Now</Text>
+          <Ionicons name="chevron-forward" size={14} color="#fff" />
+        </Pressable>
       </View>
 
       {error ? (
-        <View style={{ padding: spacing.lg }}>
+        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.md }}>
           <Notice tone="error">{error}</Notice>
         </View>
       ) : null}
 
-      <FlatList
-        data={orders}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              load();
-            }}
-            tintColor={colors.primary}
-          />
-        }
-        ListEmptyComponent={
-          <EmptyState
- icon=""
-            title="No deliveries assigned"
-            hint="When the store assigns you an order it will appear here. Pull down to refresh."
-          />
-        }
-        renderItem={({ item }) => {
-          const action = NEXT_ACTION[item.status] || { label: "Open", tone: "primary" };
-          const atStore = item.status === "ASSIGNED_TO_DELIVERY";
-          const target = atStore ? item.pickup?.address : item.delivery?.address;
+      {orders.length ? (
+        <Section title="Active deliveries" onAll={() => navigation.navigate("Orders")}>
+          {orders.slice(0, 3).map((item) => (
+            <LiveRunCard key={item.id} item={item} onPress={() => open(item)} />
+          ))}
+        </Section>
+      ) : null}
 
-          return (
-            <Card style={styles.card} onPress={() => navigation.navigate("Delivery", { orderId: item.id })}>
-              <View style={styles.cardHead}>
-                <Text style={styles.code}>{item.code}</Text>
-                <Pill tone={item.status === "ARRIVED" ? "success" : "primary"}>
-                  {STAGE_LABEL[item.status] || item.status}
-                </Pill>
-              </View>
+      {upcoming.length ? (
+        <Section title="Upcoming Order" onAll={() => navigation.navigate("Orders")}>
+          {upcoming.slice(0, 3).map((item) => (
+            <UpcomingRunCard key={item.id} item={item} onPress={() => open(item)} />
+          ))}
+        </Section>
+      ) : null}
 
-              {/* Where to go next — the store while it is unpicked, the
-                  customer once it is in the bag. */}
-              <View style={styles.legRow}>
-<Text style={styles.legIcon}>{atStore ?"" :""}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.legLabel}>{atStore ? "Pick up from" : "Deliver to"}</Text>
-                  <Text style={styles.legName} numberOfLines={1}>
-                    {atStore ? item.pickup?.name || "Store" : item.delivery?.address?.contactName || "Customer"}
-                  </Text>
-                  <Text style={type.small} numberOfLines={2}>
-                    {formatAddress(target)}
-                  </Text>
-                </View>
-              </View>
+      {!orders.length && !upcoming.length ? (
+        <Card style={styles.empty}>
+          <MaterialCommunityIcons name="moped-outline" size={44} color={colors.primary} />
+          <Text style={[type.h3, { marginTop: spacing.sm }]}>No deliveries assigned</Text>
+          <Text style={[type.small, { textAlign: "center", marginTop: 4 }]}>
+            When the store assigns you an order it will appear here. Pull down to refresh.
+          </Text>
+        </Card>
+      ) : null}
+    </ScrollView>
+  );
+}
 
-              <View style={styles.cardFoot}>
-                <View>
-                  <Text style={type.tiny}>
-                    {item.items?.length} item{item.items?.length === 1 ? "" : "s"} ·{" "}
-                    {relativeTime(item.delivery?.assignedAt)}
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 6, marginTop: 4 }}>
-                    {item.payment?.method === "cod" && item.payment?.status !== "paid" ? (
-                      <Pill tone="cash">Collect {rupees(item.pricing?.total)}</Pill>
-                    ) : (
-                      <Pill tone="success">Prepaid</Pill>
-                    )}
-                  </View>
-                </View>
+function StatCard({ icon, tint, soft, value, label, onPress }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.stat, { backgroundColor: soft }]}>
+      {/* The coloured swoosh along the bottom edge. */}
+      <View pointerEvents="none" style={[styles.swoosh, { backgroundColor: tint }]} />
+      <View style={[styles.statIcon, { backgroundColor: tint }]}>
+        <MaterialCommunityIcons name={icon} size={22} color="#fff" />
+      </View>
+      <Text style={styles.statValue} numberOfLines={1}>{value}</Text>
+      <View style={styles.statFoot}>
+        <Text style={styles.statLabel} numberOfLines={2}>{label}</Text>
+        <View style={[styles.statArrow, { backgroundColor: tint }]}>
+          <Ionicons name="chevron-forward" size={13} color="#fff" />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
 
-                <Button
-                  title={action.label}
-                  style={{ paddingHorizontal: spacing.lg }}
-                  onPress={() => navigation.navigate("Delivery", { orderId: item.id })}
-                />
-              </View>
-            </Card>
-          );
-        }}
-      />
+function Section({ title, onAll, children }) {
+  return (
+    <View style={{ marginTop: spacing.xl, paddingHorizontal: spacing.lg, gap: spacing.md }}>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <Pressable onPress={onAll} style={styles.viewAll} hitSlop={8}>
+          <Text style={styles.viewAllText}>View All</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.primaryDark} />
+        </Pressable>
+      </View>
+      {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: "#FFFFFF" },
 
   header: {
-    backgroundColor: colors.primaryDark,
+    backgroundColor: HEADER_GREEN,
     paddingHorizontal: spacing.lg,
+    overflow: "hidden",
+  },
+  banner: { position: "absolute", left: 0, right: 0, bottom: 0, width: "100%" },
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  brand: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  logo: { width: 84, height: 42 },
+  brandName: { color: "#fff", fontSize: 19, fontWeight: "800" },
+  brandTag: { color: "rgba(255,255,255,0.8)", fontSize: 10.5, fontWeight: "600" },
+  topActions: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  iconBtn: { padding: 4 },
+  dot: {
+    position: "absolute",
+    top: 3,
+    right: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#EF4444",
+    borderWidth: 1.5,
+    borderColor: HEADER_GREEN,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  greeting: { color: "#fff", fontSize: 32, fontWeight: "800", marginTop: spacing.md, letterSpacing: -0.5 },
+  sub: { color: "rgba(255,255,255,0.95)", fontSize: 13, fontWeight: "600", marginTop: 2, maxWidth: "62%" },
+
+  statRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: 6 },
+  stat: {
+    flex: 1,
+    borderRadius: 18,
+    padding: spacing.md,
     paddingBottom: spacing.lg,
+    gap: 6,
+    overflow: "hidden",
+    ...shadow.card,
   },
-  greeting: { color: "#fff", fontSize: 22, fontWeight: "800" },
-  headerSub: { color: "rgba(255,255,255,0.75)", fontSize: 13.5, marginTop: 2, fontWeight: "600" },
+  swoosh: {
+    position: "absolute",
+    left: "-15%",
+    bottom: -24,
+    width: "130%",
+    height: 36,
+    borderRadius: 999,
+    opacity: 0.9,
+    transform: [{ rotate: "-4deg" }],
+  },
+  statIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  statValue: { fontSize: 26, fontWeight: "800", color: colors.text, marginTop: 2 },
+  statFoot: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 4 },
+  statLabel: { flex: 1, fontSize: 12.5, fontWeight: "600", color: colors.textMuted },
+  statArrow: { width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 
-  statRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg },
-
-  codBar: {
+  cashCard: {
+    marginHorizontal: spacing.lg,
     marginTop: spacing.md,
-    backgroundColor: "rgba(255,255,255,0.14)",
-    borderRadius: radius.sm,
-    paddingVertical: 8,
-    paddingHorizontal: spacing.md,
-  },
-  codText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-
-  card: { padding: spacing.md, gap: spacing.md },
-  cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  code: { ...type.h3, fontVariant: ["tabular-nums"] },
-
-  legRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
-  legIcon: { fontSize: 22 },
-  legLabel: { ...type.tiny, textTransform: "uppercase", fontWeight: "800", letterSpacing: 0.5 },
-  legName: { ...type.body, fontWeight: "700" },
-
-  cardFoot: {
+    backgroundColor: colors.primaryDeep,
+    borderRadius: 18,
+    padding: spacing.md,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
+    gap: spacing.sm,
+    ...shadow.card,
   },
+  cashIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cashLabel: { color: "rgba(255,255,255,0.9)", fontSize: 12.5, fontWeight: "600" },
+  cashValue: { color: "#fff", fontSize: 26, fontWeight: "800" },
+  cashDivider: { width: 1, alignSelf: "stretch", backgroundColor: "rgba(255,255,255,0.35)" },
+  depositBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.7)",
+    borderRadius: radius.pill,
+    paddingHorizontal: 9,
+    paddingVertical: 9,
+  },
+  depositText: { color: "#fff", fontWeight: "800", fontSize: 12.5 },
+
+  sectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  sectionTitle: { fontSize: 20, fontWeight: "800", color: colors.text },
+  viewAll: { flexDirection: "row", alignItems: "center" },
+  viewAllText: { color: colors.primaryDark, fontWeight: "800", fontSize: 14.5 },
+
+  empty: { margin: spacing.lg, marginTop: spacing.xl, padding: spacing.xl, alignItems: "center" },
 });

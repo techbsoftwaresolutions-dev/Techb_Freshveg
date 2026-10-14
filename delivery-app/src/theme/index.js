@@ -1,32 +1,39 @@
 // This app is used one-handed, outdoors, often in sunlight and in a hurry.
 // So: high contrast, large type, big tap targets, and one obvious next action
-// per screen. Blue rather than the storefront's green, because a rider
-// switching between the two apps should never confuse them.
+// per screen. It now shares the Hosur Basket green so it looks like part of
+// the same family as the customer app.
 
 export const colors = {
-  bg: "#F4F6FA",
+  bg: "#F4F9F5",
   surface: "#FFFFFF",
-  surfaceAlt: "#EEF1F7",
-  border: "#DDE2EC",
-  borderStrong: "#C7CEDC",
+  surfaceAlt: "#EAF3EC",
+  border: "#DCE9DF",
+  borderStrong: "#C2D6C8",
 
-  text: "#101423",
-  textMuted: "#59617A",
-  textFaint: "#8F97AC",
+  text: "#0F1F16",
+  textMuted: "#4F6458",
+  textFaint: "#8AA095",
 
-  primary: "#2547C8",
-  primaryDark: "#1D3A8A",
-  primarySoft: "#E7ECFC",
+  primary: "#16A04A",
+  primaryDark: "#0F7A38",
+  primaryDeep: "#0A5A29",
+  primarySoft: "#E5F6EB",
   onPrimary: "#FFFFFF",
 
-  success: "#0E8A4F",
-  successSoft: "#E3F5EC",
+  success: "#12803F",
+  successSoft: "#E3F5EA",
   warn: "#A66A00",
   warnSoft: "#FDF2DF",
   danger: "#C62F28",
   dangerSoft: "#FDEBEA",
   cash: "#0E7C5A",
   cashSoft: "#E2F4EE",
+
+  // Tints for the home stat cards.
+  blue: "#2563EB",
+  blueSoft: "#E6EFFE",
+  amber: "#D98A00",
+  amberSoft: "#FDF1D6",
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
@@ -45,7 +52,7 @@ export const type = {
 
 export const shadow = {
   card: {
-    shadowColor: "#0A0E1A",
+    shadowColor: "#0A2A14",
     shadowOpacity: 0.06,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 },

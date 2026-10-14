@@ -21,7 +21,7 @@ async function providerFor() {
  * the intent; for an online method it asks the gateway to create its own order
  * and returns whatever the client needs to open a checkout sheet.
  */
-async function initiate(order, { method, customer, idempotencyKey } = {}) {
+async function initiate(order, { method, customer, idempotencyKey, gateway } = {}) {
   if (order.payment.status === "paid") {
     throw ApiError.conflict("This order is already paid");
   }
@@ -36,7 +36,19 @@ async function initiate(order, { method, customer, idempotencyKey } = {}) {
   // UPI here is manual collection (a VPA shown to the customer, no gateway
   // round-trip) — same as cash on delivery, never routed through an online
   // provider even if one happens to be configured.
-  const provider = method === "cod" || method === "upi" ? gateways.manual : await providerFor();
+  // gateway: "razorpay" is the customer choosing to pay by UPI through the
+  // Razorpay checkout, which confirms the payment automatically.
+  const viaRazorpay = method === "upi" && gateway === "razorpay";
+  if (viaRazorpay && !gateways.razorpay.configured) {
+    throw ApiError.badRequest(
+      "Razorpay is not set up yet. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to the backend .env and restart it."
+    );
+  }
+  const provider = viaRazorpay
+    ? gateways.razorpay
+    : method === "cod" || method === "upi"
+      ? gateways.manual
+      : await providerFor();
 
   const payment = new Payment({
     order: order._id,
@@ -246,14 +258,20 @@ async function availableMethods({ store, total, hasPhysicalItems = true }) {
   // UPI is manual collection, not a gateway integration: a store sets its own
   // VPA in Admin → Stores, and it shows up here the moment that's saved. No
   // online provider needs to be configured for this to work.
+  // When Razorpay keys are present the customer can also pay by UPI through
+  // the Razorpay checkout (automatic confirmation), with or without a VPA.
   const upi = store?.settings?.upi;
-  if (upi?.enabled && upi?.vpa) {
+  const manualUpi = Boolean(upi?.enabled && upi?.vpa);
+  const razorpay = gateways.razorpay.configured;
+  if (manualUpi || razorpay) {
     methods.push({
       key: "upi",
       label: "UPI",
       available: true,
-      vpa: upi.vpa,
-      payeeName: upi.payeeName || store.name,
+      manual: manualUpi,
+      razorpay,
+      vpa: manualUpi ? upi.vpa : "",
+      payeeName: upi?.payeeName || store?.name || "Hosur Basket",
       reason: null,
     });
   }
