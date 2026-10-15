@@ -26,7 +26,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={submit}>
-        <div className="mark">HB</div>
+        <img className="login-logo" src={`${import.meta.env.BASE_URL}logo-horizontal.png`} alt="Hosur Basket" />
         <h1>Hosur Basket Admin</h1>
         <p className="muted" style={{ margin: "5px 0 20px", fontSize: 13 }}>
           Sign in with your staff account.

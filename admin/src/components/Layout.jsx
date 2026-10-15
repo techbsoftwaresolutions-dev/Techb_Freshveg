@@ -330,7 +330,7 @@ export default function Layout() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="mark">HB</span>
+          <img className="mark-img" src={`${import.meta.env.BASE_URL}logo-mark.png`} alt="" width="34" height="28" />
           <span>Hosur Basket</span>
         </div>
         <nav>

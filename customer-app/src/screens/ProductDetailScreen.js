@@ -219,7 +219,7 @@ export default function ProductDetailScreen({ route, navigation }) {
             </>
           ) : null}
 
-          <ShareRow slug={slug} name={product.name} />
+          <ShareRow slug={product.slug || slug} name={product.name} />
 
           {product.description ? (
             <>
