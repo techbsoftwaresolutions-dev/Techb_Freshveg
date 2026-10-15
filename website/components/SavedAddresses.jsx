@@ -12,10 +12,18 @@ const fullAddress = (a) => [a.line1, a.line2, a.landmark, a.city, a.pincode].fil
 // address orders go to with a "Change" button; pressing it opens the list right
 // here (pick one, Edit, Delete, or Add new address), and Edit / Add open the
 // form in the same card.
-export default function SavedAddresses() {
+//
+// On checkout it is controlled: `selectedId` / `onSelect` decide which address
+// the order goes to (picking one there does not change the account default).
+export default function SavedAddresses({ selectedId, onSelect }) {
   const { user, refreshUser } = useAuth();
   const addresses = user?.addresses || [];
-  const current = addresses.find((a) => a.isDefault) || addresses[0] || null;
+  const controlled = typeof onSelect === "function";
+  const current =
+    (controlled && addresses.find((a) => a.id === selectedId)) ||
+    addresses.find((a) => a.isDefault) ||
+    addresses[0] ||
+    null;
   const serviceable = useServiceability(addresses.map((a) => a.pincode));
 
   // "view" | "list" | "form"
@@ -25,8 +33,13 @@ export default function SavedAddresses() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const finish = async (text) => {
-    await refreshUser();
+  const finish = async (text, { select = false } = {}) => {
+    const fresh = await refreshUser();
+    // A newly added address is the one they meant to deliver to.
+    if (select && controlled) {
+      const latest = fresh?.addresses?.[fresh.addresses.length - 1];
+      if (latest) onSelect(latest.id);
+    }
     setEditing(null);
     setConfirmId(null);
     setMode("view");
@@ -37,6 +50,11 @@ export default function SavedAddresses() {
   async function choose(id) {
     setError("");
     if (current?.id === id) {
+      setMode("view");
+      return;
+    }
+    if (controlled) {
+      onSelect(id);
       setMode("view");
       return;
     }
@@ -52,6 +70,8 @@ export default function SavedAddresses() {
     setError("");
     try {
       await api.del(`/auth/me/addresses/${address.id}`);
+      // Let the page fall back to another address if this one was in use.
+      if (controlled && current?.id === address.id) onSelect(null);
       await finish("Address removed");
     } catch (err) {
       setError(err.message);
@@ -75,7 +95,7 @@ export default function SavedAddresses() {
           <AddressForm
             address={editing || undefined}
             onCancel={() => setMode(addresses.length ? "list" : "view")}
-            onSaved={() => finish(editing ? "Address updated" : "Address added")}
+            onSaved={() => finish(editing ? "Address updated" : "Address added", { select: !editing })}
           />
         </div>
       ) : null}
@@ -147,6 +167,9 @@ export default function SavedAddresses() {
       {mode === "view" ? (
         current ? (
           <div className="addr-item">
+            {serviceable(current.pincode) === false ? (
+              <p className="co-addr-warn">Unserviceable, change address</p>
+            ) : null}
             <div className="addr-top">
               <strong>
                 {current.label}

@@ -155,6 +155,33 @@ router.post(
   })
 );
 
+// Delivery partners sign in to the delivery app with the email and password the
+// store set for them in Admin → Users (the OTP route above stays, but the app
+// no longer uses it until an SMS provider is connected).
+router.post(
+  "/partner/login",
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }),
+  asyncHandler(async (req, res) => {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+
+    const user = email
+      ? await User.findOne({ email, role: "delivery_partner" }).select("+passwordHash")
+      : null;
+
+    // One message for "no such email" and "wrong password".
+    if (!user || !(await user.verifyPassword(password))) {
+      throw ApiError.unauthorized("Incorrect email or password");
+    }
+    if (user.status !== "active") throw ApiError.forbidden("This account is not active");
+
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    res.json({ success: true, user: publicUser(user), ...issueTokens(user) });
+  })
+);
+
 router.post(
   "/refresh",
   asyncHandler(async (req, res) => {

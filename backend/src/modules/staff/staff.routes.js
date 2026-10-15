@@ -22,7 +22,11 @@ const ASSIGNABLE_ROLES = ["super_admin", "admin", "store_manager", "delivery_par
 // store creates and manages their accounts from here.
 const MANAGED_ROLES = [...new Set([...STAFF_ROLES, "delivery_partner"])];
 const roleLabel = (key) => (key === "delivery_partner" ? "Delivery Boy" : ROLES[key]?.label || key);
-const usesPassword = (role) => role !== "delivery_partner";
+// Every role signs in with a password now — delivery boys too, with their email.
+const usesPassword = () => true;
+// Admin-side staff share one phone pool; delivery boys have their own.
+const inStaffPool = (role) => role !== "delivery_partner";
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const MIN_PASSWORD = 8;
 const STATUSES = ["active", "blocked"];
@@ -60,10 +64,26 @@ function checkPassword(password) {
 async function assertPhoneFree(phone, role, exceptId) {
   const taken = await User.findOne({
     phone,
-    role: { $in: usesPassword(role) ? STAFF_ROLES : ["delivery_partner"] },
+    role: { $in: inStaffPool(role) ? STAFF_ROLES : ["delivery_partner"] },
     ...(exceptId ? { _id: { $ne: exceptId } } : {}),
   }).select("_id");
   if (taken) throw ApiError.conflict("An account with this phone number already exists for this kind of role");
+}
+
+// A delivery boy signs in with email + password, so the email is required and
+// has to be unique among delivery boys.
+async function assertPartnerEmail(email, exceptId) {
+  const clean = String(email || "").trim().toLowerCase();
+  if (!EMAIL_RE.test(clean)) {
+    throw ApiError.unprocessable("Enter a valid email — the delivery boy signs in with it", { email: "Valid email required" });
+  }
+  const taken = await User.findOne({
+    email: clean,
+    role: "delivery_partner",
+    ...(exceptId ? { _id: { $ne: exceptId } } : {}),
+  }).select("_id");
+  if (taken) throw ApiError.conflict("Another delivery boy already uses this email", { email: "Already in use" });
+  return clean;
 }
 
 // Admins may create and manage Super Admins too (the owner's call). Rules that
@@ -141,18 +161,19 @@ router.post(
     }
     checkRole(role);
     assertCanTouch(req, role);
-    if (usesPassword(role)) checkPassword(password);
+    checkPassword(password);
     await assertPhoneFree(phone, role);
+    const partnerEmail = role === "delivery_partner" ? await assertPartnerEmail(email) : null;
 
     const user = new User({
       name: String(name).trim(),
       phone,
-      email: email || "",
+      email: partnerEmail ?? (email || ""),
       role,
       status: "active",
       phoneVerifiedAt: new Date(),
     });
-    if (usesPassword(role)) await user.setPassword(String(password));
+    await user.setPassword(String(password));
     await user.save();
 
     await audit.record({
@@ -190,7 +211,7 @@ router.patch(
       if (user.role === "super_admin" && (await activeSuperAdmins(user._id)) === 0) {
         throw ApiError.conflict("This is the only active super admin, so its role can't be changed");
       }
-      if (usesPassword(role) !== usesPassword(user.role)) await assertPhoneFree(user.phone, role, user._id);
+      if (inStaffPool(role) !== inStaffPool(user.role)) await assertPhoneFree(user.phone, role, user._id);
       user.role = role;
     }
 
@@ -203,9 +224,14 @@ router.patch(
       user.status = status;
     }
 
-    if (password && usesPassword(user.role)) {
+    if (password) {
       checkPassword(password);
       await user.setPassword(String(password));
+    }
+
+    // A delivery boy must end up with a valid, unique email (their sign-in).
+    if (user.role === "delivery_partner" && (email !== undefined || role !== undefined)) {
+      user.email = await assertPartnerEmail(user.email, user._id);
     }
 
     await user.save();

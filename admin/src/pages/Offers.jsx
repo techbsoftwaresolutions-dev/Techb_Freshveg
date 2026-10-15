@@ -283,7 +283,8 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
             disabled={saving || !form.title.trim() || (form.requiresCode && !form.code.trim())}
             onClick={() =>
               onSave({
-                ...form,
+                ...(({ isLive, id: _id, createdAt, updatedAt, ...rest }) => rest)(form),
+                ...(form.id ? { id: form.id } : {}),
                 conditions: { ...form.conditions, categories: selectedCategories },
                 schedule: { ...form.schedule, endsAt: fromLocalInputValue(form.schedule?.endsAt) },
               })

@@ -4,6 +4,9 @@ import { api } from "../api/client";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
 
+// The order QR is switched off: the delivery partner only needs the OTP.
+const SHOW_QR = false;
+
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
 
 export default function OrderTrackScreen({ route, navigation }) {
@@ -143,7 +146,8 @@ export default function OrderTrackScreen({ route, navigation }) {
         <Card style={styles.otpCard}>
           <Text style={type.small}>Share this code with your delivery partner</Text>
           <Text style={styles.otp}>{tracking.otp}</Text>
-          {tracking.qr ? (
+          {/* QR hidden for now — only the OTP is shown. Set SHOW_QR = true to bring it back. */}
+          {SHOW_QR && tracking.qr ? (
             <View style={styles.qrWrap}>
               <Image source={{ uri: tracking.qr }} style={styles.qr} />
               <Text style={type.tiny}>Show this QR to your delivery partner to scan first</Text>

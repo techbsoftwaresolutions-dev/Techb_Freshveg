@@ -15,9 +15,10 @@ export default {
     ios: { supportsTablet: false, bundleIdentifier: "com.samagramart.partner" },
     android: { package: "com.samagramart.partner", adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#FFFDF6" } },
     web: { bundler: "metro", favicon: "./assets/favicon.png" },
-    plugins: [["expo-camera", { cameraPermission: "Hosur Basket Partner uses the camera to scan the customer's order QR." }]],
+    plugins: [["expo-camera", { cameraPermission: "Hosur Basket Partner uses the camera to take a delivery photo." }]],
     extra: {
       apiBaseUrl: process.env.API_BASE_URL,
+      eas: { projectId: "ad0e15c2-9ae6-4bcc-bc7b-a123dcc818e8" },
     },
   },
 };
