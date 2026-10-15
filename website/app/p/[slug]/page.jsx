@@ -7,6 +7,7 @@ import VariantPicker from "@/components/VariantPicker";
 import ProductGallery from "@/components/ProductGallery";
 import PdpDelivery from "@/components/PdpDelivery";
 import ProductTabs from "@/components/ProductTabs";
+import ShareRow from "@/components/ShareRow";
 import { discountPct, rupees } from "@/lib/format";
 
 export async function generateMetadata({ params }) {
@@ -184,6 +185,8 @@ export default async function ProductPage({ params }) {
               </dl>
             </div>
           ) : null}
+
+          <ShareRow name={product.name} />
 
           <ProductTabs product={product} />
         </div>

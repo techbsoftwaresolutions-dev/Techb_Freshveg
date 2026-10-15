@@ -3,7 +3,7 @@ import { appIcon } from "@/lib/app-icon";
 // /app-icon/192 and /app-icon/512 — the manifest's icons. Only the sizes the
 // manifest names are served, so this cannot be used to render arbitrary
 // images on demand.
-const SIZES = new Set([192, 512]);
+const SIZES = new Set([96, 192, 512]);
 
 export async function GET(request, { params }) {
   const { size } = await params;

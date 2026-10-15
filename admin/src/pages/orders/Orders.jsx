@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
-import { Banner, Card, Empty, Loading, Pagination, Pill, Table, rupees, when } from "../../components/ui";
+import { useAuth } from "../../context/AuthContext";
+import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, rupees, when } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
 // stage added to the engine shows up here without a frontend change.
@@ -19,8 +20,22 @@ export function statusTone(status, statuses) {
   return GROUP_TONE[statuses?.[status]?.group] || undefined;
 }
 
+// Orders that are finished can no longer be handed to a rider.
+const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+
 export default function Orders() {
   const navigate = useNavigate();
+  const { can, user } = useAuth();
+  // Deleting an order is for admins only (the API enforces it too).
+  const canDelete = ["admin", "super_admin"].includes(user?.role);
+  const [confirming, setConfirming] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [notice, setNotice] = useState("");
+  const canAssign = can("orders.assign");
+  const [partners, setPartners] = useState([]);
+  const [assigningId, setAssigningId] = useState(null);
+  // Which row's Delivery cell is being edited, and the rider picked so far.
+  const [editing, setEditing] = useState({ id: null, partner: "" });
   const [searchParams] = useSearchParams();
   const [data, setData] = useState({ items: [], meta: null });
   const [statuses, setStatuses] = useState({});
@@ -38,6 +53,54 @@ export default function Orders() {
       )
       .catch(() => {});
   }, []);
+
+  // Active delivery boys for the dropdown in the Delivery column.
+  useEffect(() => {
+    if (!canAssign) return;
+    api
+      .get("/orders/delivery/partners")
+      .then(({ partners: list }) => setPartners(list))
+      .catch(() => {});
+  }, [canAssign]);
+
+  function load() {
+    return api
+      .get("/orders", { ...filters, limit: 20 })
+      .then(setData)
+      .catch((err) => setError(err.message));
+  }
+
+  async function removeOrder(order) {
+    setDeleting(true);
+    setError("");
+    setNotice("");
+    try {
+      await api.delete(`/orders/${order.id}`);
+      setConfirming(null);
+      setNotice(`Order ${order.code} was deleted.`);
+      await load();
+    } catch (err) {
+      setError(err.message);
+      setConfirming(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function assign(order, partnerId) {
+    if (!partnerId) return;
+    setAssigningId(order.id);
+    setError("");
+    try {
+      await api.post(`/orders/${order.id}/assign`, { partner: partnerId });
+      setEditing({ id: null, partner: "" });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAssigningId(null);
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -76,6 +139,7 @@ export default function Orders() {
       </div>
 
       <Banner tone="error">{error}</Banner>
+      <Banner tone="ok">{notice}</Banner>
 
       <div className="toolbar">
         {buckets.map((bucket) => (
@@ -153,15 +217,98 @@ export default function Orders() {
                 {
                   key: "partner",
                   label: "Delivery",
-                  render: (row) =>
-                    row.delivery?.partnerName ? (
-                      <span className="muted">{row.delivery.partnerName}</span>
-                    ) : (
-                      <span className="faint">—</span>
-                    ),
+                  render: (row) => {
+                    const assigned = row.delivery?.partner ? String(row.delivery.partner) : "";
+                    // Riders for this order's store (a rider with no store set works for all).
+                    const choices = partners.filter(
+                      (p) => !p.stores?.length || p.stores.includes(String(row.store))
+                    );
+                    if (!canAssign || CLOSED.includes(row.status)) {
+                      return row.delivery?.partnerName ? (
+                        <span className="muted">{row.delivery.partnerName}</span>
+                      ) : (
+                        <span className="faint">—</span>
+                      );
+                    }
+                    if (editing.id !== row.id) {
+                      return (
+                        <div className="row-actions" onClick={(e) => e.stopPropagation()}>
+                          {row.delivery?.partnerName ? (
+                            <span className="muted">{row.delivery.partnerName}</span>
+                          ) : (
+                            <span className="faint">—</span>
+                          )}
+                          <button
+                            className="btn sm"
+                            onClick={() => setEditing({ id: row.id, partner: assigned })}
+                          >
+                            {assigned ? "Edit" : "Assign"}
+                          </button>
+                        </div>
+                      );
+                    }
+                    const busy = assigningId === row.id;
+                    return (
+                      <div className="row-actions" onClick={(e) => e.stopPropagation()} style={{ flexWrap: "nowrap" }}>
+                        <select
+                          value={editing.partner}
+                          disabled={busy}
+                          onChange={(e) => setEditing({ id: row.id, partner: e.target.value })}
+                          aria-label="Delivery boy"
+                          style={{ minWidth: 140 }}
+                        >
+                          <option value="">Select delivery boy</option>
+                          {row.delivery?.partnerName && !choices.some((p) => p.id === assigned) ? (
+                            <option value={assigned}>{row.delivery.partnerName}</option>
+                          ) : null}
+                          {choices.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="btn sm primary"
+                          disabled={!editing.partner || editing.partner === assigned || busy}
+                          onClick={() => assign(row, editing.partner)}
+                        >
+                          {busy ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          className="btn sm"
+                          disabled={busy}
+                          onClick={() => setEditing({ id: null, partner: "" })}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    );
+                  },
                 },
+                ...(canDelete
+                  ? [
+                      {
+                        key: "actions",
+                        label: "Actions",
+                        align: "right",
+                        exportable: false,
+                        sortable: false,
+                        render: (row) => (
+                          <button
+                            className="btn sm danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirming(row);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        ),
+                      },
+                    ]
+                  : []),
               ]}
-              rows={data.items}
+              rows={data.items.map((row) => ({ ...row, partner: row.delivery?.partnerName || "" }))}
               onRowClick={(row) => navigate(`/orders/${row.id}`)}
               empty={<Empty title="No orders" hint="Orders placed from the app or website land here." />}
             />
@@ -169,6 +316,37 @@ export default function Orders() {
           </>
         )}
       </Card>
+
+      {confirming && (
+        <Modal
+          title="Delete order?"
+          onClose={() => !deleting && setConfirming(null)}
+          footer={
+            <>
+              <button className="btn" disabled={deleting} onClick={() => setConfirming(null)}>
+                Cancel
+              </button>
+              <button className="btn danger" disabled={deleting} onClick={() => removeOrder(confirming)}>
+                {deleting ? "Deleting…" : "Yes, delete"}
+              </button>
+            </>
+          }
+        >
+          <p style={{ margin: 0 }}>
+            <strong className="mono">{confirming.code}</strong> will be permanently removed.
+          </p>
+          {!["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"].includes(confirming.status) ? (
+            <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
+              This order is still open, so it will be cancelled first: its stock is returned and any
+              payment is refunded, and the customer is notified of the cancellation.
+            </p>
+          ) : (
+            <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
+              This cannot be undone.
+            </p>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

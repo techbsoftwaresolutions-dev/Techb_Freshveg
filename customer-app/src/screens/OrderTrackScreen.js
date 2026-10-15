@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
@@ -105,6 +105,13 @@ export default function OrderTrackScreen({ route, navigation }) {
         <Card style={styles.otpCard}>
           <Text style={type.small}>Share this code with your delivery partner</Text>
           <Text style={styles.otp}>{tracking.otp}</Text>
+          {tracking.qr ? (
+            <View style={styles.qrWrap}>
+              <Image source={{ uri: tracking.qr }} style={styles.qr} />
+              <Text style={type.tiny}>Show this QR to your delivery partner to scan first</Text>
+              <Text style={[type.tiny, { fontWeight: "700" }]}>{tracking.code}</Text>
+            </View>
+          ) : null}
         </Card>
       ) : null}
 
@@ -254,6 +261,8 @@ const styles = StyleSheet.create({
   statusLabel: { fontSize: 19, fontWeight: "800", color: colors.text, textAlign: "center" },
 
   otpCard: { padding: spacing.lg, alignItems: "center", backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  qrWrap: { alignItems: "center", gap: 4, marginTop: spacing.md },
+  qr: { width: 180, height: 180, borderRadius: radius.sm, backgroundColor: "#fff" },
   otp: { fontSize: 32, fontWeight: "800", letterSpacing: 10, color: colors.primaryDark, marginTop: 4 },
 
   avatar: {

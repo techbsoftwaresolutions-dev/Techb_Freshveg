@@ -95,7 +95,8 @@ const razorpay = {
         orderId: created.id,
         amount: created.amount,
         currency: created.currency,
-        name: "Samagra Mart",
+        name: "Hosur Basket",
+        description: `Order ${orderCode}`,
         prefill: { contact: customer?.phone || "", name: customer?.name || "" },
       },
     };

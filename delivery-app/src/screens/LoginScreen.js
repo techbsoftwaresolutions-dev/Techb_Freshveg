@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { colors, radius, spacing, type } from "../theme";
 import { Button, Notice } from "../components/ui";
@@ -15,6 +15,18 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
   const timer = useRef(null);
+
+  // While the keyboard is up, shrink the green area so the sign-in sheet (and
+  // the box being typed in) stays visible above the keyboard.
+  const [keyboard, setKeyboard] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", () => setKeyboard(true));
+    const hide = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => setKeyboard(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   useEffect(() => () => clearInterval(timer.current), []);
 
@@ -64,12 +76,17 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
       style={styles.screen}
     >
-      <View style={styles.hero}>
+      <View style={[styles.hero, keyboard && styles.heroCompact]}>
+        <Image
+          source={require("../../assets/hb-logo.png")}
+          style={keyboard ? styles.heroLogoSmall : styles.heroLogo}
+          resizeMode="contain"
+        />
         <Text style={styles.heroTitle}>Hosur Basket Partner</Text>
-        <Text style={styles.heroSub}>Deliveries, routes and earnings.</Text>
+        {keyboard ? null : <Text style={styles.heroSub}>Deliveries, routes and earnings.</Text>}
       </View>
 
       <View style={styles.sheet}>
@@ -150,9 +167,11 @@ export default function LoginScreen() {
           </>
         )}
 
-        <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.xl }]}>
-          Seeded partners: 9000000003, 9000000004
-        </Text>
+        {keyboard ? null : (
+          <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.xl }]}>
+            Seeded partners: 9000000003, 9000000004
+          </Text>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -160,8 +179,10 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.primaryDark },
-  hero: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-  heroMark: { fontSize: 62, marginBottom: spacing.md },
+  hero: { flex: 1, minHeight: 0, alignItems: "center", justifyContent: "center", padding: spacing.xl },
+  heroLogo: { width: 190, height: 94, marginBottom: spacing.lg },
+  heroLogoSmall: { width: 96, height: 48, marginBottom: spacing.sm },
+  heroCompact: { flex: 1, minHeight: 0, padding: spacing.md, paddingTop: spacing.xl },
   heroTitle: { fontSize: 27, fontWeight: "800", color: "#fff" },
   heroSub: { color: "rgba(255,255,255,0.8)", marginTop: 4, fontSize: 14 },
 

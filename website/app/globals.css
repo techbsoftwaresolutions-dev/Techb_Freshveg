@@ -2525,6 +2525,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 
 .otp-card {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -2536,6 +2537,9 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   color: var(--brand-dark);
 }
 .otp-card strong { font-size: 28px; font-weight: 700; letter-spacing: 0.25em; }
+.otp-qr { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-basis: 100%; margin-top: 12px; }
+.otp-qr img { border-radius: 8px; background: #fff; }
+.otp-qr small { opacity: 0.8; }
 .partner-card { display: flex; align-items: center; gap: 14px; }
 .partner-card > div { flex: 1; display: flex; flex-direction: column; }
 .partner-card > div span { font-size: 12.5px; color: var(--text-faint); }
@@ -4281,3 +4285,29 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 @media (max-width: 720px) {
   .footer-gate.hide-on-phone { display: none; }
 }
+
+/* Product page: share on WhatsApp (left) and copy link (right) */
+.pdp-share { display: flex; justify-content: space-between; gap: 12px; margin: 16px 0; }
+.pdp-share-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 10px;
+  white-space: nowrap; /* each label stays on one line */
+  min-width: 0;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.pdp-share-btn:hover { border-color: var(--brand); color: var(--brand); }
+.pdp-share-btn.whatsapp { background: #e9f8ef; border-color: #bfe8cf; color: #12803f; }
+.pdp-share-btn.whatsapp:hover { background: #dcf3e5; color: #0e6b34; border-color: #9fd9b6; }
+@media (max-width: 359px) { .pdp-share-prefix { display: none; } }
