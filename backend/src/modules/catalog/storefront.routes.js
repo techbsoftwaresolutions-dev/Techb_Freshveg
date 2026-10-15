@@ -674,7 +674,11 @@ router.get(
 router.get(
   "/products/:slug",
   asyncHandler(async (req, res) => {
-    const product = await Product.findOne({ slug: req.params.slug, status: "active" })
+    // The app opens a product from an order line, which only remembers the
+    // product's id, so a 24-character id works here as well as a slug.
+    const key = req.params.slug;
+    const lookup = /^[0-9a-fA-F]{24}$/.test(key) ? { $or: [{ slug: key }, { _id: key }] } : { slug: key };
+    const product = await Product.findOne({ ...lookup, status: "active" })
       .populate("category", "name slug path parent")
       .populate("brand", "name slug logo");
     if (!product) throw ApiError.notFound("Product not found");

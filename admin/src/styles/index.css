@@ -158,6 +158,15 @@ h3 { font-size: 14px; }
   letter-spacing: -0.02em;
 }
 
+.sidebar-brand .mark-img {
+  width: 34px; height: 28px;
+  object-fit: contain;
+  flex: none;
+  background: #fffdf6;
+  border-radius: 8px;
+  padding: 2px 3px;
+}
+
 .sidebar nav { padding: 10px; flex: 1; }
 
 .nav-group-label {
@@ -917,6 +926,13 @@ textarea { min-height: 76px; resize: vertical; }
   border-radius: 14px;
   box-shadow: var(--shadow);
   padding: 28px;
+}
+.login-card .login-logo {
+  display: block;
+  width: 190px;
+  max-width: 100%;
+  height: auto;
+  margin: 0 0 14px;
 }
 .login-card .mark {
   width: 40px; height: 40px;

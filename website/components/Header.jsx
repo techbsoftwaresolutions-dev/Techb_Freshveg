@@ -116,15 +116,7 @@ export default function Header({ categories = [] }) {
           <IconMenu className="header-burger-icon" />
         </Link>
         <Link href="/" className="logo">
-          <span className="logo-row">
-            <LogoMark className="logo-mark" />
-            <span className="logo-text">
-              <span className="logo-name">
-                Hosur <span className="logo-name-accent">Basket</span>
-              </span>
-              <span className="logo-tag">Fresh Food • Better Life</span>
-            </span>
-          </span>
+          <img src="/logo-horizontal.png" alt="Hosur Basket — your everyday supermarket" className="logo-img" width="202" height="56" />
         </Link>
 
         <form className="search-form" onSubmit={submit} role="search">
@@ -459,19 +451,6 @@ function IconHelp(props) {
       <circle cx="12" cy="12" r="9" />
       <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6" />
       <path d="M12 17h.01" />
-    </svg>
-  );
-}
-
-// Two leaves off one stem, in the two brand greens — the mark beside the
-// wordmark.
-function LogoMark(props) {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true" {...props}>
-      <path d="M22 44C9 42 2 31 4 14c11 1 19 8 20 20 0 4-1 7-2 10Z" fill="#4caf50" />
-      <path d="M24 44c1-14 7-26 20-32 2 17-5 29-18 32h-2Z" fill="#1b7a3a" />
-      <path d="M8 18c6 6 11 14 14 24" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" opacity=".7" />
-      <path d="M40 17c-7 6-11 14-14 25" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" opacity=".6" />
     </svg>
   );
 }

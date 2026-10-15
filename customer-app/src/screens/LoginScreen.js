@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { colors, radius, spacing, type } from "../theme";
 import { Button, Notice } from "../components/ui";
@@ -71,6 +71,9 @@ export default function LoginScreen({ navigation }) {
       style={styles.screen}
     >
       <View style={styles.hero}>
+        <View style={styles.heroLogoWrap}>
+          <Image source={require("../../assets/logo-mark.png")} style={styles.heroLogo} resizeMode="contain" />
+        </View>
         <Text style={styles.heroTitle}>Hosur Basket</Text>
         <Text style={styles.heroSub}>Fresh produce and groceries, delivered.</Text>
       </View>
@@ -173,6 +176,16 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.primary },
   hero: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
   heroMark: { fontSize: 56, marginBottom: spacing.md },
+  heroLogoWrap: {
+    width: 112,
+    height: 112,
+    borderRadius: 28,
+    backgroundColor: "#FFFDF6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.md,
+  },
+  heroLogo: { width: 92, height: 80 },
   heroTitle: { fontSize: 26, fontWeight: "800", color: "#fff" },
   heroSub: { color: "rgba(255,255,255,0.85)", marginTop: 4, fontSize: 13.5 },
 

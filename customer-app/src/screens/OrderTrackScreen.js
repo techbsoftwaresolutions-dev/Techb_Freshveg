@@ -61,6 +61,12 @@ export default function OrderTrackScreen({ route, navigation }) {
     }
   }
 
+  // Order lines remember the product's id, which the product page accepts in
+  // place of a slug.
+  function openProduct(item) {
+    if (item?.product) navigation.navigate("ProductDetail", { slug: String(item.product) });
+  }
+
   if (loading) return <Loading />;
   if (!tracking) return <EmptyState title="Couldn't load this order" hint={error} />;
 
@@ -70,6 +76,38 @@ export default function OrderTrackScreen({ route, navigation }) {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}>
       {error ? <Notice tone="error">{error}</Notice> : null}
+
+      {/* What was ordered: the first product's photo, its name, and how it is paid. */}
+      {order && order.items?.length ? (
+        <Card style={{ padding: spacing.md }} onPress={() => openProduct(order.items[0])}>
+          <View style={styles.summaryRow}>
+            <Thumb item={order.items[0]} size={88} extra={order.items.length - 1} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.summaryCode} numberOfLines={1}>
+                Order #{order.code}
+              </Text>
+              <Text style={styles.summaryName} numberOfLines={2}>
+                {order.items[0].name}
+                {order.items.length > 1 ? ` + ${order.items.length - 1} more` : ""}
+              </Text>
+              <Text style={type.small} numberOfLines={1}>
+                {[order.items[0].variantName || order.items[0].unit, paymentLabel(order.payment)]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </Text>
+              <Text style={type.tiny}>
+                Placed{" "}
+                {new Date(order.placedAt).toLocaleString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </Text>
+            </View>
+          </View>
+        </Card>
+      ) : null}
 
       <Card style={{ padding: spacing.lg, alignItems: "center" }}>
         <Text style={styles.statusLabel}>{tracking.statusLabel}</Text>
@@ -190,15 +228,16 @@ export default function OrderTrackScreen({ route, navigation }) {
       {order ? (
         <Card style={{ padding: spacing.md }}>
           <Text style={type.h3}>{order.items.length} items</Text>
-          <View style={{ marginTop: spacing.sm, gap: 6 }}>
+          <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
             {order.items.map((item) => (
-              <View key={item.id || item.sku} style={styles.itemRow}>
-                <Text style={[type.small, { flex: 1 }]} numberOfLines={1}>
+              <Pressable key={item.id || item.sku} style={styles.itemRow} onPress={() => openProduct(item)}>
+                <Thumb item={item} size={44} />
+                <Text style={[type.small, { flex: 1 }]} numberOfLines={2}>
                   {item.name} {item.variantName ? `· ${item.variantName}` : ""}
                 </Text>
                 <Text style={type.tiny}>×{item.quantity}</Text>
                 <Text style={styles.itemPrice}>{rupees(item.payable)}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
 
@@ -222,6 +261,29 @@ export default function OrderTrackScreen({ route, navigation }) {
         </Card>
       ) : null}
 
+      {order?.delivery?.address?.line1 ? (
+        <Card style={{ padding: spacing.md }}>
+          <Text style={type.h3}>Delivery address</Text>
+          <Text style={[type.body, { marginTop: spacing.sm, fontWeight: "700" }]}>
+            {order.delivery.address.contactName}
+          </Text>
+          <Text style={[type.small, { marginTop: 2 }]}>
+            {[
+              order.delivery.address.line1,
+              order.delivery.address.line2,
+              order.delivery.address.landmark,
+              order.delivery.address.city,
+              order.delivery.address.pincode,
+            ]
+              .filter(Boolean)
+              .join(", ")}
+          </Text>
+          {order.delivery.address.contactPhone ? (
+            <Text style={[type.small, { marginTop: 2 }]}>{order.delivery.address.contactPhone}</Text>
+          ) : null}
+        </Card>
+      ) : null}
+
       {canCancel ? (
         <Button
           title="Cancel order"
@@ -236,6 +298,34 @@ export default function OrderTrackScreen({ route, navigation }) {
         />
       ) : null}
     </ScrollView>
+  );
+}
+
+// "Cash on delivery", or "Prepaid" once an online payment has gone through.
+function paymentLabel(payment) {
+  if (!payment) return "";
+  if (payment.method === "cod") return "Cash on delivery";
+  return payment.status === "paid" ? "Prepaid" : "Payment pending";
+}
+
+// A product photo in a rounded box. Shows the product's first letter when it
+// has no photo, and "+N" over the corner when more items sit behind it.
+function Thumb({ item, size, extra = 0 }) {
+  return (
+    <View style={[styles.thumb, { width: size, height: size }]}>
+      {item.image ? (
+        <Image source={{ uri: item.image }} style={styles.thumbImage} resizeMode="contain" />
+      ) : (
+        <Text style={[styles.thumbLetter, { fontSize: size * 0.34 }]}>
+          {(item.name || "?").charAt(0).toUpperCase()}
+        </Text>
+      )}
+      {extra > 0 ? (
+        <View style={styles.thumbBadge}>
+          <Text style={styles.thumbBadgeText}>+{extra}</Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -292,6 +382,34 @@ const styles = StyleSheet.create({
   tick: { color: "#fff", fontSize: 10, fontWeight: "900" },
   connector: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
   stepLabel: { ...type.body, fontWeight: "700", fontSize: 13.5 },
+
+  summaryRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  summaryCode: { fontSize: 15, fontWeight: "800", color: colors.text },
+  summaryName: { ...type.body, fontWeight: "600", marginTop: 2 },
+  thumb: {
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  thumbImage: { width: "100%", height: "100%" },
+  thumbLetter: { fontWeight: "800", color: colors.textFaint },
+  thumbBadge: {
+    position: "absolute",
+    right: 4,
+    bottom: 4,
+    minWidth: 24,
+    paddingHorizontal: 6,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(20,23,31,0.78)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  thumbBadgeText: { color: "#fff", fontSize: 11, fontWeight: "800" },
 
   itemRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   itemPrice: { ...type.small, fontWeight: "700", color: colors.text, minWidth: 54, textAlign: "right" },
