@@ -9,6 +9,7 @@ import { api } from "@/lib/client-api";
 import { rupees, when } from "@/lib/format";
 import StatusPill from "@/components/StatusPill";
 import AccountMobile, { AccountHead } from "@/components/AccountMobile";
+import SavedAddresses from "@/components/SavedAddresses";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -171,27 +172,7 @@ export default function AccountPage() {
           <div className="panel-head">
             <h3>Saved addresses</h3>
           </div>
-          {user.addresses?.length ? (
-            <div className="list-rows">
-              {user.addresses.map((address) => (
-                <div key={address.id} className="list-row static">
-                  <span className="list-row-main">
-                    <strong>
-                      {address.label}
-                      {address.isDefault ? <span className="pill brand">Default</span> : null}
-                    </strong>
-                    <span>
-                      {[address.line1, address.line2, address.landmark, address.city, address.pincode]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="muted-line">No addresses saved yet — you can add one at checkout.</p>
-          )}
+          <SavedAddresses />
         </section>
       </div>
 

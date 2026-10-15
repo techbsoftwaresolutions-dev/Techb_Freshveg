@@ -1,17 +1,13 @@
-import { appIcon } from "@/lib/app-icon";
-
-// /app-icon/192 and /app-icon/512 — the manifest's icons. Only the sizes the
-// manifest names are served, so this cannot be used to render arbitrary
-// images on demand.
+// Old dynamic icon URLs (/app-icon/192 …) now point at the static Hosur Basket
+// icons in /public/icons, so an installed copy or a cached manifest that still
+// asks for them keeps working.
 const SIZES = new Set([96, 192, 512]);
 
 export async function GET(request, { params }) {
   const { size } = await params;
   const px = Number(size);
   if (!SIZES.has(px)) return new Response("Not found", { status: 404 });
-
-  const maskable = new URL(request.url).searchParams.has("maskable");
-  const response = appIcon(px, { maskable });
-  response.headers.set("Cache-Control", "public, max-age=604800, immutable");
-  return response;
+  const maskable = new URL(request.url).searchParams.has("maskable") && px !== 96;
+  const target = new URL(`/icons/${maskable ? "maskable" : "icon"}-${px}.png`, request.url);
+  return Response.redirect(target, 308);
 }

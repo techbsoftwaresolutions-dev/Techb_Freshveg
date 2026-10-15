@@ -23,7 +23,9 @@ export const metadata = {
     type: "website",
     siteName: "Hosur Basket",
     locale: "en_IN",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Hosur Basket — your everyday supermarket" }],
   },
+  twitter: { card: "summary_large_image", images: ["/og-image.png"] },
   robots: { index: true, follow: true },
   applicationName: "Hosur Basket",
   // Launched from the iPhone home screen: full screen, with the status bar

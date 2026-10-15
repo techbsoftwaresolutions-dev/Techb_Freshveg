@@ -10,11 +10,7 @@ export default function Footer({ categories = [] }) {
         <div className="footer-grid">
           <div className="footer-brand">
             <Link href="/" className="footer-logo">
-              <FooterMark />
-              <span>
-                <span className="footer-logo-name">Hosur Basket</span>
-                <span className="footer-logo-tag">Fresh Food • Better Life</span>
-              </span>
+              <img src="/logo-horizontal.png" alt="Hosur Basket — your everyday supermarket" className="footer-logo-img" width="216" height="60" />
             </Link>
             <p>
               Fresh fruit, vegetables, groceries and household essentials, delivered from your
@@ -74,14 +70,5 @@ export default function Footer({ categories = [] }) {
         </div>
       </div>
     </footer>
-  );
-}
-
-function FooterMark() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true" className="footer-mark">
-      <path d="M22 44C9 42 2 31 4 14c11 1 19 8 20 20 0 4-1 7-2 10Z" fill="#6cc070" />
-      <path d="M24 44c1-14 7-26 20-32 2 17-5 29-18 32h-2Z" fill="#a5d6a7" />
-    </svg>
   );
 }

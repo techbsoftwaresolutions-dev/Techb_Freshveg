@@ -12,26 +12,26 @@ export default function manifest() {
     display_override: ["standalone", "minimal-ui"],
     prefer_related_applications: false,
     orientation: "portrait",
-    background_color: "#ffffff",
+    background_color: "#fffdf6",
     theme_color: "#0f4a23",
     categories: ["shopping", "food"],
     lang: "en-IN",
     icons: [
-      { src: "/app-icon/192", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/app-icon/512", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/app-icon/192?maskable=1", sizes: "192x192", type: "image/png", purpose: "maskable" },
-      { src: "/app-icon/512?maskable=1", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "My cart", short_name: "Cart", url: "/cart", icons: [{ src: "/app-icon/96", sizes: "96x96", type: "image/png" }] },
-      { name: "My orders", short_name: "Orders", url: "/orders", icons: [{ src: "/app-icon/96", sizes: "96x96", type: "image/png" }] },
-      { name: "All categories", short_name: "Categories", url: "/c", icons: [{ src: "/app-icon/96", sizes: "96x96", type: "image/png" }] },
+      { name: "My cart", short_name: "Cart", url: "/cart", icons: [{ src: "/icons/icon-96.png", sizes: "96x96", type: "image/png" }] },
+      { name: "My orders", short_name: "Orders", url: "/orders", icons: [{ src: "/icons/icon-96.png", sizes: "96x96", type: "image/png" }] },
+      { name: "All categories", short_name: "Categories", url: "/c", icons: [{ src: "/icons/icon-96.png", sizes: "96x96", type: "image/png" }] },
     ],
     // Chrome's richer install dialog needs at least one wide (desktop) and one
     // narrow (phone) screenshot.
     screenshots: [
-      { src: "/app-screenshot/wide", sizes: "1280x720", type: "image/png", form_factor: "wide", label: "Hosur Basket" },
-      { src: "/app-screenshot/narrow", sizes: "720x1280", type: "image/png", form_factor: "narrow", label: "Hosur Basket" },
+      { src: "/screenshots/wide.png", sizes: "1280x720", type: "image/png", form_factor: "wide", label: "Hosur Basket" },
+      { src: "/screenshots/narrow.png", sizes: "720x1280", type: "image/png", form_factor: "narrow", label: "Hosur Basket" },
     ],
   };
 }
