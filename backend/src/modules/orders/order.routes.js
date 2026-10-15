@@ -455,9 +455,11 @@ router.post(
       throw ApiError.forbidden("This order is assigned to another partner");
     }
 
-    // Riders must scan the customer's order QR first; staff can override.
-    if (req.user.role === "delivery_partner" && String(req.body.scanned || "").trim() !== orderQrValue(order)) {
-      throw ApiError.badRequest("Scan the customer's order QR before completing the delivery");
+    // The QR scan is optional now (the delivery OTP is the proof of handover).
+    // If a QR value *is* sent it still has to match this order.
+    const scannedQr = String(req.body.scanned || "").trim();
+    if (req.user.role === "delivery_partner" && scannedQr && scannedQr !== orderQrValue(order)) {
+      throw ApiError.badRequest("That QR belongs to a different order");
     }
 
     await orderService.completeDelivery(order, req.body, {

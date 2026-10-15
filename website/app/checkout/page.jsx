@@ -6,8 +6,7 @@ import { useAuth, useCart } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
 import { payWithRazorpay } from "@/lib/razorpay";
-import AddressEditor from "@/components/AddressEditor";
-import AddressPicker from "@/components/AddressPicker";
+import SavedAddresses from "@/components/SavedAddresses";
 import { useServiceability } from "@/lib/use-serviceability";
 
 export default function CheckoutPage() {
@@ -23,9 +22,6 @@ export default function CheckoutPage() {
   const [note, setNote] = useState("");
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState("");
-  const [picking, setPicking] = useState(false);
-  // null = closed; { address } = editor open (address unset = adding a new one).
-  const [editor, setEditor] = useState(null);
 
   useEffect(() => {
     if (ready && !signedIn) router.replace("/login?next=/checkout");
@@ -60,19 +56,6 @@ export default function CheckoutPage() {
       })
       .catch(() => setMethods([]));
   }, [storeId, cartTotal]);
-
-  async function removeAddress(address) {
-    try {
-      const { addresses: fresh } = await api.del(`/auth/me/addresses/${address.id}`);
-      if (addressId === address.id) {
-        const next = fresh.find((a) => a.isDefault) || fresh[0];
-        setAddressId(next?.id || null);
-      }
-      await refreshUser();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
 
   const summary = cart.summary;
 
@@ -157,41 +140,12 @@ export default function CheckoutPage() {
               </h3>
             </div>
 
-            {selectedAddress ? (
-              <div className="co-addr">
-                {addressUnserviceable ? (
-                  <p className="co-addr-warn">Unserviceable, change address</p>
-                ) : null}
-                <div className={`co-addr-card${addressUnserviceable ? " dim" : ""}`}>
-                  <div className="co-addr-top">
-                    <strong>
-                      {selectedAddress.contactName || selectedAddress.label}
-                      <span className="co-addr-tag">{selectedAddress.label}</span>
-                    </strong>
-                    <button type="button" className="co-addr-change" onClick={() => setPicking(true)}>
-                      Change
-                    </button>
-                  </div>
-                  <span className="co-addr-text">
-                    {[selectedAddress.line1, selectedAddress.line2, selectedAddress.landmark, selectedAddress.city, selectedAddress.pincode]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </span>
-                  {selectedAddress.contactPhone ? (
-                    <span className="co-addr-phone">+91 {selectedAddress.contactPhone.replace(/\D/g, "").slice(-10)}</span>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <div className="co-addr">
-                <p className="notice warn" style={{ margin: "12px 0" }}>
-                  Add an address to continue.
-                </p>
-                <button type="button" className="addr-add" onClick={() => setEditor({})}>
-                  + Add delivery address
-                </button>
-              </div>
-            )}
+            {!addresses.length ? (
+              <p className="notice warn" style={{ margin: "12px 0" }}>
+                Add an address to continue.
+              </p>
+            ) : null}
+            <SavedAddresses selectedId={addressId} onSelect={setAddressId} />
           </section>
 
           <section className="panel">
@@ -427,39 +381,6 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
-
-      {picking ? (
-        <AddressPicker
-          addresses={addresses}
-          selectedId={addressId}
-          onClose={() => setPicking(false)}
-          onSelect={(id) => {
-            setAddressId(id);
-            setPicking(false);
-          }}
-          onAdd={() => setEditor({})}
-          onEdit={(address) => setEditor({ address })}
-          onDelete={removeAddress}
-        />
-      ) : null}
-
-      {editor ? (
-        <AddressEditor
-          address={editor.address}
-          onClose={() => setEditor(null)}
-          onSaved={async () => {
-            const adding = !editor.address;
-            const fresh = await refreshUser();
-            if (adding) {
-              // A new address is the one they meant to deliver to.
-              const latest = fresh?.addresses?.[fresh.addresses.length - 1];
-              if (latest) setAddressId(latest.id);
-            }
-            setEditor(null);
-            setPicking(false);
-          }}
-        />
-      ) : null}
     </div>
   );
 }

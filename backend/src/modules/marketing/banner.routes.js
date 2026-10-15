@@ -90,6 +90,7 @@ router.patch(
     // Counters are earned, not editable.
     delete req.body.impressions;
     delete req.body.clicks;
+    delete req.body.isLive; // a method on the document, never a field
     Object.assign(banner, req.body);
     await banner.save();
 

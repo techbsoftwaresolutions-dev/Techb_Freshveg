@@ -11,6 +11,7 @@
     "seed": "node src/seed/run.js",
     "seed:reset": "node src/seed/run.js --reset",
     "create-super-admin": "node src/seed/createSuperAdmin.js",
+    "set-partner-login": "node src/seed/setPartnerLogin.js",
     "sync-indexes": "node src/seed/syncIndexes.js",
     "smoke": "node src/seed/smoke.js",
     "migrate:images": "node src/seed/migrateImagesToCloudinary.js",

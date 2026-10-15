@@ -4,8 +4,17 @@ import { useAuth } from "../context/AuthContext";
 import { colors, radius, spacing, type } from "../theme";
 import { Button, Notice } from "../components/ui";
 
+// OTP sign-in is switched off until an SMS provider is connected: riders sign in
+// with the email and password the store set for them. Set to true to bring the
+// phone + OTP screens back (all of that code is still below).
+const OTP_LOGIN = false;
+
 export default function LoginScreen() {
-  const { requestOtp, verifyOtp } = useAuth();
+  const { requestOtp, verifyOtp, signInWithPassword } = useAuth();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [step, setStep] = useState("phone");
   const [phone, setPhone] = useState("");
@@ -60,6 +69,18 @@ export default function LoginScreen() {
     }
   }
 
+  async function signIn() {
+    setBusy(true);
+    setError("");
+    try {
+      await signInWithPassword(email, password);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function verify() {
     setBusy(true);
     setError("");
@@ -92,7 +113,51 @@ export default function LoginScreen() {
       <View style={styles.sheet}>
         {error ? <Notice tone="error" style={{ marginBottom: spacing.md }}>{error}</Notice> : null}
 
-        {step === "phone" ? (
+        {!OTP_LOGIN ? (
+          <>
+            <Text style={type.h2}>Sign in to start your shift</Text>
+            <Text style={[type.small, { marginTop: 4, marginBottom: spacing.lg }]}>
+              Use the email and password your store gave you.
+            </Text>
+
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              placeholderTextColor={colors.textFaint}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              style={styles.fieldInput}
+            />
+            <View style={[styles.fieldInput, styles.passwordRow]}>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Password"
+                placeholderTextColor={colors.textFaint}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="password"
+                onSubmitEditing={email.trim() && password ? signIn : undefined}
+                style={styles.passwordInput}
+              />
+              <Text style={styles.link} onPress={() => setShowPassword((v) => !v)}>
+                {showPassword ? "Hide" : "Show"}
+              </Text>
+            </View>
+
+            <Button
+              title="Start shift"
+              onPress={signIn}
+              loading={busy}
+              disabled={!email.trim() || !password}
+              style={{ marginTop: spacing.lg }}
+            />
+          </>
+        ) : step === "phone" ? (
           <>
             <Text style={type.h2}>Sign in to start your shift</Text>
             <Text style={[type.small, { marginTop: 4, marginBottom: spacing.lg }]}>
@@ -167,11 +232,11 @@ export default function LoginScreen() {
           </>
         )}
 
-        {keyboard ? null : (
+        {OTP_LOGIN && !keyboard ? (
           <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.xl }]}>
             Seeded partners: 9000000003, 9000000004
           </Text>
-        )}
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   );
@@ -205,6 +270,20 @@ const styles = StyleSheet.create({
   },
   prefix: { fontSize: 17, fontWeight: "800", color: colors.textMuted, marginRight: spacing.sm },
   phoneInput: { flex: 1, fontSize: 18, color: colors.text, letterSpacing: 1.5, fontWeight: "600" },
+
+  fieldInput: {
+    borderWidth: 2,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.md,
+    height: 56,
+    paddingHorizontal: spacing.md,
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: spacing.md,
+    justifyContent: "center",
+  },
+  passwordRow: { flexDirection: "row", alignItems: "center", marginBottom: 0 },
+  passwordInput: { flex: 1, fontSize: 16, color: colors.text, height: "100%" },
 
   codeInput: {
     marginTop: spacing.lg,

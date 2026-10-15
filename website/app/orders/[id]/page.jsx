@@ -9,6 +9,9 @@ import { rupees, when } from "@/lib/format";
 import { payWithRazorpay } from "@/lib/razorpay";
 import EmptyState from "@/components/EmptyState";
 
+// The customer's order QR is switched off: the delivery partner only needs the OTP.
+const SHOW_QR = false;
+
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
 
 // Phone: a compact back-arrow header stands in for the site header (its search
@@ -228,7 +231,8 @@ function OrderDetail() {
             <div className="otp-card">
               <span>Share this code with your delivery partner</span>
               <strong className="tabular">{tracking.otp}</strong>
-              {tracking.qr ? (
+              {/* QR hidden for now — only the OTP is shown. Set SHOW_QR = true to bring it back. */}
+              {SHOW_QR && tracking.qr ? (
                 <div className="otp-qr">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={tracking.qr} alt="Order QR for your delivery partner" width={180} height={180} />

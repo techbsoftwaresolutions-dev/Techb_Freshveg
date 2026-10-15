@@ -45,14 +45,22 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  // Email + password sign-in (set for each delivery boy in Admin → Users).
+  const signInWithPassword = useCallback(async (email, password) => {
+    const data = await api.post("/auth/partner/login", { email: email.trim(), password });
+    await saveSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    setUser(data.user);
+    return data;
+  }, []);
+
   const signOut = useCallback(async () => {
     await saveSession(null);
     setUser(null);
   }, []);
 
   const value = useMemo(
-    () => ({ user, ready, signedIn: Boolean(user), requestOtp, verifyOtp, signOut }),
-    [user, ready, requestOtp, verifyOtp, signOut]
+    () => ({ user, ready, signedIn: Boolean(user), requestOtp, verifyOtp, signInWithPassword, signOut }),
+    [user, ready, requestOtp, verifyOtp, signInWithPassword, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

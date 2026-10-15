@@ -1,12 +1,18 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { api } from "../api/client";
+import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { api, uploadImage } from "../api/client";
 import { colors, clockTime, formatAddress, radius, rupees, spacing, type } from "../theme";
 import QrScanModal from "../components/QrScanModal";
+import PhotoCaptureModal from "../components/PhotoCaptureModal";
 import {
   Button, Card, Divider, EmptyState, Loading, Notice, Pill,
   callNumber, openMaps,
 } from "../components/ui";
+
+// The customer-QR scan step is switched off: the rider only enters the 4-digit
+// handover code, and may add an optional delivery photo. Set to true to bring
+// the QR scan back (the backend still accepts and checks a QR if one is sent).
+const QR_STEP = false;
 
 // The rider's run, one screen. Exactly one primary action is offered at a
 // time, and which one comes from the engine's `actions` list rather than from
@@ -65,6 +71,9 @@ export default function DeliveryScreen({ route, navigation }) {
   // The customer's order QR, once scanned. Required before the OTP step.
   const [scanned, setScanned] = useState("");
   const [scanning, setScanning] = useState(false);
+  // Optional proof photo: the local file from the camera, uploaded on confirm.
+  const [photoUri, setPhotoUri] = useState("");
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -115,7 +124,14 @@ export default function DeliveryScreen({ route, navigation }) {
     setBusy(true);
     setError("");
     try {
-      await api.post(`/orders/${orderId}/deliver`, { otp, scanned });
+      // Upload the optional photo first; if that fails the rider can retry or
+      // remove the photo — the delivery itself is never lost.
+      const photo = photoUri ? await uploadImage(photoUri) : undefined;
+      await api.post(`/orders/${orderId}/deliver`, {
+        otp,
+        ...(photo ? { photo } : {}),
+        ...(QR_STEP && scanned ? { scanned } : {}),
+      });
       // Nothing left to do on this order, so go back to the queue rather than
       // leaving the rider on a dead screen.
       navigation.replace("Delivered", { orderId, code: order.code });
@@ -153,6 +169,7 @@ export default function DeliveryScreen({ route, navigation }) {
         phone: order.delivery?.address?.contactPhone || order.customerSnapshot?.phone,
       };
 
+  const otpReady = !QR_STEP || Boolean(scanned);
   const collectCash = order.payment?.method === "cod" && order.payment?.status !== "paid";
 
   return (
@@ -238,37 +255,57 @@ export default function DeliveryScreen({ route, navigation }) {
           </View>
         </Card>
 
-        {/* Handover: 1) scan the customer's QR, 2) enter their OTP */}
+        {/* Handover: 1) optional delivery photo, 2) the customer's OTP */}
         {order.status === "ARRIVED" ? (
           <Card style={{ padding: spacing.md, gap: spacing.md }}>
-            <Text style={type.h3}>Step 1 · Scan customer's QR</Text>
-            <Text style={type.small}>
-              Ask the customer to open this order in their app and show the QR code.
-            </Text>
-            {scanned ? (
-              <Notice tone="success">QR verified for {order.code}</Notice>
+            {/* QR scan step — hidden (QR_STEP = false). Kept for easy re-enable.
+            <Text style={type.h3}>Scan customer's QR</Text>
+            {scanned ? <Notice tone="success">QR verified for {order.code}</Notice> : null}
+            <Button title={scanned ? "Scan again" : "Scan QR"} variant={scanned ? "outline" : "primary"} onPress={() => setScanning(true)} />
+            */}
+            {QR_STEP ? (
+              <>
+                <Text style={type.h3}>Step 1 · Scan customer's QR</Text>
+                {scanned ? <Notice tone="success">QR verified for {order.code}</Notice> : null}
+                <Button
+                  title={scanned ? "Scan again" : "Scan QR"}
+                  variant={scanned ? "outline" : "primary"}
+                  onPress={() => setScanning(true)}
+                />
+                <Divider />
+              </>
             ) : null}
-            <Button
-              title={scanned ? "Scan again" : "Scan QR"}
-              variant={scanned ? "outline" : "primary"}
-              onPress={() => setScanning(true)}
-            />
+
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              <Text style={type.h3}>Delivery photo</Text>
+              <Pill>Optional</Pill>
+            </View>
+            <Text style={type.small}>Take a quick photo of the order at the door as proof of delivery.</Text>
+            {photoUri ? (
+              <View style={styles.photoRow}>
+                <Image source={{ uri: photoUri }} style={styles.photoThumb} />
+                <View style={{ flex: 1, gap: spacing.sm }}>
+                  <Button title="Retake" variant="outline" onPress={() => setPhotoOpen(true)} />
+                  <Button title="Remove" variant="ghost" onPress={() => setPhotoUri("")} />
+                </View>
+              </View>
+            ) : (
+              <Button title="Take photo" variant="outline" onPress={() => setPhotoOpen(true)} />
+            )}
 
             <Divider />
 
-            <Text style={[type.h3, !scanned && { opacity: 0.45 }]}>Step 2 · Handover code</Text>
-            <Text style={[type.small, !scanned && { opacity: 0.45 }]}>
-              Ask the customer to read the 4-digit code from their order screen.
-            </Text>
+            <Text style={type.h3}>Handover code</Text>
+            <Text style={type.small}>Ask the customer to read the 4-digit code from their order screen.</Text>
             <TextInput
               value={otp}
-              editable={Boolean(scanned)}
+              editable={otpReady}
               onChangeText={(text) => setOtp(text.replace(/\D/g, "").slice(0, 4))}
               placeholder="0000"
               placeholderTextColor={colors.textFaint}
               keyboardType="number-pad"
               maxLength={4}
-              style={[styles.otpInput, !scanned && { opacity: 0.45 }]}
+              style={[styles.otpInput, !otpReady && { opacity: 0.45 }]}
             />
           </Card>
         ) : null}
@@ -289,6 +326,15 @@ export default function DeliveryScreen({ route, navigation }) {
         />
       </ScrollView>
 
+      <PhotoCaptureModal
+        visible={photoOpen}
+        onClose={() => setPhotoOpen(false)}
+        onCaptured={(uri) => {
+          setPhotoUri(uri);
+          setPhotoOpen(false);
+        }}
+      />
+
       <QrScanModal
         visible={scanning}
         expected={`HBORDER:${order.code}`}
@@ -306,7 +352,7 @@ export default function DeliveryScreen({ route, navigation }) {
             title="Confirm delivery"
             subtitle={collectCash ? `after collecting ${rupees(order.pricing?.total)}` : undefined}
             loading={busy}
-            disabled={!scanned || otp.length !== 4}
+            disabled={!otpReady || otp.length !== 4}
             onPress={handOver}
           />
         ) : step.waiting ? (
@@ -408,6 +454,9 @@ const styles = StyleSheet.create({
   payPrepaid: { backgroundColor: colors.successSoft, borderColor: colors.success },
   payLabel: { fontSize: 12, fontWeight: "800", letterSpacing: 1.2, color: colors.textMuted },
   payAmount: { fontSize: 30, fontWeight: "800", color: colors.text },
+
+  photoRow: { flexDirection: "row", gap: spacing.md, alignItems: "center" },
+  photoThumb: { width: 96, height: 96, borderRadius: radius.md, backgroundColor: colors.border },
 
   itemRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   itemQty: { ...type.body, fontWeight: "800", minWidth: 46, textAlign: "right" },

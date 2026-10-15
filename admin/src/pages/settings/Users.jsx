@@ -13,7 +13,7 @@ const ROLE_BLURB = {
   super_admin: "Full control, including settings and every user.",
   admin: "Runs the shop day to day and manages staff.",
   store_manager: "Looks after catalog, stock and orders.",
-  delivery_partner: "Delivers orders. Signs in to the delivery app with an OTP.",
+  delivery_partner: "Delivers orders. Signs in to the delivery app with email and password.",
 };
 
 const BLANK = { name: "", phone: "", email: "", role: "store_manager", status: "active", password: "" };
@@ -275,9 +275,14 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
   const passwordProblem =
     form.password && form.password.length < minPassword ? `At least ${minPassword} characters` : "";
   const phoneProblem = isNew && form.phone && !/^\d{10}$/.test(form.phone) ? "10 digits" : "";
-  const needsPassword = form.role !== "delivery_partner";
+  const isPartner = form.role === "delivery_partner";
+  const needsPassword = true;
+  const emailProblem =
+    isPartner && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) ? "Enter a valid email" : "";
   const incomplete =
-    !form.name.trim() || (isNew && (!/^\d{10}$/.test(form.phone) || (needsPassword && !form.password)));
+    !form.name.trim() ||
+    Boolean(emailProblem) ||
+    (isNew && (!/^\d{10}$/.test(form.phone) || !form.password));
 
   async function submit() {
     setSaving(true);
@@ -290,7 +295,7 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
           phone: form.phone,
           email: form.email,
           role: form.role,
-          ...(needsPassword ? { password: form.password } : {}),
+          password: form.password,
         });
         onSaved(user, true);
       } else {
@@ -350,7 +355,11 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
           />
         </Field>
       </div>
-      <Field label="Email (optional)">
+      <Field
+        label={isPartner ? "Email (their sign-in)" : "Email (optional)"}
+        error={fieldErrors.email || (form.email ? emailProblem : "")}
+        help={isPartner ? "The delivery boy signs in to the app with this email and the password below." : undefined}
+      >
         <input type="text" inputMode="email" autoComplete="off" value={form.email} placeholder="name@example.com" onChange={(e) => set("email", e.target.value)} />
       </Field>
 
@@ -397,24 +406,18 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
       )}
 
       <div className="section-label">Sign-in</div>
-      {needsPassword ? (
-        <Field
-          label={isNew ? "Password" : "Reset password (optional)"}
-          error={fieldErrors.password || passwordProblem}
-          help={isNew ? `At least ${minPassword} characters.` : "Leave blank to keep the current password. A role change applies the next time they sign in."}
-        >
-          <input
-            type="password"
-            autoComplete="new-password"
-            value={form.password}
-            onChange={(e) => set("password", e.target.value)}
-          />
-        </Field>
-      ) : (
-        <p className="faint" style={{ fontSize: 13, margin: 0 }}>
-          Delivery boys don't need a password. They sign in to the delivery app with an OTP sent to their mobile number.
-        </p>
-      )}
+      <Field
+        label={isNew ? "Password" : "Reset password (optional)"}
+        error={fieldErrors.password || passwordProblem}
+        help={isNew ? `At least ${minPassword} characters.` : "Leave blank to keep the current password. A role change applies the next time they sign in."}
+      >
+        <input
+          type="password"
+          autoComplete="new-password"
+          value={form.password}
+          onChange={(e) => set("password", e.target.value)}
+        />
+      </Field>
     </Modal>
   );
 }
