@@ -106,3 +106,5 @@ state. To make this production-ready:
   localStorage or a backend instead.
 - Product images are placeholder images from picsum.photos — swap in real product
   photos by changing the `image` field in `src/data/products.js`.
+
+node .\deploy\package-one-app.js
