@@ -4699,3 +4699,9 @@ body:has(.cart-page) .logo-img { height: 32px; }
 
 /* Sign-in card: the brand logo in place of the old leaf tile. */
 .auth-logo { display: block; width: 92px; height: auto; margin: 0 auto 14px; object-fit: contain; }
+
+/* Phones: no breadcrumb trail above the content (desktop keeps it). The
+   product page's BreadcrumbList for search engines is separate and stays. */
+@media (max-width: 720px) {
+  .crumbs { display: none; }
+}
