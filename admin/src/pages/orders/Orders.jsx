@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
@@ -250,7 +251,7 @@ export default function Orders() {
                     const busy = assigningId === row.id;
                     return (
                       <div className="row-actions" onClick={(e) => e.stopPropagation()} style={{ flexWrap: "nowrap" }}>
-                        <select
+                        <Select
                           value={editing.partner}
                           disabled={busy}
                           onChange={(e) => setEditing({ id: row.id, partner: e.target.value })}
@@ -266,7 +267,7 @@ export default function Orders() {
                               {p.name}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                         <button
                           className="btn sm primary"
                           disabled={!editing.partner || editing.partner === assigned || busy}

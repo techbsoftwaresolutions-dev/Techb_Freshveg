@@ -6,11 +6,11 @@
 // the offline page — so a flaky connection still opens the app instantly and
 // shows a proper "you're offline" screen instead of the browser's dinosaur.
 
-const VERSION = "v2";
+const VERSION = "v3";
 const STATIC_CACHE = `freshmart-static-${VERSION}`;
 const OFFLINE_URL = "/offline";
 
-const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/icons/icon-512.png", "/logo-mark.png"];
+const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png?v=3", "/icons/icon-512.png?v=3", "/logo-mark.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

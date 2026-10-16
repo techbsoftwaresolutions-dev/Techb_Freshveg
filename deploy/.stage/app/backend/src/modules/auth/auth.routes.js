@@ -7,6 +7,7 @@ const ApiError = require("../../core/ApiError");
 const config = require("../../config");
 const User = require("./user.model");
 const Otp = require("./otp.model");
+const sms = require("./sms.service");
 const { issueTokens, verifyRefreshToken } = require("./token.service");
 const { requireAuth } = require("../../middleware/auth");
 const { ROLES, STAFF_ROLES, PERMISSIONS } = require("./roles");
@@ -51,19 +52,41 @@ router.post(
     if (!/^\d{10}$/.test(phone)) throw ApiError.badRequest("Enter a valid 10-digit mobile number");
 
     const role = req.body.role === "delivery_partner" ? "delivery_partner" : "customer";
-    const code = config.otp.fixedCode || randomCode();
 
-    await Otp.create({
+    // One text per number every 20 seconds — each one costs money, and the
+    // per-IP limit above does nothing against one number being hammered.
+    const recent = await Otp.findOne({ phone, role, createdAt: { $gt: new Date(Date.now() - 20 * 1000) } });
+    if (recent) throw ApiError.badRequest("A code was just sent. Wait a few seconds before asking for another.");
+
+    // Customers only: a fixed code for listed test numbers, never texted.
+    const testCode = role === "customer" ? sms.testCodeFor(phone) : "";
+    const code = testCode || config.otp.fixedCode || randomCode();
+
+    const record = await Otp.create({
       phone,
       role,
       codeHash: Otp.hash(code),
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
-    // TODO: hand off to the SMS provider. Until one is wired up the code comes
-    // back in the response in non-production so the apps are testable — this is
-    // gated on NODE_ENV so it can never leak from a deployed environment.
-    console.log(`[otp] ${phone} -> ${code}`);
+    // Development: no SMS account needed — the code is logged and returned so
+    // the apps are testable. Production never returns it (that is what the
+    // SMS is for), and a deployment with no SMS provider fails loudly here
+    // instead of saying "OTP sent" when nothing was.
+    if (!testCode && !config.isProd && !sms.isConfigured()) {
+      console.log(`[otp] ${phone} -> ${code}`);
+    } else if (!testCode) {
+      try {
+        await sms.sendOtp(phone, code);
+      } catch (err) {
+        await record.deleteOne().catch(() => {});
+        console.error(`[otp] could not send to ${phone}: ${err.message}`);
+        if (err instanceof sms.SmsNotConfiguredError) {
+          throw new ApiError(503, "SMS login isn't set up on the server yet. Please try again later.");
+        }
+        throw new ApiError(502, "We couldn't send the code right now. Please try again in a minute.");
+      }
+    }
 
     res.json({
       success: true,

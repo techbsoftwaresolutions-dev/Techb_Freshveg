@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
@@ -111,17 +112,17 @@ export default function Users() {
           onChange={(e) => setFilter("search", e.target.value)}
           style={{ minWidth: 260 }}
         />
-        <select value={filters.role} onChange={(e) => setFilter("role", e.target.value)}>
+        <Select value={filters.role} onChange={(e) => setFilter("role", e.target.value)}>
           <option value="">All roles</option>
           {roles.map((r) => (
             <option key={r.key} value={r.key}>{r.label}</option>
           ))}
-        </select>
-        <select value={filters.status} onChange={(e) => setFilter("status", e.target.value)}>
+        </Select>
+        <Select value={filters.status} onChange={(e) => setFilter("status", e.target.value)}>
           <option value="">Any status</option>
           <option value="active">Active</option>
           <option value="blocked">Blocked</option>
-        </select>
+        </Select>
       </div>
 
       <Card tight>
@@ -369,11 +370,11 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
         error={fieldErrors.role}
         help={isSelf ? "You can't change your own role." : role ? ROLE_BLURB[role.key] : undefined}
       >
-        <select value={form.role} disabled={isSelf} onChange={(e) => set("role", e.target.value)}>
+        <Select value={form.role} disabled={isSelf} onChange={(e) => set("role", e.target.value)}>
           {roles.map((r) => (
             <option key={r.key} value={r.key}>{r.label}</option>
           ))}
-        </select>
+        </Select>
       </Field>
 
       {role && (
@@ -397,10 +398,10 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
         <>
           <div className="section-label">Account</div>
           <Field label="Status" help={isSelf ? "You can't block your own account." : "Blocked users can't sign in."}>
-            <select value={form.status} disabled={isSelf} onChange={(e) => set("status", e.target.value)}>
+            <Select value={form.status} disabled={isSelf} onChange={(e) => set("status", e.target.value)}>
               <option value="active">Active</option>
               <option value="blocked">Blocked</option>
-            </select>
+            </Select>
           </Field>
         </>
       )}

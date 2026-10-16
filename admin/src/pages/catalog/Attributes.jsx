@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
@@ -238,13 +239,13 @@ function AttributeModal({ value, saving, onClose, onSave }) {
 
       <div className="grid cols-3">
         <Field label="Input type">
-          <select value={form.inputType} onChange={set("inputType")}>
+          <Select value={form.inputType} onChange={set("inputType")}>
             {INPUT_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Group" >
           <input type="text" value={form.group} onChange={set("group")} />

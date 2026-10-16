@@ -55,11 +55,10 @@ export default function BannerCarousel({ banners = [] }) {
 
   const content = (
     <div
-      // Always the same brand green, regardless of what's set in Admin —
-      // this strip is meant to stay one consistent color across every
-      // promotion, not follow a per-banner custom color.
+      // Always the same button-green gradient (see .banner-slide in the
+      // stylesheet), regardless of what's set in Admin — this strip stays one
+      // consistent color across every promotion.
       className={`banner-slide${banner.image ? " has-image" : ""}`}
-      style={{ background: "var(--brand-dark)" }}
     >
       {/* The photo fills the whole card, with a green wash over its left side
           so the copy stays readable whatever the picture is. The admin's crop

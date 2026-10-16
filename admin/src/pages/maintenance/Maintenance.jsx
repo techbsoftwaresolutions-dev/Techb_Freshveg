@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
@@ -292,19 +293,19 @@ function AssetModal({ types, onClose, onSaved }) {
           <input type="text" autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Display freezer" />
         </Field>
         <Field label="Type">
-          <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+          <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
             {(types || []).map((type) => (
               <option key={type} value={type}>{type.replace(/_/g, " ")}</option>
             ))}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <div className="grid cols-2">
         <Field label="Store">
-          <select value={form.store} onChange={(e) => setForm({ ...form, store: e.target.value })}>
+          <Select value={form.store} onChange={(e) => setForm({ ...form, store: e.target.value })}>
             {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Where in the store">
           <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Back room" />
@@ -547,19 +548,19 @@ function JobModal({ onClose, onSaved }) {
 
       <div className="grid cols-2">
         <Field label="Asset">
-          <select value={form.asset} onChange={(e) => setForm({ ...form, asset: e.target.value })}>
+          <Select value={form.asset} onChange={(e) => setForm({ ...form, asset: e.target.value })}>
             {assets.map((asset) => (
               <option key={asset.id} value={asset.id}>{asset.name} ({asset.code})</option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="What is it">
-          <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+          <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
             <option value="breakdown">Breakdown</option>
             <option value="scheduled">Scheduled service</option>
             <option value="inspection">Inspection</option>
             <option value="installation">Installation</option>
-          </select>
+          </Select>
         </Field>
       </div>
 
@@ -568,12 +569,12 @@ function JobModal({ onClose, onSaved }) {
           <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Not holding temperature" />
         </Field>
         <Field label="Priority">
-          <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+          <Select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
             <option value="low">Low</option>
             <option value="normal">Normal</option>
             <option value="high">High</option>
             <option value="critical">Critical</option>
-          </select>
+          </Select>
         </Field>
       </div>
 

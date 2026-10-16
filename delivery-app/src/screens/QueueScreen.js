@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   banner: { position: "absolute", left: 0, right: 0, bottom: 0, width: "100%" },
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   brand: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  logo: { width: 84, height: 42 },
+  logo: { width: 52, height: 52, borderRadius: 14, backgroundColor: "#FFFDF6" },
   brandName: { color: "#fff", fontSize: 19, fontWeight: "800" },
   brandTag: { color: "rgba(255,255,255,0.8)", fontSize: 10.5, fontWeight: "600" },
   topActions: { flexDirection: "row", alignItems: "center", gap: spacing.md },

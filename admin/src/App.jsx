@@ -19,7 +19,7 @@ import Inventory from "./pages/inventory/Inventory";
 import Delivery, { SlotFormPage, ZoneFormPage } from "./pages/delivery/Delivery";
 import Support, { TicketPage } from "./pages/support/Support";
 import Maintenance, { AssetDetailPage, AssetFormPage, JobFormPage } from "./pages/maintenance/Maintenance";
-import Customers, { CustomerPage } from "./pages/customers/Customers";
+import Customers, { CustomerPage, CustomerEditPage } from "./pages/customers/Customers";
 import Banners, { BannerFormPage } from "./pages/marketing/Banners";
 import Notifications, { TemplateFormPage } from "./pages/marketing/Notifications";
 import Reports from "./pages/reports/Reports";
@@ -119,6 +119,7 @@ function Shell() {
         <Route path="maintenance/assets/:id" element={<Guard permission="settings.manage"><AssetDetailPage /></Guard>} />
         <Route path="maintenance/jobs/new" element={<Guard permission="settings.manage"><JobFormPage /></Guard>} />
         <Route path="customers/:id" element={<Guard permission="customers.view"><CustomerPage /></Guard>} />
+        <Route path="customers/:id/edit" element={<Guard permission="customers.manage"><CustomerEditPage /></Guard>} />
         <Route path="marketing/offers/:id" element={<Guard permission="marketing.manage"><OfferFormPage /></Guard>} />
         <Route path="marketing/banners/:id" element={<Guard permission="marketing.manage"><BannerFormPage /></Guard>} />
         <Route

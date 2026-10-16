@@ -202,6 +202,17 @@ const NAV = [
   },
 ];
 
+// Icon shown on each expandable group header.
+const GROUP_ICONS = {
+  Catalog: IconCategories,
+  Orders: IconOrders,
+  Operations: IconInventory,
+  Customers: IconCustomers,
+  Growth: IconOffers,
+  Reports: IconReports,
+  Settings: IconSettings,
+};
+
 function useTheme() {
   const [theme, setTheme] = useState(
     () => localStorage.getItem("commerce.admin.theme") || "light",
@@ -251,7 +262,25 @@ function useCollapsedGroups() {
     });
   };
 
-  return [collapsed, toggle];
+  // Open a group without flipping it (used to reveal the page you are on).
+  const expand = (group) => {
+    setCollapsed((prev) => {
+      if (!prev.has(group)) return prev;
+      const next = new Set(prev);
+      next.delete(group);
+      try {
+        localStorage.setItem(
+          "commerce.admin.navCollapsed",
+          JSON.stringify([...next]),
+        );
+      } catch {
+        // storage disabled — still opens for this session
+      }
+      return next;
+    });
+  };
+
+  return [collapsed, toggle, expand];
 }
 
 // A real, ticking clock for the topbar — not a screenshot-time string.
@@ -267,7 +296,7 @@ function useClock() {
 export default function Layout() {
   const { user, signOut, can } = useAuth();
   const [theme, setTheme] = useTheme();
-  const [collapsedGroups, toggleGroup] = useCollapsedGroups();
+  const [collapsedGroups, toggleGroup, expandGroup] = useCollapsedGroups();
   const location = useLocation();
   const navigate = useNavigate();
   const now = useClock();
@@ -326,6 +355,21 @@ export default function Layout() {
     ),
   })).filter((group) => group.items.length);
 
+  // Reveal the group that contains the page you are on.
+  useEffect(() => {
+    const here = groups.find(
+      (g) =>
+        g.group &&
+        g.items.some((item) =>
+          item.end
+            ? location.pathname === item.to
+            : location.pathname.startsWith(item.to),
+        ),
+    );
+    if (here) expandGroup(here.group);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -335,54 +379,70 @@ export default function Layout() {
         </div>
         <nav>
           {groups.map((group, index) => {
-            const isCollapsed = group.group && collapsedGroups.has(group.group);
+            const isCollapsed = !!group.group && collapsedGroups.has(group.group);
+            const GroupIcon = GROUP_ICONS[group.group];
+            const renderItem = (item) => {
+              const ItemIcon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  tabIndex={isCollapsed ? -1 : undefined}
+                  className={({ isActive }) =>
+                    `nav-item${isActive ? " active" : ""}`
+                  }
+                >
+                  {ItemIcon ? <ItemIcon className="nav-item-icon" /> : null}
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            };
+
+            if (!group.group) {
+              return (
+                <div className="nav-top" key={index}>
+                  {group.items.map(renderItem)}
+                </div>
+              );
+            }
+
             return (
-              <div key={group.group || index}>
-                {group.group ? (
-                  <button
-                    type="button"
-                    className="nav-group-label"
-                    aria-expanded={!isCollapsed}
-                    onClick={() => toggleGroup(group.group)}
+              <div
+                key={group.group}
+                className={`nav-group${isCollapsed ? "" : " open"}`}
+              >
+                <button
+                  type="button"
+                  className="nav-group-label"
+                  aria-expanded={!isCollapsed}
+                  onClick={() => toggleGroup(group.group)}
+                >
+                  {GroupIcon ? <GroupIcon className="nav-group-icon" /> : null}
+                  <span className="nav-group-title">{group.group}</span>
+                  <span className="nav-group-count">{group.items.length}</span>
+                  <svg
+                    className="nav-group-chevron"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 10 10"
+                    fill="none"
+                    aria-hidden="true"
                   >
-                    <span>{group.group}</span>
-                    <svg
-                      className={`nav-group-chevron${isCollapsed ? " collapsed" : ""}`}
-                      width="10"
-                      height="10"
-                      viewBox="0 0 10 10"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M2 3.5L5 6.5L8 3.5"
-                        stroke="currentColor"
-                        strokeWidth="1.4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                ) : null}
-                {!isCollapsed &&
-                  group.items.map((item) => {
-                    const ItemIcon = item.icon;
-                    return (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        end={item.end}
-                        className={({ isActive }) =>
-                          `nav-item${isActive ? " active" : ""}`
-                        }
-                      >
-                        {ItemIcon ? (
-                          <ItemIcon className="nav-item-icon" />
-                        ) : null}
-                        <span>{item.label}</span>
-                      </NavLink>
-                    );
-                  })}
+                    <path
+                      d="M2 3.5L5 6.5L8 3.5"
+                      stroke="currentColor"
+                      strokeWidth="1.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div className="nav-group-body" aria-hidden={isCollapsed}>
+                  <div className="nav-group-inner">
+                    {group.items.map(renderItem)}
+                  </div>
+                </div>
               </div>
             );
           })}

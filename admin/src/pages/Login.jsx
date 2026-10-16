@@ -24,7 +24,7 @@ export default function Login() {
   }
 
   return (
-    <div className="login-page">
+    <div className="login-page" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}login-bg.jpg)` }}>
       <form className="login-card" onSubmit={submit}>
         <img className="login-logo" src={`${import.meta.env.BASE_URL}logo-horizontal.png`} alt="Hosur Basket" />
         <h1>Hosur Basket Admin</h1>

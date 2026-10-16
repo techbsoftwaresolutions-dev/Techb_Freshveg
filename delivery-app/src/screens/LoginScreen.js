@@ -245,8 +245,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.primaryDark },
   hero: { flex: 1, minHeight: 0, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-  heroLogo: { width: 190, height: 94, marginBottom: spacing.lg },
-  heroLogoSmall: { width: 96, height: 48, marginBottom: spacing.sm },
+  heroLogo: { width: 132, height: 132, borderRadius: 28, backgroundColor: "#FFFDF6", marginBottom: spacing.lg },
+  heroLogoSmall: { width: 64, height: 64, borderRadius: 16, backgroundColor: "#FFFDF6", marginBottom: spacing.sm },
   heroCompact: { flex: 1, minHeight: 0, padding: spacing.md, paddingTop: spacing.xl },
   heroTitle: { fontSize: 27, fontWeight: "800", color: "#fff" },
   heroSub: { color: "rgba(255,255,255,0.8)", marginTop: 4, fontSize: 14 },

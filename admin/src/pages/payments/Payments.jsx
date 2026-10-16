@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
@@ -87,20 +88,20 @@ function Transactions() {
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 200 }}
         />
-        <select value={filters.method} onChange={(e) => set("method", e.target.value)}>
+        <Select value={filters.method} onChange={(e) => set("method", e.target.value)}>
           <option value="">All methods</option>
           <option value="cod">Cash on delivery</option>
           <option value="upi">UPI</option>
           <option value="card">Card</option>
           <option value="netbanking">Net banking</option>
-        </select>
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+        </Select>
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All statuses</option>
           <option value="captured">Captured</option>
           <option value="pending">Pending</option>
           <option value="failed">Failed</option>
           <option value="refunded">Refunded</option>
-        </select>
+        </Select>
         <span className="spacer" />
         <DateRange value={range} onChange={setRange} />
       </div>

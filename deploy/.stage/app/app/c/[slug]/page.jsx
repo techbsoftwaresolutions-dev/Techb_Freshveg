@@ -141,9 +141,6 @@ export default async function CategoryPage({ params, searchParams }) {
                 ))}
               </div>
 
-              {meta && meta.pages > 1 ? (
-                <Pagination slug={slug} meta={meta} query={query} />
-              ) : null}
               {meta && meta.pages > meta.page ? (
                 <InfiniteProducts
                   key={JSON.stringify(apiQuery)}
@@ -180,40 +177,5 @@ export default async function CategoryPage({ params, searchParams }) {
 function hasFilters(query) {
   return Object.keys(query).some(
     (key) => key.startsWith("attr.") || key === "brand" || key === "maxPrice" || key === "inStock"
-  );
-}
-
-// Real links, not buttons: a crawler follows them and each page is its own URL.
-function Pagination({ slug, meta, query }) {
-  const linkFor = (page) => {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(query)) {
-      if (key !== "page" && value) params.set(key, String(value));
-    }
-    if (page > 1) params.set("page", String(page));
-    const qs = params.toString();
-    return `/c/${slug}${qs ? `?${qs}` : ""}`;
-  };
-
-  return (
-    <nav
-      className="pager-slug"
-      style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center", marginTop: 32 }}
-      aria-label="Pagination"
-    >
-      {meta.page > 1 ? (
-        <Link href={linkFor(meta.page - 1)} className="btn sm" rel="prev">
-          Previous
-        </Link>
-      ) : null}
-      <span style={{ fontSize: 14, color: "var(--text-muted)" }}>
-        Page {meta.page} of {meta.pages}
-      </span>
-      {meta.hasNext ? (
-        <Link href={linkFor(meta.page + 1)} className="btn sm" rel="next">
-          Next
-        </Link>
-      ) : null}
-    </nav>
   );
 }

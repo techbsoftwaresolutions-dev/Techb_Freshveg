@@ -5,25 +5,20 @@ import { api } from "@/lib/client-api";
 import ProductCard from "./ProductCard";
 import { MorphingSquare } from "./ui/morphing-square";
 
-// Phone only: instead of page links, the rest of the catalogue loads as the
-// shopper nears the bottom. The server has already rendered the first page;
-// this appends pages startPage..pages with the very same query, so filters,
-// sort and category carry over with no second copy of that logic. Above the
-// phone breakpoint it does nothing — the numbered pager keeps working, and a
-// page of 20 is already a small DOM.
+// On every screen size: instead of page links, the rest of the catalogue loads
+// as the shopper nears the bottom. The server has already rendered the first
+// page; this appends pages startPage..pages with the very same query, so
+// filters, sort and category carry over with no second copy of that logic.
 //
 // Every fetched page is kept as its own chunk (a grid of up to 20 cards). A
 // chunk that has scrolled far out of view swaps its cards for an empty box of
 // the same height, and puts them back as it comes near again — so however far
 // someone scrolls, only the few chunks around the viewport are mounted.
-const PHONE = "(max-width: 720px)";
-
 // How far outside the viewport a chunk stays mounted. Generous, so cards are
 // back well before they scroll into sight and fast flings never show a gap.
 const KEEP_MOUNTED = "1500px 0px";
 
 export default function InfiniteProducts({ query, startPage, pages, seenIds = [] }) {
-  const [phone, setPhone] = useState(false);
   const [chunks, setChunks] = useState([]);
   const [next, setNext] = useState(startPage);
   const [loading, setLoading] = useState(false);
@@ -32,18 +27,10 @@ export default function InfiniteProducts({ query, startPage, pages, seenIds = []
   const inFlight = useRef(false); // one request at a time, whatever the observer says
   const seen = useRef(new Set(seenIds));
 
-  useEffect(() => {
-    const media = window.matchMedia(PHONE);
-    const sync = () => setPhone(media.matches);
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
-
   const done = next > pages;
 
   useEffect(() => {
-    if (!phone || done || failed || !sentinel.current) return undefined;
+    if (done || failed || !sentinel.current) return undefined;
 
     const load = async () => {
       if (inFlight.current) return;
@@ -73,9 +60,7 @@ export default function InfiniteProducts({ query, startPage, pages, seenIds = []
     });
     observer.observe(sentinel.current);
     return () => observer.disconnect();
-  }, [phone, done, failed, next, query]);
-
-  if (!phone) return null;
+  }, [done, failed, next, query]);
 
   return (
     <>

@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
@@ -263,11 +264,11 @@ function StoreModal({ value, saving, onClose, onSave }) {
           <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </Field>
         <Field label="Status">
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
             <option value="active">Active</option>
             <option value="paused">Paused</option>
             <option value="closed">Closed</option>
-          </select>
+          </Select>
         </Field>
       </div>
 
