@@ -4627,3 +4627,55 @@ body:has(.cart-page) .logo-img { height: 32px; }
 .am-order-side .badge, .am-order-side .pill, .am-order-side [class*="status"] { font-size: 10.5px !important; padding: 2px 8px !important; white-space: nowrap; }
 .am-order .am-chev { flex: none; margin-left: -2px; }
 .am-order-side .ob { font-size: 10.5px !important; padding: 2px 8px !important; white-space: nowrap; }
+
+/* Address form: "Get address" / "Enter address" — matching brand buttons,
+   sentence case (first letter capital, the rest small). */
+.ae-choice { gap: 10px; }
+.ae-locate, .ae-enter {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; height: 44px; border-radius: 10px; cursor: pointer;
+  font: inherit; font-size: 15px; font-weight: 600; letter-spacing: 0; text-transform: none;
+}
+.ae-locate { border: 1px solid var(--brand); background: var(--brand); color: #fff; }
+.ae-locate:hover:not(:disabled) { background: var(--brand-dark); }
+.ae-enter { border: 1px solid var(--brand); background: #fff; color: var(--brand-dark); }
+.ae-enter:hover { background: var(--brand-mist); }
+
+/* Buttons use the green of the "Basket" word in the Hosur Basket logo
+   (the logo's lime-olive, darkened just enough for white text to stay readable). */
+:root { --btn: #547f1a; --btn-dark: #3f6314; --btn-soft: #eef5e1; }
+.btn.primary,
+.search-form button,
+.add-btn,
+.add-btn.block,
+.qty,
+.pill-btn,
+.oc-btn.primary,
+.ae-save,
+.ae-locate,
+.install-bar-btn,
+.cart-bar-cta,
+.pack-in-cart,
+.pager-page.current { background: var(--btn); border-color: var(--btn); }
+.btn.primary:hover:not(:disabled),
+.search-form button:hover,
+.add-btn:hover:not(:disabled),
+.add-btn.block:hover:not(:disabled),
+.pill-btn:hover,
+.oc-btn.primary:hover,
+.ae-save:hover:not(:disabled),
+.ae-locate:hover:not(:disabled) { background: var(--btn-dark); border-color: var(--btn-dark); }
+.add-btn[aria-busy="true"]:disabled { background: var(--btn); border-color: var(--btn); }
+.ae-enter { border-color: var(--btn); color: var(--btn-dark); }
+.ae-enter:hover { background: var(--btn-soft); }
+
+/* "Get address" and "Enter address" sit side by side on one row. */
+.ae-choice { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+.ae-choice .ae-locate,
+.ae-choice .ae-enter { flex: 1 1 0; width: auto; min-width: 0; white-space: nowrap; }
+@media (max-width: 420px) {
+  .ae-choice { gap: 8px; }
+  .ae-choice .ae-locate,
+  .ae-choice .ae-enter { gap: 6px; font-size: 13.5px; padding: 0 8px; }
+  .ae-choice svg { width: 16px; height: 16px; }
+}
