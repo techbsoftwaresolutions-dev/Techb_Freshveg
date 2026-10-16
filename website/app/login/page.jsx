@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, useBranding } from "@/components/Providers";
@@ -176,7 +178,9 @@ function LoginForm() {
               {busy ? "Sending…" : "Continue"}
             </button>
             <p className="auth-fine">
-              By continuing you agree to receive a one-time code by SMS on this number.
+              By continuing you agree to receive a one-time code by SMS on this number, and to our{" "}
+              <Link href="/terms-and-conditions">Terms</Link>. Read how we use your data in our{" "}
+              <Link href="/privacy-policy">Privacy Policy</Link>.
             </p>
           </form>
         ) : (

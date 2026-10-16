@@ -137,6 +137,7 @@ export function CustomerPage() {
 }
 
 function CustomerDrawer({ id, canManage, onClose, onChanged }) {
+  const { can } = useAuth();
   const [data, setData] = useState(null);
   const [tab, setTab] = useState("orders");
   const [adjusting, setAdjusting] = useState(null);
@@ -158,6 +159,27 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
   }
 
   const { customer, orders, wallet, loyalty, stats } = data;
+
+  // For a deletion request that came by email or phone. The API refuses while
+  // an order, refund or support request is open, and says which.
+  async function erase() {
+    const note = window.prompt(
+      `Delete ${customer.name || customer.phone}'s account? Personal data is erased for good; orders and payments are kept anonymised.
+
+How did they ask, and how did you check it was them?`
+    );
+    if (!note?.trim()) return;
+    if (window.prompt("Type DELETE to confirm") !== "DELETE") return;
+    try {
+      const result = await api.post(`/customers/${id}/erase`, { confirm: "DELETE", note, acknowledge: true });
+      window.alert(result.message);
+      onChanged?.();
+      onClose();
+    } catch (err) {
+      const blockers = err.details?.blockers?.map((b) => `• ${b.message}`).join(" ");
+      setError(blockers ? `${err.message}: ${blockers}` : err.message);
+    }
+  }
 
   return (
     <Modal
@@ -184,6 +206,9 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
         <div className="inline" style={{ marginBottom: 14, gap: 8 }}>
           <button className="btn sm" onClick={() => setAdjusting("wallet")}>Adjust wallet</button>
           <button className="btn sm" onClick={() => setAdjusting("loyalty")}>Adjust points</button>
+          {can("users.manage") && customer.status !== "deleted" ? (
+            <button className="btn sm danger" onClick={erase}>Delete account on request</button>
+          ) : null}
         </div>
       ) : null}
 

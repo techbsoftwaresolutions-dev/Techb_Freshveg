@@ -41,13 +41,12 @@ async function requireAuth(req, _res, next) {
       permissions: claims.perms || [],
       name: claims.name,
     };
-    if (claims.role === "customer") return next();
 
-    // A staff token lives for days and carries the role it was minted with,
-    // so it is checked against the account on every request: deactivating
-    // someone or changing their role takes effect immediately, not at expiry.
-    // Customer tokens skip this — a customer's role and permissions never change.
-    // ponytail: one indexed read per staff request; cache briefly if it ever shows up in profiles.
+    // A token lives for days and carries the role it was minted with, so it is
+    // checked against the account on every request: deactivating someone,
+    // changing their role or erasing the account takes effect immediately,
+    // not at expiry.
+    // ponytail: one indexed read per request; cache briefly if it ever shows up in profiles.
     const account = await User.findById(claims.sub).select("name role status grantedPermissions revokedPermissions");
     if (!account || account.status !== "active") return next(ApiError.unauthorized("Session is no longer valid"));
     req.user = { id: claims.sub, role: account.role, permissions: effectivePermissions(account), name: account.name };

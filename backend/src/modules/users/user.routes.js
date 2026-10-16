@@ -7,12 +7,15 @@ const { requireAuth, requirePermission } = require("../../middleware/auth");
 const User = require("../auth/user.model");
 const Order = require("../orders/order.model");
 const audit = require("../audit/audit.service");
+const AccountDeletion = require("../auth/accountDeletion.model");
+const deletionService = require("../auth/accountDeletion.service");
 const { ROLES, USER_ROLES, canAssignRole, canManageAccount } = require("../auth/roles");
 
 // Staff accounts: Super Admins, Admins, Store Supervisors and Delivery Boys
 // (Admin → Users and → Delivery Boys). The same users collection as customers,
 // so every query below starts from NOT_CUSTOMER — no search or filter can ever
-// surface a customer. Accounts are deactivated, never deleted: orders and the
+// surface a customer. Deactivating keeps the account as it is; erasing
+// (POST /:id/erase) removes the personal data but keeps the row, because orders and the
 // audit trail keep pointing at them.
 
 const router = express.Router();
@@ -37,7 +40,7 @@ function view(user, actor) {
   return {
     id: user.id,
     name: user.name,
-    phone: user.phone,
+    phone: user.status === "deleted" ? "" : user.phone,
     email: user.email,
     role: user.role,
     roleLabel: ROLES[user.role]?.label || user.role,
@@ -152,6 +155,59 @@ router.get(
   })
 );
 
+// Delivery employees' account-deletion requests (Admin → Delivery Boys).
+// Declared before "/:id" so the path is not read as a user id.
+router.get(
+  "/deletion-requests",
+  asyncHandler(async (req, res) => {
+    const filter = { role: { $ne: "customer" } };
+    if (req.query.status) filter.status = String(req.query.status);
+    const rows = await AccountDeletion.find(filter).sort({ requestedAt: -1 }).limit(100)
+      .populate("user", "name phone status");
+    res.json({
+      success: true,
+      items: rows.map((row) => ({
+        id: row.id,
+        ...deletionService.receipt(row),
+        reason: row.reason,
+        note: row.note,
+        processedByName: row.processedByName,
+        user: row.user ? { id: row.user.id, name: row.user.name, phone: row.user.status === "deleted" ? "" : row.user.phone, status: row.user.status } : null,
+      })),
+    });
+  })
+);
+
+router.post(
+  "/deletion-requests/:requestId/reject",
+  asyncHandler(async (req, res) => {
+    const deletion = await deletionService.rejectRequest(req.params.requestId, req.user, { note: req.body.note });
+    await audit.record({ req, action: "reject", entity: "AccountDeletion", label: deletion.reference, summary: `Deletion request declined: ${deletion.note}` });
+    res.json({ success: true, message: "Request declined", deletion });
+  })
+);
+
+// Erases a delivery employee's account: their request, or offboarding when
+// they leave. Deactivating (PATCH status) only switches sign-in off; this
+// removes their personal data and cannot be undone.
+router.post(
+  "/:id/erase",
+  asyncHandler(async (req, res) => {
+    const user = await User.findOne({ _id: req.params.id, ...NOT_CUSTOMER });
+    if (!user) throw ApiError.notFound("User not found");
+    if (!canManageAccount(req.user.role, user.role)) throw ApiError.forbidden("You cannot manage this account");
+    if (String(req.body.confirm || "").trim().toUpperCase() !== "DELETE") throw ApiError.badRequest("Type DELETE to confirm");
+
+    const label = `${ROLES[user.role]?.label || user.role}: ${user.name}`;
+    const deletion = await deletionService.eraseDeliveryStaff(user, req.user, { note: req.body.note });
+    await audit.record({
+      req, action: "erase", entity: "User", entityId: user._id, label: deletion.reference,
+      summary: `${label} — personal data erased (${deletion.reference})`,
+    });
+    res.json({ success: true, message: `Account erased. Reference ${deletion.reference}.`, deletion });
+  })
+);
+
 router.get(
   "/:id",
   asyncHandler(async (req, res) => {
@@ -203,6 +259,7 @@ router.patch(
     const user = await User.findOne({ _id: req.params.id, ...NOT_CUSTOMER });
     if (!user) throw ApiError.notFound("User not found");
 
+    if (user.status === "deleted") throw ApiError.conflict("This account has been erased and can't be changed");
     const self = user.id === req.user.id;
     if (!self && !canManageAccount(req.user.role, user.role)) {
       throw ApiError.forbidden("Only a Super Admin can change a Super Admin's account");

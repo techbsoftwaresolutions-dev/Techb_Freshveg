@@ -226,6 +226,30 @@
       "accessCount": 1,
       "lastAccessed": 1792059270837,
       "type": "file"
+    },
+    {
+      "path": "src/modules/auth/accountDeletion.model.js",
+      "accessCount": 1,
+      "lastAccessed": 1792134308061,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/auth/accountDeletion.service.js",
+      "accessCount": 1,
+      "lastAccessed": 1792134391445,
+      "type": "file"
+    },
+    {
+      "path": "test/accountDeletion.test.js",
+      "accessCount": 1,
+      "lastAccessed": 1792134662188,
+      "type": "file"
+    },
+    {
+      "path": "test/otpLogin.test.js",
+      "accessCount": 1,
+      "lastAccessed": 1792134692396,
+      "type": "file"
     }
   ],
   "userDirectives": []

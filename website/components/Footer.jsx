@@ -1,6 +1,7 @@
 import Link from "next/link";
 import FooterInstall from "@/components/FooterInstall";
 import { brandImages } from "@/lib/brand";
+import { LEGAL_PAGES } from "@/lib/legal";
 
 // Only pages that exist are linked. About, careers and FAQs have no route
 // yet — they join these lists when they do, rather than sitting here as
@@ -38,9 +39,16 @@ export default function Footer({ categories = [], branding }) {
             <ul>
               <li><Link href="/help">Help Center</Link></li>
               <li><Link href="/orders">Track Order</Link></li>
-              <li><Link href="/orders">Returns &amp; Refunds</Link></li>
               <li><a href="tel:+918072605216">Contact Us</a></li>
-              <li><Link href="/terms">Terms &amp; Conditions</Link></li>
+            </ul>
+          </div>
+
+          <div className="footer-col footer-col-legal">
+            <h4>Policies</h4>
+            <ul>
+              {LEGAL_PAGES.filter((page) => !page.href.startsWith("/delivery-app")).map((page) => (
+                <li key={page.href}><Link href={page.href}>{page.label}</Link></li>
+              ))}
             </ul>
           </div>
 

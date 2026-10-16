@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__preview_start",
+  "tool_input_preview": "{\"name\":\"demo-api-5065\"}",
+  "error": "The dev server exited during startup (code 4294963238). Fix the error in the output below, then start the server again.\n\nOutput:\nnpm error code ENOENT\nnpm error syscall open\nnpm error path D:\\TechB\\fresh market\\Techb_Freshveg\\backend\\backend\\package.json\nnpm error errno -4058\nnpm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open 'D:\\TechB\\fresh market\\Techb_Freshveg\\backend\\backend\\package.json'\nnpm error enoent This is related to npm not being able to find...",
+  "timestamp": "2026-10-16T07:36:15.571Z",
+  "retry_count": 1
+}

@@ -32,6 +32,8 @@ import SupportScreen from "../screens/SupportScreen";
 import SupportTicketScreen from "../screens/SupportTicketScreen";
 import ReturnRequestScreen from "../screens/ReturnRequestScreen";
 import RateOrderScreen from "../screens/RateOrderScreen";
+import LegalScreen from "../screens/LegalScreen";
+import DeleteAccountScreen from "../screens/DeleteAccountScreen";
 
 const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -187,6 +189,8 @@ export default function RootNavigator() {
         <Stack.Screen name="SupportTicket" component={SupportTicketScreen} options={{ title: "Support request" }} />
         <Stack.Screen name="ReturnRequest" component={ReturnRequestScreen} options={{ title: "Return items" }} />
         <Stack.Screen name="RateOrder" component={RateOrderScreen} options={{ title: "Rate your items" }} />
+        <Stack.Screen name="Legal" component={LegalScreen} options={{ title: "Legal & about" }} />
+        <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: "Delete account" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

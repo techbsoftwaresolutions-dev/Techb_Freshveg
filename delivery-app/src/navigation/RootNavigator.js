@@ -17,6 +17,7 @@ import DeliveredScreen from "../screens/DeliveredScreen";
 import HistoryScreen from "../screens/HistoryScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import RunDetailScreen from "../screens/RunDetailScreen";
+import AboutScreen from "../screens/AboutScreen";
 
 const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -108,6 +109,7 @@ export default function RootNavigator() {
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Delivery" component={DeliveryScreen} options={{ title: "Delivery" }} />
             <Stack.Screen name="RunDetail" component={RunDetailScreen} options={{ title: "Delivery details" }} />
+            <Stack.Screen name="About" component={AboutScreen} options={{ title: "Legal & account" }} />
             <Stack.Screen
               name="Delivered"
               component={DeliveredScreen}

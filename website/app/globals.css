@@ -833,7 +833,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 /* One row: the brand block plus four link columns. The count is written out
    rather than left to auto-fill, so adding a fifth column is a deliberate
    edit to this line instead of a silent wrap onto a second row. */
-.footer-grid { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 32px; }
+.footer-grid { display: grid; grid-template-columns: 1.6fr repeat(5, 1fr); gap: 28px; }
 .footer-brand p { margin: 14px 0 0; font-size: 13px; line-height: 1.6; max-width: 34ch; }
 .footer-logo { display: inline-flex; align-items: center; gap: 10px; color: #fff; }
 .footer-logo:hover { color: #fff; }
@@ -2415,6 +2415,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .phone-input input { border-radius: 0 10px 10px 0; letter-spacing: 0.04em; }
 .otp-input { text-align: center; letter-spacing: 0.6em; font-size: 22px !important; font-weight: 600; height: 54px !important; }
 .auth-fine { margin: 14px 0 0; text-align: center; font-size: 12px; color: var(--text-faint); }
+.auth-fine a { color: var(--brand); font-weight: 600; text-decoration: underline; }
 .auth-change { margin-bottom: 14px; font-size: 13px; }
 .auth-resend { display: block; margin: 16px auto 0; font-size: 13.5px; }
 .auth-dev {
@@ -4817,8 +4818,10 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .footer-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .footer-col-shop,
   .footer-col-account { display: none; }
-  .footer-col-care ul { flex-direction: row; flex-wrap: wrap; gap: 8px; }
-  .footer-col-care a {
+  .footer-col-care ul,
+  .footer-col-legal ul { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .footer-col-care a,
+  .footer-col-legal a {
     display: inline-block;
     padding: 6px 12px;
     border-radius: 999px;
@@ -5364,6 +5367,17 @@ a.legal-contact-card:hover { border-color: var(--brand); background: var(--brand
 .legal-contact-card small { display: block; font-size: 11.5px; color: var(--text-faint); }
 .legal-contact-card strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .legal-foot { margin: 4px 0 0; text-align: center; font-size: 13.5px; color: var(--text-muted); }
+.legal-list { margin: 0 0 10px; padding-left: 20px; display: grid; gap: 6px; }
+.legal-list li { font-size: 14.5px; line-height: 1.7; color: var(--text-muted); }
+.legal-h3 { margin: 16px 0 6px; font-size: 15.5px; color: var(--text); }
+.legal-section a, .legal-lede a { color: var(--brand); font-weight: 600; text-decoration: underline; overflow-wrap: anywhere; }
+.legal-lede a { color: #fff; }
+.legal-foot { line-height: 1.9; }
+.legal-error { color: var(--danger) !important; font-weight: 600; }
+.legal-section form input:not([type="checkbox"]) {
+  margin-top: 6px; width: 100%; max-width: 260px; height: 44px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 10px; font: inherit; letter-spacing: 0.08em;
+}
 .legal-foot a { color: var(--brand); font-weight: 600; }
 
 @media (max-width: 900px) {
@@ -5376,7 +5390,7 @@ a.legal-contact-card:hover { border-color: var(--brand); background: var(--brand
   .legal-toc ol, .legal-glance ul, .legal-contact-grid { grid-template-columns: minmax(0, 1fr); }
   .legal-glance, .legal-section { padding: 18px 16px; border-radius: 14px; }
   .legal-section h2 { font-size: 16.5px; }
-  .legal-section p { font-size: 14px; }
+  .legal-section p, .legal-list li { font-size: 14px; }
 }
 /* phones: the summary and numbered sections are enough; skip the long contents list */
 @media (max-width: 600px) { .legal-toc { display: none; } .legal-body { margin-top: -16px; } }

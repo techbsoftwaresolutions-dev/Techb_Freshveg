@@ -627,7 +627,9 @@ function trackingView(order) {
     isOpen: order.isOpen,
     timeline: buildTimeline(order.status, order.statusHistory),
     expectedBy: order.delivery.expectedBy,
-    partner: order.delivery.partner
+    // The delivery employee's name and number are the customer's to use
+    // while the order is on its way, not afterwards.
+    partner: order.delivery.partner && ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"].includes(order.status)
       ? { name: order.delivery.partnerName, phone: order.delivery.partnerPhone }
       : null,
     otp: ["OUT_FOR_DELIVERY", "ARRIVED", "PICKED_UP"].includes(order.status) ? order.delivery.otp : null,

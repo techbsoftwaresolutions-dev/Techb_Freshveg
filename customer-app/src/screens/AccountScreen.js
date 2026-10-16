@@ -33,7 +33,14 @@ export default function AccountScreen({ navigation }) {
         icon="person-outline"
         title="Sign in to your account"
         hint="Track orders, save addresses, and use your wallet and loyalty points."
-        action={<Button title="Sign in" onPress={() => navigation.navigate("Login")} style={{ minWidth: 180 }} />}
+        action={
+          <View style={{ alignItems: "center", gap: spacing.md }}>
+            <Button title="Sign in" onPress={() => navigation.navigate("Login")} style={{ minWidth: 180 }} />
+            <Pressable onPress={() => navigation.navigate("Legal")} accessibilityRole="link" hitSlop={8}>
+              <Text style={styles.link}>Legal & about</Text>
+            </Pressable>
+          </View>
+        }
       />
     );
   }
@@ -166,6 +173,7 @@ export default function AccountScreen({ navigation }) {
           { label: "My coupons", hint: "Rewards ready to use at checkout", icon: "pricetags-outline", to: "Coupons" },
           { label: "Notifications", hint: "Inbox and what we send you", icon: "notifications-outline", to: "Notifications" },
           { label: "Help & support", hint: "Raise a request or call us", icon: "headset-outline", to: "Support" },
+          { label: "Legal & about", hint: "Privacy, terms, refunds, delete account", icon: "document-text-outline", to: "Legal" },
         ].map((item, index) => (
           <View key={item.label}>
             {index > 0 ? <Divider style={{ marginLeft: 68 }} /> : null}

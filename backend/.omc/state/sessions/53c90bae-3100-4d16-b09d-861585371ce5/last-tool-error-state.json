@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"python -I -c \\\"\\nimport zlib,re\\nd=open(r'C:/Users/harle/.claude/projects/D--TechB-fresh-market-Techb-Freshveg/53c90bae-3100-4d16-b09d-861585371ce5/tool-results/webfetch-1792134257528-h9nm...",
+  "error": "Exit code 1\n302936 b'%PDF-1.7'\r\nb' /P <</MCID 0>> BDC /GS6 gs\\r\\nq\\r\\n161.85 687.7 271.5 73.55 re\\r\\nW* n\\r\\n271.5 0 0 73.55 161.85 687.7 cm\\r\\n/Image5 Do Q\\r\\n EMC  /Span <</MCID 1/Lang (en-IN)>> BDC q\\r\\n0.00000912 0 612 792 re\\r\\nW* n\\r\\nBT\\r\\n/F1 14.04 Tf\\r\\n1 0 0 1 90.024 706.9 Tm\\r\\n0 g\\r\\n/GS9 gs\\r\\n0 G\\r\\n[( )] TJ\\r\\nET\\r\\nQ\\r\\n EMC  /Span <</MCID 2/Lang (en-I'\r\nb' /Span <</MCID 0/Lang (en-US)>> BDC q\\r\\n0.00000912 0 612 792 re\\r\\nW* n\\r\\nBT\\r\\n/F4 11.04 Tf\\r\\n1 0 0 1 72.024 709.54 Tm\\r\\...",
+  "timestamp": "2026-10-16T07:06:53.975Z",
+  "retry_count": 1
+}

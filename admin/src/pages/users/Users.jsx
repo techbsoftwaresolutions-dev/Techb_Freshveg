@@ -18,8 +18,79 @@ export function RoleBadge({ user }) {
 }
 
 const StatusPill = ({ status }) => (
-  <Pill tone={status === "active" ? "ok" : "danger"}>{status === "active" ? "Active" : "Inactive"}</Pill>
+  <Pill tone={status === "active" ? "ok" : "danger"}>
+    {status === "active" ? "Active" : status === "deleted" ? "Erased" : "Inactive"}
+  </Pill>
 );
+
+// Erasing is not deactivating: the person's details go for good, the orders
+// they delivered keep only their name. The API refuses while they hold a run
+// or unsettled cash, and says which.
+async function eraseAccount(user, note) {
+  const reason = note ?? window.prompt(
+    `Erase ${user.name}'s account? Their phone number and details are removed for good and they can no longer sign in. Delivered orders keep their name for the store's records.
+
+Note for the record (optional):`
+  );
+  if (reason === null) return false;
+  if (window.prompt("Type DELETE to confirm") !== "DELETE") return false;
+  try {
+    const result = await api.post(`/users/${user.id}/erase`, { confirm: "DELETE", note: reason });
+    window.alert(result.message);
+    return true;
+  } catch {
+    return false; // the API client has already shown the reason as a toast
+  }
+}
+
+// Delivery employees' requests to delete their account, raised from the
+// delivery app's Profile → Delete my account.
+function DeletionRequests({ onChanged }) {
+  const [rows, setRows] = useState(null);
+  const load = useCallback(() => {
+    api.get("/users/deletion-requests", { status: "requested" }).then((data) => setRows(data.items)).catch(() => setRows([]));
+  }, []);
+  useEffect(load, [load]);
+  if (!rows?.length) return null;
+
+  async function decline(row) {
+    const note = window.prompt("Why is the request declined? The employee sees this in the app.");
+    if (!note?.trim()) return;
+    try {
+      await api.post(`/users/deletion-requests/${row.id}/reject`, { note });
+      load();
+    } catch {
+      // shown as a toast by the API client
+    }
+  }
+
+  return (
+    <Card title={`Account deletion requests (${rows.length})`} style={{ marginBottom: 16 }}>
+      <Table
+        title="Account deletion requests"
+        columns={[
+          { key: "user", label: "Delivery boy", render: (row) => `${row.user?.name || "—"} · ${row.user?.phone || ""}` },
+          { key: "requestedAt", label: "Requested", render: (row) => when(row.requestedAt) },
+          { key: "reason", label: "Reason", render: (row) => row.reason || <span className="faint">None given</span> },
+          {
+            key: "actions",
+            label: "Actions",
+            sortable: false,
+            render: (row) => (
+              <div className="inline" style={{ gap: 6 }}>
+                <button className="btn sm danger" onClick={async () => (await eraseAccount(row.user, "On the employee's request")) && (load(), onChanged())}>
+                  Erase account
+                </button>
+                <button className="btn sm" onClick={() => decline(row)}>Decline</button>
+              </div>
+            ),
+          },
+        ]}
+        rows={rows}
+      />
+    </Card>
+  );
+}
 
 export default function Users() {
   return <StaffList title="Users" addLabel="Create New User" />;
@@ -122,15 +193,20 @@ function StaffList({ title, role, addLabel }) {
       render: (row) => (
         <div className="inline" style={{ gap: 6 }} onClick={(e) => e.stopPropagation()}>
           <button className="btn sm" onClick={() => setEditing(row)}>
-            {row.canEdit ? "Edit" : "View"}
+            {row.canEdit && row.status !== "deleted" ? "Edit" : "View"}
           </button>
-          {row.canChangeAccess ? (
+          {row.canChangeAccess && row.status !== "deleted" ? (
             <button
               className={`btn sm${row.status === "active" ? " danger" : ""}`}
               disabled={busyId === row.id}
               onClick={() => toggleStatus(row)}
             >
               {busyId === row.id ? "…" : row.status === "active" ? "Deactivate" : "Activate"}
+            </button>
+          ) : null}
+          {deliveryOnly && row.canChangeAccess && row.status !== "deleted" ? (
+            <button className="btn sm danger" onClick={async () => (await eraseAccount(row)) && load()}>
+              Erase
             </button>
           ) : null}
         </div>
@@ -152,6 +228,8 @@ function StaffList({ title, role, addLabel }) {
       </div>
 
       <Banner tone="error">{error}</Banner>
+
+      {deliveryOnly ? <DeletionRequests onChanged={load} /> : null}
 
       <div className="toolbar">
         <input

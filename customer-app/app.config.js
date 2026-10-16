@@ -37,6 +37,18 @@ export default {
 
     android: {
       package: "com.samagramart.customer",
+      // The session token lives in AsyncStorage; keep it out of device
+      // backups (Google Drive / device-to-device transfer).
+      allowBackup: false,
+      // Added by Expo's default template, used by nothing in this app (no
+      // file access, no overlays). See docs/legal/permissions-audit.md.
+      blockedPermissions: [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_SMS",
+        "android.permission.RECEIVE_SMS",
+      ],
       adaptiveIcon: {
         foregroundImage: brandAsset("adaptive-icon.png", "./assets/adaptive-icon.png"),
         backgroundColor: brandedIcon ? "#FFFFFF" : "#295110",
@@ -51,6 +63,8 @@ export default {
       // Read by src/api/client.js. Set API_BASE_URL in .env — on a physical
       // device this has to be your machine's LAN IP, not localhost.
       apiBaseUrl: process.env.API_BASE_URL,
+      // Where the policy pages live (Account → Legal & about).
+      siteUrl: process.env.SITE_URL || "https://thefarmersbasket.in",
     },
   },
 };

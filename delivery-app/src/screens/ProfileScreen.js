@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, IconTile, Loading, Notice, Pill } from "../components/ui";
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { user, signOut } = useAuth();
   const [stats, setStats] = useState(null);
   const [week, setWeek] = useState(null);
@@ -105,6 +105,13 @@ export default function ProfileScreen() {
           <Row label="Cash handled" value={rupees(week?.cash)} tone="cash" />
         </View>
       </Card>
+
+      <Button
+        title="Legal & account"
+        icon="document-text-outline"
+        variant="outline"
+        onPress={() => navigation.navigate("About")}
+      />
 
       <Button
         title="Sign out"

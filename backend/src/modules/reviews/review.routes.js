@@ -229,3 +229,6 @@ router.post(
 );
 
 module.exports = router;
+
+// The account-deletion service recomputes ratings after removing reviews.
+module.exports.refreshRating = refreshRating;

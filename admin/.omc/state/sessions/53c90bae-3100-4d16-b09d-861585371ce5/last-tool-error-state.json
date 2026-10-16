@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"/d/TechB/fresh market/Techb_Freshveg/backend\\\" && cat src/seed/demoServer.js; sed -n 1,30p src/seed/memoryServer.js; ls ../.claude 2>&1\",\"description\":\"Read demo and memory server set...",
+  "error": "Exit code 2\n/* eslint-disable no-console */\r\n// Runs the whole API against a throwaway in-memory MongoDB, seeded with the\r\n// demo catalog — so the admin and the storefront can be driven on a machine\r\n// with no database installed.\r\n//\r\n//   npm run demo\r\n//\r\n// Data lives only as long as the process. Use `npm start` against a real\r\n// MONGODB_URI for anything you want to keep.\r\n\r\nconst { startMemoryMongo, stopMemoryMongo } = require(\"./memoryServer\");\r\n\r\nasync function main() {\r\n  await startMe...",
+  "timestamp": "2026-10-16T07:35:33.045Z",
+  "retry_count": 2
+}

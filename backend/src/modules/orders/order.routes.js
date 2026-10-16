@@ -31,10 +31,53 @@ function assertAssigned(order, user) {
   }
 }
 
+// A rider gets what the run in hand needs and no more: the customer's name,
+// phone, address and instructions only while the order is on their run, and
+// never the email, staff notes, payment references or customer id. Once the
+// run is over, history keeps the area and the amounts (for the cash count),
+// not the person.
+const ON_RUN = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"];
+
 function forViewer(order, user) {
   const json = typeof order.toJSON === "function" ? order.toJSON() : { ...order };
-  if (isRider(user) && json.delivery) json.delivery = { ...json.delivery, otp: undefined };
-  return json;
+  if (!isRider(user)) return json;
+
+  const live = ON_RUN.includes(json.status);
+  const delivery = json.delivery || {};
+  const address = delivery.address || {};
+  const { method, status, amountPaid } = json.payment || {};
+  return {
+    ...json,
+    customer: undefined,
+    customerSnapshot: live ? { name: json.customerSnapshot?.name, phone: json.customerSnapshot?.phone } : {},
+    customerNote: undefined,
+    internalNote: undefined,
+    statusHistory: undefined,
+    rating: undefined,
+    rewardCoupon: undefined,
+    payment: { method, status, amountPaid },
+    delivery: {
+      ...delivery,
+      otp: undefined,
+      proofPhoto: undefined,
+      signature: undefined,
+      deliveredLocation: undefined,
+      instructions: live ? delivery.instructions : undefined,
+      address: live ? address : { label: address.label, city: address.city, state: address.state, pincode: address.pincode },
+    },
+  };
+}
+
+// A customer's own order, without staff notes, and with the delivery
+// employee's phone only while the order is on its way.
+function forCustomer(order) {
+  const json = typeof order.toJSON === "function" ? order.toJSON() : { ...order };
+  const delivery = json.delivery || {};
+  return {
+    ...json,
+    internalNote: undefined,
+    delivery: { ...delivery, partnerPhone: ON_RUN.includes(json.status) ? delivery.partnerPhone : undefined },
+  };
 }
 
 // The whole status table, so the admin and delivery apps build their action
@@ -78,7 +121,7 @@ router.get(
     }
 
     const result = await paginate(Order, filter, req.query, { defaultSort: { placedAt: -1 } });
-    res.json({ success: true, ...result });
+    res.json({ success: true, ...result, items: result.items.map(forCustomer) });
   })
 );
 
@@ -96,7 +139,7 @@ router.get(
 
     // The order itself rides along, so a detail screen needs one request and
     // works for any order — not only the ones on the first page of /mine.
-    res.json({ success: true, tracking: orderService.trackingView(order), order });
+    res.json({ success: true, tracking: orderService.trackingView(order), order: isOwner ? forCustomer(order) : order });
   })
 );
 
@@ -106,6 +149,12 @@ router.post(
     const order = await Order.findById(req.params.id);
     if (!order) throw ApiError.notFound("Order not found");
     if (String(order.customer) !== req.user.id) throw ApiError.forbidden("Not your order");
+    // Once the rider has collected it the goods are on the road: the website
+    // and app stop offering Cancel here, and so does the API (refund policy:
+    // docs/legal/refund-cancellation-policy.md).
+    if (["PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"].includes(order.status)) {
+      throw ApiError.conflict("This order is already on its way and can no longer be cancelled. Contact support if there is a problem.");
+    }
 
     await orderService.transition(
       order,
@@ -326,7 +375,7 @@ router.delete(
 
 // ---------------------------------------------------------------- delivery app
 
-const LIVE_STATUSES = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"];
+const LIVE_STATUSES = ON_RUN;
 
 // The delivery app's home screen in one request: what is in hand right now,
 // and how today's work stands. Delivery boys are store employees on a salary,

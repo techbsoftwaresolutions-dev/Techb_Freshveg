@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "entries": {
+    "79a93d4a2f8f50b95f852280616242fee1855dc99a3c75211917f55e72e95fae": {
+      "last_emitted_at_ms": 1792136788567,
+      "message": "Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
+    },
+    "445ed27a3872b681d98190bae61ccb84954e1bc4e140df5370be958dee776b3a": {
+      "last_emitted_at_ms": 1792136778705,
+      "message": "Verify changes work after editing. Test functionality before marking complete."
+    },
+    "466399dafa2d20f60587180bad0a07358eb7f2bce724df0ff682f038ad33f5ad": {
+      "last_emitted_at_ms": 1792134398265,
+      "message": "Read multiple files in parallel when possible for faster analysis."
+    },
+    "6ee40f032c7530e2c8f83af729a934424d1af0dfa5dd92bbd5e30dd5fbc0bf8e": {
+      "last_emitted_at_ms": 1792134247445,
+      "message": "Spawning agent: web-fetch (inherit) [BACKGROUND] | Task: Fetch Indian law primary sources"
+    },
+    "50f041d1a3ab903b5712af29e67f3f4ec0b561f990aa7ac0be01f959f874f875": {
+      "last_emitted_at_ms": 1792134236494,
+      "message": "Spawning agent: web-fetch (inherit) [BACKGROUND] | Task: Fetch Apple review/privacy pages"
+    },
+    "88cd9f6585822ca64dea77ded01b60f7e5df40ede3544e9977be2e42ef3bc716": {
+      "last_emitted_at_ms": 1792134228440,
+      "message": "Spawning agent: web-fetch (inherit) [BACKGROUND] | Task: Fetch Google Play policy pages"
+    }
+  },
+  "updated_at": "2026-10-16T07:46:28.567Z"
+}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, TextInput } from "../components/Text";
@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { colors, radius, shadow, spacing, type } from "../theme";
 import { Button, Notice } from "../components/ui";
 import { pendingReferral } from "../api/client";
+import { SITE_URL } from "./LegalScreen";
 
 export default function LoginScreen({ navigation }) {
   const { requestOtp, verifyOtp } = useAuth();
@@ -137,7 +138,17 @@ export default function LoginScreen({ navigation }) {
               disabled={phone.length !== 10}
               style={{ marginTop: spacing.lg }}
             />
-            <Text style={styles.terms}>By continuing you agree to receive a one-time code by SMS on this number.</Text>
+            <Text style={styles.terms}>
+              By continuing you agree to receive a one-time code by SMS on this number, and to our{" "}
+              <Text style={styles.termsLink} onPress={() => Linking.openURL(`${SITE_URL}/terms-and-conditions`).catch(() => {})}>
+                Terms
+              </Text>
+              . Read how we use your data in our{" "}
+              <Text style={styles.termsLink} onPress={() => Linking.openURL(`${SITE_URL}/privacy-policy`).catch(() => {})}>
+                Privacy policy
+              </Text>
+              .
+            </Text>
           </>
         ) : (
           <>
@@ -261,6 +272,7 @@ const styles = StyleSheet.create({
   prefix: { fontSize: 15, fontWeight: "600", color: colors.textMuted },
   phoneInput: { flex: 1, height: "100%", paddingHorizontal: spacing.md, fontSize: 16, color: colors.text, letterSpacing: 1 },
   terms: { ...type.tiny, textAlign: "center", marginTop: spacing.md },
+  termsLink: { color: colors.primary, fontWeight: "600", textDecorationLine: "underline" },
 
   codeInput: {
     marginTop: spacing.lg,

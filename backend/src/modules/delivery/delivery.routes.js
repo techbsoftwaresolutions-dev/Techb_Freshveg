@@ -61,6 +61,10 @@ router.post(
     if (req.user.role === "delivery_partner" && String(order.delivery.partner) !== req.user.id) {
       throw ApiError.forbidden("This order is assigned to another delivery boy");
     }
+    // A rider's position is recorded only while they are on this run.
+    if (!["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"].includes(order.status)) {
+      throw ApiError.conflict("This order is not on a delivery run");
+    }
 
     const { lng, lat } = req.body;
     if (typeof lng !== "number" || typeof lat !== "number") {
