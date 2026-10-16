@@ -30,6 +30,10 @@ const cartSchema = new mongoose.Schema(
     items: { type: [cartItemSchema], default: [] },
 
     couponCode: { type: String, default: "", uppercase: true, trim: true },
+    // A reward coupon (referrals/coupon.model) chosen for this checkout. Only
+    // a pointer: it is re-validated on every read and taken for real only
+    // when the order is placed.
+    rewardCoupon: objectId("Coupon", { default: null }),
     walletRequested: { type: Number, default: 0 },
     loyaltyPointsRequested: { type: Number, default: 0 },
 

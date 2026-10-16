@@ -22,12 +22,12 @@ export default function AccountPage() {
 
   async function shareReferral(code) {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const text = `Use my Farmers Basket referral code ${code} and get a discount on your first order!`;
+    const text = `Join me on The Farmers Basket — sign up with my referral code ${code}.`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: "The Farmers Basket referral", text, url: origin });
+        await navigator.share({ title: "The Farmers Basket referral", text, url: `${origin}/?ref=${code}` });
       } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(`${text} ${origin}`);
+        await navigator.clipboard.writeText(`${text} ${origin}/?ref=${code}`);
         setShared(true);
         setTimeout(() => setShared(false), 2000);
       }
@@ -209,7 +209,13 @@ export default function AccountPage() {
           <Link href="/account/refer" className="list-row">
             <span className="list-row-main">
               <strong>Refer &amp; earn</strong>
-              <span>Your code, rewards, and use a friend&apos;s code</span>
+              <span>Your code, friends&apos; progress and rewards</span>
+            </span>
+          </Link>
+          <Link href="/account/coupons" className="list-row">
+            <span className="list-row-main">
+              <strong>My coupons</strong>
+              <span>Rewards ready to use at checkout</span>
             </span>
           </Link>
           <Link href="/help" className="list-row">

@@ -18,6 +18,7 @@ router.use("/returns", require("../modules/orders/return.routes"));
 router.use("/payments", require("../modules/payments/payment.routes"));
 router.use("/reviews", require("../modules/reviews/review.routes"));
 router.use("/referrals", require("../modules/referrals/referral.routes"));
+router.use("/coupons", require("../modules/referrals/coupon.routes"));
 router.use("/notifications", require("../modules/notifications/notification.routes"));
 // Meta calls this, not a signed-in user: authenticity is its signature.
 router.use("/webhooks/whatsapp", require("../modules/notifications/whatsapp.routes"));

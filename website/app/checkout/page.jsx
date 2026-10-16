@@ -6,6 +6,7 @@ import { useAuth, useCart, useStore } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
 import { payOnline } from "@/lib/razorpay";
+import CouponPicker from "@/components/CouponPicker";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -464,6 +465,7 @@ export default function CheckoutPage() {
         <div className="sticky">
           <div className="panel">
             <h3>Order summary</h3>
+            <CouponPicker compact />
             <div className="bill">
               <div className="bill-row">
                 <span className="label">
@@ -471,10 +473,16 @@ export default function CheckoutPage() {
                 </span>
                 <span>{rupees(summary.subtotal)}</span>
               </div>
-              {summary.offerDiscount > 0 ? (
+              {summary.offerDiscount - (summary.rewardDiscount || 0) > 0 ? (
                 <div className="bill-row save-row">
                   <span className="label">Offers</span>
-                  <span>− {rupees(summary.offerDiscount)}</span>
+                  <span>− {rupees(summary.offerDiscount - (summary.rewardDiscount || 0))}</span>
+                </div>
+              ) : null}
+              {summary.rewardDiscount > 0 ? (
+                <div className="bill-row save-row">
+                  <span className="label">Reward coupon</span>
+                  <span>− {rupees(summary.rewardDiscount)}</span>
                 </div>
               ) : null}
               <div className={`bill-row${summary.deliveryFree ? " save-row" : ""}`}>

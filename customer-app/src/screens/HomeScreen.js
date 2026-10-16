@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Dimensions, FlatList, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "../components/Text";
@@ -10,6 +10,7 @@ import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
 import { Card, EmptyState, IconTile, Loading, Notice, SectionHeader } from "../components/ui";
 import ProductCard from "../components/ProductCard";
 import VideoHeroBanner, { HeroShade } from "../components/VideoHeroBanner";
+import BrandLogo, { primeBranding } from "../components/BrandLogo";
 
 const CARD_WIDTH = 176;
 
@@ -23,7 +24,6 @@ export default function HomeScreen({ navigation }) {
 
   const [data, setData] = useState(null);
   const [banners, setBanners] = useState([]);
-  const [logoUrl, setLogoUrl] = useState("");
   const [videoHero, setVideoHero] = useState(null);
   const [heroCopy, setHeroCopy] = useState({ text: "", ctaLabel: "" });
   const [loading, setLoading] = useState(true);
@@ -48,7 +48,7 @@ export default function HomeScreen({ navigation }) {
       ]);
       setData(home);
       setBanners(live.banners || []);
-      setLogoUrl(settings?.settings?.branding?.logo || "");
+      primeBranding(settings?.settings?.branding);
       const site = settings?.settings;
       const video = site?.app?.homeHero === "video" && site.website?.videoHero?.videos?.length ? site.website.videoHero : null;
       setVideoHero(video);
@@ -92,7 +92,7 @@ export default function HomeScreen({ navigation }) {
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.headerRow}>
           <View style={styles.logoBox} accessibilityRole="image" accessibilityLabel="The Farmers Basket">
-            <Image source={logoUrl ? { uri: logoUrl } : require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
+            <BrandLogo style={styles.logo} />
           </View>
           <Pressable
             style={styles.locationPill}
@@ -287,7 +287,13 @@ function openBanner(target, navigation) {
 // added — the bundled harvest photo.
 // With hero text set in Settings → Apps, each banner carries it over a shade.
 function BannerStrip({ banners, copy, navigation }) {
-  const width = Dimensions.get("window").width - spacing.lg * 2;
+  // The live window size, so a rotated phone or a browser switched to mobile
+  // view re-sizes the banner instead of keeping the width it first saw.
+  const { width: windowWidth } = useWindowDimensions();
+  const width = Math.max(windowWidth - spacing.lg * 2, 0);
+  // Height follows the width (a 343 x 160 card on a phone), within limits so it
+  // is never a thin strip on a wide screen. Words may make it taller.
+  const minHeight = Math.round(Math.min(Math.max(width / 2.15, 150), 280));
   const words = copy.text ? (
     <>
       <HeroShade fromLeft />
@@ -314,7 +320,7 @@ function BannerStrip({ banners, copy, navigation }) {
         accessibilityRole="link"
         accessibilityLabel={copy.text || "Basket of farm-fresh vegetables. Shop all categories"}
       >
-        <View style={[styles.bannerFrame, { width }]}>
+        <View style={[styles.bannerFrame, { width, minHeight }]}>
           <Image source={require("../../assets/hero.webp")} style={styles.bannerFill} resizeMode="cover" />
           {words}
         </View>
@@ -337,7 +343,7 @@ function BannerStrip({ banners, copy, navigation }) {
           accessibilityRole={banner.target?.kind && banner.target.kind !== "none" ? "link" : "image"}
           accessibilityLabel={copy.text || banner.title || "Offer banner"}
         >
-          <View style={[styles.bannerFrame, { width, backgroundColor: banner.backgroundColor || colors.surfaceAlt }]}>
+          <View style={[styles.bannerFrame, { width, minHeight, backgroundColor: banner.backgroundColor || colors.surfaceAlt }]}>
             <Image source={{ uri: banner.mobileImage || banner.image }} style={styles.bannerFill} resizeMode="cover" />
             {words}
           </View>
@@ -413,7 +419,7 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 13.5, fontWeight: "500", color: colors.text },
 
   // Taller once it carries words, so they never crowd the photo.
-  bannerFrame: { minHeight: 160, borderRadius: radius.lg, overflow: "hidden", justifyContent: "flex-end" },
+  bannerFrame: { borderRadius: radius.lg, overflow: "hidden", justifyContent: "flex-end" },
   bannerFill: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
   bannerShade: { top: "20%" },
   bannerCopy: { padding: spacing.md, paddingTop: 48, gap: spacing.sm, alignItems: "flex-start" },

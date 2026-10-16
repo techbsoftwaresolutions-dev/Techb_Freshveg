@@ -1,18 +1,19 @@
 import Link from "next/link";
 import FooterInstall from "@/components/FooterInstall";
-import logoIcon from "@/assets/logo-icon.png";
+import { brandImages } from "@/lib/brand";
 
 // Only pages that exist are linked. About, careers and FAQs have no route
 // yet — they join these lists when they do, rather than sitting here as
 // links that go nowhere.
-export default function Footer({ categories = [] }) {
+export default function Footer({ categories = [], branding }) {
+  const brand = brandImages(branding);
   return (
     <footer className="footer">
       <div className="wrap">
         <div className="footer-grid">
           <div className="footer-brand">
             <Link href="/" className="footer-logo">
-              <img src={logoIcon.src} alt="The Farmers Basket logo" width="48" height="48" className="footer-mark" />
+              <img src={brand.symbol} alt="The Farmers Basket logo" width="48" height="48" className="footer-mark" />
               <span>
                 <span className="footer-logo-name">The Farmers Basket</span>
                 <span className="footer-logo-tag">Fresh Food • Better Life</span>

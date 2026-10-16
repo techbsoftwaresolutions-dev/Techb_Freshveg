@@ -25,7 +25,7 @@ export default function Delivery() {
       <Tabs
         tabs={[
           { key: "report", label: "Delivery report" },
-          { key: "partners", label: "Partners" },
+          { key: "partners", label: "Delivery boys" },
           { key: "zones", label: "Zones" },
           { key: "slots", label: "Slots" },
         ]}
@@ -115,7 +115,7 @@ function Report() {
                     </div>
                   ),
                 },
-                { key: "partner", label: "Partner", render: (row) => <span className="muted">{row.partner || "—"}</span> },
+                { key: "partner", label: "Delivery boy", render: (row) => <span className="muted">{row.partner || "—"}</span> },
                 { key: "area", label: "Area", render: (row) => <span className="muted">{row.area || "—"}</span> },
                 {
                   key: "assignedAt",
@@ -197,11 +197,11 @@ function Partners() {
           <Loading />
         ) : (
           <Table
-            title="Delivery partners"
+            title="Delivery boys"
             columns={[
               {
                 key: "partner",
-                label: "Partner",
+                label: "Delivery boy",
                 render: (row) => (
                   <div className="stack">
                     <span className="row-title">{row.partner?.name || "—"}</span>

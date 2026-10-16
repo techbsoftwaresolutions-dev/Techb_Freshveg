@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, toast } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
+
 
 // A save's confirmation, as a toast (components/Toaster.jsx).
 const notifySaved = (message) => message && toast("success", message);
@@ -296,7 +297,7 @@ function CashOnDelivery({ canManage }) {
           foot="Collected but not yet handed in"
           tone={data.total ? "warn" : "ok"}
         />
-        <Stat label="Riders holding cash" value={data.partners.length} />
+        <Stat label="Delivery boys holding cash" value={data.partners.length} />
       </div>
 
       <Card tight>
@@ -305,7 +306,7 @@ function CashOnDelivery({ canManage }) {
           columns={[
             {
               key: "partner",
-              label: "Delivery partner",
+              label: "Delivery boy",
               render: (row) => (
                 <div className="stack">
                   <span className="row-title">{row.partner?.name || "Unassigned"}</span>

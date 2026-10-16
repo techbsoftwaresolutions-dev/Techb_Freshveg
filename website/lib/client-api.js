@@ -51,6 +51,42 @@ export function guestId() {
   }
 }
 
+// A friend's referral code from a shared link (?ref=CODE). Kept until the
+// visitor signs in — through the login page, OTP and any detour — and then
+// sent with the sign-in, where the API decides whether it applies.
+const REF_KEY = "commerce.web.ref";
+const REF_TTL = 30 * 24 * 60 * 60 * 1000;
+
+export function captureReferral(search) {
+  if (typeof window === "undefined") return;
+  const code = new URLSearchParams(search || window.location.search).get("ref");
+  if (!code || !/^[A-Za-z0-9]{4,16}$/.test(code)) return;
+  try {
+    localStorage.setItem(REF_KEY, JSON.stringify({ code: code.toUpperCase(), at: Date.now() }));
+  } catch {
+    // Storage refused — the code can still be typed on Refer & Earn.
+  }
+}
+
+export function pendingReferral() {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(REF_KEY) || "null");
+    if (saved?.code && Date.now() - saved.at < REF_TTL) return saved.code;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+export function clearReferral() {
+  try {
+    localStorage.removeItem(REF_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 let refreshing = null;
 
 async function refreshSession() {

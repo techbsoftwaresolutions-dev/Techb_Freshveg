@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Text } from "./Text";
-import { colors } from "../theme";
+import { colors, radius, spacing } from "../theme";
 
 // A frame of a Cloudinary video as a JPEG — the same transform the website
 // uses (website/lib/format.js videoPoster), so the hero is never black while
@@ -23,7 +23,7 @@ const BANDS = 32;
 // the admin's playlist, muted and looping, behind their text and a CTA. Pauses
 // off-screen; reduced motion or a playlist that won't play leaves the poster.
 export default function VideoHeroBanner({ videos, text, ctaLabel, onPress }) {
-  const { width, height } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const focused = useIsFocused();
   const [reduced, setReduced] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -89,20 +89,23 @@ export default function VideoHeroBanner({ videos, text, ctaLabel, onPress }) {
     else player.pause();
   }, [player, still, focused]);
 
-  // As on the website's phones: most of the screen under the header, never
-  // so short the words crowd the footage.
-  const heroHeight = Math.round(Math.min(Math.max(height * 0.58, 380), 560));
+  // Sized like the classic banner beside it (HomeScreen BannerStrip): a card
+  // inset 16 from each edge, its height following its width. Taller than the
+  // banner, because the words and a full-size button sit on the footage.
+  // A minimum, not a fixed height: longer words grow the card.
+  const width = Math.max(windowWidth - spacing.lg * 2, 0);
+  const minHeight = Math.round(Math.min(Math.max(width / 1.25, 240), 420));
   // The website's clamp(22px, 6.4vw, 28px).
-  const fontSize = Math.round(Math.min(Math.max(width * 0.064, 22), 28));
+  const fontSize = Math.round(Math.min(Math.max(windowWidth * 0.064, 22), 28));
   const frame = poster(videos[index]?.url) || poster(videos[0].url);
 
   return (
-    <View style={[styles.hero, { height: heroHeight }]}>
-      {frame ? <Image source={{ uri: frame }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+    <View style={[styles.hero, { width, minHeight }]}>
+      {frame ? <Image source={{ uri: frame }} style={styles.fill} resizeMode="cover" /> : null}
       {still ? null : (
         <VideoView
           player={player}
-          style={[StyleSheet.absoluteFill, { opacity: ready ? 1 : 0 }]}
+          style={[styles.fill, { opacity: ready ? 1 : 0 }]}
           contentFit="cover"
           nativeControls={false}
           allowsPictureInPicture={false}
@@ -145,10 +148,22 @@ export function HeroShade({ style, fromLeft = false }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { overflow: "hidden", justifyContent: "flex-end", backgroundColor: colors.primaryDeep },
+  hero: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    justifyContent: "flex-end",
+    backgroundColor: colors.primaryDeep,
+  },
+  // On the web the VideoView is a bare <video>, which, unlike a div, does not
+  // stretch between top/left/right/bottom: 0 and stays at the clip's own
+  // resolution, so a phone showed a cropped corner of it. The explicit 100%
+  // sizes make it fill the card, and contentFit "cover" crops it evenly.
+  fill: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
   shade: { ...StyleSheet.absoluteFillObject, top: "40%" },
   shadeLeft: { ...StyleSheet.absoluteFillObject, right: "30%", flexDirection: "row" },
-  copy: { paddingHorizontal: 16, paddingBottom: 24 },
+  copy: { padding: spacing.lg, paddingTop: 48 },
   text: {
     fontWeight: "700",
     color: "#fff",

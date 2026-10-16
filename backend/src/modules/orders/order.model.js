@@ -91,7 +91,11 @@ const orderSchema = new mongoose.Schema(
       mrpTotal: money(0),
       subtotal: money(0),
       catalogueSavings: money(0),
-      offerDiscount: money(0),
+      offerDiscount: money(0), // includes rewardDiscount
+      rewardDiscount: money(0),
+      // Merchandise after offers, before charges, credits and reward coupons
+      // — what a referral purchase is measured on.
+      qualifyingAmount: money(0),
       deliveryCharge: money(0),
       deliveryFree: Boolean,
       packagingCharge: money(0),
@@ -128,6 +132,13 @@ const orderSchema = new mongoose.Schema(
         ),
       ],
       default: [],
+    },
+
+    // The reward coupon spent on this order, and what it took off.
+    rewardCoupon: {
+      coupon: objectId("Coupon"),
+      code: String,
+      discount: money(0),
     },
 
     payment: {

@@ -3,7 +3,7 @@ import farmersPhoto from "@/assets/why-farmers.jpg";
 import qualityPhoto from "@/assets/why-quality.jpg";
 import packedPhoto from "@/assets/Fresh Harvest in a Sunlit Crate.webp";
 import deliveryPhoto from "@/assets/why-delivery.jpg";
-import logoIcon from "@/assets/logo-icon.png";
+import { brandImages } from "@/lib/brand";
 
 // "Why Farmers Basket?" — the four promises as photo cards, followed by the
 // "Fresh. Healthy. Always." band. Homepage only; category pages keep the
@@ -41,7 +41,8 @@ const promises = [
   { icon: <IconLeaf />, label: "100% Natural" },
 ];
 
-export default function WhyFarmersBasket() {
+export default function WhyFarmersBasket({ branding }) {
+  const brand = brandImages(branding);
   return (
     <>
       <section className="section">
@@ -67,7 +68,7 @@ export default function WhyFarmersBasket() {
       <section className="fresh-band" aria-label="Our promise">
         <div className="fresh-band-title">
           <span className="fresh-band-mark" aria-hidden="true">
-            <img src={logoIcon.src} alt="" width="48" height="48" />
+            <img src={brand.symbol} alt="" width="48" height="48" />
           </span>
           <span>
             <strong>Fresh. Healthy. Always.</strong>

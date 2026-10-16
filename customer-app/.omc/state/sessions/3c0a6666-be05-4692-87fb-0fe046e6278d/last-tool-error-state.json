@@ -1,7 +1,7 @@
 {
-  "tool_name": "mcp__Claude_Browser__computer",
-  "tool_input_preview": "{\"action\":\"screenshot\",\"scale\":0.5}",
-  "error": "screenshot failed: Screenshot timed out after 5s: the page did not finish rendering in time. Retry; the pane does not need to be displayed. Claude's window is minimized or hidden, which can stop the page from drawing; if this repeats, continue with `get_page_text` or `find`, or ask the user to bring it forward.",
-  "timestamp": "2026-10-13T12:22:46.811Z",
-  "retry_count": 2
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"computer\",\"input\":{\"action\":\"left_click\",\"coordinate\":[200,175],\"action_summary\":\"Opens the delivered order's details\"}},{\"name\":\"computer\",\"input\":{\"action\":\"wait\",\"duration\":4}}...",
+  "error": "actions[0] (computer:left_click) failed: left_click with `coordinate` requires a prior computer{action:\"screenshot\"} (no screenshot dimensions cached) (0 completed, 2 remaining)",
+  "timestamp": "2026-10-14T12:22:00.700Z",
+  "retry_count": 1
 }

@@ -1,11 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
-import { colors, radius, spacing, type } from "../theme";
-import { Button, Notice } from "../components/ui";
+import { Text, TextInput } from "../components/Text";
+import BrandLogo from "../components/BrandLogo";
+import { colors, radius, shadow, spacing, type } from "../theme";
+import { Button, Notice, Pill } from "../components/ui";
 
 export default function LoginScreen() {
   const { requestOtp, verifyOtp } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState("phone");
   const [phone, setPhone] = useState("");
@@ -66,23 +70,31 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.screen}
     >
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>The Farmers Basket Partner</Text>
-        <Text style={styles.heroSub}>Deliveries, routes and earnings.</Text>
-      </View>
-
+      {/* The customer app's sign-in card: logo, one field, one button. */}
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing.xl }]}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={styles.sheet}>
+        <View style={styles.logoBox}>
+          <BrandLogo style={styles.logo} />
+        </View>
+        <Pill tone="primary" style={{ alignSelf: "center", marginBottom: spacing.lg }}>
+          Delivery staff
+        </Pill>
+
         {error ? <Notice tone="error" style={{ marginBottom: spacing.md }}>{error}</Notice> : null}
 
         {step === "phone" ? (
           <>
-            <Text style={type.h2}>Sign in to start your shift</Text>
-            <Text style={[type.small, { marginTop: 4, marginBottom: spacing.lg }]}>
-              Use the number your store registered you with.
-            </Text>
+            <Text style={styles.title}>Sign in to start your shift</Text>
+            <Text style={styles.subtitle}>Use the number your store registered you with.</Text>
 
+            <Text style={styles.label}>Mobile number</Text>
             <View style={styles.phoneRow}>
-              <Text style={styles.prefix}>+91</Text>
+              <View style={styles.prefixBox}>
+                <Text style={styles.prefix}>+91</Text>
+              </View>
               <TextInput
                 value={phone}
                 onChangeText={(text) => setPhone(text.replace(/\D/g, "").slice(0, 10))}
@@ -105,8 +117,8 @@ export default function LoginScreen() {
           </>
         ) : (
           <>
-            <Text style={type.h2}>Enter the code</Text>
-            <Text style={[type.small, { marginTop: 4 }]}>
+            <Text style={styles.title}>Enter the code</Text>
+            <Text style={[styles.subtitle, { marginBottom: 0 }]}>
               Sent to +91 {phone}.{" "}
               <Text style={styles.link} onPress={() => setStep("phone")}>
                 Change
@@ -140,7 +152,8 @@ export default function LoginScreen() {
 
             <Pressable
               onPress={secondsLeft > 0 ? undefined : send}
-              style={{ marginTop: spacing.md, alignSelf: "center" }}
+              style={{ marginTop: spacing.md, alignSelf: "center", padding: spacing.xs }}
+              accessibilityRole="button"
             >
               <Text style={[type.small, secondsLeft === 0 && styles.link]}>
                 {secondsLeft > 0 ? `Resend in ${secondsLeft}s` : "Resend code"}
@@ -149,53 +162,71 @@ export default function LoginScreen() {
           </>
         )}
 
-        <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.xl }]}>
-          Seeded partners: 9000000003, 9000000004
-        </Text>
+        {/* Development builds only: the riders npm run seed:delivery:dev creates. */}
+        {__DEV__ ? (
+          <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.xl }]}>
+            Dev riders: 9000000003, 9000000004
+          </Text>
+        ) : null}
       </View>
+      <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.lg }]}>
+        Your store's deliveries, in one place.
+      </Text>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.primaryDark },
-  hero: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-  heroMark: { fontSize: 62, marginBottom: spacing.md },
-  heroTitle: { fontSize: 27, fontWeight: "800", color: "#fff" },
-  heroSub: { color: "rgba(255,255,255,0.8)", marginTop: 4, fontSize: 14 },
-
+  // As customer-app/src/screens/LoginScreen.js.
+  screen: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flexGrow: 1, justifyContent: "center", padding: spacing.lg, paddingBottom: spacing.xxl },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.xl,
-    paddingBottom: spacing.xxl,
+    ...shadow.card,
   },
+  logoBox: { alignSelf: "center", width: 150, height: 84, overflow: "hidden", marginBottom: spacing.sm },
+  logo: { width: 150, height: 84, transform: [{ scale: 1.2 }] },
+  title: { fontSize: 21, fontWeight: "700", color: colors.text, textAlign: "center" },
+  subtitle: { ...type.small, textAlign: "center", marginTop: 6, marginBottom: spacing.lg, lineHeight: 19 },
+  label: { fontSize: 13, fontWeight: "500", color: colors.text, marginBottom: 6 },
 
   phoneRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.borderStrong,
     borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    height: 56,
+    height: 52,
+    overflow: "hidden",
   },
-  prefix: { fontSize: 17, fontWeight: "800", color: colors.textMuted, marginRight: spacing.sm },
-  phoneInput: { flex: 1, fontSize: 18, color: colors.text, letterSpacing: 1.5, fontWeight: "600" },
+  prefixBox: {
+    height: "100%",
+    paddingHorizontal: 14,
+    justifyContent: "center",
+    backgroundColor: colors.bg,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+  },
+  prefix: { fontSize: 15, fontWeight: "600", color: colors.textMuted },
+  phoneInput: { flex: 1, height: "100%", paddingHorizontal: spacing.md, fontSize: 16, color: colors.text, letterSpacing: 1 },
 
   codeInput: {
     marginTop: spacing.lg,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.borderStrong,
     borderRadius: radius.md,
-    height: 60,
+    height: 56,
     textAlign: "center",
-    fontSize: 26,
-    letterSpacing: 12,
+    fontSize: 24,
+    letterSpacing: 10,
     color: colors.text,
-    fontWeight: "800",
+    fontWeight: "700",
   },
 
-  link: { color: colors.primary, fontWeight: "800" },
+  link: { color: colors.primary, fontWeight: "600" },
 });

@@ -1,12 +1,14 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { api, loadSession, saveSession } from "@/lib/client-api";
+import { api, loadSession, saveSession, captureReferral, pendingReferral, clearReferral } from "@/lib/client-api";
+import { brandImages } from "@/lib/brand";
 
 const AuthContext = createContext(null);
 const CartContext = createContext(null);
 const StoreContext = createContext(null);
 const WishlistContext = createContext(null);
+const BrandingContext = createContext(brandImages(null));
 
 const PINCODE_KEY = "commerce.web.pincode";
 // The place name the shopper picked for that pincode ("Sarjapura"), and the
@@ -25,7 +27,10 @@ const remember = (pairs) => {
   }
 };
 
-export function Providers({ children }) {
+// `branding` is settings.branding, fetched by the root layout.
+export function Providers({ children, branding }) {
+  const brand = useMemo(() => brandImages(branding), [branding]);
+
   // --- store / delivery location ---------------------------------------
   const [store, setStore] = useState(null);
   const [pincode, setPincodeState] = useState(null);
@@ -123,10 +128,27 @@ export function Providers({ children }) {
 
   const requestOtp = useCallback((phone) => api.post("/auth/otp/request", { phone }), []);
 
+  // A referral link can land on any page; its code is held until sign-in.
+  useEffect(() => captureReferral(), []);
+
   const verifyOtp = useCallback(async (phone, code, name) => {
-    const data = await api.post("/auth/otp/verify", { phone, code, name });
+    const referralCode = pendingReferral();
+    const data = await api.post("/auth/otp/verify", {
+      phone, code, name,
+      ...(referralCode ? { referralCode, referralSource: "link" } : {}),
+    });
     saveSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     setUser(data.user);
+    if (referralCode) {
+      // An existing account that has not ordered yet can still be referred.
+      if (!data.isNewUser) {
+        data.referral = await api
+          .post("/referrals/claim", { code: referralCode, source: "link" })
+          .then((r) => ({ applied: true, message: r.message }))
+          .catch((err) => ({ applied: false, message: err.message }));
+      }
+      clearReferral();
+    }
     return data;
   }, []);
 
@@ -250,8 +272,17 @@ export function Providers({ children }) {
         setCart(data.cart);
         return data.cart;
       },
-      removeCoupon: async () => {
-        const data = await api.del("/cart/coupon", { store: storeId });
+      // With a code, only that coupon comes off (an offer code or a reward
+      // coupon); without, both do.
+      removeCoupon: async (code) => {
+        const data = await api.del("/cart/coupon", { store: storeId, ...(code ? { code } : {}) });
+        setCart(data.cart);
+        return data.cart;
+      },
+      // A reward coupon from Coupons, by id. The API prices it and refuses an
+      // unusable one with the reason.
+      applyRewardCoupon: async (couponId) => {
+        const data = await api.post("/cart/reward-coupon", { coupon: couponId, store: storeId });
         setCart(data.cart);
         return data.cart;
       },
@@ -341,6 +372,7 @@ export function Providers({ children }) {
   );
 
   return (
+    <BrandingContext.Provider value={brand}>
     <AuthContext.Provider value={auth}>
       <StoreContext.Provider value={storeValue}>
         <CartContext.Provider value={cartApi}>
@@ -355,6 +387,7 @@ export function Providers({ children }) {
         </CartContext.Provider>
       </StoreContext.Provider>
     </AuthContext.Provider>
+    </BrandingContext.Provider>
   );
 }
 
@@ -362,3 +395,5 @@ export const useAuth = () => useContext(AuthContext);
 export const useCart = () => useContext(CartContext);
 export const useStore = () => useContext(StoreContext);
 export const useWishlist = () => useContext(WishlistContext);
+// { logo, symbol }: the uploaded brand images, else the bundled ones.
+export const useBranding = () => useContext(BrandingContext);

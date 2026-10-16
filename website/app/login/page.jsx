@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/components/Providers";
-import logo from "@/assets/logo-farmers-basket.png";
+import { useAuth, useBranding } from "@/components/Providers";
+import { pendingReferral } from "@/lib/client-api";
 
 export default function LoginPage() {
   return (
@@ -18,6 +18,7 @@ function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") || "/";
   const { requestOtp, verifyOtp, signedIn } = useAuth();
+  const brand = useBranding();
 
   const [step, setStep] = useState("phone");
   const [phone, setPhone] = useState("");
@@ -26,6 +27,10 @@ function LoginForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  // A friend's code from a referral link, applied with the sign-in.
+  const [referral, setReferral] = useState(null);
+  const [referralNote, setReferralNote] = useState("");
+  useEffect(() => setReferral(pendingReferral()), []);
   // "filling" while the code counts up into the box, "done" once it is in.
   const [autoFill, setAutoFill] = useState("");
   const timer = useRef(null);
@@ -115,7 +120,13 @@ function LoginForm() {
     setBusy(true);
     setError("");
     try {
-      await verifyOtp(phone, code, name);
+      const data = await verifyOtp(phone, code, name);
+      if (data.referral && !data.referral.applied) {
+        // Say why the friend's code did not apply before moving on.
+        setReferralNote(data.referral.message);
+        setTimeout(() => router.replace(next), 2500);
+        return;
+      }
       router.replace(next);
     } catch (err) {
       setError(err.message);
@@ -128,7 +139,7 @@ function LoginForm() {
     <div className="auth-page">
       <div className="panel auth-card">
         <div className="auth-head">
-          <img src={logo.src} alt="The Farmers Basket" className="auth-logo" width="140" height="130" />
+          <img src={brand.logo} alt="The Farmers Basket" className="auth-logo" width="140" height="130" />
           <h1>{step === "phone" ? "Welcome to The Farmers Basket" : "Enter your code"}</h1>
           <p>
             {step === "phone"
@@ -138,6 +149,10 @@ function LoginForm() {
         </div>
 
         {error ? <p className="notice error">{error}</p> : null}
+        {referralNote ? <p className="notice warn">Signed in. Referral code not applied: {referralNote}</p> : null}
+        {referral && !referralNote ? (
+          <p className="notice save">You were invited by a friend — code {referral} applies when you sign up.</p>
+        ) : null}
 
         {step === "phone" ? (
           <form onSubmit={send}>

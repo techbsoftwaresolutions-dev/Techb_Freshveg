@@ -9,6 +9,7 @@ import { useCart } from "../context/CartContext";
 import { colors, radius, rupees, shadow, spacing, type } from "../theme";
 import { Button, Card, Divider, Loading, Notice, Pill } from "../components/ui";
 import AddressForm from "../components/AddressForm";
+import CouponPicker from "../components/CouponPicker";
 
 export default function CheckoutScreen({ navigation }) {
   const { user, refreshUser } = useAuth();
@@ -326,10 +327,14 @@ export default function CheckoutScreen({ navigation }) {
         {/* Summary */}
         <Card style={styles.panel}>
           <Text style={type.h3}>Order summary</Text>
+          <CouponPicker compact onViewAll={() => navigation.navigate("Coupons")} />
           <View style={{ marginTop: spacing.sm, gap: 6 }}>
             <Row label={`${summary.itemCount} ${summary.itemCount === 1 ? "item" : "items"}`} value={rupees(summary.subtotal)} />
-            {summary.offerDiscount > 0 ? (
-              <Row label="Offers" value={`− ${rupees(summary.offerDiscount)}`} tone="save" />
+            {summary.rewardDiscount > 0 ? (
+              <Row label="Reward coupon" value={`− ${rupees(summary.rewardDiscount)}`} tone="save" />
+            ) : null}
+            {summary.offerDiscount - (summary.rewardDiscount || 0) > 0 ? (
+              <Row label="Offers" value={`− ${rupees(summary.offerDiscount - (summary.rewardDiscount || 0))}`} tone="save" />
             ) : null}
             <Row
               label="Delivery"

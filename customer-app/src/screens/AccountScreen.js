@@ -48,7 +48,7 @@ export default function AccountScreen({ navigation }) {
     ]);
 
   const shareCode = () =>
-    Share.share({ message: `Use my The Farmers Basket referral code ${user.referralCode} on your first order!` }).catch(() => {});
+    Share.share({ message: `Join me on The Farmers Basket — sign up with my referral code ${user.referralCode}.` }).catch(() => {});
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl }}>
@@ -162,7 +162,8 @@ export default function AccountScreen({ navigation }) {
       <Card style={{ paddingVertical: spacing.xs }}>
         {[
           { label: "Edit profile", hint: "Update your name and email", icon: "person-outline", to: "EditProfile" },
-          { label: "Refer & earn", hint: "Your rewards, or use a friend's code", icon: "gift-outline", to: "Referral" },
+          { label: "Refer & earn", hint: "Your code, friends' progress and rewards", icon: "gift-outline", to: "Referral" },
+          { label: "My coupons", hint: "Rewards ready to use at checkout", icon: "pricetags-outline", to: "Coupons" },
           { label: "Notifications", hint: "Inbox and what we send you", icon: "notifications-outline", to: "Notifications" },
           { label: "Help & support", hint: "Raise a request or call us", icon: "headset-outline", to: "Support" },
         ].map((item, index) => (

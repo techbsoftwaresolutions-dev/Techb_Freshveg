@@ -8,7 +8,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useCart } from "../context/CartContext";
-import { colors, fontFamily } from "../theme";
+import { colors, fontFamily, shadow } from "../theme";
 
 import HomeScreen from "../screens/HomeScreen";
 import CategoriesScreen from "../screens/CategoriesScreen";
@@ -27,6 +27,7 @@ import AddressesScreen from "../screens/AddressesScreen";
 import EditProfileScreen from "../screens/EditProfileScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import ReferralScreen from "../screens/ReferralScreen";
+import CouponsScreen from "../screens/CouponsScreen";
 import SupportScreen from "../screens/SupportScreen";
 import SupportTicketScreen from "../screens/SupportTicketScreen";
 import ReturnRequestScreen from "../screens/ReturnRequestScreen";
@@ -124,10 +125,11 @@ function TabIcon({ route, focused, color }) {
 }
 
 function MainTabs() {
-  // A fixed bar height would sit under the phone's gesture/button bar; the
-  // inset keeps the bar above it.
+  // A floating, rounded bar. It still takes its own space in the layout (it is
+  // not absolutely positioned), so screens end above it and never need extra
+  // bottom padding: cart totals and checkout buttons can't slide under it.
+  // The margin below keeps it above the phone's gesture or button bar.
   const { bottom } = useSafeAreaInsets();
-  const padBottom = Math.max(bottom, 10);
 
   return (
     <Tabs.Navigator
@@ -138,7 +140,7 @@ function MainTabs() {
         tabBarIcon: ({ focused, color }) => <TabIcon route={route} focused={focused} color={color} />,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: [styles.tabBar, { height: 58 + padBottom, paddingBottom: padBottom }],
+        tabBarStyle: [styles.tabBar, { marginBottom: Math.max(bottom, 10) }],
         tabBarLabelStyle: styles.tabLabel,
         tabBarItemStyle: styles.tabItem,
       })}
@@ -180,6 +182,7 @@ export default function RootNavigator() {
         <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit profile" }} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
         <Stack.Screen name="Referral" component={ReferralScreen} options={{ title: "Refer & earn" }} />
+        <Stack.Screen name="Coupons" component={CouponsScreen} options={{ title: "My coupons" }} />
         <Stack.Screen name="Support" component={SupportScreen} options={{ title: "Help & support" }} />
         <Stack.Screen name="SupportTicket" component={SupportTicketScreen} options={{ title: "Support request" }} />
         <Stack.Screen name="ReturnRequest" component={ReturnRequestScreen} options={{ title: "Return items" }} />
@@ -190,10 +193,30 @@ export default function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: { backgroundColor: colors.surface, borderTopColor: colors.border, paddingTop: 6 },
+  tabBar: {
+    height: 68,
+    paddingTop: 6,
+    paddingBottom: 6,
+    marginHorizontal: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderTopWidth: 1,
+    borderColor: colors.border,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+    ...shadow.card,
+    elevation: 6,
+  },
   back: { width: 40, height: 40, marginRight: 4, alignItems: "center", justifyContent: "center" },
-  // Sized so "Categories" still fits five-across on a 320px phone.
-  tabLabel: { fontSize: Dimensions.get("window").width < 360 ? 10 : 11, fontFamily: fontFamily.medium, marginTop: 2 },
+  // Sized so "Categories" still fits five-across in the inset bar on a 320px
+  // phone; there the label also borrows the tab button's own 5px side padding.
+  tabLabel: {
+    fontSize: Dimensions.get("window").width < 400 ? 10 : 11,
+    marginHorizontal: Dimensions.get("window").width < 360 ? -5 : 0,
+    maxWidth: "120%",
+    fontFamily: fontFamily.medium,
+    marginTop: 2,
+  },
   tabItem: { paddingHorizontal: 0 },
 
   tabIcon: { width: 40, height: 26, alignItems: "center", justifyContent: "center" },

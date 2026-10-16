@@ -275,7 +275,7 @@ function TemplateModal({ template, events, channels, onClose, onSaved }) {
         <Field label="Audience">
           <select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })}>
             <option value="customer">Customers</option>
-            <option value="delivery_partner">Delivery partners</option>
+            <option value="delivery_partner">Delivery boys</option>
             <option value="admin">Staff</option>
           </select>
         </Field>

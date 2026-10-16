@@ -174,7 +174,7 @@ Defined in `backend/src/modules/auth/roles.js`. Roles are data: effective permis
 | `store_manager` | staff password | catalog.view/manage, inventory.view/adjust, orders.view/manage/assign, customers.view, reports.view, marketing.view, delivery.view | |
 | `picker` | staff password | catalog.view, inventory.view, orders.view, orders.manage | |
 | `support` | staff password | catalog.view, orders.view, customers.view/manage | |
-| `delivery_partner` | **phone OTP only** (`role:"delivery_partner"`) | delivery.view, delivery.fulfil, orders.view | Cannot self-register; account must be pre-created. Not in `STAFF_ROLES` so cannot use `/staff/login`. |
+| `delivery_partner` | **phone OTP only** (`role:"delivery_partner"`) | delivery.fulfil | Created in Admin → Delivery Boys (`POST /users`); cannot self-register. Not in `STAFF_ROLES` so cannot use `/staff/login`. Reaches only orders assigned to them, and never sees the customer's handover code (`order.routes.js` `assertAssigned` / `forViewer`). |
 | `customer` | phone OTP (auto-creates account) | none | Customer routes check `order.customer === req.user.id` instead |
 
 - `users.manage` and `User.stores[]` (store scoping) exist but **no route enforces store scoping, and there is no user/staff-management API or admin page** (**Inferred**: staff are created via seed/DB). `GET /auth/roles` lists roles/permissions.
@@ -186,7 +186,7 @@ Defined in `backend/src/modules/auth/roles.js`. Roles are data: effective permis
 | --- | --- |
 | Catalog read/write | `catalog.view` / `catalog.manage`; publish `catalog.publish` |
 | Inventory | `inventory.view` / `inventory.adjust` |
-| Orders list/detail | `orders.view`; status change `orders.manage` **or** `delivery.fulfil` (state machine decides which move); pick `orders.manage`; assign + partner list `orders.assign` |
+| Orders list/detail | `orders.view` (detail also `delivery.fulfil`, own assigned orders only); status change `orders.manage` **or** `delivery.fulfil` (state machine decides which move); pick `orders.manage`; assign + partner list `orders.assign` |
 | Delivery queue/history/deliver/ping | `requireRole(delivery_partner, admin, super_admin, store_manager)` |
 | Delivery zones/slot-templates write | `settings.manage`; read `delivery.view` |
 | Payments admin | `orders.view` / `orders.manage` |
@@ -236,7 +236,7 @@ See §15–16. Files: `orders/{order.model,order.routes,order.service,orderStatu
 
 ### 6.6 Delivery
 - `delivery/*`: serviceability + quote (`/delivery/quote`), slots (`/delivery/slots`, from `DeliverySlot` templates), zones (polygon > pincode > radius), rider ping + latest position (`DeliveryTracking`), delivery reports.
-- Rider app uses `/orders/delivery/queue|history`, `/orders/:id/status`, `/orders/:id/deliver` (OTP). Earnings = deliveries today × `Store.settings.partnerFeePerDelivery`; COD cash held = sum of COD totals delivered today.
+- Rider app uses `/orders/delivery/queue|history`, `/orders/:id/status`, `/orders/:id/deliver` (OTP). Delivery boys are salaried store employees: no per-delivery earnings. COD cash held = sum of COD totals delivered today.
 - **Status:** **Partial.** The backend supports live position (`POST /delivery/orders/:id/ping`, `GET …/position`) but **no client calls these** (rider app does not send GPS; customer apps do not read it; no map UI). Proof photo/signature fields exist on the order but the rider app never uploads them.
 
 ### 6.7 Payments & refunds
@@ -374,7 +374,7 @@ Base: `/api/v1` (`API_PREFIX`). Health: `GET /api/health` (outside the prefix). 
 | `POST /orders/:id/pick {items:[{item,quantity,batchNo}]}` | `orders.manage` | Record picked quantities |
 | `GET /orders/delivery/partners` | `orders.assign` | Partners with today's load |
 | `POST /orders/:id/assign {partner}` | `orders.assign` | Assign rider → `ASSIGNED_TO_DELIVERY` |
-| `GET /orders/delivery/queue` | rider/admin/store_manager | Live runs + `stats{pending,deliveredToday,assignedToday,earnings,codCollected}` |
+| `GET /orders/delivery/queue` | rider/admin/store_manager | Live runs + `stats{pending,deliveredToday,assignedToday,codCollected}` |
 | `GET /orders/delivery/history?days=` | same | Completed runs |
 | `POST /orders/:id/deliver {otp, photo?, signature?, location?}` | same (rider must be assigned) | OTP-verified completion → `DELIVERED` |
 
@@ -402,7 +402,7 @@ User ── addresses[] (embedded, GeoJSON location) · devices[] · notificatio
  │       unique(phone, role) · unique sparse(referralCode) · text(name,phone,email)
 Otp  ── phone, role, codeHash(sha256), expiresAt (TTL +1h), attempts, consumedAt
 Store ─ code(unique), type, address, location(2dsphere), servicePincodes[], timings[], settings{minOrderValue, freeDeliveryAbove,
-        deliveryCharge, packagingCharge, maxCodValue, codEnabled, prepTimeMinutes, acceptingOrders, partnerFeePerDelivery}, status, isDefault
+        deliveryCharge, packagingCharge, maxCodValue, codEnabled, prepTimeMinutes, acceptingOrders}, status, isDefault
 Category ─ tree (parent, categoryPath), features(Map), attribute bindings, return window defaults, display layout
 Attribute ─ code, inputType, scope(product|variant), filter type, options
 Brand
@@ -540,7 +540,7 @@ Request → helmet/cors/json → router (/api/v1/<module>) → optionalAuth|requ
 
 **Delivery zone resolution:** polygon > pincode > radius from store.
 
-**Rider earnings:** *Inferred from implementation* — per-delivery fee × deliveries today; nothing is estimated.
+**Delivery staff pay:** delivery boys are salaried store employees. The per-delivery fee and "earned today" figure were retired on 14 Oct 2026 (`npm run migrate:retire-delivery-fee` removes the old store field, recording each value in the audit log).
 
 ---
 
@@ -666,6 +666,11 @@ Note: payment/storage/Razorpay/Cloudinary use raw `fetch` (Node 20) by design.
 - Website: `next build` / `next start -p 3100`; set `API_BASE_URL`, `SITE_URL`.
 - Admin: `vite build` (static `dist/`); set `VITE_API_BASE_URL` at build time (or reverse-proxy `/api`).
 - Apps: set `API_BASE_URL`; no EAS/build config exists.
+
+**Branding (Admin → Settings → Branding).** One source of truth: `settings.branding` {logo, symbol, favicon, shareImage, appIcon, splash}, Cloudinary URLs only, served on `GET /settings/public` (`company.logo` still counts as the logo until one is uploaded). Upload rules (type, minimum size, square) live in `backend/src/modules/settings/branding.js` and are checked by `POST /uploads?folder=branding&kind=<asset>` (needs `settings.manage`) before anything reaches Cloudinary.
+- *Live, no release needed:* logo and symbol (website header/footer/login/loader/“Why us”, both apps' headers and sign-in, admin sidebar and sign-in), favicon (website, admin tab), share image (Open Graph/Twitter), and the website's install icons (manifest, from appIcon). The website sees a change within 30 s (`revalidate`); the apps on next launch or return to the foreground after 10 min (`src/components/BrandLogo.js`, cached in AsyncStorage, bundled `assets/logo.png` as fallback); the admin on its next page load.
+- *Build-time:* the apps' launcher icon and splash. Run `npm run brand:sync` in `customer-app` and `delivery-app` (writes `assets/brand/`, read by `app.config.js`; cleared settings fall back to `assets/icon.png`/`splash.png`), commit `assets/brand/`, then build and publish. Installed apps keep their old icon/splash until updated. The iPhone PWA startup images (`website/public/splash`) are still static.
+- Replaced images are not deleted from Cloudinary (nothing cleans them up; old URLs stay valid).
 
 ---
 

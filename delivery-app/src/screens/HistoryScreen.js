@@ -1,21 +1,26 @@
 import React, { useCallback, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "../components/Text";
 import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../api/client";
 import { clockTime, colors, formatAddress, rupees, spacing, type } from "../theme";
-import { Card, EmptyState, Loading, Pill } from "../components/ui";
+import { Card, EmptyState, Loading, Notice, Pill } from "../components/ui";
 
-export default function HistoryScreen() {
+export default function HistoryScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     try {
       const data = await api.get("/orders/delivery/history", { days: 7, limit: 50 });
       setOrders(data.items);
-    } catch {
-      setOrders([]);
+      setError("");
+    } catch (err) {
+      // Keep what was on screen; "no deliveries" would be untrue.
+      setError(err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -53,6 +58,7 @@ export default function HistoryScreen() {
       contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl }}
       data={groups}
       keyExtractor={(group) => group.day}
+      ListHeaderComponent={error ? <Notice tone="error">{error}</Notice> : null}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -64,8 +70,8 @@ export default function HistoryScreen() {
         />
       }
       ListEmptyComponent={
-        <EmptyState
- icon=""
+        error ? null : <EmptyState
+          icon="time-outline"
           title="No completed deliveries"
           hint="Your last seven days of deliveries will show up here."
         />
@@ -81,7 +87,12 @@ export default function HistoryScreen() {
           </View>
 
           {group.orders.map((order) => (
-            <Card key={order.id} style={styles.card}>
+            <Card
+              key={order.id}
+              style={styles.card}
+              onPress={() => navigation.navigate("RunDetail", { orderId: order.id })}
+              accessibilityLabel={`Order ${order.code}, delivered at ${clockTime(order.delivery.deliveredAt)}`}
+            >
               <View style={{ flex: 1 }}>
                 <View style={styles.cardHead}>
                   <Text style={styles.code}>{order.code}</Text>
@@ -97,6 +108,8 @@ export default function HistoryScreen() {
                   {order.payment?.method === "cod" ? "Cash" : "Prepaid"}
                 </Pill>
               </View>
+              {/* Opens the full details (RunDetailScreen). */}
+              <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
             </Card>
           ))}
         </View>
@@ -109,6 +122,6 @@ const styles = StyleSheet.create({
   dayHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
   card: { padding: spacing.md, flexDirection: "row", gap: spacing.md, alignItems: "center" },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  code: { ...type.body, fontWeight: "800", fontVariant: ["tabular-nums"] },
-  amount: { ...type.body, fontWeight: "800" },
+  code: { ...type.body, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  amount: { ...type.body, fontWeight: "600" },
 });

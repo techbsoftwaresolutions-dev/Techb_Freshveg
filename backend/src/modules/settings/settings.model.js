@@ -55,11 +55,42 @@ const settingsSchema = new mongoose.Schema(
       expiryDays: { type: Number, default: 365 },
     },
 
+    // Referral & Rewards (Admin → Marketing → Referral & Rewards). Rules and
+    // their exact meaning: referrals/referral.service.js. Rewards are issued
+    // as single-use coupons, never wallet cash.
     referral: {
+      // Off: no new attributions, and purchases delivered while off neither
+      // count nor earn. Existing links, progress and issued coupons are kept,
+      // and progress resumes from where it was when it is switched back on.
       enabled: { type: Boolean, default: true },
-      referrerReward: money(5000), // ₹50 to the person who shared
-      refereeReward: money(5000),  // ₹50 to the new customer
-      minFirstOrderValue: money(19900),
+      // The referrer earns `reward` when a referred friend's count of
+      // qualifying purchases reaches exactly `purchases`. Validated on save:
+      // positive whole counts, no duplicates.
+      milestones: {
+        type: [{ _id: false, purchases: { type: Number, required: true }, reward: money(0) }],
+        default: () => [{ purchases: 1, reward: 5000 }],
+      },
+      // After the last milestone, every `repeatEvery` further qualifying
+      // purchases earn `repeatReward` again (0 = no repeating rewards).
+      repeatEvery: { type: Number, default: 0, min: 0 },
+      repeatReward: money(0),
+      // A one-off welcome coupon for the new customer on their first
+      // qualifying purchase (0 = none).
+      refereeReward: money(5000),
+      // Basis: merchandise subtotal after catalogue prices and offers, before
+      // delivery, packaging, wallet, points and reward coupons.
+      minQualifyingOrderValue: money(19900),
+      couponExpiryDays: { type: Number, default: 30, min: 1 },
+      // Merchandise value the cart must reach to redeem a reward coupon.
+      couponMinOrderValue: money(0),
+      // Whether a reward coupon may sit on the same order as an offer coupon
+      // code. Automatic offers (no code) always apply.
+      combinable: { type: Boolean, default: false },
+      // Most coupons one referrer can ever earn (0 = no cap).
+      maxRewardsPerReferrer: { type: Number, default: 0, min: 0 },
+      // Items in these categories (and below) are not discounted by a reward
+      // coupon.
+      excludedCategories: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }],
     },
 
     delivery: {
@@ -148,11 +179,19 @@ const settingsSchema = new mongoose.Schema(
       },
     },
 
-    // The storefront's own logo (header) and browser-tab icon, uploaded in
-    // Admin → Settings → Branding. Empty means the bundled defaults.
+    // Brand images, uploaded in Admin → Settings → Branding (rules and the
+    // runtime vs build-time split: ./branding.js). Cloudinary URLs only, never
+    // the bytes. Empty means each client's bundled default.
     branding: {
-      logo: { type: String, default: "" },
-      favicon: { type: String, default: "" },
+      logo: { type: String, default: "" }, // headers, sign-in screens, loaders
+      symbol: { type: String, default: "" }, // the compact mark: footers, admin sidebar
+      favicon: { type: String, default: "" }, // browser tab (website, admin)
+      shareImage: { type: String, default: "" }, // Open Graph / link previews
+      // Launcher icons, one per app, applied at app build time. The customer
+      // icon is also the website's "Add to Home Screen" icon (live).
+      customerAppIcon: { type: String, default: "" },
+      deliveryAppIcon: { type: String, default: "" },
+      splash: { type: String, default: "" }, // splash artwork, applied at app build time
     },
 
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

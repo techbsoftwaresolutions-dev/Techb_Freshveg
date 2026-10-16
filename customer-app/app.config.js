@@ -1,5 +1,14 @@
 // Expo's CLI loads .env (and .env.local) into process.env before reading
 // this file, in development and in EAS builds alike — no dotenv needed.
+const fs = require("fs");
+const path = require("path");
+
+// The launcher icon and splash artwork from Admin → Settings → Branding, once
+// `npm run brand:sync` has pulled them into assets/brand/ — else the bundled
+// ones. Read at build time: an installed app changes only with a new build.
+const brandAsset = (file, fallback) =>
+  fs.existsSync(path.join(__dirname, "assets", "brand", file)) ? `./assets/brand/${file}` : fallback;
+const brandedIcon = fs.existsSync(path.join(__dirname, "assets", "brand", "adaptive-icon.png"));
 
 export default {
   expo: {
@@ -13,10 +22,10 @@ export default {
     userInterfaceStyle: "light",
     scheme: "samagramart",
 
-    icon: "./assets/icon.png",
+    icon: brandAsset("icon.png", "./assets/icon.png"),
 
     splash: {
-      image: "./assets/splash.png",
+      image: brandAsset("splash.png", "./assets/splash.png"),
       backgroundColor: "#FBF9EF",
       resizeMode: "contain",
     },
@@ -28,7 +37,10 @@ export default {
 
     android: {
       package: "com.samagramart.customer",
-      adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#295110" },
+      adaptiveIcon: {
+        foregroundImage: brandAsset("adaptive-icon.png", "./assets/adaptive-icon.png"),
+        backgroundColor: brandedIcon ? "#FFFFFF" : "#295110",
+      },
     },
 
     web: {

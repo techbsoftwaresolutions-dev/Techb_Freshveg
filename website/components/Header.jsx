@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAuth, useCart, useStore } from "./Providers";
-import { img, rupees } from "@/lib/format";
+import { useAuth, useBranding, useCart, useStore } from "./Providers";
+import { rupees } from "@/lib/format";
 import { api } from "@/lib/client-api";
 
-import logo from "@/assets/logo-farmers-basket.png";
 
-export default function Header({ categories = [], logoUrl = "" }) {
+export default function Header({ categories = [] }) {
+  const brand = useBranding();
   const router = useRouter();
   const params = useSearchParams();
   const pathname = usePathname();
@@ -103,11 +103,7 @@ export default function Header({ categories = [], logoUrl = "" }) {
           {/* The artwork carries a wide white margin; .logo crops it so the
               basket and wordmark fill the header row. */}
           {/* The logo uploaded in Admin → Settings → Branding, else the bundled one. */}
-          {logoUrl ? (
-            <img src={img(logoUrl, 480)} alt="The Farmers Basket" className="logo-img" />
-          ) : (
-            <img src={logo.src} alt="The Farmers Basket" width={logo.width} height={logo.height} className="logo-img" />
-          )}
+          <img src={brand.logo} alt="The Farmers Basket" className="logo-img" />
         </Link>
 
         <form className="search-form" onSubmit={submit} role="search">

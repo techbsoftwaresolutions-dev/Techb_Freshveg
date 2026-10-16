@@ -262,8 +262,11 @@ export default function OrderTrackScreen({ route, navigation }) {
 
           <View style={{ gap: 5 }}>
             <Row label="Subtotal" value={rupees(order.pricing.subtotal)} />
-            {order.pricing.offerDiscount > 0 ? (
-              <Row label="Offers" value={`− ${rupees(order.pricing.offerDiscount)}`} tone="save" />
+            {order.pricing.offerDiscount - (order.pricing.rewardDiscount || 0) > 0 ? (
+              <Row label="Offers" value={`− ${rupees(order.pricing.offerDiscount - (order.pricing.rewardDiscount || 0))}`} tone="save" />
+            ) : null}
+            {order.pricing.rewardDiscount > 0 ? (
+              <Row label="Reward coupon" value={`− ${rupees(order.pricing.rewardDiscount)}`} tone="save" />
             ) : null}
             <Row
               label="Delivery"

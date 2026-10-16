@@ -7,11 +7,17 @@ import { api } from "@/lib/client-api";
 // API; nothing about the price is decided in the browser.
 let loading = null;
 
-const UPI_ONLY = {
+// "Pay by UPI": UPI at the top of the sheet, with cards, netbanking and
+// wallets still below it. A UPI-only sheet has nothing to show when UPI is not
+// enabled on the Razorpay account (or not offered on this device), and
+// Razorpay then stops at "No appropriate payment method found" before any
+// payment can start. Only the display changes; the order and amount stay the
+// server's.
+const UPI_FIRST = {
   display: {
     blocks: { upi: { name: "Pay using UPI", instruments: [{ method: "upi" }] } },
     sequence: ["block.upi"],
-    preferences: { show_default_blocks: false },
+    preferences: { show_default_blocks: true },
   },
 };
 
@@ -50,10 +56,7 @@ export async function payOnline(orderId, { onVerifying, upiOnly = false } = {}) 
   const response = await new Promise((resolve) => {
     const sheet = new window.Razorpay({
       ...checkout,
-      // "Pay by UPI" at checkout: the sheet shows UPI alone — a QR to scan on
-      // a computer, the customer's UPI apps on a phone. Only the display
-      // changes; the order and amount are still the server's.
-      ...(upiOnly ? { config: UPI_ONLY } : {}),
+      ...(upiOnly ? { config: UPI_FIRST } : {}),
       handler: resolve,
       modal: { ondismiss: () => resolve(null), confirm_close: true },
     });

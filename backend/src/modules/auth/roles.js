@@ -15,7 +15,7 @@ const PERMISSIONS = {
   // Orders
   "orders.view": "View orders",
   "orders.manage": "Advance, cancel and refund orders",
-  "orders.assign": "Assign orders to delivery partners",
+  "orders.assign": "Assign orders to delivery boys",
 
   // Delivery
   "delivery.view": "View delivery assignments",
@@ -63,9 +63,13 @@ const ROLES = {
     label: "Support Agent",
     permissions: ["catalog.view", "orders.view", "customers.view", "customers.manage"],
   },
+  // No orders.view or delivery.view: those are the store-wide order, payment,
+  // return and delivery-report lists. A delivery boy reaches only the orders
+  // assigned to them, through delivery.fulfil and the delivery app's own
+  // routes (order.routes.js checks the assignment).
   delivery_partner: {
     label: "Delivery Boy",
-    permissions: ["delivery.view", "delivery.fulfil", "orders.view"],
+    permissions: ["delivery.fulfil"],
   },
   customer: { label: "Customer", permissions: [] },
 };

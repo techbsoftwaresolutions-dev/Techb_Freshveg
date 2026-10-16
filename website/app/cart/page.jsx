@@ -1,5 +1,6 @@
 "use client";
 
+import CouponPicker from "@/components/CouponPicker";
 import Link from "next/link";
 import { MorphingSquare } from "@/components/ui/morphing-square";
 import FreeDeliveryProgress from "@/components/FreeDeliveryProgress";
@@ -184,7 +185,7 @@ export default function CartPage() {
                       {offer.discount ? ` — ${rupees(offer.discount)}` : ""}
                     </span>
                     {offer.code ? (
-                      <button type="button" onClick={() => cart.removeCoupon().catch(() => {})}>
+                      <button type="button" onClick={() => cart.removeCoupon(offer.code).catch(() => {})}>
                         Remove
                       </button>
                     ) : null}
@@ -211,6 +212,9 @@ export default function CartPage() {
             ) : null}
 
             {couponError ? <p className="notice error" style={{ marginTop: 10, marginBottom: 0 }}>{couponError}</p> : null}
+            <div className="offers-body">
+              <CouponPicker />
+            </div>
           </div>
 
           <div className="panel bill-card" id="bill" ref={billRef}>
@@ -220,8 +224,11 @@ export default function CartPage() {
               {summary.catalogueSavings > 0 ? (
                 <Row label="Product discount" value={`− ${rupees(summary.catalogueSavings)}`} save />
               ) : null}
-              {summary.offerDiscount > 0 ? (
-                <Row label="Offer discount" value={`− ${rupees(summary.offerDiscount)}`} save />
+              {summary.offerDiscount - (summary.rewardDiscount || 0) > 0 ? (
+                <Row label="Offer discount" value={`− ${rupees(summary.offerDiscount - (summary.rewardDiscount || 0))}`} save />
+              ) : null}
+              {summary.rewardDiscount > 0 ? (
+                <Row label="Reward coupon" value={`− ${rupees(summary.rewardDiscount)}`} save />
               ) : null}
               <Row
                 label="Delivery fee"

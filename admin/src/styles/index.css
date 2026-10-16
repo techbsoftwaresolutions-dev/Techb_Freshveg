@@ -1445,6 +1445,11 @@ textarea { min-height: 76px; resize: vertical; }
 .brand-preview.logo img { max-height: 96px; max-width: 100%; object-fit: contain; }
 .brand-preview.favicon { width: 120px; height: 120px; padding: 12px; }
 .brand-preview.favicon img { width: 64px; height: 64px; object-fit: contain; border-radius: 8px; }
+.brand-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.brand-head .help { margin: 0; }
+.brand-head .pill { flex-shrink: 0; }
+.brand-group { margin: 0 0 4px; font-size: 15px; }
+.brand-note { margin: 0 0 14px; font-size: 13px; }
 
 /* "Configure Video Hero" popup (pages/settings/VideoHeroConfig.jsx). */
 .vh-preview {
@@ -1682,3 +1687,17 @@ textarea { min-height: 76px; resize: vertical; }
 .dtp-pop.up { top: auto; bottom: calc(100% + 6px); }
 .dtp-quick { flex-wrap: nowrap; gap: 5px; }
 .dtp-quick button { flex: 1 1 auto; padding: 4px 6px; white-space: nowrap; }
+
+/* Admin -> Orders: the Delivery column's picker, compact enough for the table
+   (which scrolls sideways on small screens). */
+.assign-cell { display: flex; flex-direction: column; gap: 4px; min-width: 250px; }
+.assign-controls { display: flex; align-items: center; gap: 6px; }
+.assign-controls select { min-width: 0; flex: 1; max-width: 240px; padding: 4px 6px; font-size: 12.5px; }
+.assign-warn { color: var(--danger); font-weight: 500; font-size: 12px; }
+
+/* Referral & Rewards: a friend's progress to the next milestone. */
+.progress { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.progress-bar { height: 100%; background: var(--ok); border-radius: inherit; transition: width .3s ease; }
+
+/* Which app a build-time icon belongs to, so it is never uploaded to the wrong one. */
+.brand-app { display: inline-block; margin-bottom: 8px; font-weight: 600; }

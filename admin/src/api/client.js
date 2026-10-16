@@ -141,9 +141,11 @@ async function readPayload(response, failure) {
 // Image uploads bypass call() — the body is the raw file, not JSON — but
 // share its session/refresh handling so an expired token does not surface as
 // a confusing upload failure.
-async function uploadImage(file, folder = "products") {
+// `query` carries extra checks, e.g. { kind: "customerAppIcon" } for a brand image.
+async function uploadImage(file, folder = "products", query = {}) {
   const url = new URL(`${BASE}/uploads`, window.location.origin);
   if (folder) url.searchParams.set("folder", folder);
+  for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
 
   const attempt = async (token) => {
     const response = await fetch(url.href, {

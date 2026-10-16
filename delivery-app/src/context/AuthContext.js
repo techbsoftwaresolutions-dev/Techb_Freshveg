@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, loadSession, saveSession } from "../api/client";
+import { api, loadSession, saveSession, setSessionEndedHandler } from "../api/client";
 
 const AuthContext = createContext(null);
 
@@ -13,6 +13,11 @@ export function AuthProvider({ children }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    setSessionEndedHandler(() => setUser(null));
+    return () => setSessionEndedHandler(null);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     (async () => {
@@ -23,9 +28,17 @@ export function AuthProvider({ children }) {
       }
       try {
         const { user: fresh } = await api.get("/auth/me");
+        await saveSession({ ...(await loadSession()), user: fresh });
         if (!cancelled) setUser(fresh);
-      } catch {
-        await saveSession(null);
+      } catch (err) {
+        // No signal at start-up is not a sign-out: carry on as the rider who
+        // was signed in, and let the screens retry. Anything the API answered
+        // (a 401 after a failed refresh, a 403) ends the session.
+        if (err.status === 0 && session.user) {
+          if (!cancelled) setUser(session.user);
+        } else {
+          await saveSession(null);
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -40,7 +53,7 @@ export function AuthProvider({ children }) {
 
   const verifyOtp = useCallback(async (phone, code) => {
     const data = await api.post("/auth/otp/verify", { phone, code, role: ROLE });
-    await saveSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    await saveSession({ accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user });
     setUser(data.user);
     return data;
   }, []);

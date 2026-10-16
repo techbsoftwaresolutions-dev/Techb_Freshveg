@@ -122,9 +122,9 @@ function computeReward(offer, match) {
 // Spreads a cart-level discount across the lines it came from, proportionally
 // to each line's value. Without this, tax on a discounted cart would be
 // computed on the undiscounted amount and the invoice would not foot.
-function allocateDiscount(lines, matchingIds, totalDiscount) {
+function allocateDiscount(lines, matchingIds, totalDiscount, valueOf = (l) => l.lineTotal) {
   const eligible = lines.filter((l) => matchingIds.has(l.key));
-  const base = eligible.reduce((sum, l) => sum + l.lineTotal, 0);
+  const base = eligible.reduce((sum, l) => sum + valueOf(l), 0);
   if (base <= 0 || totalDiscount <= 0) return;
 
   let allocated = 0;
@@ -134,10 +134,44 @@ function allocateDiscount(lines, matchingIds, totalDiscount) {
     // the whole.
     const share = isLast
       ? totalDiscount - allocated
-      : Math.round((line.lineTotal / base) * totalDiscount);
+      : Math.round((valueOf(line) / base) * totalDiscount);
     line.discount += share;
     allocated += share;
   });
+}
+
+// A reward coupon (referrals/coupon.model) on top of the offers: a fixed
+// amount off what the eligible lines still cost after offers. Ownership,
+// expiry and single use are checked before pricing (coupon.service); this
+// decides only what it is worth on this cart. Returns { discount } or
+// { reason } when it cannot apply.
+function applyRewardCoupon(lines, coupon, applied) {
+  if (!coupon.combinable) {
+    const other = applied.find((a) => a.requiresCode);
+    if (other) return { reason: `Can't be used together with coupon ${other.code} — remove one` };
+  }
+
+  const remaining = (l) => l.lineTotal - l.discount;
+  const merchandise = lines.reduce((sum, l) => sum + remaining(l), 0);
+  if (coupon.minOrderValue && merchandise < coupon.minOrderValue) {
+    return {
+      reason: `Add ₹${((coupon.minOrderValue - merchandise) / 100).toFixed(0)} more to use this coupon`,
+      shortfall: coupon.minOrderValue - merchandise,
+    };
+  }
+
+  const excluded = (coupon.excludedCategories || []).map(String);
+  const eligible = lines.filter(
+    (l) => remaining(l) > 0 && !(l.categoryPath || []).map(String).some((id) => excluded.includes(id))
+  );
+  const eligibleValue = eligible.reduce((sum, l) => sum + remaining(l), 0);
+  if (eligibleValue <= 0) return { reason: "No items in your cart can use this coupon" };
+
+  // Never more than the eligible items still cost — the coupon cannot make
+  // merchandise negative or pay for delivery.
+  const discount = Math.min(coupon.amount, eligibleValue);
+  allocateDiscount(lines, new Set(eligible.map((l) => l.key)), discount, remaining);
+  return { discount };
 }
 
 // The same summary shape as a priced cart, all zeroes. Returning this rather
@@ -153,6 +187,8 @@ function emptyCart(settings = {}) {
       subtotal: 0,
       catalogueSavings: 0,
       offerDiscount: 0,
+      rewardDiscount: 0,
+      qualifyingAmount: 0,
       deliveryCharge: 0,
       deliveryFree: false,
       freeDeliveryEnabled: settings.freeDeliveryEnabled !== false,
@@ -175,6 +211,7 @@ function emptyCart(settings = {}) {
       shortfallToMinimum: settings.minOrderValue || 0,
     },
     offers: { applied: [], rejected: [] },
+    rewardCoupon: null,
   };
 }
 
@@ -184,6 +221,9 @@ async function priceCart(context) {
     store,
     customer = null,
     couponCode = null,
+    // { id, code, title, amount, minOrderValue, combinable, excludedCategories }
+    // — already checked as this customer's, unused and unexpired.
+    rewardCoupon = null,
     paymentMethod = null,
     walletRequested = 0,
     loyaltyPointsRequested = 0,
@@ -270,7 +310,49 @@ async function priceCart(context) {
     });
   }
 
-  const offerDiscount = lines.reduce((sum, l) => sum + l.discount, 0);
+  // What the merchandise costs after offers — the basis for the order
+  // minimum, free delivery and referral qualification. A reward coupon is
+  // taken off after this, so spending one never makes a cart fall short.
+  const offersOnly = lines.reduce((sum, l) => sum + l.discount, 0);
+  const merchandise = subtotal - offersOnly;
+
+  let rewardDiscount = 0;
+  let rewardResult = null;
+  if (rewardCoupon) {
+    const result = applyRewardCoupon(lines, rewardCoupon, applied);
+    rewardDiscount = result.discount || 0;
+    rewardResult = {
+      id: String(rewardCoupon.id),
+      code: rewardCoupon.code,
+      title: rewardCoupon.title,
+      amount: rewardCoupon.amount,
+      discount: rewardDiscount,
+      ok: Boolean(rewardDiscount),
+      reason: result.reason || null,
+      shortfall: result.shortfall,
+    };
+    if (rewardDiscount) {
+      applied.push({
+        id: String(rewardCoupon.id),
+        code: rewardCoupon.code,
+        title: rewardCoupon.title,
+        type: "reward_coupon",
+        badge: "",
+        combinable: rewardCoupon.combinable,
+        discount: rewardDiscount,
+        cashback: 0,
+        freeDelivery: false,
+        requiresCode: true,
+        rewardCoupon: true,
+      });
+    } else {
+      rejected.push({ code: rewardCoupon.code, title: rewardCoupon.title, reason: result.reason, shortfall: result.shortfall });
+    }
+  }
+
+  // Includes the reward coupon, so older clients that show one "discount"
+  // line still add up; newer ones split it out with rewardDiscount.
+  const offerDiscount = offersOnly + rewardDiscount;
   const afterDiscount = subtotal - offerDiscount;
 
   // --- 3. Charges -----------------------------------------------------
@@ -279,7 +361,7 @@ async function priceCart(context) {
   // charge nor be shown to the customer.
   const freeDeliveryEnabled = settings.freeDeliveryEnabled !== false;
   const freeDeliveryThreshold = freeDeliveryEnabled ? settings.freeDeliveryAbove || 0 : 0;
-  const freeByThreshold = freeDeliveryThreshold > 0 && afterDiscount >= freeDeliveryThreshold;
+  const freeByThreshold = freeDeliveryThreshold > 0 && merchandise >= freeDeliveryThreshold;
   if (freeDelivery || freeByThreshold) deliveryCharge = 0;
 
   const packagingCharge = settings.packagingCharge || 0;
@@ -332,7 +414,7 @@ async function priceCart(context) {
   const roundOff = total - beforeRounding;
 
   const minOrderValue = settings.minOrderValue || 0;
-  const meetsMinimum = afterDiscount >= minOrderValue;
+  const meetsMinimum = merchandise >= minOrderValue;
 
   return {
     lines: lines.map((l) => ({
@@ -356,6 +438,8 @@ async function priceCart(context) {
       subtotal,
       catalogueSavings,
       offerDiscount,
+      rewardDiscount,
+      qualifyingAmount: merchandise,
       deliveryCharge,
       deliveryFree: freeDelivery || freeByThreshold,
       freeDeliveryEnabled,
@@ -364,7 +448,7 @@ async function priceCart(context) {
       // nudge the cart screen shows.
       amountToFreeDelivery:
         freeDeliveryThreshold > 0 && !freeByThreshold && !freeDelivery
-          ? Math.max(0, freeDeliveryThreshold - afterDiscount)
+          ? Math.max(0, freeDeliveryThreshold - merchandise)
           : 0,
       packagingCharge,
       taxTotal,
@@ -378,10 +462,11 @@ async function priceCart(context) {
       cashbackEarned: cashback,
       minOrderValue,
       meetsMinimum,
-      shortfallToMinimum: meetsMinimum ? 0 : minOrderValue - afterDiscount,
+      shortfallToMinimum: meetsMinimum ? 0 : minOrderValue - merchandise,
     },
     offers: { applied, rejected },
+    rewardCoupon: rewardResult,
   };
 }
 
-module.exports = { priceCart, offerApplies, computeReward, lineMatchesOffer };
+module.exports = { priceCart, offerApplies, computeReward, lineMatchesOffer, applyRewardCoupon };

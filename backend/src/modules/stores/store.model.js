@@ -84,11 +84,9 @@ const storeSchema = new mongoose.Schema(
       codEnabled: { type: Boolean, default: true },
       prepTimeMinutes: { type: Number, default: 30 },
       acceptingOrders: { type: Boolean, default: true },
-      // What a delivery partner earns per completed delivery. Kept on the
-      // store because a city branch pays differently from a small-town one,
-      // and it is the only figure the partner app's earnings are built from —
-      // nothing is estimated.
-      partnerFeePerDelivery: money(2500), // ₹25
+      // (Delivery boys are store employees on a salary, so there is no
+      // per-delivery fee here; the old partnerFeePerDelivery value is removed
+      // from saved stores by src/migrations/20261014-retire-delivery-fee.js.)
 
       // Manual UPI collection: no payment gateway, just a VPA (or UPI-linked
       // mobile number) the customer pays from their own UPI app. The order is

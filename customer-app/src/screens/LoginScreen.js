@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, TextInput } from "../components/Text";
+import BrandLogo from "../components/BrandLogo";
 import { useAuth } from "../context/AuthContext";
 import { colors, radius, shadow, spacing, type } from "../theme";
 import { Button, Notice } from "../components/ui";
+import { pendingReferral } from "../api/client";
 
 export default function LoginScreen({ navigation }) {
   const { requestOtp, verifyOtp } = useAuth();
@@ -15,6 +17,12 @@ export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [referralNote, setReferralNote] = useState("");
+  // Prefilled from a referral link that opened the app.
+  useEffect(() => {
+    pendingReferral().then((code) => code && setReferralCode(code)).catch(() => {});
+  }, []);
   const [devCode, setDevCode] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -59,7 +67,13 @@ export default function LoginScreen({ navigation }) {
     setBusy(true);
     setError("");
     try {
-      await verifyOtp(phone, code, name);
+      const data = await verifyOtp(phone, code, name, referralCode);
+      if (data.referral && !data.referral.applied) {
+        // Say why the friend's code did not apply before closing.
+        setReferralNote(data.referral.message);
+        setTimeout(() => navigation.goBack(), 2500);
+        return;
+      }
       navigation.goBack();
     } catch (err) {
       setError(err.message);
@@ -87,7 +101,7 @@ export default function LoginScreen({ navigation }) {
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 56 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.sheet}>
         <View style={styles.logoBox}>
-          <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
+          <BrandLogo style={styles.logo} />
         </View>
 
         {error ? <Notice tone="error" style={{ marginBottom: spacing.md }}>{error}</Notice> : null}
@@ -159,6 +173,21 @@ export default function LoginScreen({ navigation }) {
               placeholderTextColor={colors.textFaint}
               style={styles.nameInput}
             />
+
+            <TextInput
+              value={referralCode}
+              onChangeText={(text) => setReferralCode(text.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16))}
+              placeholder="Friend's referral code (optional)"
+              placeholderTextColor={colors.textFaint}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              style={styles.nameInput}
+            />
+            {referralNote ? (
+              <Notice tone="warn" style={{ marginTop: spacing.sm }}>
+                Signed in. Referral code not applied: {referralNote}
+              </Notice>
+            ) : null}
 
             <Button
               title="Verify & continue"

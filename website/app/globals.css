@@ -4938,14 +4938,14 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 /* Header logo: the round Farmers Basket mark, shown whole (no crop). */
 .logo { width: auto; height: 78px; overflow: visible; }
 .logo-img { width: auto; height: 100%; transform: none; object-fit: contain; }
-.footer-mark { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 12px; }
-.fresh-band-mark img { display: block; width: 48px; height: 48px; border-radius: 12px; }
+.footer-mark { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 12px; object-fit: contain; }
+.fresh-band-mark img { display: block; width: 48px; height: 48px; border-radius: 12px; object-fit: contain; }
 @media (max-width: 720px) {
   .logo { width: auto; height: 54px; }
   .fresh-band-mark img { width: 40px; height: 40px; }
 }
 /* Sign-in page: the round Farmers Basket logo above the heading. */
-.auth-logo { display: block; width: 140px; height: auto; margin: 0 auto 10px; }
+.auth-logo { display: block; width: 140px; height: auto; max-height: 130px; object-fit: contain; margin: 0 auto 10px; }
 @media (max-width: 720px) { .auth-logo { width: 118px; } }
 /* ===========================================================================
    "Farm Fresh" homepage (FreshHome.jsx) on phones: app-style — photo-card
@@ -5405,3 +5405,48 @@ a.legal-contact-card:hover { border-color: var(--brand); background: var(--brand
 .support-msg-who, .support-msg-when { font-size: 12px; color: var(--text-muted); }
 .support-reply { display: flex; gap: 10px; align-items: flex-end; }
 .support-reply textarea { flex: 1; min-height: 60px; }
+
+/* ---- Reward coupons (CouponPicker, /account/coupons) and Refer & Earn ---- */
+.coupon-pick { display: grid; gap: 8px; margin: 12px 0; }
+.coupon-pick-head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.coupon-pick-head a { font-size: 13px; color: var(--brand-dark); font-weight: 600; }
+.coupon-pick-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; border: 1px dashed var(--border); border-radius: 10px; background: var(--surface, #fff);
+}
+.coupon-pick-row.applied { border-color: var(--save); background: var(--save-soft); }
+.coupon-pick-main { display: grid; gap: 2px; min-width: 0; }
+.coupon-pick-main strong { font-size: 14px; }
+.coupon-pick-main span { font-size: 12.5px; color: var(--text-muted); overflow-wrap: anywhere; }
+.coupon-pick-empty { font-size: 13px; color: var(--text-muted); margin: 10px 0 0; }
+.coupon-pick-empty a { color: var(--brand-dark); font-weight: 600; }
+
+.coupon-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.coupon-card {
+  display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start;
+  padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface, #fff); margin-bottom: 10px;
+}
+.coupon-card.muted { opacity: .65; }
+.coupon-value {
+  min-width: 72px; padding: 10px 8px; border-radius: 10px; text-align: center;
+  background: var(--brand-soft); color: var(--brand-dark); font-weight: 800; font-size: 18px;
+}
+.coupon-body { display: grid; gap: 4px; min-width: 0; }
+.coupon-body .row { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+.coupon-body p { margin: 0; font-size: 13px; color: var(--text-muted); }
+.coupon-code { font-family: ui-monospace, monospace; letter-spacing: 1px; font-size: 12.5px; }
+.coupon-details { font-size: 12.5px; color: var(--text-muted); display: grid; gap: 2px; margin-top: 6px; }
+
+.ref-share { display: grid; gap: 10px; margin-top: 12px; }
+.ref-share-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ref-share-row input { flex: 1; min-width: 0; font-size: 13px; }
+.ref-steps { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--text-muted); line-height: 1.6; }
+.ref-friend { padding: 12px 0; border-bottom: 1px solid var(--border); display: grid; gap: 6px; }
+.ref-friend:last-child { border-bottom: 0; }
+.ref-friend-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ref-friend small { color: var(--text-muted); font-size: 12.5px; }
+.ref-progress { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.ref-progress > span { display: block; height: 100%; background: var(--save); border-radius: inherit; transition: width .3s ease; }
+.coupon-body button.section-link {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; color: var(--brand-dark);
+}

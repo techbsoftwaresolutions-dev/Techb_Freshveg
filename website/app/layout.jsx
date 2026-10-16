@@ -8,7 +8,7 @@ import MobileNav from "@/components/MobileNav";
 import PwaSupport from "@/components/PwaSupport";
 import ReviewPrompt from "@/components/ReviewPrompt";
 import { getCategories, getPublicSettings, getServiceAreas, SITE_URL } from "@/lib/api";
-import { iconUrl } from "@/lib/format";
+import { iconUrl, img } from "@/lib/format";
 import { BUSINESS, HOME_DESCRIPTION, HOME_TITLE, KEYWORDS, SHARE_IMAGE, SITE_NAME, jsonLdHtml, siteJsonLd } from "@/lib/seo";
 
 const metadata = {
@@ -75,12 +75,19 @@ const metadata = {
   formatDetection: { telephone: false },
 };
 
-// The browser-tab icon is the one uploaded in Admin → Settings → Branding,
-// or the bundled one in /public until there is one.
+// The browser-tab icon and link-preview picture are the ones uploaded in
+// Admin → Settings → Branding, or the bundled ones in /public until there are.
+// Pages that set their own share picture (products, categories) keep it.
 export async function generateMetadata() {
-  const favicon = (await getPublicSettings())?.settings?.branding?.favicon;
+  const branding = (await getPublicSettings())?.settings?.branding;
+  const favicon = branding?.favicon;
+  const share = branding?.shareImage
+    ? { ...SHARE_IMAGE, url: img(branding.shareImage, 1200).replace("/image/upload/", "/image/upload/c_fill,h_630,") }
+    : SHARE_IMAGE;
   return {
     ...metadata,
+    openGraph: { ...metadata.openGraph, images: [share] },
+    twitter: { ...metadata.twitter, images: [share.url] },
     icons: favicon
       ? { icon: iconUrl(favicon, 64), apple: iconUrl(favicon, 180, "white") }
       : { icon: "/icon.png", apple: "/apple-icon.png" },
@@ -118,23 +125,23 @@ export default async function RootLayout({ children }) {
   // cached — not re-requested per route.
   const [data, areaData, settingsData] = await Promise.all([getCategories(), getServiceAreas(), getPublicSettings()]);
   const categories = data?.categories || [];
-  const logoUrl = settingsData?.settings?.branding?.logo || "";
+  const branding = settingsData?.settings?.branding || null;
 
   return (
     <html lang="en-IN" className={`${poppins.variable} ${serif.variable}`}>
       <body>
         {/* The shop and site as structured data, for Google's local results. */}
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdHtml(siteJsonLd(SITE_URL, areaData?.areas))} />
-        <Providers>
+        <Providers branding={branding}>
           {/* Header reads useSearchParams, which needs a Suspense boundary so
               the rest of the page can still be statically rendered. */}
           <Suspense fallback={<div style={{ height: "var(--header-total)" }} />}>
-            <Header categories={categories} logoUrl={logoUrl} />
+            <Header categories={categories} />
           </Suspense>
 
           <main>{children}</main>
 
-          <Footer categories={categories} />
+          <Footer categories={categories} branding={branding} />
 
           <Suspense fallback={null}>
             <MobileNav />

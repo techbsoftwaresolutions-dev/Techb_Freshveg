@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text, TextInput } from "../components/Text";
 import { api } from "../api/client";
-import { colors, clockTime, formatAddress, radius, rupees, spacing, type } from "../theme";
+import { colors, formatAddress, radius, rupees, shadow, spacing, type } from "../theme";
 import {
-  Button, Card, Divider, EmptyState, Loading, Notice, Pill,
+  Button, Card, Divider, EmptyState, IconTile, Loading, Notice,
   callNumber, openMaps,
 } from "../components/ui";
 
@@ -40,6 +43,7 @@ const STEP_COPY = {
 
 export default function DeliveryScreen({ route, navigation }) {
   const { orderId } = route.params;
+  const { bottom } = useSafeAreaInsets();
 
   const [order, setOrder] = useState(null);
   const [pickup, setPickup] = useState(null);
@@ -99,14 +103,23 @@ export default function DeliveryScreen({ route, navigation }) {
   }
 
   if (loading) return <Loading label="Loading the order" />;
- if (!order) return<EmptyState icon="" title="Couldn't load this order" hint={error} />;
+  if (!order) {
+    return (
+      <EmptyState
+        icon="cloud-offline-outline"
+        title="Couldn't load this order"
+        hint={error}
+        action={<Button title="Try again" onPress={load} />}
+      />
+    );
+  }
 
   const step = STEP_COPY[order.status];
 
   if (!step) {
     return (
       <EmptyState
- icon={order.status ==="DELIVERED" ?"" :""}
+        icon={order.status === "DELIVERED" ? "checkmark-done-outline" : "swap-horizontal-outline"}
         title={order.status === "DELIVERED" ? "Already delivered" : "This order is no longer yours"}
         hint={`It is now "${order.status.replace(/_/g, " ").toLowerCase()}".`}
         action={<Button title="Back to queue" onPress={() => navigation.navigate("Queue")} />}
@@ -142,7 +155,7 @@ export default function DeliveryScreen({ route, navigation }) {
         {/* Destination */}
         <Card style={{ padding: spacing.md, gap: spacing.md }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-<Text style={{ fontSize: 22}}>{goingToStore ?"" :""}</Text>
+<IconTile name={goingToStore ? "storefront-outline" : "location-outline"} />
             <View style={{ flex: 1 }}>
               <Text style={styles.legLabel}>{goingToStore ? "Pick up from" : "Deliver to"}</Text>
               <Text style={type.h3}>{destination.name}</Text>
@@ -158,6 +171,7 @@ export default function DeliveryScreen({ route, navigation }) {
           <View style={{ flexDirection: "row", gap: spacing.sm }}>
             <Button
               title="Navigate"
+              icon="navigate-outline"
               variant="outline"
               style={{ flex: 1 }}
               onPress={() =>
@@ -169,6 +183,7 @@ export default function DeliveryScreen({ route, navigation }) {
             />
             <Button
               title="Call"
+              icon="call-outline"
               variant="outline"
               style={{ flex: 1 }}
               disabled={!destination.phone}
@@ -179,7 +194,12 @@ export default function DeliveryScreen({ route, navigation }) {
 
         {/* Payment — the thing a rider must not get wrong */}
         <Card style={[styles.payCard, collectCash ? styles.payCash : styles.payPrepaid]}>
-          <Text style={styles.payLabel}>{collectCash ? "COLLECT CASH" : "PREPAID"}</Text>
+          <Ionicons
+            name={collectCash ? "cash-outline" : "checkmark-circle-outline"}
+            size={26}
+            color={collectCash ? colors.cash : colors.success}
+          />
+          <Text style={[styles.payLabel, { color: collectCash ? colors.cash : colors.success }]}>{collectCash ? "COLLECT CASH" : "PREPAID"}</Text>
           <Text style={styles.payAmount}>{collectCash ? rupees(order.pricing?.total) : "Nothing to collect"}</Text>
           {collectCash ? (
             <Text style={type.tiny}>Hand the order over only after taking the cash.</Text>
@@ -212,7 +232,7 @@ export default function DeliveryScreen({ route, navigation }) {
         {/* Handover */}
         {order.status === "ARRIVED" ? (
           <Card style={{ padding: spacing.md, gap: spacing.md }}>
-            <Text style={type.h3}>Handover code</Text>
+            <Text style={type.h2}>Handover code</Text>
             <Text style={type.small}>
               Ask the customer to read the 4-digit code from their order screen.
             </Text>
@@ -230,6 +250,7 @@ export default function DeliveryScreen({ route, navigation }) {
 
         <Button
           title="Report a problem"
+          icon="help-circle-outline"
           variant="ghost"
           onPress={() =>
             Alert.alert(
@@ -245,7 +266,7 @@ export default function DeliveryScreen({ route, navigation }) {
       </ScrollView>
 
       {/* One primary action, always in the same place under the thumb. */}
-      <View style={styles.actionBar}>
+      <View style={[styles.actionBar, { paddingBottom: Math.max(bottom, spacing.md) + spacing.sm }]}>
         {order.status === "ARRIVED" ? (
           <Button
             title="Confirm delivery"
@@ -310,9 +331,9 @@ function RiderProgress({ status }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
 
-  stepCard: { padding: spacing.lg, backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
-  stepHeading: { fontSize: 22, fontWeight: "800", color: "#fff" },
-  stepSub: { ...type.small, color: "rgba(255,255,255,0.8)" },
+  stepCard: { padding: spacing.lg },
+  stepHeading: { ...type.h1, fontSize: 22 },
+  stepSub: type.small,
 
   progress: { flexDirection: "row", marginBottom: spacing.lg },
   progressStep: { flex: 1, alignItems: "center", gap: 4 },
@@ -322,9 +343,9 @@ const styles = StyleSheet.create({
     right: "50%",
     width: "100%",
     height: 2,
-    backgroundColor: "rgba(255,255,255,0.25)",
+    backgroundColor: colors.border,
   },
-  progressLineDone: { backgroundColor: "#fff" },
+  progressLineDone: { backgroundColor: colors.primary },
   progressDot: {
     width: 24,
     height: 24,
@@ -332,38 +353,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.35)",
-    backgroundColor: colors.primaryDark,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
-  progressDotDone: { backgroundColor: "#fff", borderColor: "#fff" },
-  progressDotHere: { borderColor: "#fff", backgroundColor: "rgba(255,255,255,0.18)" },
-  progressDotText: { fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.6)" },
-  progressDotTextOn: { color: colors.primaryDark },
-  progressDotTextHere: { color: "#fff" },
-  progressLabel: { fontSize: 10.5, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
-  progressLabelOn: { color: "#fff" },
-  code: { color: "rgba(255,255,255,0.7)", fontWeight: "700", marginTop: spacing.sm, letterSpacing: 1 },
+  progressDotDone: { backgroundColor: colors.primary, borderColor: colors.primary },
+  progressDotHere: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  progressDotText: { fontSize: 11, fontWeight: "700", color: colors.textFaint },
+  progressDotTextOn: { color: colors.onPrimary },
+  progressDotTextHere: { color: colors.primaryDark },
+  progressLabel: { fontSize: 10.5, fontWeight: "500", color: colors.textFaint },
+  progressLabelOn: { color: colors.primaryDark },
+  code: { ...type.small, fontWeight: "600", marginTop: spacing.sm, letterSpacing: 1 },
 
-  legLabel: { ...type.tiny, textTransform: "uppercase", fontWeight: "800", letterSpacing: 0.5 },
+  legLabel: { ...type.tiny, textTransform: "uppercase", fontWeight: "600", letterSpacing: 0.5 },
 
   payCard: { padding: spacing.lg, alignItems: "center", gap: 2 },
   payCash: { backgroundColor: colors.cashSoft, borderColor: colors.cash },
   payPrepaid: { backgroundColor: colors.successSoft, borderColor: colors.success },
-  payLabel: { fontSize: 12, fontWeight: "800", letterSpacing: 1.2, color: colors.textMuted },
-  payAmount: { fontSize: 30, fontWeight: "800", color: colors.text },
+  payLabel: { fontSize: 12, fontWeight: "700", letterSpacing: 1.2, marginTop: 2 },
+  payAmount: { fontSize: 28, fontWeight: "700", color: colors.text },
 
   itemRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  itemQty: { ...type.body, fontWeight: "800", minWidth: 46, textAlign: "right" },
+  itemQty: { ...type.body, fontWeight: "700", minWidth: 46, textAlign: "right" },
 
   otpInput: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.borderStrong,
     borderRadius: radius.md,
-    height: 64,
+    height: 60,
     textAlign: "center",
-    fontSize: 30,
+    fontSize: 28,
     letterSpacing: 14,
-    fontWeight: "800",
+    fontWeight: "700",
     color: colors.text,
   },
 
@@ -373,9 +394,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    ...shadow.bar,
   },
 });

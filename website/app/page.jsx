@@ -307,7 +307,7 @@ export default async function HomePage() {
             </section>
           ) : null}
 
-          <WhyFarmersBasket />
+          <WhyFarmersBasket branding={settingsData?.settings?.branding} />
         </div>
       </div>
     </div>

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import logo from "../assets/logo-farmers-basket.png";
+import { useBranding } from "../api/branding";
 import { useAuth } from "../context/AuthContext";
 import { Banner, Field } from "../components/ui";
 
 export default function Login() {
   const { signIn } = useAuth();
+  const brand = useBranding();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -27,7 +28,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={submit}>
-        <img src={logo} alt="The Farmers Basket" className="login-logo" />
+        <img src={brand.logo} alt="The Farmers Basket" className="login-logo" />
         <h1>The Farmers Basket Admin</h1>
         <p className="muted" style={{ margin: "5px 0 20px", fontSize: 13 }}>
           Sign in with your staff account.

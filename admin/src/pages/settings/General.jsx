@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, toast } from "../../api/client";
-import { Banner, Card, Field, Loading, Tabs } from "../../components/ui";
+import { Banner, Card, Field, Loading, Pill, Tabs } from "../../components/ui";
+import { refreshBranding } from "../../api/branding";
 import VideoHeroConfig from "./VideoHeroConfig";
 
 
@@ -13,7 +14,6 @@ const SECTIONS = [
   { key: "tax", label: "Tax" },
   { key: "payment", label: "Payment" },
   { key: "loyalty", label: "Loyalty" },
-  { key: "referral", label: "Referrals" },
   { key: "delivery", label: "Delivery" },
   { key: "notifications", label: "Notifications" },
   { key: "app", label: "Apps" },
@@ -34,6 +34,70 @@ const HOME_TEMPLATES = [
   {
     key: "video",
     name: "Video Hero",
+  },
+];
+
+// Settings → Branding: each brand image, where it shows and what it must be.
+// The size rules are enforced by the API on upload (backend
+// src/modules/settings/branding.js); these lines only describe them.
+// `build` marks the ones baked into the native apps at build time.
+const BRAND_ASSETS = [
+  {
+    key: "logo",
+    label: "Primary logo",
+    shape: "logo",
+    purpose: "Website header, sign-in and loading screens; customer and delivery app headers and sign-in screens; admin sign-in.",
+    spec: "PNG, WebP or JPG, at least 200×60px. A transparent PNG sits best on every background.",
+  },
+  {
+    key: "symbol",
+    label: "Symbol",
+    shape: "favicon",
+    purpose: "The compact square mark: website footer and “Why us” section, admin sidebar.",
+    spec: "Square or nearly square, at least 96×96px.",
+  },
+  {
+    key: "favicon",
+    label: "Favicon",
+    shape: "favicon",
+    purpose: "Browser tab and bookmarks on the website and admin, and the website's iPhone home-screen icon.",
+    spec: "Square or nearly square, at least 48×48px (512×512 recommended).",
+  },
+  {
+    key: "shareImage",
+    label: "Social share image",
+    shape: "logo",
+    purpose: "The picture shown when a website link is shared on WhatsApp, Facebook or X.",
+    spec: "At least 600×315px; 1200×630 recommended. Cropped to 1.91 : 1.",
+  },
+  // One icon per app, kept apart: each app's `npm run brand:sync` reads
+  // only its own (scripts/sync-brand-assets.js).
+  {
+    key: "customerAppIcon",
+    label: "Customer app icon",
+    app: "Customer app · The Farmers Basket",
+    shape: "favicon",
+    build: true,
+    purpose: "Launcher icon of the customer (shopping) app only. Also the website's “Add to Home Screen” icon, which updates live.",
+    spec: "Square PNG, WebP or JPG, 1024×1024 to 4096×4096px, without transparency (iOS fills it with black).",
+  },
+  {
+    key: "deliveryAppIcon",
+    label: "Delivery app icon",
+    app: "Delivery app · Farmers Basket Delivery",
+    shape: "favicon",
+    build: true,
+    purpose: "Launcher icon of the delivery partner app only. Riders see it; customers never do.",
+    spec: "Square PNG, WebP or JPG, 1024×1024 to 4096×4096px, without transparency (iOS fills it with black).",
+  },
+  {
+    key: "splash",
+    label: "Splash artwork",
+    shape: "favicon",
+    build: true,
+    accept: "image/png,image/webp",
+    purpose: "Shown, centred on cream, while the customer and delivery apps start (shared by both). Separate from the logo.",
+    spec: "PNG or WebP with a transparent background, at least 512×512px (1024×1024 recommended).",
   },
 ];
 
@@ -84,6 +148,8 @@ export default function General() {
     try {
       const data = await api.patch(`/settings/${section}`, draft);
       setSettings(data.settings);
+      // The admin's own sidebar, sign-in page and tab icon, right away.
+      if (section === "branding") refreshBranding(data.settings.branding);
       notifySaved(`${SECTIONS.find((s) => s.key === section)?.label || "Settings"} settings saved successfully`);
     } catch (err) {
       setError(err.message);
@@ -119,13 +185,6 @@ export default function General() {
     const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
     setDraft((d) => ({ ...d, [parent]: { ...(d[parent] || {}), [key]: value } }));
   };
-
-  // Money fields are stored in paise; the form works in rupees.
-  const money = (key) => ({
-    type: "number",
-    value: (draft[key] || 0) / 100,
-    onChange: (e) => setDraft((d) => ({ ...d, [key]: Math.round(Number(e.target.value) * 100) })),
-  });
 
   return (
     <div className="page">
@@ -236,26 +295,6 @@ export default function General() {
               <Field label="Max % of an order"><input type="number" value={draft.maxRedeemPctOfOrder ?? 0} onChange={set("maxRedeemPctOfOrder")} /></Field>
               <Field label="Points expire after (days)"><input type="number" value={draft.expiryDays ?? 0} onChange={set("expiryDays")} /></Field>
             </div>
-          </>
-        ) : null}
-
-        {section === "referral" ? (
-          <>
-            <label className="checkbox" style={{ marginBottom: 14 }}>
-              <input type="checkbox" checked={Boolean(draft.enabled)} onChange={set("enabled")} />
-              Referrals are running
-            </label>
-            <div className="grid cols-3">
-              <Field label="Reward to the referrer (₹)"><input {...money("referrerReward")} /></Field>
-              <Field label="Reward to the friend (₹)"><input {...money("refereeReward")} /></Field>
-              <Field label="Minimum first order (₹)" help="Below this, the referral does not pay out.">
-                <input {...money("minFirstOrderValue")} />
-              </Field>
-            </div>
-            <Banner tone="info">
-              Rewards are paid when the friend's first order is <strong>delivered</strong>, not when
-              they sign up.
-            </Banner>
           </>
         ) : null}
 
@@ -523,19 +562,41 @@ export default function General() {
 
         {section === "branding" ? (
           <>
+            <h3 className="brand-group">Live branding</h3>
+            <p className="muted brand-note">
+              Used by the website, the customer and delivery apps and this admin as soon as it is saved. The website
+              picks it up within a minute; the apps when they next open or come back to the front.
+            </p>
             <div className="grid cols-2">
-              <ImageSetting
-                label="Logo"
-                value={draft.logo || ""}
-                onChange={(url) => setDraft((d) => ({ ...d, logo: url }))}
-                shape="logo"
-              />
-              <ImageSetting
-                label="Favicon"
-                value={draft.favicon || ""}
-                onChange={(url) => setDraft((d) => ({ ...d, favicon: url }))}
-                shape="favicon"
-              />
+              {BRAND_ASSETS.filter((a) => !a.build).map((asset) => (
+                <ImageSetting
+                  key={asset.key}
+                  asset={asset}
+                  value={draft[asset.key] || ""}
+                  saved={settings.branding?.[asset.key] || ""}
+                  onChange={(url) => setDraft((d) => ({ ...d, [asset.key]: url }))}
+                />
+              ))}
+            </div>
+
+            <div className="divider" />
+            <h3 className="brand-group">App build assets</h3>
+            <Banner tone="info">
+              A phone's launcher icon and splash screen are part of the installed app, so saving here does not change
+              apps people already have. After saving, run <code>npm run brand:sync</code> in <code>customer-app</code>{" "}
+              (customer icon) and/or <code>delivery-app</code> (delivery icon), then build and publish new versions.
+              Each app keeps its bundled icon and splash until then.
+            </Banner>
+            <div className="grid cols-2">
+              {BRAND_ASSETS.filter((a) => a.build).map((asset) => (
+                <ImageSetting
+                  key={asset.key}
+                  asset={asset}
+                  value={draft[asset.key] || ""}
+                  saved={settings.branding?.[asset.key] || ""}
+                  onChange={(url) => setDraft((d) => ({ ...d, [asset.key]: url }))}
+                />
+              ))}
             </div>
           </>
         ) : null}
@@ -549,23 +610,41 @@ export default function General() {
   );
 }
 
-// One branding image: preview, upload (to Cloudinary, via /uploads) and
-// remove. Saved with the rest of the tab by its Save button.
-function ImageSetting({ label, help, value, onChange, shape }) {
+// One brand image: what it is for, preview, upload (to Cloudinary via
+// /uploads, which checks its size and shape), reset to the default, and where
+// it stands. Saved with the rest of the tab by its Save button; until then the
+// old image stays live.
+function ImageSetting({ asset, value, saved, onChange }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const { label } = asset;
+  const changed = value !== saved;
+
+  const status = changed ? (
+    <Pill tone="warn">Not saved yet</Pill>
+  ) : asset.build ? (
+    <Pill tone="info">{saved ? "Saved · needs an app build" : "Bundled default"}</Pill>
+  ) : (
+    <Pill tone="ok">{saved ? "Saved · live" : "Bundled default · live"}</Pill>
+  );
 
   return (
-    <Field label={label} help={help} error={uploadError}>
-      <div className={`brand-preview ${shape}`}>
+    <Field label={label} error={uploadError}>
+      {asset.app ? <span className="tag brand-app">{asset.app}</span> : null}
+      <div className="brand-head">
+        <span className="help">{asset.purpose}</span>
+        {status}
+      </div>
+      <div className={`brand-preview ${asset.shape}`}>
         {value ? <img src={value} alt={`${label} preview`} /> : <span className="faint">Using the default {label.toLowerCase()}</span>}
       </div>
+      <span className="help">{asset.spec}</span>
       <div className="inline" style={{ gap: 10, marginTop: 10 }}>
         <label className="btn sm" aria-disabled={uploading} style={{ cursor: uploading ? "default" : "pointer", opacity: uploading ? 0.6 : 1 }}>
           {uploading ? "Uploading…" : value ? `Replace ${label.toLowerCase()}` : `Upload ${label.toLowerCase()}`}
           <input
             type="file"
-            accept="image/png,image/webp,image/jpeg"
+            accept={asset.accept || "image/png,image/webp,image/jpeg"}
             hidden
             disabled={uploading}
             onChange={async (event) => {
@@ -575,7 +654,7 @@ function ImageSetting({ label, help, value, onChange, shape }) {
               setUploading(true);
               setUploadError("");
               try {
-                onChange((await api.upload(file, "branding")).url);
+                onChange((await api.upload(file, "branding", { kind: asset.key })).url);
               } catch (err) {
                 setUploadError(err.message);
               } finally {
@@ -586,7 +665,12 @@ function ImageSetting({ label, help, value, onChange, shape }) {
         </label>
         {value ? (
           <button type="button" className="btn sm" onClick={() => onChange("")}>
-            Use default
+            Reset to default
+          </button>
+        ) : null}
+        {changed && saved ? (
+          <button type="button" className="btn sm ghost" onClick={() => onChange(saved)}>
+            Undo
           </button>
         ) : null}
       </div>

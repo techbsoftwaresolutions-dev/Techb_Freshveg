@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__javascript_tool",
+  "tool_input_preview": "{\"action\":\"javascript_exec\",\"text\":\"const field = () => [...document.querySelectorAll('.field')].find(f=>f.querySelector('label')?.innerText==='Symbol');\\n[...field().querySelectorAll('.btn')].find(b=...",
+  "error": "The last page load in this tab failed, so there is no page to act on. Use `navigate` (pass this tabId) to retry or go elsewhere.",
+  "timestamp": "2026-10-14T12:46:27.620Z",
+  "retry_count": 1
+}

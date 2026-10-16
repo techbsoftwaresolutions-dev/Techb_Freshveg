@@ -4,6 +4,7 @@ const ApiError = require("../../core/ApiError");
 const { optionalAuth, requireAuth } = require("../../middleware/auth");
 const cartService = require("./cart.service");
 const Cart = require("./cart.model");
+const couponService = require("../referrals/coupon.service");
 
 const router = express.Router();
 
@@ -102,12 +103,51 @@ router.post(
 
 // Applying a coupon prices the cart with it before storing it, so an invalid
 // code is rejected with the reason rather than silently kept.
+// A reward coupon (Coupons page / coupon picker) is chosen by id; it is
+// priced before it is stored, like a code, so an unusable one is refused
+// with the reason.
+async function applyRewardCoupon(req, res, couponId) {
+  if (!req.user) throw ApiError.unauthorized("Sign in to use your coupons");
+  const preview = await cartService.summarise(req.cart, { rewardCouponId: couponId });
+  if (!preview.rewardCoupon?.ok) {
+    throw ApiError.badRequest(preview.rewardCoupon?.reason || "That coupon can't be used on this cart", {
+      shortfall: preview.rewardCoupon?.shortfall,
+    });
+  }
+  req.cart.rewardCoupon = couponId;
+  await req.cart.save();
+  res.json({ success: true, cart: preview });
+}
+
+router.post(
+  "/reward-coupon",
+  loadCart,
+  asyncHandler(async (req, res) => {
+    if (!req.body.coupon) throw ApiError.badRequest("Choose a coupon");
+    await applyRewardCoupon(req, res, String(req.body.coupon));
+  })
+);
+
+router.delete(
+  "/reward-coupon",
+  loadCart,
+  asyncHandler(async (req, res) => {
+    req.cart.rewardCoupon = null;
+    await req.cart.save();
+    res.json({ success: true, cart: await cartService.summarise(req.cart) });
+  })
+);
+
 router.post(
   "/coupon",
   loadCart,
   asyncHandler(async (req, res) => {
     const code = String(req.body.code || "").trim().toUpperCase();
     if (!code) throw ApiError.badRequest("Enter a coupon code");
+
+    // A reward coupon's code typed into the ordinary coupon box works too.
+    const reward = await couponService.findOwnedByCode(code, req.user?.id);
+    if (reward) return applyRewardCoupon(req, res, reward.id);
 
     const preview = await cartService.summarise(req.cart, { couponCode: code });
     const applied = preview.offers.applied.find((o) => o.code === code);
@@ -126,11 +166,17 @@ router.post(
   })
 );
 
+// With ?code= only that coupon comes off (the offer code or the reward
+// coupon); without, both do.
 router.delete(
   "/coupon",
   loadCart,
   asyncHandler(async (req, res) => {
-    req.cart.couponCode = "";
+    const code = String(req.query.code || req.body?.code || "").trim().toUpperCase();
+    const current = req.cart.rewardCoupon && code ? await cartService.summarise(req.cart) : null;
+    const isReward = current?.rewardCoupon?.code === code;
+    if (!code || isReward) req.cart.rewardCoupon = null;
+    if (!code || !isReward) req.cart.couponCode = "";
     await req.cart.save();
     const summary = await cartService.summarise(req.cart);
     res.json({ success: true, cart: summary });
@@ -171,6 +217,7 @@ router.delete(
   asyncHandler(async (req, res) => {
     req.cart.items = [];
     req.cart.couponCode = "";
+    req.cart.rewardCoupon = null;
     await req.cart.save();
     res.json({ success: true, cart: await cartService.summarise(req.cart) });
   })

@@ -13,6 +13,21 @@ async function start() {
     process.exit(1);
   }
 
+  // The single app icon of older versions becomes one icon per app.
+  await require("./modules/settings/branding")
+    .migrateLegacyAppIcon(require("mongoose").connection.db)
+    .catch((err) => console.warn("[api] app icon migration:", err.message));
+
+  // Reward coupons depend on their unique indexes (one coupon per referral
+  // milestone, one code each) to stay single-issue, so these are ensured on
+  // boot rather than left to `npm run sync-indexes` like the rest. Both
+  // collections are small; on later boots this is a no-op check.
+  for (const model of [require("./modules/referrals/coupon.model"), require("./modules/referrals/referral.model")]) {
+    model
+      .createIndexes()
+      .catch((err) => console.warn("[api] referral indexes:", err.message));
+  }
+
   // Scheduled rules (abandoned carts, win-back, stock alerts) run in-process.
   scheduler.start();
 

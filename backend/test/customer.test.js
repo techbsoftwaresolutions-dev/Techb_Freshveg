@@ -84,7 +84,7 @@ describe("customer services through the real API", () => {
     const claimed = await fresh.post("/referrals/claim", { code: summary.code.toLowerCase() });
     assert.equal(claimed.status, 201);
     assert.equal((await fresh.post("/referrals/claim", { code: summary.code })).status, 409);
-    assert.equal((await owner.get("/referrals/me")).invited, 1);
+    assert.equal((await owner.get("/referrals/me")).stats.referred, 1);
 
     // The original customer has orders already, so cannot claim anyone's code.
     assert.equal((await owner.post("/referrals/claim", { code: mine })).status, 400);

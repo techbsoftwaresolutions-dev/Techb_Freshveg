@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, loadSession, saveSession } from "../api/client";
+import { Linking } from "react-native";
+import { api, captureReferral, clearReferral, loadSession, pendingReferral, saveSession } from "../api/client";
 
 const AuthContext = createContext(null);
 
@@ -33,6 +34,14 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // A referral link can open the app (or the web build) at any point; the
+  // code waits for the next sign-in.
+  useEffect(() => {
+    Linking.getInitialURL().then(captureReferral).catch(() => {});
+    const subscription = Linking.addEventListener("url", ({ url }) => captureReferral(url));
+    return () => subscription.remove();
+  }, []);
+
   const requestOtp = useCallback(async (phone) => {
     const data = await api.post("/auth/otp/request", { phone });
     // devCode is only present outside production; the login screen shows it so
@@ -40,13 +49,29 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
-  const verifyOtp = useCallback(async (phone, code, name) => {
-    const data = await api.post("/auth/otp/verify", { phone, code, name });
+  // `referralCode` is one typed at sign-in; otherwise a link's code is used.
+  const verifyOtp = useCallback(async (phone, code, name, referralCode = "") => {
+    const fromLink = await pendingReferral();
+    const ref = referralCode.trim() || fromLink || "";
+    const data = await api.post("/auth/otp/verify", {
+      phone, code, name,
+      ...(ref ? { referralCode: ref, referralSource: referralCode.trim() ? "signup" : "link" } : {}),
+    });
     await saveSession({
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
     });
     setUser(data.user);
+    if (ref) {
+      // An existing account that has not ordered yet can still be referred.
+      if (!data.isNewUser) {
+        data.referral = await api
+          .post("/referrals/claim", { code: ref, source: referralCode.trim() ? "manual" : "link" })
+          .then((r) => ({ applied: true, message: r.message }))
+          .catch((err) => ({ applied: false, message: err.message }));
+      }
+      await clearReferral();
+    }
     return data;
   }, []);
 

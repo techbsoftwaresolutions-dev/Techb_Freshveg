@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"D:/TechB/fresh market/Techb_Freshveg/backend\\\" && cat > \\\"C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/3c0a6666-be05-4692-87fb-0fe046e6278d/scratchpad...",
+  "error": "Exit code 2\n/usr/bin/bash: -c: line 127: unexpected EOF while looking for matching `''",
+  "timestamp": "2026-10-14T06:51:24.205Z",
+  "retry_count": 1
+}

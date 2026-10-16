@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"/d/TechB/fresh market/Techb_Freshveg/backend/src\\\" && python - <<'EOF'\\ndef edit(p, pairs):\\n    s=open(p,encoding='utf8').read()\\n    for a,b in pairs:\\n        assert a in s, (p,a[:...",
+  "error": "Exit code 1\n2:const crypto = require(\"crypto\");\n28:const randomCode = () => String(crypto.randomInt(100000, 1000000));\nD:\\TechB\\fresh market\\Techb_Freshveg\\backend\\src\\modules\\cart\\cart.routes.js:181\r\n    const summary = await cartService.summarise(req.cart);\r\n          ^\r\n\r\nSyntaxError: Identifier 'summary' has already been declared\r\n    at wrapSafe (node:internal/modules/cjs/loader:1762:18)\r\n    at Module._compile (node:internal/modules/cjs/loader:1803:20)\r\n    at Object..js (node:internal/mod...",
+  "timestamp": "2026-10-15T10:12:19.646Z",
+  "retry_count": 1
+}

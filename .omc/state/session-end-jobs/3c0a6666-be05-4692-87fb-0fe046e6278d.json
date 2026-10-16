@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "jobId": "b7b55b29-aa72-4a67-8775-011081b521cb",
+  "sessionId": "3c0a6666-be05-4692-87fb-0fe046e6278d",
+  "scopeKey": "3b2fce196b0953524a6a39ec65a8f8a307485602d7ddcc7a5c555b63e3ffa1c5",
+  "revision": 0,
+  "createdAt": "2026-10-14T09:05:04.708Z",
+  "updatedAt": "2026-10-14T09:05:04.708Z",
+  "producerGraceExpiresAt": "2026-10-14T09:05:34.709Z",
+  "bestEffortDeadlineAt": "2026-10-14T09:06:25.709Z",
+  "producers": {
+    "core": {
+      "state": "prepared",
+      "intentKey": "02a98d7842d72dc893864e499f15ea8c93188f93820b567b0a0726bb8e903d7f",
+      "payloadDigest": "02a98d7842d72dc893864e499f15ea8c93188f93820b567b0a0726bb8e903d7f"
+    },
+    "wiki": {
+      "state": "absent"
+    }
+  },
+  "actions": {
+    "foreground-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "9351d199479b410a9bf48dbc1775a2c0cd808089b6d554892020b6edad92951a",
+      "payload": {
+        "transcriptPath": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+        "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+        "reason": "other",
+        "input": {
+          "session_id": "3c0a6666-be05-4692-87fb-0fe046e6278d",
+          "transcript_path": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+          "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+          "scratchpad_dir": "C:\\Users\\harle\\AppData\\Local\\Temp\\claude\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 9000
+    },
+    "wiki-capture": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "d19ee569c1a7d6738712bfe24dbe699c91e698caf56f4485ea9565d96860e3cb",
+      "payload": {
+        "transcriptPath": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+        "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+        "reason": "other",
+        "input": {
+          "session_id": "3c0a6666-be05-4692-87fb-0fe046e6278d",
+          "transcript_path": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+          "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+          "scratchpad_dir": "C:\\Users\\harle\\AppData\\Local\\Temp\\claude\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 9000
+    },
+    "team-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "c737fe4c41730387d03ac986760049a98ebdee72a8131777572a702766bff20b",
+      "payload": {
+        "transcriptPath": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+        "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+        "reason": "other",
+        "input": {
+          "session_id": "3c0a6666-be05-4692-87fb-0fe046e6278d",
+          "transcript_path": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+          "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+          "scratchpad_dir": "C:\\Users\\harle\\AppData\\Local\\Temp\\claude\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 9000
+    },
+    "python-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "935ea1180ea10a1007ba319f69b599ac0ffd8e9e07d8b49f1577145f4843680a",
+      "payload": {
+        "transcriptPath": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+        "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+        "reason": "other",
+        "input": {
+          "session_id": "3c0a6666-be05-4692-87fb-0fe046e6278d",
+          "transcript_path": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+          "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+          "scratchpad_dir": "C:\\Users\\harle\\AppData\\Local\\Temp\\claude\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 9000
+    },
+    "reply-cleanup": {
+      "class": "required",
+      "phase": "deferred-required",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "b98e1d956265a1d812dfa98ecf7f6dc7e7ae0ba225d008df88d57f611b16ff01",
+      "payload": {
+        "transcriptPath": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+        "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+        "reason": "other",
+        "input": {
+          "session_id": "3c0a6666-be05-4692-87fb-0fe046e6278d",
+          "transcript_path": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+          "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+          "scratchpad_dir": "C:\\Users\\harle\\AppData\\Local\\Temp\\claude\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 9000
+    },
+    "callback": {
+      "class": "best-effort",
+      "phase": "deferred-best-effort",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "01be5a24a2d7c7ed26ef5369b18f1565338310b6562e37ba49069867e76506fe",
+      "payload": {
+        "transcriptPath": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+        "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+        "reason": "other",
+        "input": {
+          "session_id": "3c0a6666-be05-4692-87fb-0fe046e6278d",
+          "transcript_path": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+          "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+          "scratchpad_dir": "C:\\Users\\harle\\AppData\\Local\\Temp\\claude\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 2000
+    },
+    "notification": {
+      "class": "best-effort",
+      "phase": "deferred-best-effort",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "5ea81a62b43a599944d5449523edbdf69f099f3139f99df2baeb31fbdccdbfe9",
+      "payload": {
+        "transcriptPath": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+        "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+        "reason": "other",
+        "input": {
+          "session_id": "3c0a6666-be05-4692-87fb-0fe046e6278d",
+          "transcript_path": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+          "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+          "scratchpad_dir": "C:\\Users\\harle\\AppData\\Local\\Temp\\claude\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 2000
+    },
+    "openclaw": {
+      "class": "best-effort",
+      "phase": "deferred-best-effort",
+      "status": "pending",
+      "attempts": 0,
+      "idempotencyKey": "4add3d5b0094bc66239ea151ab70f64f197b0017426dcf6ff5065dba1fd4facb",
+      "payload": {
+        "transcriptPath": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+        "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+        "reason": "other",
+        "input": {
+          "session_id": "3c0a6666-be05-4692-87fb-0fe046e6278d",
+          "transcript_path": "C:\\Users\\harle\\.claude\\projects\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d.jsonl",
+          "cwd": "D:\\TechB\\fresh market\\Techb_Freshveg",
+          "scratchpad_dir": "C:\\Users\\harle\\AppData\\Local\\Temp\\claude\\D--TechB-fresh-market-Techb-Freshveg\\3c0a6666-be05-4692-87fb-0fe046e6278d\\scratchpad",
+          "hook_event_name": "SessionEnd",
+          "reason": "other"
+        },
+        "initialTeamNames": [],
+        "openClawRouting": {}
+      },
+      "budgetMs": 2000
+    }
+  },
+  "owner": null,
+  "phase": "collecting"
+}

@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"/d/TechB/fresh market/Techb_Freshveg\\\" && sed -i 's|\\\"brand:sync\\\": \\\"node ../scripts/sync-brand-assets.js\\\",|\\\"brand:sync\\\": \\\"node ../scripts/sync-brand-assets.js customer\\\",|' cust...",
+  "error": "Exit code 2\n  \"name\": \"commerce-customer-app\",\n    \"brand:sync\": \"node ../scripts/sync-brand-assets.js customer\",\n  \"name\": \"commerce-delivery-app\",\n    \"brand:sync\": \"node ../scripts/sync-brand-assets.js delivery\",",
+  "timestamp": "2026-10-16T06:48:49.325Z",
+  "retry_count": 1
+}

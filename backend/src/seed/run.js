@@ -29,6 +29,7 @@ const { Counter } = require("../core/sequence");
 const { syncIndexes } = require("./syncIndexes");
 const notificationTemplates = require("./notificationTemplates");
 const data = require("./data");
+const { assertDevDatabase } = require("./guard");
 
 const reset = process.argv.includes("--reset");
 
@@ -339,6 +340,9 @@ async function seedBanners() {
 }
 
 async function run({ keepOpen = false } = {}) {
+  // Demo accounts with known passwords (and, with --reset, an emptied
+  // database) belong on a development database only.
+  assertDevDatabase(reset ? "npm run seed:reset" : "npm run seed");
   await connectDb();
 
   if (reset) {

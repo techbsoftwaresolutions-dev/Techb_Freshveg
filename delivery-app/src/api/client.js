@@ -47,6 +47,14 @@ export async function saveSession(session) {
 
 // --- requests ------------------------------------------------------------
 
+// Set by AuthContext: the API has ended this session (the rider was
+// deactivated, or the refresh token expired), so the app returns to sign-in
+// instead of failing every request from then on.
+let onSessionEnded = null;
+export function setSessionEndedHandler(handler) {
+  onSessionEnded = handler;
+}
+
 let refreshing = null;
 
 async function refreshSession() {
@@ -65,6 +73,7 @@ async function refreshSession() {
       .then(async (data) => {
         if (!data?.accessToken) {
           await saveSession(null);
+          onSessionEnded?.();
           return null;
         }
         const next = { ...session, ...data };

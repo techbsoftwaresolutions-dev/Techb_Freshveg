@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__resize_window",
+  "tool_input_preview": "{\"preset\":\"desktop\"}",
+  "error": "The last page load in this tab failed, so there is no page to act on. Use `navigate` (pass this tabId) to retry or go elsewhere.",
+  "timestamp": "2026-10-14T12:52:34.187Z",
+  "retry_count": 1
+}

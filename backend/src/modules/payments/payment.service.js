@@ -412,6 +412,13 @@ async function refund(order, { amount, reason, destination, items, actor } = {})
     await payment.save();
   }
 
+  // A refund can take a referral purchase below the qualifying minimum —
+  // partial refunds included, which change no order status. Required here
+  // rather than at the top: referrals load the order model this file feeds.
+  await require("../referrals/referral.service")
+    .reviewOrder(order)
+    .catch((err) => console.warn(`[referral] ${order.code}:`, err.message));
+
   return record;
 }
 

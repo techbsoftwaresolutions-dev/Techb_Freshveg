@@ -1,13 +1,15 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../components/Text";
 import { colors, spacing, type } from "../theme";
-import { Button } from "../components/ui";
+import { Button, IconTile } from "../components/ui";
 
 export default function DeliveredScreen({ route, navigation }) {
   const { code } = route.params;
 
   return (
     <View style={styles.screen}>
+      <IconTile name="checkmark-done" size={34} box={72} tone="success" style={{ marginBottom: spacing.lg }} />
       <Text style={styles.title}>Delivered</Text>
       <Text style={styles.code}>{code}</Text>
       <Text style={styles.body}>
@@ -15,7 +17,9 @@ export default function DeliveredScreen({ route, navigation }) {
       </Text>
 
       <View style={styles.actions}>
-        <Button title="Back to my queue" onPress={() => navigation.replace("Tabs")} />
+        {/* Back to the tabs already underneath (their queue refetches on
+            focus) — replacing would stack a second copy above a stale one. */}
+        <Button title="Back to my queue" onPress={() => navigation.popToTop()} />
       </View>
     </View>
   );
@@ -24,13 +28,12 @@ export default function DeliveredScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xl,
   },
-  mark: { fontSize: 66, marginBottom: spacing.lg },
-  title: { fontSize: 28, fontWeight: "800", color: colors.success },
+  title: { ...type.h1, fontSize: 26 },
   code: { ...type.small, marginTop: 4, letterSpacing: 1 },
   body: {
     ...type.body,

@@ -11,13 +11,17 @@ const hasNativeModule =
 
 export const onlinePaymentSupported = Platform.OS === "web" || hasNativeModule;
 
-// "Pay by UPI": the sheet shows UPI alone — a QR on a computer, the UPI apps on
-// a phone. Only the display changes; the order and amount stay the server's.
-const UPI_ONLY = {
+// "Pay by UPI": UPI at the top of the sheet, with cards, netbanking and
+// wallets still below it. A UPI-only sheet has nothing to show when UPI is not
+// enabled on the Razorpay account (or not offered on this device), and
+// Razorpay then stops at "No appropriate payment method found" before any
+// payment can start. Only the display changes; the order and amount stay the
+// server's.
+const UPI_FIRST = {
   display: {
     blocks: { upi: { name: "Pay using UPI", instruments: [{ method: "upi" }] } },
     sequence: ["block.upi"],
-    preferences: { show_default_blocks: false },
+    preferences: { show_default_blocks: true },
   },
 };
 
@@ -92,7 +96,7 @@ export async function payOnline(orderId, { onVerifying, upiOnly = false } = {}) 
   }
 
   const { payment, checkout } = await api.post(`/payments/orders/${orderId}/initiate`, {});
-  const response = await openSheet(upiOnly ? { ...checkout, config: UPI_ONLY } : checkout);
+  const response = await openSheet(upiOnly ? { ...checkout, config: UPI_FIRST } : checkout);
 
   if (!response) return { status: "dismissed" };
   if (response.failure) return { status: "failed", message: response.failure };

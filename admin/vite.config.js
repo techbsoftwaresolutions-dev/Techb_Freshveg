@@ -9,7 +9,7 @@ export default defineConfig({
     // talks to one origin and there is no CORS story in development.
     proxy: {
       "/api": {
-        target: "http://localhost:5055",
+        target: process.env.API_PROXY_TARGET || "http://localhost:5055",
         changeOrigin: true,
       },
     },

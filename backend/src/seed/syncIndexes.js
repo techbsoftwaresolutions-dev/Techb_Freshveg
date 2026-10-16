@@ -43,6 +43,7 @@ const models = [
   require("../modules/reviews/review.model"),
   require("../modules/wishlist/wishlist.model"),
   require("../modules/referrals/referral.model"),
+  require("../modules/referrals/coupon.model"),
   require("../modules/delivery/deliveryZone.model"),
   require("../modules/delivery/deliverySlot.model"),
   require("../modules/delivery/deliveryTracking.model"),

@@ -106,8 +106,17 @@ export function CartProvider({ children }) {
     [apply, storeId]
   );
 
+  // With a code, only that coupon comes off (an offer code or a reward
+  // coupon); without, both do.
   const removeCoupon = useCallback(
-    async () => apply(await api.del("/cart/coupon", { store: storeId })),
+    async (code) => apply(await api.del("/cart/coupon", { store: storeId, ...(code ? { code } : {}) })),
+    [apply, storeId]
+  );
+
+  // A reward coupon from My coupons, by id. The API prices it and refuses an
+  // unusable one with the reason.
+  const applyRewardCoupon = useCallback(
+    async (couponId) => apply(await api.post("/cart/reward-coupon", { coupon: couponId, store: storeId })),
     [apply, storeId]
   );
 
@@ -143,12 +152,13 @@ export function CartProvider({ children }) {
       remove,
       applyCoupon,
       removeCoupon,
+      applyRewardCoupon,
       setCredits,
       clear,
       quantityOf,
       setCart,
     }),
-    [cart, loading, error, pending, refresh, add, setQuantity, remove, applyCoupon, removeCoupon, setCredits, clear, quantityOf]
+    [cart, loading, error, pending, refresh, add, setQuantity, remove, applyCoupon, removeCoupon, applyRewardCoupon, setCredits, clear, quantityOf]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

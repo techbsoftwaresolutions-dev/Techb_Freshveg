@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, toast } from "../../api/client";
+import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Loading, Pagination, Pill, Table, rupees, when } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
@@ -19,6 +20,121 @@ export function statusTone(status, statuses) {
   return GROUP_TONE[statuses?.[status]?.group] || undefined;
 }
 
+// The two stages at which an order can be handed to (or taken from) a
+// delivery person; the API enforces the same rule (order.service.js).
+const ASSIGNABLE = ["READY_FOR_PICKUP", "ASSIGNED_TO_DELIVERY"];
+
+// The Delivery column: who has the order, and — while it can still change
+// hands — a picker with Save and Remove. Each row keeps its own selection
+// and busy state; the row changes only when the API confirms.
+function DeliveryCell({ order, partners, canAssign, statuses, onSaved }) {
+  const current = order.delivery?.partner ? String(order.delivery.partner) : "";
+  const name = order.delivery?.partnerName || "";
+  const [selected, setSelected] = useState(current);
+  const [busy, setBusy] = useState(""); // "save" | "remove" | ""
+  const inFlight = useRef(false);
+
+  useEffect(() => setSelected(current), [current]);
+
+  if (!canAssign || !ASSIGNABLE.includes(order.status)) {
+    const group = statuses[order.status]?.group;
+    return (
+      <div className="stack">
+        {name ? <span className="muted">{name}</span> : <span className="faint">—</span>}
+        {group === "processing" && !name ? <span className="row-sub">Assign once ready</span> : null}
+      </div>
+    );
+  }
+
+  // Riders limited to other stores are left out; an empty list means "all".
+  const options = partners.list.filter((p) => !p.stores?.length || p.stores.includes(String(order.store)));
+  const currentListed = !current || options.some((p) => p.id === current);
+
+  async function run(kind, request) {
+    if (inFlight.current) return; // a double click sends one request
+    inFlight.current = true;
+    setBusy(kind);
+    try {
+      const data = await request();
+      onSaved(data.order);
+    } catch {
+      setSelected(current); // the API client has already shown why
+    } finally {
+      inFlight.current = false;
+      setBusy("");
+    }
+  }
+
+  const save = () => {
+    if (!selected) {
+      toast("error", "Choose a delivery person first");
+      return;
+    }
+    run("save", () => api.post(`/orders/${order.id}/assign`, { partner: selected }));
+  };
+
+  const remove = () => {
+    if (!window.confirm(`Remove ${name} from ${order.code}? It goes back to Ready for pickup and leaves their app.`)) return;
+    run("remove", () => api.delete(`/orders/${order.id}/assign`));
+  };
+
+  const placeholder = partners.loading
+    ? "Loading…"
+    : partners.error
+      ? "Couldn't load delivery people"
+      : options.length
+        ? "Select delivery person"
+        : "No active delivery people";
+
+  return (
+    <div className="assign-cell" onClick={(e) => e.stopPropagation()}>
+      {name ? (
+        <span className="row-title">
+          {name}
+          {currentListed ? null : <span className="assign-warn"> · inactive, reassign</span>}
+        </span>
+      ) : null}
+      <div className="assign-controls">
+        <select
+          value={currentListed ? selected : selected === current ? "" : selected}
+          onChange={(e) => setSelected(e.target.value)}
+          disabled={Boolean(busy) || partners.loading || !options.length}
+          aria-label={`Delivery person for ${order.code}`}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+              {p.phone ? ` · ${p.phone}` : ""}
+              {p.openNow ? ` · ${p.openNow} open` : ""}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="btn sm primary"
+          onClick={save}
+          disabled={Boolean(busy) || !selected || selected === current}
+        >
+          {busy === "save" ? "Saving…" : "Save"}
+        </button>
+        {current ? (
+          <button
+            type="button"
+            className="btn sm danger"
+            onClick={remove}
+            disabled={Boolean(busy)}
+            title={`Remove ${name} from this order`}
+            aria-label={`Remove ${name} from ${order.code}`}
+          >
+            {busy === "remove" ? "Removing…" : "Remove"}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function Orders() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -29,6 +145,28 @@ export default function Orders() {
   const [filters, setFilters] = useState({ status: searchParams.get("status") || "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { can } = useAuth();
+  const canAssign = can("orders.assign");
+  // Active delivery people, read once for the whole table and again after
+  // each change (their open-order counts move).
+  const [partners, setPartners] = useState({ list: [], loading: canAssign, error: "" });
+
+  const loadPartners = useCallback(() => {
+    if (!canAssign) return;
+    api
+      .get("/orders/delivery/partners")
+      .then((data) => setPartners({ list: data.partners, loading: false, error: "" }))
+      .catch((err) => setPartners((p) => ({ ...p, loading: false, error: err.message })));
+  }, [canAssign]);
+
+  useEffect(loadPartners, [loadPartners]);
+
+  // A saved assignment swaps in the order the API returned, so the row shows
+  // what was actually stored.
+  const replaceOrder = (order) => {
+    setData((d) => ({ ...d, items: d.items.map((o) => (o.id === order.id ? order : o)) }));
+    loadPartners();
+  };
 
   useEffect(() => {
     api
@@ -153,12 +291,16 @@ export default function Orders() {
                 {
                   key: "partner",
                   label: "Delivery",
-                  render: (row) =>
-                    row.delivery?.partnerName ? (
-                      <span className="muted">{row.delivery.partnerName}</span>
-                    ) : (
-                      <span className="faint">—</span>
-                    ),
+                  sortable: false,
+                  render: (row) => (
+                    <DeliveryCell
+                      order={row}
+                      partners={partners}
+                      canAssign={canAssign}
+                      statuses={statuses}
+                      onSaved={replaceOrder}
+                    />
+                  ),
                 },
               ]}
               rows={data.items}

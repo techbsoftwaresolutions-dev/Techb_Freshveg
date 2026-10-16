@@ -24,6 +24,36 @@ export class ApiError extends Error {
 
 let cachedSession = null;
 
+// A friend's referral code from a shared link (samagramart://?ref=CODE, or
+// /?ref=CODE on the web build). Kept until the next sign-in sends it.
+const REF_KEY = "commerce.app.ref";
+
+export async function captureReferral(url) {
+  const match = /[?&]ref=([A-Za-z0-9]{4,16})(?:&|#|$)/.exec(String(url || ""));
+  if (!match) return;
+  try {
+    await AsyncStorage.setItem(REF_KEY, match[1].toUpperCase());
+  } catch {
+    // The code can still be typed at sign-in.
+  }
+}
+
+export async function pendingReferral() {
+  try {
+    return await AsyncStorage.getItem(REF_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function clearReferral() {
+  try {
+    await AsyncStorage.removeItem(REF_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export async function loadSession() {
   if (cachedSession) return cachedSession;
   try {

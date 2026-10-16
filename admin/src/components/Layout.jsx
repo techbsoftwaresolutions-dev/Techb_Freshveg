@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import logoIcon from "../assets/logo-icon.png";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { useBranding } from "../api/branding";
 import {
   IconDashboard,
   IconCalendar,
@@ -186,7 +186,7 @@ const NAV = [
       },
       {
         to: "/marketing/referrals",
-        label: "Referrals",
+        label: "Referral & Rewards",
         permission: "marketing.view",
         icon: IconOffers,
       },
@@ -291,6 +291,7 @@ function useClock() {
 }
 
 export default function Layout() {
+  const brand = useBranding();
   const { user, signOut, can } = useAuth();
   const [theme, setTheme] = useTheme();
   const [collapsedGroups, toggleGroup] = useCollapsedGroups();
@@ -356,7 +357,7 @@ export default function Layout() {
     <div className="shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <img src={logoIcon} alt="" className="mark mark-img" />
+          <img src={brand.symbol} alt="" className="mark mark-img" />
           <span>The Farmers Basket</span>
         </div>
         <nav>
@@ -539,7 +540,7 @@ function titleFor(pathname) {
     "/marketing/offers": "Offers & Coupons",
     "/marketing/banners": "Banners",
     "/marketing/notifications": "Notifications",
-    "/marketing/referrals": "Referrals",
+    "/marketing/referrals": "Referral & Rewards",
     "/reports": "Reports",
     "/settings/stores": "Stores",
     "/settings/general": "General Settings",

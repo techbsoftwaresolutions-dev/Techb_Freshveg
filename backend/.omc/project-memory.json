@@ -1,0 +1,232 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1791979176655,
+  "projectRoot": "D:\\TechB\\fresh market\\Techb_Freshveg\\backend",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": ">=20",
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "express",
+        "version": "4.19.2",
+        "category": "backend"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": "Node.js 20"
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "npm test",
+    "lintCommand": null,
+    "devCommand": "npm run dev",
+    "scripts": {
+      "start": "node src/server.js",
+      "dev": "nodemon src/server.js",
+      "seed": "node src/seed/run.js",
+      "seed:reset": "node src/seed/run.js --reset",
+      "seed:farmers": "node src/seed/farmers.js",
+      "seed:delivery:dev": "node src/seed/delivery.js",
+      "seed:delivery:clean": "node src/seed/delivery.js --clean",
+      "test:delivery:integration": "node --test test/delivery.test.js",
+      "sync-indexes": "node src/seed/syncIndexes.js",
+      "migrate:retire-delivery-fee": "node src/migrations/20261014-retire-delivery-fee.js",
+      "smoke": "node src/seed/smoke.js",
+      "test": "node --test \"test/**/*.test.js\"",
+      "demo": "node src/seed/demoServer.js",
+      "jobs:run": "node -e \"require(\"./src/jobs/scheduler\").trigger(process.argv[1]).then(r=>console.log(r))\""
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": "CommonJS",
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "src",
+      "test"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 1,
+      "lastAccessed": 1791979176531,
+      "keyFiles": [
+        "WHATSAPP.md"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 3,
+      "lastAccessed": 1791979176532,
+      "keyFiles": [
+        "app.js",
+        "build-info.js",
+        "server.js"
+      ]
+    },
+    "test": {
+      "path": "test",
+      "purpose": "Test files",
+      "fileCount": 8,
+      "lastAccessed": 1791979176556,
+      "keyFiles": [
+        "customer.test.js",
+        "delivery.test.js",
+        "deliveryAreas.test.js",
+        "helpers.js",
+        "migrations.test.js"
+      ]
+    },
+    "uploads": {
+      "path": "uploads",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1791979176557,
+      "keyFiles": []
+    },
+    "src\\config": {
+      "path": "src\\config",
+      "purpose": "Configuration files",
+      "fileCount": 2,
+      "lastAccessed": 1791979176560,
+      "keyFiles": [
+        "db.js",
+        "index.js"
+      ]
+    },
+    "src\\middleware": {
+      "path": "src\\middleware",
+      "purpose": "Middleware",
+      "fileCount": 2,
+      "lastAccessed": 1791979176560,
+      "keyFiles": [
+        "auth.js",
+        "errorHandler.js"
+      ]
+    },
+    "src\\migrations": {
+      "path": "src\\migrations",
+      "purpose": "Database migrations",
+      "fileCount": 1,
+      "lastAccessed": 1791979176561,
+      "keyFiles": [
+        "20261014-retire-delivery-fee.js"
+      ]
+    },
+    "src\\routes": {
+      "path": "src\\routes",
+      "purpose": "Route handlers",
+      "fileCount": 1,
+      "lastAccessed": 1791979176561,
+      "keyFiles": [
+        "index.js"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src/modules/settings/settings.routes.js",
+      "accessCount": 3,
+      "lastAccessed": 1791981149690,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/settings/settings.model.js",
+      "accessCount": 2,
+      "lastAccessed": 1792058745806,
+      "type": "file"
+    },
+    {
+      "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/3c0a6666-be05-4692-87fb-0fe046e6278d/scratchpad/sandbox.js",
+      "accessCount": 1,
+      "lastAccessed": 1791979736744,
+      "type": "file"
+    },
+    {
+      "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/3c0a6666-be05-4692-87fb-0fe046e6278d/scratchpad/ro_branding.js",
+      "accessCount": 1,
+      "lastAccessed": 1791980986063,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/settings/branding.js",
+      "accessCount": 1,
+      "lastAccessed": 1791981106737,
+      "type": "file"
+    },
+    {
+      "path": "test/branding.test.js",
+      "accessCount": 1,
+      "lastAccessed": 1791981557353,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/referrals/referral.model.js",
+      "accessCount": 1,
+      "lastAccessed": 1792058747475,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/referrals/coupon.model.js",
+      "accessCount": 1,
+      "lastAccessed": 1792058762406,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/referrals/coupon.service.js",
+      "accessCount": 1,
+      "lastAccessed": 1792058860352,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/referrals/referral.service.js",
+      "accessCount": 1,
+      "lastAccessed": 1792058934999,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/referrals/referral.routes.js",
+      "accessCount": 1,
+      "lastAccessed": 1792059082822,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/referrals/coupon.routes.js",
+      "accessCount": 1,
+      "lastAccessed": 1792059119279,
+      "type": "file"
+    },
+    {
+      "path": "src/migrations/20261015-referral-milestones.js",
+      "accessCount": 1,
+      "lastAccessed": 1792059174118,
+      "type": "file"
+    },
+    {
+      "path": "test/referrals.test.js",
+      "accessCount": 1,
+      "lastAccessed": 1792059270837,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

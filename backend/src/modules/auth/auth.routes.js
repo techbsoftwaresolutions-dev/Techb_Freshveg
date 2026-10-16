@@ -10,6 +10,7 @@ const Otp = require("./otp.model");
 const { issueTokens, verifyRefreshToken } = require("./token.service");
 const { requireAuth } = require("../../middleware/auth");
 const { ROLES, STAFF_ROLES, PERMISSIONS } = require("./roles");
+const referralService = require("../referrals/referral.service");
 
 const router = express.Router();
 
@@ -111,24 +112,45 @@ router.post(
     if (!user) {
       // A delivery partner cannot self-register; the store creates their account.
       if (role === "delivery_partner") {
-        throw ApiError.forbidden("This number is not registered as a delivery partner");
+        throw ApiError.forbidden("This number is not registered as a delivery boy. Ask your store to add you.");
       }
-      user = new User({
-        phone,
-        role,
-        name: req.body.name || "",
-        referralCode: `${phone.slice(-4)}${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
-      });
+      // The referral code is given after the first save (ensureCode): random,
+      // retried on a clash, and not derived from the phone number.
+      user = new User({ phone, role, name: req.body.name || "" });
       isNew = true;
     }
 
-    if (user.status === "blocked") throw ApiError.forbidden("This account has been blocked");
+    if (user.status === "blocked") {
+      // Admin → Delivery Boys calls a switched-off rider "Inactive".
+      throw ApiError.forbidden(
+        role === "delivery_partner"
+          ? "This account is inactive. Ask your store to reactivate it."
+          : "This account has been blocked"
+      );
+    }
 
     user.phoneVerifiedAt = new Date();
     user.lastLoginAt = new Date();
     await user.save();
 
-    res.json({ success: true, isNewUser: isNew, user: publicUser(user), ...issueTokens(user) });
+    // A friend's code carried in from a referral link (or typed at sign-up)
+    // attaches on account creation. Login never fails over it: the outcome
+    // goes back so the client can say what happened.
+    let referral = null;
+    if (role === "customer") {
+      await referralService.ensureCode(user).catch((err) => console.warn("[referral] code:", err.message));
+      const code = String(req.body.referralCode || "").trim();
+      if (code && isNew) {
+        referral = await referralService
+          .claim(user._id, code, { source: req.body.referralSource === "link" ? "link" : "signup" })
+          .then(() => ({ applied: true, message: "Referral code applied" }))
+          .catch((err) => ({ applied: false, message: err.message }));
+      } else if (code) {
+        referral = { applied: false, message: "Referral codes apply to new accounts — use Refer & Earn if you haven't ordered yet" };
+      }
+    }
+
+    res.json({ success: true, isNewUser: isNew, user: publicUser(user), referral, ...issueTokens(user) });
   })
 );
 

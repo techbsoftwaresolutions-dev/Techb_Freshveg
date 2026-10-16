@@ -8,6 +8,8 @@ const Order = require("../orders/order.model");
 const ApiError = require("../../core/ApiError");
 const inventoryService = require("../inventory/inventory.service");
 const { priceCart } = require("../pricing/pricing.service");
+const couponService = require("../referrals/coupon.service");
+const { rulesFrom } = require("../referrals/referral.service");
 
 async function resolveStore(storeId) {
   const store = storeId
@@ -173,7 +175,7 @@ async function hydrate(cart, { includeSaved = false } = {}) {
 
 // The cart as the client should render it: lines, live totals, applied and
 // rejected offers.
-async function summarise(cart, { couponCode, paymentMethod } = {}) {
+async function summarise(cart, { couponCode, paymentMethod, rewardCouponId } = {}) {
   // One hydrate covers both the live lines and the saved-for-later ones, and
   // everything that doesn't depend on another lookup runs in parallel.
   const [store, all, customer, orderCount, settings] = await Promise.all([
@@ -188,6 +190,29 @@ async function summarise(cart, { couponCode, paymentMethod } = {}) {
 
   const sellable = lines.filter((l) => !l.savedForLater && l.inStock);
 
+  // The reward coupon is re-checked on every read: it may have expired, been
+  // used on another order or revoked since it was chosen.
+  let rewardCoupon = null;
+  let rewardBlocked = null;
+  const rewardId = rewardCouponId !== undefined ? rewardCouponId : cart.rewardCoupon;
+  if (rewardId) {
+    const { coupon, reason } = await couponService.usableForCart(rewardId, cart.customer);
+    const rules = rulesFrom(settings);
+    if (reason) {
+      rewardBlocked = { id: String(rewardId), code: coupon?.code || null, title: coupon?.title || "", amount: coupon?.amount || 0, discount: 0, ok: false, reason };
+    } else {
+      rewardCoupon = {
+        id: coupon.id,
+        code: coupon.code,
+        title: coupon.title,
+        amount: coupon.amount,
+        minOrderValue: coupon.minOrderValue,
+        combinable: rules.combinable,
+        excludedCategories: rules.excludedCategories,
+      };
+    }
+  }
+
   const priced = await priceCart({
     lines: sellable,
     store,
@@ -200,12 +225,18 @@ async function summarise(cart, { couponCode, paymentMethod } = {}) {
         }
       : null,
     couponCode: couponCode ?? cart.couponCode ?? null,
+    rewardCoupon,
     paymentMethod,
     // Admin → Settings → Payments can switch wallet / points off at checkout;
     // a cart that asked for them earlier simply stops getting them.
     walletRequested: settings.payment.allowWallet ? cart.walletRequested || 0 : 0,
     loyaltyPointsRequested: settings.payment.allowLoyalty ? cart.loyaltyPointsRequested || 0 : 0,
   });
+
+  if (rewardBlocked) {
+    priced.rewardCoupon = rewardBlocked;
+    if (rewardBlocked.code) priced.offers.rejected.push({ code: rewardBlocked.code, title: rewardBlocked.title, reason: rewardBlocked.reason });
+  }
 
   // Re-attach display fields the pricing service does not care about.
   const byKey = new Map(priced.lines.map((l) => [l.key, l]));
@@ -221,6 +252,7 @@ async function summarise(cart, { couponCode, paymentMethod } = {}) {
     // So checkout can hide a credit the admin has switched off.
     credits: { wallet: settings.payment.allowWallet, loyalty: settings.payment.allowLoyalty },
     couponCode: cart.couponCode || null,
+    rewardCouponId: cart.rewardCoupon ? String(cart.rewardCoupon) : null,
     deliverySlot: cart.deliverySlot,
   };
 }

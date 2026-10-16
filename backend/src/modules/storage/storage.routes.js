@@ -3,6 +3,7 @@ const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
 const { requireAuth, requireAnyPermission, requirePermission } = require("../../middleware/auth");
 const storage = require("./providers");
+const branding = require("../settings/branding");
 
 const router = express.Router();
 
@@ -91,8 +92,9 @@ router.get(
 
 router.post(
   "/",
-  // Staff upload catalogue images; customers upload review photos and proof.
-  requireAnyPermission("catalog.manage", "marketing.manage", "delivery.fulfil", "customers.manage"),
+  // Staff upload catalogue images; customers upload review photos and proof;
+  // admins upload brand images (folder=branding).
+  requireAnyPermission("catalog.manage", "marketing.manage", "delivery.fulfil", "customers.manage", "settings.manage"),
   express.raw({ type: Object.keys(ALLOWED), limit: MAX_BYTES }),
   asyncHandler(async (req, res) => {
     if (!Buffer.isBuffer(req.body) || !req.body.length) {
@@ -110,6 +112,16 @@ router.post(
     // safe. The sniffed bytes are the trustworthy signal, so they decide what
     // gets stored; `declared` above only has to be one of the allowed image
     // types to get this far, which is what stops non-image uploads.
+
+    // Brand images go everywhere and into the app builds: only admins who
+    // can change settings may upload them, and each kind (?kind=customerAppIcon …)
+    // must meet its size and shape before it is stored (settings/branding.js).
+    if (req.query.folder === "branding") {
+      if (!(req.user.permissions || []).includes("settings.manage")) {
+        throw ApiError.forbidden("Missing permission: settings.manage");
+      }
+      branding.checkUpload(req.query.kind, req.body, actual);
+    }
 
     const result = await storage.resolve().save(req.body, actual, req.query.folder);
     res.status(201).json({ success: true, ...result });

@@ -315,10 +315,16 @@ function OrderDetail() {
                   <span className="label">Subtotal</span>
                   <span>{rupees(order.pricing.subtotal)}</span>
                 </div>
-                {order.pricing.offerDiscount > 0 ? (
+                {order.pricing.offerDiscount - (order.pricing.rewardDiscount || 0) > 0 ? (
                   <div className="bill-row save-row">
                     <span className="label">Offers</span>
-                    <span>− {rupees(order.pricing.offerDiscount)}</span>
+                    <span>− {rupees(order.pricing.offerDiscount - (order.pricing.rewardDiscount || 0))}</span>
+                  </div>
+                ) : null}
+                {order.pricing.rewardDiscount > 0 ? (
+                  <div className="bill-row save-row">
+                    <span className="label">Reward coupon{order.rewardCoupon?.code ? ` (${order.rewardCoupon.code})` : ""}</span>
+                    <span>− {rupees(order.pricing.rewardDiscount)}</span>
                   </div>
                 ) : null}
                 <div className="bill-row">

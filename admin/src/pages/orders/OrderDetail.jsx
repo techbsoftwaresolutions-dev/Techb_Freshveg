@@ -240,8 +240,11 @@ export default function OrderDetail() {
                 {order.pricing.catalogueSavings > 0 && (
                   <Row label="Catalogue savings" value={`− ${rupees(order.pricing.catalogueSavings)}`} tone="ok" />
                 )}
-                {order.pricing.offerDiscount > 0 && (
-                  <Row label="Offer discount" value={`− ${rupees(order.pricing.offerDiscount)}`} tone="ok" />
+                {order.pricing.offerDiscount - (order.pricing.rewardDiscount || 0) > 0 && (
+                  <Row label="Offer discount" value={`− ${rupees(order.pricing.offerDiscount - (order.pricing.rewardDiscount || 0))}`} tone="ok" />
+                )}
+                {order.pricing.rewardDiscount > 0 && (
+                  <Row label={`Reward coupon ${order.rewardCoupon?.code || ""}`} value={`− ${rupees(order.pricing.rewardDiscount)}`} tone="ok" />
                 )}
                 <Row
                   label="Delivery"
@@ -328,7 +331,7 @@ export default function OrderDetail() {
               </div>
             ) : (
               <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                No delivery partner assigned yet.
+                No delivery boy assigned yet.
               </p>
             )}
             {order.delivery?.otp && order.status !== "DELIVERED" && (
@@ -339,7 +342,7 @@ export default function OrderDetail() {
                   {order.delivery.otp}
                 </span>
                 <p className="faint" style={{ fontSize: 12, marginBottom: 0 }}>
-                  The customer reads this to the partner at the door.
+                  The customer reads this to the delivery boy at the door.
                 </p>
               </>
             )}
@@ -376,14 +379,14 @@ function nextStepHint(order) {
     case "PACKING":
       return "When the bag is sealed, mark it ready for pickup.";
     case "READY_FOR_PICKUP":
-      return "Assign a delivery partner to take it out.";
+      return "Assign a delivery boy to take it out.";
     case "ASSIGNED_TO_DELIVERY":
-      return `Waiting for ${order.delivery?.partnerName || "the partner"} to collect it from the counter.`;
+      return `Waiting for ${order.delivery?.partnerName || "the delivery boy"} to collect it from the counter.`;
     case "PICKED_UP":
     case "OUT_FOR_DELIVERY":
-      return `${order.delivery?.partnerName || "The partner"} is taking it to the customer.`;
+      return `${order.delivery?.partnerName || "The delivery boy"} is taking it to the customer.`;
     case "ARRIVED":
-      return "The partner is at the door, waiting for the customer's code.";
+      return "The delivery boy is at the door, waiting for the customer's code.";
     default:
       return "";
   }
@@ -515,7 +518,7 @@ function AssignModal({ busy, partners, onClose, onAssign }) {
 
   return (
     <Modal
-      title="Assign delivery partner"
+      title="Assign delivery boy"
       onClose={onClose}
       footer={
         <>
@@ -530,7 +533,7 @@ function AssignModal({ busy, partners, onClose, onAssign }) {
     >
       {partners.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
-          No active delivery partners for this store. Add one under Users first.
+          No active delivery boys for this store. Add one under Delivery Boys first.
         </p>
       ) : (
         <div className="table-wrap">
@@ -538,7 +541,7 @@ function AssignModal({ busy, partners, onClose, onAssign }) {
             <thead>
               <tr>
                 <th style={{ width: 36 }} />
-                <th>Partner</th>
+                <th>Delivery boy</th>
                 <th className="num">Open now</th>
                 <th className="num">Delivered today</th>
               </tr>

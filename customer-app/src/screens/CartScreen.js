@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { colors, radius, rupees, shadow, spacing, type, unitSuffix } from "../theme";
 import { Button, Card, Divider, EmptyState, IconTile, Loading, Notice, Pill } from "../components/ui";
 import QtyStepper from "../components/QtyStepper";
+import CouponPicker from "../components/CouponPicker";
 
 // The website's mobile cart: free-delivery progress, item cards with a soft
 // stepper, offers & coupons, the bill, and a sticky "Proceed to checkout".
@@ -173,7 +174,7 @@ export default function CartScreen({ navigation }) {
                     {offer.discount ? ` — saved ${rupees(offer.discount)}` : ""}
                   </Text>
                   {offer.code ? (
-                    <Pressable onPress={() => cart.removeCoupon().catch(() => {})} hitSlop={8}>
+                    <Pressable onPress={() => cart.removeCoupon(offer.code).catch(() => {})} hitSlop={8}>
                       <Text style={styles.removeLink}>Remove</Text>
                     </Pressable>
                   ) : null}
@@ -199,6 +200,7 @@ export default function CartScreen({ navigation }) {
           ) : null}
 
           {couponError ? <Notice tone="error" style={{ marginTop: spacing.sm }}>{couponError}</Notice> : null}
+          {signedIn ? <CouponPicker onViewAll={() => navigation.navigate("Coupons")} /> : null}
         </Card>
 
         {/* Bill */}
@@ -207,7 +209,10 @@ export default function CartScreen({ navigation }) {
           <View style={{ marginTop: spacing.md, gap: 10 }}>
             <Row label="Item total" value={rupees(summary.mrpTotal)} />
             {summary.catalogueSavings > 0 ? <Row label="Product discount" value={`− ${rupees(summary.catalogueSavings)}`} tone="save" /> : null}
-            {summary.offerDiscount > 0 ? <Row label="Offer discount" value={`− ${rupees(summary.offerDiscount)}`} tone="save" /> : null}
+            {summary.offerDiscount - (summary.rewardDiscount || 0) > 0 ? (
+              <Row label="Offer discount" value={`− ${rupees(summary.offerDiscount - (summary.rewardDiscount || 0))}`} tone="save" />
+            ) : null}
+            {summary.rewardDiscount > 0 ? <Row label="Reward coupon" value={`− ${rupees(summary.rewardDiscount)}`} tone="save" /> : null}
             <Row label="Delivery fee" value={summary.deliveryFree ? "FREE" : rupees(summary.deliveryCharge)} tone={summary.deliveryFree ? "save" : undefined} />
             {summary.packagingCharge > 0 ? <Row label="Packaging" value={rupees(summary.packagingCharge)} /> : null}
             {summary.walletApplied > 0 ? <Row label="Wallet" value={`− ${rupees(summary.walletApplied)}`} tone="save" /> : null}

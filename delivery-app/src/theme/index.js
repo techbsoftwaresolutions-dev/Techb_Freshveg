@@ -1,55 +1,72 @@
-// This app is used one-handed, outdoors, often in sunlight and in a hurry.
-// So: high contrast, large type, big tap targets, and one obvious next action
-// per screen. Blue rather than the storefront's green, because a rider
-// switching between the two apps should never confuse them.
+// The customer app's design tokens (customer-app/src/theme/index.js, itself
+// taken from the website's globals.css), so both apps read as one brand.
+// Change a value there, change it here. The delivery-only tones (success,
+// cash) sit at the end.
 
 export const colors = {
-  bg: "#F4F6FA",
+  bg: "#F6F8F7",
   surface: "#FFFFFF",
-  surfaceAlt: "#EEF1F7",
-  border: "#DDE2EC",
-  borderStrong: "#C7CEDC",
+  surfaceAlt: "#F2F9F3",
+  border: "#E4E8E6",
+  borderStrong: "#CFD6D3",
 
-  text: "#101423",
-  textMuted: "#59617A",
-  textFaint: "#8F97AC",
+  text: "#12261B",
+  textMuted: "#5B6B62",
+  textFaint: "#8C9A92",
 
-  primary: "#2547C8",
-  primaryDark: "#1D3A8A",
-  primarySoft: "#E7ECFC",
+  primary: "#1B7A3A",
+  primaryDark: "#135C2B",
+  primaryDeep: "#0F4A23",
+  primarySoft: "#E8F5EC",
   onPrimary: "#FFFFFF",
 
-  success: "#0E8A4F",
-  successSoft: "#E3F5EC",
-  warn: "#A66A00",
-  warnSoft: "#FDF2DF",
-  danger: "#C62F28",
-  dangerSoft: "#FDEBEA",
-  cash: "#0E7C5A",
-  cashSoft: "#E2F4EE",
+  danger: "#B91C1C",
+  dangerSoft: "#FDECEC",
+  warn: "#B45309",
+  warnSoft: "#FDF3E4",
+
+  success: "#0E7C5A",
+  successSoft: "#E3F4EE",
+  cash: "#B45309",
+  cashSoft: "#FDF3E4",
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
-export const radius = { sm: 8, md: 12, lg: 16, pill: 999 };
+export const radius = { sm: 8, md: 10, lg: 16, pill: 999 };
+
+// Poppins, as in the customer app. Loaded in App.js; components/Text.js picks
+// the file for the weight.
+export const fontFamily = {
+  regular: "Poppins_400Regular",
+  medium: "Poppins_500Medium",
+  semibold: "Poppins_600SemiBold",
+  bold: "Poppins_700Bold",
+  extrabold: "Poppins_800ExtraBold",
+};
 
 export const type = {
-  // A size up from the storefront across the board — this is read at arm's
-  // length, in daylight, while holding a bag.
-  h1: { fontSize: 24, fontWeight: "800", color: colors.text, letterSpacing: -0.4 },
-  h2: { fontSize: 18, fontWeight: "700", color: colors.text },
-  h3: { fontSize: 16, fontWeight: "700", color: colors.text },
-  body: { fontSize: 15, color: colors.text },
-  small: { fontSize: 13.5, color: colors.textMuted },
-  tiny: { fontSize: 12, color: colors.textFaint },
+  h1: { fontSize: 24, fontFamily: fontFamily.bold, color: colors.text, letterSpacing: -0.3 },
+  h2: { fontSize: 17, fontFamily: fontFamily.semibold, color: colors.text },
+  h3: { fontSize: 15, fontFamily: fontFamily.semibold, color: colors.text },
+  body: { fontSize: 14, fontFamily: fontFamily.regular, color: colors.text },
+  small: { fontSize: 13, fontFamily: fontFamily.regular, color: colors.textMuted },
+  tiny: { fontSize: 11.5, fontFamily: fontFamily.regular, color: colors.textFaint },
 };
 
 export const shadow = {
   card: {
-    shadowColor: "#0A0E1A",
-    shadowOpacity: 0.06,
+    shadowColor: "#0A1E14",
+    shadowOpacity: 0.07,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     elevation: 2,
+  },
+  bar: {
+    shadowColor: "#0A1E14",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -2 },
+    elevation: 12,
   },
 };
 
