@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import Select from "../../components/Select";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
@@ -25,7 +26,12 @@ export default function Inventory() {
   const setTab = (key) => setParams(key === "stock" ? {} : { tab: key }, { replace: true });
   const [stores, setStores] = useState([]);
   const [store, setStore] = useState("");
-  const [data, setData] = useState({ items: [], meta: null });
+  // `tab` records which view the rows belong to. Switching tabs renders once
+  // with the previous tab's rows before the new request even starts, and a
+  // stock row is not an expiring row (no `batches`) — drawing one as the other
+  // is what blanked the whole page.
+  const [data, setData] = useState({ items: [], meta: null, tab: null });
+  const requestId = useRef(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,11 +56,17 @@ export default function Inventory() {
       : tab === "movements" ? "/inventory/movements"
       : "/inventory";
 
+    setError("");
+    const mine = ++requestId.current;
     api
       .get(path, { store: store || undefined, page, limit: 20 })
-      .then(setData)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .then((res) => mine === requestId.current && setData({ ...res, items: res.items || [], tab }))
+      .catch((err) => {
+        if (mine !== requestId.current) return;
+        setError(err.message);
+        setData({ items: [], meta: null, tab });
+      })
+      .finally(() => mine === requestId.current && setLoading(false));
   }, [tab, store, page]);
 
   useEffect(() => {
@@ -96,22 +108,22 @@ export default function Inventory() {
           </button>
         ))}
         <span className="spacer" />
-        <select value={store} onChange={(e) => setStore(e.target.value)}>
+        <Select value={store} onChange={(e) => setStore(e.target.value)}>
           {stores.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <Card tight>
-        {loading ? (
+        {loading || data.tab !== tab ? (
           <Loading />
         ) : tab === "movements" ? (
           <MovementTable rows={data.items} />
         ) : tab === "expiring" ? (
-          <ExpiringTable rows={data.items} />
+          <ExpiringTable rows={data.items} days={data.meta?.days} />
         ) : (
           <>
             <Table
@@ -260,9 +272,9 @@ function MovementTable({ rows }) {
   );
 }
 
-function ExpiringTable({ rows }) {
+function ExpiringTable({ rows, days = 3 }) {
   const flat = rows.flatMap((row) =>
-    row.batches.map((batch) => ({ ...batch, product: row.product, variant: row.variant, id: batch.id || batch._id }))
+    (row.batches || []).map((batch) => ({ ...batch, product: row.product, variant: row.variant, id: batch.id || batch._id }))
   );
 
   return (
@@ -295,7 +307,12 @@ function ExpiringTable({ rows }) {
         },
       ]}
       rows={flat}
-      empty={<Empty title="Nothing expiring soon" hint="No batches are within the warning window." />}
+      empty={
+        <Empty
+          title="Nothing expiring soon"
+          hint={`No batches at this store expire within the next ${days} days, and none are already expired.`}
+        />
+      }
     />
   );
 }

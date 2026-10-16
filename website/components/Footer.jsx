@@ -66,7 +66,6 @@ export default function Footer({ categories = [] }) {
 
         <div className="footer-base">
           <span>© {new Date().getFullYear()} Hosur Basket. All rights reserved.</span>
-          <span>Prices include all taxes</span>
         </div>
       </div>
     </footer>

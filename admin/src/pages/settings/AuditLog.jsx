@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import {
@@ -59,7 +60,7 @@ export default function AuditLog() {
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 280 }}
         />
-        <select value={filters.entity} onChange={(e) => set("entity", e.target.value)}>
+        <Select value={filters.entity} onChange={(e) => set("entity", e.target.value)}>
           <option value="">Everything</option>
           <option value="Product">Products</option>
           <option value="Category">Categories</option>
@@ -70,15 +71,15 @@ export default function AuditLog() {
           <option value="Review">Reviews</option>
           <option value="SupportTicket">Support</option>
           <option value="MaintenanceAsset">Maintenance</option>
-        </select>
-        <select value={filters.action} onChange={(e) => set("action", e.target.value)}>
+        </Select>
+        <Select value={filters.action} onChange={(e) => set("action", e.target.value)}>
           <option value="">Any action</option>
           <option value="create">Created</option>
           <option value="update">Updated</option>
           <option value="delete">Deleted</option>
           <option value="refund">Refunded</option>
           <option value="adjust">Adjusted</option>
-        </select>
+        </Select>
         <span className="spacer" />
         <DateRange value={range} onChange={setRange} />
       </div>

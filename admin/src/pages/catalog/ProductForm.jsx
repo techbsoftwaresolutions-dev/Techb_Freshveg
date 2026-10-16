@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
@@ -498,13 +499,13 @@ function StockCard({ productId, variants, editable }) {
       title="Stock"
       actions={
         stores.length > 1 ? (
-          <select value={store} onChange={(e) => setStore(e.target.value)} style={{ fontSize: 12 }}>
+          <Select value={store} onChange={(e) => setStore(e.target.value)} style={{ fontSize: 12 }}>
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
             ))}
-          </select>
+          </Select>
         ) : null
       }
     >
@@ -789,7 +790,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                 {axes.map((axis) => (
                   <td key={axis.code}>
                     {axis.options?.length ? (
-                      <select
+                      <Select
                         value={
                           variant.axis?.[axis.code] ??
                           variant.axisValues?.find((a) => a.code === axis.code)?.value ??
@@ -804,7 +805,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     ) : (
                       <input
                         type="text"

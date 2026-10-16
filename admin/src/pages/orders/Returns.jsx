@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
@@ -390,11 +391,11 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
                     : "Back to the card or UPI it came from, or into the wallet for an instant refund."
                 }
               >
-                <select value={destination} onChange={(e) => setDestination(e.target.value)}>
+                <Select value={destination} onChange={(e) => setDestination(e.target.value)}>
                   {order.payment?.method !== "cod" ? <option value="source">Original payment method</option> : null}
                   <option value="wallet">Store wallet</option>
                   <option value="cash">Cash handed back</option>
-                </select>
+                </Select>
               </Field>
             </div>
           ) : null}

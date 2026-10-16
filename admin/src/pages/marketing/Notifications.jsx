@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
@@ -261,29 +262,29 @@ function TemplateModal({ template, events, channels, onClose, onSaved }) {
           label="Fires on"
           help={isNew ? "The event that triggers it." : "Locked — changing it would disconnect the template from its trigger."}
         >
-          <select
+          <Select
             value={form.event}
             disabled={!isNew}
             onChange={(e) => setForm({ ...form, event: e.target.value })}
           >
             {events.map((event) => <option key={event} value={event}>{event}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <div className="grid cols-3">
         <Field label="Audience">
-          <select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })}>
+          <Select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })}>
             <option value="customer">Customers</option>
             <option value="delivery_partner">Delivery partners</option>
             <option value="admin">Staff</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Kind" help="Marketing can be muted by the customer; transactional cannot.">
-          <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+          <Select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
             <option value="transactional">Transactional</option>
             <option value="marketing">Marketing</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Enabled">
           <label className="checkbox">
@@ -436,13 +437,13 @@ function Broadcast() {
         ) : (
           <>
             <Field label="Template">
-              <select value={event} onChange={(e) => setEvent(e.target.value)}>
+              <Select value={event} onChange={(e) => setEvent(e.target.value)}>
                 {templates.map((t) => <option key={t.event} value={t.event}>{t.name}</option>)}
-              </select>
+              </Select>
             </Field>
 
             <Field label="Who gets it">
-              <select value={audience} onChange={(e) => setAudience(e.target.value)}>
+              <Select value={audience} onChange={(e) => setAudience(e.target.value)}>
                 <option value="all">{AUDIENCE_LABEL.all}</option>
                 <option value="new">{AUDIENCE_LABEL.new}</option>
                 <option value="repeat">{AUDIENCE_LABEL.repeat}</option>
@@ -456,7 +457,7 @@ function Broadcast() {
                     ))}
                   </optgroup>
                 ) : null}
-              </select>
+              </Select>
             </Field>
 
             <Divider style={{ margin: "14px 0" }} />
@@ -581,10 +582,10 @@ function DeliveryLog() {
       <Banner tone="error">{error}</Banner>
 
       <div className="toolbar">
-        <select value={filters.event} onChange={(e) => setFilters({ event: e.target.value, page: 1 })}>
+        <Select value={filters.event} onChange={(e) => setFilters({ event: e.target.value, page: 1 })}>
           <option value="">Every event</option>
           {events.map((event) => <option key={event} value={event}>{event}</option>)}
-        </select>
+        </Select>
         <span className="spacer" />
         <span className="muted" style={{ fontSize: 12.5 }}>
           What was attempted and how it went — read this when someone says they were never told.

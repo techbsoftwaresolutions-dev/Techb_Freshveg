@@ -1,3 +1,4 @@
+import DatePicker from "./DatePicker";
 import { createContext, isValidElement, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Sparkline from "./Sparkline";
@@ -524,14 +525,15 @@ export function Tabs({ tabs, active, onChange }) {
 // From/to pickers with the presets people actually use, so nobody types dates
 // to answer "how did we do this week?".
 export function DateRange({ value, onChange }) {
+  // Local dates, not toISOString() — that is UTC, and before 5:30am IST it
+  // would say "yesterday".
+  const day = (date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   const preset = (days) => {
     const to = new Date();
     const from = new Date();
     from.setDate(from.getDate() - (days - 1));
-    onChange({
-      from: from.toISOString().slice(0, 10),
-      to: to.toISOString().slice(0, 10),
-    });
+    onChange({ from: day(from), to: day(to) });
   };
 
   return (
@@ -539,18 +541,18 @@ export function DateRange({ value, onChange }) {
       <button className="btn sm" onClick={() => preset(1)}>Today</button>
       <button className="btn sm" onClick={() => preset(7)}>7 days</button>
       <button className="btn sm" onClick={() => preset(30)}>30 days</button>
-      <input
-        type="date"
+      <DatePicker
         value={value.from || ""}
-        onChange={(e) => onChange({ ...value, from: e.target.value })}
-        style={{ width: "auto" }}
+        max={value.to || undefined}
+        placeholder="From date"
+        onChange={(from) => onChange({ ...value, from })}
       />
       <span className="faint">to</span>
-      <input
-        type="date"
+      <DatePicker
         value={value.to || ""}
-        onChange={(e) => onChange({ ...value, to: e.target.value })}
-        style={{ width: "auto" }}
+        min={value.from || undefined}
+        placeholder="To date"
+        onChange={(to) => onChange({ ...value, to })}
       />
     </div>
   );

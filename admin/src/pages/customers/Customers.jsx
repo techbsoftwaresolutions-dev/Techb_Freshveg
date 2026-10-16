@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
@@ -16,6 +17,7 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -51,11 +53,11 @@ export default function Customers() {
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 260 }}
         />
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All</option>
           <option value="active">Active</option>
           <option value="blocked">Blocked</option>
-        </select>
+        </Select>
       </div>
 
       <Card tight>
@@ -107,6 +109,20 @@ export default function Customers() {
                     <Pill tone={row.status === "active" ? "ok" : "danger"}>{row.status}</Pill>
                   ),
                 },
+                {
+                  key: "actions",
+                  label: "",
+                  align: "right",
+                  sortable: false,
+                  exportable: false,
+                  render: (row) =>
+                    canManage && (
+                      <div className="row-actions" onClick={(e) => e.stopPropagation()}>
+                        <button className="btn sm" onClick={() => navigate(`/customers/${row.id}/edit`)}>Edit</button>
+                        <button className="btn sm danger" onClick={() => setDeleting(row)}>Delete</button>
+                      </div>
+                    ),
+                },
               ]}
               rows={data.items}
               onRowClick={(row) => navigate(`/customers/${row.id}`)}
@@ -116,6 +132,21 @@ export default function Customers() {
           </>
         )}
       </Card>
+
+      {deleting ? (
+        <DeleteCustomerModal
+          customer={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => {
+            setDeleting(null);
+            load();
+          }}
+          onBlocked={() => {
+            setDeleting(null);
+            load();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -136,10 +167,26 @@ export function CustomerPage() {
   );
 }
 
+// /customers/:id/edit — the edit form as a page, like the other add/edit forms.
+export function CustomerEditPage() {
+  return (
+    <FormRoute
+      backTo="/customers"
+      backLabel="Customers"
+      load={async (id) => (id ? (await api.get(`/customers/${id}`)).customer : null)}
+      render={(customer, back) => (
+        <EditCustomerModal customer={customer} onClose={() => back()} onSaved={() => back("/customers")} />
+      )}
+    />
+  );
+}
+
 function CustomerDrawer({ id, canManage, onClose, onChanged }) {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [tab, setTab] = useState("orders");
   const [adjusting, setAdjusting] = useState(null);
+  const [deletingCustomer, setDeletingCustomer] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
@@ -184,6 +231,9 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
         <div className="inline" style={{ marginBottom: 14, gap: 8 }}>
           <button className="btn sm" onClick={() => setAdjusting("wallet")}>Adjust wallet</button>
           <button className="btn sm" onClick={() => setAdjusting("loyalty")}>Adjust points</button>
+          <span style={{ flex: 1 }} />
+          <button className="btn sm" onClick={() => navigate(`/customers/${id}/edit`)}>Edit customer</button>
+          <button className="btn sm danger" onClick={() => setDeletingCustomer(true)}>Delete</button>
         </div>
       ) : null}
 
@@ -296,6 +346,23 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
         </div>
       ) : null}
 
+      {deletingCustomer ? (
+        <DeleteCustomerModal
+          customer={{ ...customer, orders: stats.orders }}
+          onClose={() => setDeletingCustomer(false)}
+          onDeleted={() => {
+            setDeletingCustomer(false);
+            onChanged();
+            onClose();
+          }}
+          onBlocked={() => {
+            setDeletingCustomer(false);
+            load();
+            onChanged();
+          }}
+        />
+      ) : null}
+
       {adjusting ? (
         <AdjustModal
           kind={adjusting}
@@ -369,6 +436,145 @@ function AdjustModal({ kind, customerId, onClose, onSaved }) {
           placeholder={isWallet ? "Goodwill for a late delivery" : "Correction after a failed redemption"}
         />
       </Field>
+    </Modal>
+  );
+}
+
+function EditCustomerModal({ customer, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    name: customer.name || "",
+    phone: customer.phone || "",
+    email: customer.email || "",
+    status: customer.status || "active",
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const phoneOk = /^\d{10}$/.test(form.phone);
+
+  async function save() {
+    setBusy(true);
+    setError("");
+    try {
+      await api.patch(`/customers/${customer.id}`, form);
+      onSaved();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title="Edit customer"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn primary" disabled={busy || !phoneOk} onClick={save}>
+            {busy ? "Saving…" : "Save changes"}
+          </button>
+        </>
+      }
+    >
+      <Banner tone="error">{error}</Banner>
+      <Field label="Name">
+        <input type="text" autoFocus value={form.name} onChange={set("name")} placeholder="Customer name" />
+      </Field>
+      <div className="grid cols-2">
+        <Field
+          label="Phone"
+          help="10 digits — this is what the customer signs in with."
+          error={form.phone && !phoneOk ? "Enter a 10-digit number" : ""}
+        >
+          <input type="tel" inputMode="numeric" maxLength={10} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))} />
+        </Field>
+        <Field label="Status" help="Blocked customers can't sign in.">
+          <Select value={form.status} onChange={set("status")}>
+            <option value="active">Active</option>
+            <option value="blocked">Blocked</option>
+          </Select>
+        </Field>
+      </div>
+      <Field label="Email">
+        <input type="email" value={form.email} onChange={set("email")} placeholder="name@example.com" />
+      </Field>
+    </Modal>
+  );
+}
+
+function DeleteCustomerModal({ customer, onClose, onDeleted, onBlocked }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [refused, setRefused] = useState(false);
+  const label = customer.name || customer.phone;
+  const hasBalance = customer.walletBalance > 0 || customer.loyaltyPoints > 0;
+
+  async function remove() {
+    setBusy(true);
+    setError("");
+    try {
+      await api.delete(`/customers/${customer.id}`);
+      onDeleted();
+    } catch (err) {
+      setError(err.message);
+      setRefused(err.status === 409 || /can't be deleted/i.test(err.message));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function blockInstead() {
+    setBusy(true);
+    setError("");
+    try {
+      await api.patch(`/customers/${customer.id}`, { status: "blocked" });
+      onBlocked();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title="Delete customer"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose}>Cancel</button>
+          {refused ? (
+            customer.status === "blocked" ? null : (
+              <button className="btn primary" disabled={busy} onClick={blockInstead}>
+                {busy ? "Blocking…" : "Block instead"}
+              </button>
+            )
+          ) : (
+            <button className="btn danger" disabled={busy} onClick={remove}>
+              {busy ? "Deleting…" : "Delete customer"}
+            </button>
+          )}
+        </>
+      }
+    >
+      <Banner tone="error">{error}</Banner>
+      <p style={{ marginTop: 0 }}>
+        Delete <strong>{label}</strong>{customer.name ? ` (${customer.phone})` : ""}? This can't be undone.
+      </p>
+      <p className="muted" style={{ fontSize: 13 }}>
+        Their addresses, cart, wishlist, notifications and wallet and points history are removed with the account.
+        Customers who already have orders, reviews or support tickets can't be deleted — block them instead, which
+        stops sign-ins and keeps the history.
+      </p>
+      {hasBalance ? (
+        <Banner tone="warn">
+          This account still holds {customer.walletBalance > 0 ? rupees(customer.walletBalance) + " in the wallet" : ""}
+          {customer.walletBalance > 0 && customer.loyaltyPoints > 0 ? " and " : ""}
+          {customer.loyaltyPoints > 0 ? `${customer.loyaltyPoints} loyalty points` : ""}. Deleting removes it.
+        </Banner>
+      ) : null}
     </Modal>
   );
 }
