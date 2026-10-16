@@ -15,6 +15,8 @@ export default {
     // are — an ID is permanent once published.
     name: "Farmers Basket Delivery",
     slug: "commerce-delivery-app",
+    // The Expo organization that owns the EAS project and its builds.
+    owner: "techb-software-solutions",
     version: "0.1.0",
     orientation: "portrait",
     userInterfaceStyle: "light",
@@ -40,6 +42,8 @@ export default {
       apiBaseUrl: process.env.API_BASE_URL,
       // Where the legal notices live (Profile → Legal & account).
       siteUrl: process.env.SITE_URL || "https://thefarmersbasket.in",
+      // expo.dev/accounts/techb-software-solutions/projects/commerce-delivery-app
+      eas: { projectId: "c880eb52-db38-4111-a6dc-747ea8423f3f" },
     },
   },
 };

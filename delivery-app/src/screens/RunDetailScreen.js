@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "../components/Text";
 import { api } from "../api/client";
 import { clockTime, colors, formatAddress, rupees, spacing, type } from "../theme";
-import { Button, Card, Divider, EmptyState, Loading, Notice, Pill, callNumber, openMaps } from "../components/ui";
+import { Button, Card, Divider, EmptyState, ItemThumb, Loading, Notice, Pill, callNumber, openMaps } from "../components/ui";
 
 // A finished run, read-only, opened from History: when each step happened,
 // who it went to, what was in the bag, the bill and what was collected.
@@ -165,6 +165,7 @@ export default function RunDetailScreen({ route }) {
               <View key={item.id || item.sku || index}>
                 {index > 0 ? <Divider style={{ marginVertical: spacing.sm }} /> : null}
                 <View style={styles.rowBetween}>
+                  <ItemThumb uri={item.image} />
                   <View style={{ flex: 1, paddingRight: spacing.md }}>
                     <Text style={type.body} numberOfLines={2}>
                       {item.name}

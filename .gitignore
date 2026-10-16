@@ -80,3 +80,5 @@ backend/farmers-admin-login.txt
 # native build) - regenerated from app.config.js, never edited by hand.
 customer-app/android/
 customer-app/ios/
+
+/.omc

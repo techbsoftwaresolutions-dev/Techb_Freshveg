@@ -89,6 +89,12 @@ button { font: inherit; }
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
+/* Pages without the category bar (Header.jsx showsCategoryBar): the header is
+   just the main row, so nothing reserves room for the bar. A 404 inside /c
+   (an unknown slug) is a not-found page too, and drops the bar here. */
+body:has(.no-catbar) { --header-total: 81px; }
+body:has(.not-found-page) .catbar { display: none; }
+@media (max-width: 720px) { body:has(.no-catbar) { --header-total: 120px; } }
 
 /* Standing terms, stated once in the smallest type on the page. */
 .utility {
@@ -598,7 +604,7 @@ a.header-extra { cursor: pointer; }
 }
 @media (max-width: 720px) {
   .cart-toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
-  body:has(.cart-page) .cart-toast { bottom: calc(140px + env(safe-area-inset-bottom)); }
+  body:has(.cart-page) .cart-toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
 }
 .add-btn.block {
   width: 100%;
@@ -2901,48 +2907,53 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .footer h4 { margin-bottom: 10px; }
   .footer-base { flex-direction: column; gap: 4px; margin-top: 24px; }
 
-  /* ---- bottom tab bar */
+  /* ---- bottom tab bar: a floating dock — a rounded pill of round icon
+     buttons. Its footprint (6px gap + 58px pill = 64px) matches what the
+     body padding and the bars stacked above it already reserve. */
   .mobile-nav {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 10px;
+    right: 10px;
+    bottom: calc(6px + env(safe-area-inset-bottom));
     z-index: 60;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    box-shadow: 0 -4px 18px rgba(10, 30, 20, 0.06);
-    padding-bottom: env(safe-area-inset-bottom);
+    height: 58px;
+    padding: 0 4px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.94);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgba(10, 30, 20, 0.14), 0 2px 6px rgba(10, 30, 20, 0.06);
   }
   .mobile-nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    height: 60px;
-    font-size: 10.5px;
+    gap: 1px;
+    font-size: 10px;
     font-weight: 500;
     color: var(--text-muted);
-    position: relative;
   }
   .mobile-nav-item:hover { color: var(--text-muted); }
   .mobile-nav-item.current { color: var(--brand); font-weight: 600; }
-  .mobile-nav-item.current::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    width: 28px;
-    height: 3px;
-    border-radius: 0 0 3px 3px;
-    background: var(--brand);
+  .mobile-nav-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
   }
-  .mobile-nav-icon { position: relative; display: inline-flex; }
+  .mobile-nav-item.current .mobile-nav-icon { background: var(--brand-soft); transform: translateY(-2px) scale(1.08); }
+  .mobile-nav-item:active .mobile-nav-icon { transform: scale(0.88); transition-duration: 0.08s; }
   .mobile-nav-badge {
     position: absolute;
-    top: -6px;
-    right: -10px;
+    top: -3px;
+    right: -6px;
     min-width: 17px;
     height: 17px;
     padding: 0 4px;
@@ -3163,6 +3174,53 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   .review-prompt-backdrop, .review-prompt { animation: none; }
+}
+
+/* ------------------------------------------------------------ confirm dialog */
+/* A native <dialog> opened with showModal() (the cart's "Clear cart"). The
+   dialog element is the full-screen backdrop; the box inside is the card. */
+.confirm-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 16px;
+  border: 0;
+  background: rgba(10, 30, 20, 0.45);
+  place-items: center;
+}
+.confirm-dialog[open] { display: grid; animation: review-fade 0.18s ease-out; }
+.confirm-dialog::backdrop { background: transparent; }
+.confirm-dialog-box {
+  width: min(400px, 100%);
+  padding: 22px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(10, 30, 20, 0.25);
+  animation: review-rise 0.22s ease-out;
+}
+.confirm-dialog h2 { margin: 0 0 6px; font-size: 19px; }
+.confirm-dialog p { margin: 0 0 20px; font-size: 14px; color: var(--text-muted); }
+.confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.danger:hover:not(:disabled) { background: #991b1b; border-color: #991b1b; color: #fff; }
+
+@media (max-width: 720px) {
+  .confirm-dialog { place-items: end stretch; padding: 0; }
+  .confirm-dialog-box {
+    width: 100%;
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .confirm-dialog-actions { flex-direction: column-reverse; }
+  .confirm-dialog-actions .btn { width: 100%; height: 46px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-dialog[open], .confirm-dialog-box, .mobile-nav-icon { animation: none; transition: none; }
 }
 
 /* ------------------------------------------------ browse pages, phone
@@ -3410,7 +3468,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     position: fixed;
     left: 6px;
     right: 6px;
-    bottom: calc(64px + env(safe-area-inset-bottom));
+    bottom: calc(70px + env(safe-area-inset-bottom));
     z-index: 55;
   }
   .cat-delivery:empty { display: none; }
@@ -3843,7 +3901,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 @media (max-width: 720px) {
   /* a calmer page: light background, the site's tab bar and footer out of the
      way (the checkout bar takes the bottom), a compact sticky header */
-  body:has(.cart-page) { background: var(--bg-alt); padding-bottom: calc(156px + env(safe-area-inset-bottom)); }
+  body:has(.cart-page) { background: var(--bg-alt); padding-bottom: calc(166px + env(safe-area-inset-bottom)); }
   body:has(.cart-page) .utility,
   body:has(.cart-page) .catbar,
   body:has(.cart-page) .footer,
@@ -3980,12 +4038,14 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(60px + env(safe-area-inset-bottom)); /* sits on top of the tab bar */
+    /* reaches the screen's bottom edge, so the floating tab bar sits on its
+       white rather than over the page; the bottom padding clears the bar */
+    bottom: 0;
     z-index: 59;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 14px;
+    padding: 10px 14px calc(78px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--border);
     background: #fff;
   }
@@ -4632,8 +4692,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .add-btn:active,
   .top-cat:active,
   .card:active,
-  .why-card:active,
-  .mobile-nav-item:active { transform: scale(0.97); transition: transform 0.08s ease; }
+  .why-card:active { transform: scale(0.97); transition: transform 0.08s ease; }
 
   /* ---- header: one slim promo line, logo + location, search, chips ---- */
   .header { background: #fff; box-shadow: 0 2px 10px rgba(10, 30, 20, 0.05); border-bottom: 0; }
@@ -5139,7 +5198,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   /* The space for the fixed free-delivery bar belongs at the end of the page
      (below the promises box), not under the product grid. */
   .split.cat-layout { padding-bottom: 0; }
-  body:has(.cat-mobile-head) { padding-bottom: calc(64px + 56px + env(safe-area-inset-bottom)); }
+  body:has(.cat-mobile-head) { padding-bottom: calc(70px + 56px + env(safe-area-inset-bottom)); }
 }
 /* ------------------------------------------------ "All products" category panel
    The sidebar on /c: departments as photo rows with their totals, each

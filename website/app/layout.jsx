@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { DM_Serif_Display, Poppins } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-import Header from "@/components/Header";
+import Header, { HeaderPlaceholder } from "@/components/Header";
 import Footer from "@/components/Footer";
 import MobileNav from "@/components/MobileNav";
 import PwaSupport from "@/components/PwaSupport";
@@ -135,7 +135,7 @@ export default async function RootLayout({ children }) {
         <Providers branding={branding}>
           {/* Header reads useSearchParams, which needs a Suspense boundary so
               the rest of the page can still be statically rendered. */}
-          <Suspense fallback={<div style={{ height: "var(--header-total)" }} />}>
+          <Suspense fallback={<HeaderPlaceholder />}>
             <Header categories={categories} />
           </Suspense>
 

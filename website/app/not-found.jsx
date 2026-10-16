@@ -4,7 +4,7 @@ export const metadata = { title: "Page not found" };
 
 export default function NotFound() {
   return (
-    <div className="wrap">
+    <div className="wrap not-found-page">
       <EmptyState
         icon="map"
         title="We couldn't find that page"

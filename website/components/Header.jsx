@@ -80,9 +80,7 @@ export default function Header({ categories = [] }) {
   // On "All products" and category pages the search box filters the listing
   // in place (see ListingSearch) instead of opening the /search page.
   const onListing = pathname === "/c" || pathname.startsWith("/c/");
-  // Information pages (terms, help, policies) are for reading, not shopping —
-  // no category bar under the header there.
-  const onInfoPage = INFO_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
+  const showCatbar = showsCategoryBar(pathname);
   const tellListing = (value) => window.dispatchEvent(new CustomEvent("listing-search", { detail: value }));
 
   const submit = (event) => {
@@ -93,7 +91,7 @@ export default function Header({ categories = [] }) {
   };
 
   return (
-    <header className="header">
+    <header className={showCatbar ? "header" : "header no-catbar"}>
       <div className="wrap header-main">
         {/* Phone, on the cart page only (see globals.css): all categories. */}
         <Link href="/c" className="header-burger" aria-label="All categories">
@@ -204,7 +202,7 @@ export default function Header({ categories = [] }) {
         </div>
       </div>
 
-      {onInfoPage ? null : (
+      {showCatbar ? (
       <nav className="catbar" aria-label="Categories" ref={catbarRef}>
         <div className="wrap catbar-inner">
           <Link href="/c" className="catbar-all">
@@ -282,13 +280,26 @@ export default function Header({ categories = [] }) {
           </Link>
         </div>
       </nav>
-      )}
+      ) : null}
     </header>
   );
 }
 
-// Pages that show the header without the category bar.
-const INFO_PAGES = ["/terms", "/help", "/privacy", "/refund-policy", "/shipping-policy", "/about"];
+// The category bar is for browsing: Home and the category listings only —
+// /c and /c/<slug> (departments and their aisles share that one route).
+// Everywhere else (cart, account, policies, product pages, 404s…) it is left
+// out. The query string never counts: usePathname doesn't include it.
+export function showsCategoryBar(pathname) {
+  const path = (pathname || "/").replace(/\/+$/, "") || "/";
+  return path === "/" || path === "/c" || /^\/c\/[^/]+$/.test(path);
+}
+
+// What layout.jsx shows while the header streams in: the header's height, with
+// or without the bar, so the page doesn't jump when it arrives.
+export function HeaderPlaceholder() {
+  const pathname = usePathname();
+  return <div className={showsCategoryBar(pathname) ? undefined : "no-catbar"} style={{ height: "var(--header-total)" }} />;
+}
 
 // The search box's placeholder types itself out, one product at a time
 // ("Search for "Tomatoes"", erased, then "Search for "Fresh milk""…), while the

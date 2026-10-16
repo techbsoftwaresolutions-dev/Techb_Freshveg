@@ -292,19 +292,23 @@ function BannerStrip({ banners, copy, navigation }) {
   const { width: windowWidth } = useWindowDimensions();
   const width = Math.max(windowWidth - spacing.lg * 2, 0);
   // Height follows the width (a 343 x 160 card on a phone), within limits so it
-  // is never a thin strip on a wide screen. Words may make it taller.
-  const minHeight = Math.round(Math.min(Math.max(width / 2.15, 150), 280));
+  // is never a thin strip on a wide screen; with words, at least enough for
+  // three lines and the button. A fixed height, and fixed photo sizes, not a
+  // minimum with a 100% photo: on iOS the bundled photo's own 768pt height
+  // then set the card's height, filling the whole screen.
+  const height = Math.max(Math.round(Math.min(Math.max(width / 2.15, 150), 280)), copy.text ? 170 : 0);
+  const fill = [styles.bannerFill, { width, height }];
   const words = copy.text ? (
     <>
       <HeroShade fromLeft />
       <HeroShade style={styles.bannerShade} />
       <View style={styles.bannerCopy}>
-        <Text style={styles.bannerText} numberOfLines={3}>
+        <Text style={styles.bannerText} numberOfLines={3} maxFontSizeMultiplier={1.3}>
           {copy.text}
         </Text>
         {copy.ctaLabel ? (
           <View style={styles.bannerCta}>
-            <Text style={styles.bannerCtaText}>{copy.ctaLabel}</Text>
+            <Text style={styles.bannerCtaText} maxFontSizeMultiplier={1.3}>{copy.ctaLabel}</Text>
             <Ionicons name="chevron-forward" size={15} color={colors.primaryDark} />
           </View>
         ) : null}
@@ -320,8 +324,8 @@ function BannerStrip({ banners, copy, navigation }) {
         accessibilityRole="link"
         accessibilityLabel={copy.text || "Basket of farm-fresh vegetables. Shop all categories"}
       >
-        <View style={[styles.bannerFrame, { width, minHeight }]}>
-          <Image source={require("../../assets/hero.webp")} style={styles.bannerFill} resizeMode="cover" />
+        <View style={[styles.bannerFrame, { width, height }]}>
+          <Image source={require("../../assets/hero.webp")} style={fill} resizeMode="cover" />
           {words}
         </View>
       </Pressable>
@@ -343,8 +347,8 @@ function BannerStrip({ banners, copy, navigation }) {
           accessibilityRole={banner.target?.kind && banner.target.kind !== "none" ? "link" : "image"}
           accessibilityLabel={copy.text || banner.title || "Offer banner"}
         >
-          <View style={[styles.bannerFrame, { width, minHeight, backgroundColor: banner.backgroundColor || colors.surfaceAlt }]}>
-            <Image source={{ uri: banner.mobileImage || banner.image }} style={styles.bannerFill} resizeMode="cover" />
+          <View style={[styles.bannerFrame, { width, height, backgroundColor: banner.backgroundColor || colors.surfaceAlt }]}>
+            <Image source={{ uri: banner.mobileImage || banner.image }} style={fill} resizeMode="cover" />
             {words}
           </View>
         </Pressable>
@@ -420,7 +424,8 @@ const styles = StyleSheet.create({
 
   // Taller once it carries words, so they never crowd the photo.
   bannerFrame: { borderRadius: radius.lg, overflow: "hidden", justifyContent: "flex-end" },
-  bannerFill: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  // Sized in numbers by BannerStrip (see there).
+  bannerFill: { position: "absolute", top: 0, left: 0 },
   bannerShade: { top: "20%" },
   bannerCopy: { padding: spacing.md, paddingTop: 48, gap: spacing.sm, alignItems: "flex-start" },
   bannerText: {

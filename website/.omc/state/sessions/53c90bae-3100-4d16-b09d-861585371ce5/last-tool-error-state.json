@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"/d/TechB/fresh market/Techb_Freshveg/website/.next\\\" && find . -iname '*sitemap*' -not -path './cache/*' | head; b=$(find . -name 'sitemap.xml.body' | head -1); [ -n \\\"$b\\\" ] && { ech...",
+  "error": "Exit code 1",
+  "timestamp": "2026-10-16T08:01:47.143Z",
+  "retry_count": 1
+}

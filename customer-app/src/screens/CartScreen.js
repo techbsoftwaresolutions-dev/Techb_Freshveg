@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Image, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, TextInput } from "../components/Text";
 import { useCart } from "../context/CartContext";
@@ -8,6 +8,7 @@ import { colors, radius, rupees, shadow, spacing, type, unitSuffix } from "../th
 import { Button, Card, Divider, EmptyState, IconTile, Loading, Notice, Pill } from "../components/ui";
 import QtyStepper from "../components/QtyStepper";
 import CouponPicker from "../components/CouponPicker";
+import FreeDeliveryProgress from "../components/FreeDeliveryProgress";
 
 // The website's mobile cart: free-delivery progress, item cards with a soft
 // stepper, offers & coupons, the bill, and a sticky "Proceed to checkout".
@@ -18,6 +19,7 @@ export default function CartScreen({ navigation }) {
   const [couponError, setCouponError] = useState("");
   const [applying, setApplying] = useState(false);
   const [couponOpen, setCouponOpen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const summary = cart.summary;
 
@@ -49,16 +51,13 @@ export default function CartScreen({ navigation }) {
     }
   }
 
-  const clearCart = () =>
-    Alert.alert("Clear your cart?", "Every item will be removed.", [
-      { text: "Keep items", style: "cancel" },
-      { text: "Clear cart", style: "destructive", onPress: () => cart.clear().catch(() => {}) },
-    ]);
+  // An in-app modal rather than Alert.alert, which does nothing on Expo web.
+  const clearCart = () => {
+    setConfirmClear(false);
+    cart.clear().catch(() => {});
+  };
 
   const itemCount = cart.items.length;
-  const threshold = summary?.freeDeliveryThreshold || 0;
-  const toGo = summary?.amountToFreeDelivery || 0;
-  const progress = threshold ? Math.min(1, Math.max(0, (threshold - toGo) / threshold)) : 1;
   const couponApplied = cart.offers.applied.some((o) => o.code);
 
   return (
@@ -68,31 +67,13 @@ export default function CartScreen({ navigation }) {
           <Text style={type.small}>
             {itemCount} item{itemCount === 1 ? "" : "s"}
           </Text>
-          <Pressable onPress={clearCart} style={styles.clear} hitSlop={8} accessibilityRole="button">
+          <Pressable onPress={() => setConfirmClear(true)} style={styles.clear} hitSlop={8} accessibilityRole="button">
             <Ionicons name="trash-outline" size={16} color={colors.primaryDark} />
             <Text style={styles.clearText}>Clear Cart</Text>
           </Pressable>
         </View>
 
-        {/* Free delivery progress — the website's strip. */}
-        {threshold > 0 ? (
-          <View style={styles.freeBar}>
-            <View style={styles.freeRow}>
-              <Ionicons name="bus-outline" size={18} color={colors.primary} />
-              <Text style={styles.freeText} numberOfLines={1}>
-                {toGo > 0 ? `${rupees(toGo)} to go for FREE DELIVERY` : "FREE DELIVERY unlocked"}
-              </Text>
-              {toGo > 0 ? (
-                <Text style={type.tiny}>
-                  {rupees(threshold - toGo)} / {rupees(threshold)}
-                </Text>
-              ) : null}
-            </View>
-            <View style={styles.track}>
-              <View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
-            </View>
-          </View>
-        ) : null}
+        <FreeDeliveryProgress />
 
         {cart.unavailable.length ? (
           <Notice tone="error">
@@ -250,6 +231,24 @@ export default function CartScreen({ navigation }) {
           style={{ minWidth: 200 }}
         />
       </View>
+
+      {/* Back button (Android) and a tap on the dimmed backdrop both cancel. */}
+      <Modal visible={confirmClear} transparent animationType="fade" onRequestClose={() => setConfirmClear(false)}>
+        <Pressable style={styles.confirmBackdrop} onPress={() => setConfirmClear(false)} accessibilityLabel="Cancel">
+          <Pressable style={styles.confirmBox} onPress={() => {}} accessibilityViewIsModal>
+            <Text style={styles.confirmTitle} accessibilityRole="header">
+              Clear your cart?
+            </Text>
+            <Text style={styles.confirmText}>
+              {itemCount === 1 ? "The item" : `All ${itemCount} items`} will be removed from your cart.
+            </Text>
+            <View style={styles.confirmActions}>
+              <Button title="Cancel" variant="outline" onPress={() => setConfirmClear(false)} style={{ flex: 1 }} />
+              <Button title="Clear cart" variant="danger" onPress={clearCart} style={{ flex: 1 }} />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -268,22 +267,16 @@ function Row({ label, value, tone, bold }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
 
+  confirmBackdrop: { flex: 1, justifyContent: "center", padding: spacing.lg, backgroundColor: "rgba(10, 30, 20, 0.45)" },
+  confirmBox: { width: "100%", maxWidth: 400, alignSelf: "center", padding: 22, borderRadius: 16, backgroundColor: colors.surface, ...shadow.card },
+  confirmTitle: { fontSize: 19, fontWeight: "700", color: colors.text, marginBottom: 6 },
+  confirmText: { fontSize: 14, color: colors.textMuted, marginBottom: 20 },
+  confirmActions: { flexDirection: "row", gap: 10 },
+
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   clear: { flexDirection: "row", alignItems: "center", gap: 4 },
   clearText: { color: colors.primaryDark, fontSize: 13.5, fontWeight: "600" },
 
-  freeBar: {
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.primarySoft,
-    borderRadius: 12,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  freeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  freeText: { flex: 1, fontSize: 13, fontWeight: "600", color: colors.primaryDark },
-  track: { height: 6, borderRadius: 3, backgroundColor: colors.primarySoft, overflow: "hidden" },
-  trackFill: { height: "100%", borderRadius: 3, backgroundColor: colors.primary },
 
   line: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md },
   thumb: {

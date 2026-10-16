@@ -10,7 +10,7 @@ import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
 
 export function Button({ title, onPress, variant = "primary", size = "md", disabled, loading, style, icon }) {
   const isPrimary = variant === "primary";
-  const tint = isPrimary ? colors.onPrimary : colors.primaryDark;
+  const tint = isPrimary || variant === "danger" ? colors.onPrimary : colors.primaryDark;
 
   return (
     <Pressable
@@ -22,6 +22,7 @@ export function Button({ title, onPress, variant = "primary", size = "md", disab
         variant === "outline" && styles.buttonOutline,
         variant === "soft" && styles.buttonSoft,
         variant === "ghost" && styles.buttonGhost,
+        variant === "danger" && { backgroundColor: colors.danger },
         (disabled || loading) && styles.buttonDisabled,
         pressed && !disabled && !loading && (isPrimary ? { backgroundColor: colors.primaryDark } : { opacity: 0.8 }),
         style,

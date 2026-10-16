@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"/d/TechB/fresh market/Techb_Freshveg/delivery-app\\\"; (eas --version || npx --no-install eas --version) 2>&1 | tail -1; (eas whoami 2>&1 || true) | tail -2; cat ../.gitignore 2>/dev/nu...",
+  "error": "Exit code 1\neas-cli/25.0.0 win32-x64 node-v25.9.0\n• harleyd7 (Role: Owner)\n• techb-software-solutions (Role: Owner)\n8:dist/\n24:dist/\n56:dist/\n73:# commit them. The .env.example templates are the shareable versions.\n74:.env\n75:.env.*\n76:*.env\n77:!.env.example\n# Where the commerce API lives.\n#\n# A rider's phone is never on your dev machine, so on a real device this has to\n# be a reachable host — your LAN IP in development, e.g.\n# API_BASE_URL=…\nAPI_BASE_URL=…\n6:// localhost only works on a simulat...",
+  "timestamp": "2026-10-16T12:25:53.496Z",
+  "retry_count": 1
+}

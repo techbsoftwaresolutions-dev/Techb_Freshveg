@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__preview_stop",
+  "tool_input_preview": "{\"serverId\":\"preview-local_edba1569-9f30-4919-bedc-d4bf14bcb578\"}",
+  "error": "preview_stop takes a process id from preview_list, not the session previewId.",
+  "timestamp": "2026-10-16T11:39:02.430Z",
+  "retry_count": 1
+}

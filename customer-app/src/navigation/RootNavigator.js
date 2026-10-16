@@ -1,5 +1,5 @@
-import React from "react";
-import { Dimensions, Pressable, StyleSheet, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Animated, Dimensions, Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "../components/Text";
 import { NavigationContainer } from "@react-navigation/native";
@@ -38,9 +38,9 @@ import DeleteAccountScreen from "../screens/DeleteAccountScreen";
 const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// The website's mobile bottom bar: line icons, green when active, with a short
-// green bar over the active tab. Ionicons ship with Expo, so this works in
-// Expo Go and in builds alike.
+// The website's mobile bottom bar, a floating dock: line icons in round
+// buttons, the active one green on a soft-green circle that springs up a
+// little. Ionicons ship with Expo, so this works in Expo Go and in builds alike.
 const TAB_ICONS = {
   HomeTab: "home-outline",
   CategoriesTab: "grid-outline",
@@ -109,20 +109,32 @@ const TABS = [
   ["AccountTab", "Account", tabStack("Account", "My account", AccountScreen)],
 ];
 
-function TabIcon({ route, focused, color }) {
+// The tab bar draws every icon twice (an active and an inactive copy, swapped
+// by opacity), so `focused` is fixed per copy; `active` is the tab's real state
+// and drives the spring.
+function TabIcon({ route, active, color }) {
   const { count } = useCart();
   const showBadge = route.name === "CartTab" && count > 0;
+  const lift = useRef(new Animated.Value(active ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(lift, { toValue: active ? 1 : 0, friction: 5, tension: 160, useNativeDriver: Platform.OS !== "web" }).start();
+  }, [active, lift]);
+
+  const transform = [
+    { translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) },
+    { scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) },
+  ];
 
   return (
-    <View style={styles.tabIcon}>
-      {focused ? <View style={styles.activeBar} /> : null}
-      <Ionicons name={TAB_ICONS[route.name]} size={23} color={color} />
+    <Animated.View style={[styles.tabIcon, active && styles.tabIconActive, { transform }]}>
+      <Ionicons name={TAB_ICONS[route.name]} size={22} color={color} />
       {showBadge ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{count > 99 ? "99+" : Math.round(count)}</Text>
         </View>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -137,9 +149,10 @@ function MainTabs() {
     <Tabs.Navigator
       // Back from a tab goes to the tab you came from, not always Home.
       backBehavior="history"
-      screenOptions={({ route }) => ({
+      screenOptions={({ route, navigation }) => ({
         headerShown: false,
-        tabBarIcon: ({ focused, color }) => <TabIcon route={route} focused={focused} color={color} />,
+        tabBarIcon: ({ color }) => <TabIcon route={route} active={navigation.isFocused()} color={color} />,
+        tabBarIconStyle: styles.tabIconSlot,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: [styles.tabBar, { marginBottom: Math.max(bottom, 10) }],
@@ -198,9 +211,9 @@ export default function RootNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 68,
-    paddingTop: 6,
-    paddingBottom: 6,
+    height: 72,
+    paddingTop: 4,
+    paddingBottom: 4,
     marginHorizontal: 10,
     borderRadius: 24,
     borderWidth: 1,
@@ -221,14 +234,16 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
     marginTop: 2,
   },
-  tabItem: { paddingHorizontal: 0 },
+  // No vertical padding: the round icon (36) and the label need the full height.
+  tabItem: { paddingHorizontal: 0, paddingVertical: 0 },
 
-  tabIcon: { width: 40, height: 26, alignItems: "center", justifyContent: "center" },
-  activeBar: { position: "absolute", top: -7, width: 28, height: 3, borderRadius: 2, backgroundColor: colors.primary },
+  tabIconSlot: { width: 40, height: 36 },
+  tabIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  tabIconActive: { backgroundColor: colors.primarySoft },
   badge: {
     position: "absolute",
-    top: -5,
-    right: 0,
+    top: -4,
+    right: -6,
     minWidth: 19,
     height: 19,
     borderRadius: 10,

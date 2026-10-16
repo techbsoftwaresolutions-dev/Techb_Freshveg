@@ -1,5 +1,5 @@
-import React from "react";
-import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Image, Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
@@ -174,6 +174,22 @@ export function Divider({ style }) {
   return <View style={[styles.divider, style]} />;
 }
 
+// An order line's product photo, so a rider can match the bag by eye. No
+// photo (or one that fails to load) keeps the same square with a bag icon,
+// so the rows still line up.
+export function ItemThumb({ uri }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <View style={styles.thumb}>
+      {uri && !failed ? (
+        <Image source={{ uri }} style={styles.thumbImage} resizeMode="cover" onError={() => setFailed(true)} />
+      ) : (
+        <Ionicons name="basket-outline" size={22} color={colors.textFaint} />
+      )}
+    </View>
+  );
+}
+
 // Opens the platform's maps app. Coordinates win when the address has them —
 // a pin is unambiguous where a written address in a small town often is not.
 export function openMaps({ coordinates, address }) {
@@ -259,4 +275,16 @@ const styles = StyleSheet.create({
   iconTile: { alignItems: "center", justifyContent: "center" },
 
   divider: { height: 1, backgroundColor: colors.border },
+  thumb: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  thumbImage: { width: "100%", height: "100%" },
 });

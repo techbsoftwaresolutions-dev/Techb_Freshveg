@@ -1,0 +1,7 @@
+{
+  "tool_name": "PowerShell",
+  "tool_input_preview": "{\"command\":\"$src = \\\"D:\\\\TechB\\\\fresh market\\\\Techb_Freshveg\\\\website\\\"; $dst = \\\"D:\\\\TechB\\\\_site_check_7d65\\\"; robocopy $src $dst /E /XD node_modules .next .omc /NFL /NDL /NJH /NJS | Out-Null; New-I...",
+  "error": "Exit code 1\napp\r\nassets\r\ncomponents\r\ncontent\r\nlib\r\nnode_modules\r\npublic\r\n.env.example\r\n.env.local\r\njsconfig.json\r\nnext.config.mjs\r\npackage-lock.json\r\npackage.json\r\nserver.js\r\n\r\nDone.\r\n\r\n\r\n[demo] API on http://localhost:5077/api/v1\r\n[demo] health: http://localhost:5077/api/health\r\n[demo] in-memory database â€” everything is discarded on exit.",
+  "timestamp": "2026-10-16T11:30:16.861Z",
+  "retry_count": 1
+}

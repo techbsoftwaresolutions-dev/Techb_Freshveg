@@ -8,6 +8,7 @@ import { useStore } from "../context/StoreContext";
 import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
 import { EmptyState, Loading, Notice } from "../components/ui";
 import ProductCard from "../components/ProductCard";
+import FreeDeliveryProgress from "../components/FreeDeliveryProgress";
 
 const SORTS = [
   { key: "", label: "Relevance" },
@@ -329,6 +330,10 @@ export default function ProductListScreen({ route, navigation }) {
           )}
         </View>
       </View>
+
+      {/* The website's floating free-delivery bar on category pages. The tab
+          bar takes its own space, so this simply ends the screen above it. */}
+      <FreeDeliveryProgress variant="bar" />
     </View>
   );
 }

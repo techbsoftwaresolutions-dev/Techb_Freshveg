@@ -6,7 +6,7 @@ import { Text, TextInput } from "../components/Text";
 import { api } from "../api/client";
 import { colors, formatAddress, radius, rupees, shadow, spacing, type } from "../theme";
 import {
-  Button, Card, Divider, EmptyState, IconTile, Loading, Notice,
+  Button, Card, Divider, EmptyState, IconTile, ItemThumb, Loading, Notice,
   callNumber, openMaps,
 } from "../components/ui";
 
@@ -218,6 +218,7 @@ export default function DeliveryScreen({ route, navigation }) {
               <View key={item.id || item.sku}>
                 {index > 0 ? <Divider style={{ marginVertical: spacing.sm }} /> : null}
                 <View style={styles.itemRow}>
+                  <ItemThumb uri={item.image} />
                   <Text style={[type.body, { flex: 1 }]} numberOfLines={2}>
                     {item.name}
                     {item.variantName ? ` · ${item.variantName}` : ""}
