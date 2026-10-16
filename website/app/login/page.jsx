@@ -89,11 +89,7 @@ function LoginForm() {
         <div className="auth-head">
           <img src="/logo-mark.png" alt="Hosur Basket" className="auth-logo" width="92" height="76" />
           <h1>{step === "phone" ? "Welcome to Hosur Basket" : "Enter your code"}</h1>
-          <p>
-            {step === "phone"
-              ? "Sign in or create an account with your mobile number. No password to remember."
-              : `We sent a 6-digit code to +91 ${phone}.`}
-          </p>
+          {step === "phone" ? null : <p>{`We sent a 6-digit code to +91 ${phone}.`}</p>}
         </div>
 
         {error ? <p className="notice error">{error}</p> : null}
@@ -119,19 +115,12 @@ function LoginForm() {
             <button className="btn primary block lg" disabled={phone.length !== 10 || busy}>
               {busy ? "Sending…" : "Continue"}
             </button>
-            <p className="auth-fine">
-              By continuing you agree to receive a one-time code by SMS on this number.
-            </p>
           </form>
         ) : (
           <form onSubmit={verify}>
             <button type="button" className="link-btn auth-change" onClick={() => setStep("phone")}>
               ← Change number
             </button>
-
-            {devCode ? (
-              <p className="notice info">Development mode — your code is {devCode}</p>
-            ) : null}
 
             <div className="field">
               <label htmlFor="code">One-time code</label>
