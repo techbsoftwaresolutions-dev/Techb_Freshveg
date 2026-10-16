@@ -4705,3 +4705,31 @@ body:has(.cart-page) .logo-img { height: 32px; }
 @media (max-width: 720px) {
   .crumbs { display: none; }
 }
+
+/* Footer social icons — display only (not links). */
+.footer-social { display: flex; gap: 10px; margin-top: 16px; }
+.footer-social-icon {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: default;
+}
+
+/* Footer social icons: react to the cursor with each network's colour. */
+.footer-social-icon {
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.footer-social-icon:hover {
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+.footer-social-icon[aria-label="Facebook"]:hover { background: #1877f2; }
+.footer-social-icon[aria-label="Instagram"]:hover {
+  background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285aeb 90%);
+}
+.footer-social-icon[aria-label="YouTube"]:hover { background: #ff0000; }
+@media (prefers-reduced-motion: reduce) {
+  .footer-social-icon, .footer-social-icon:hover { transition: none; transform: none; }
+}
