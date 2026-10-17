@@ -91,7 +91,11 @@ const orderSchema = new mongoose.Schema(
       mrpTotal: money(0),
       subtotal: money(0),
       catalogueSavings: money(0),
-      offerDiscount: money(0),
+      offerDiscount: money(0), // includes rewardDiscount
+      rewardDiscount: money(0),
+      // Merchandise after offers, before charges, credits and reward coupons
+      // — what a referral purchase is measured on.
+      qualifyingAmount: money(0),
       deliveryCharge: money(0),
       deliveryFree: Boolean,
       packagingCharge: money(0),
@@ -130,10 +134,17 @@ const orderSchema = new mongoose.Schema(
       default: [],
     },
 
+    // The reward coupon spent on this order, and what it took off.
+    rewardCoupon: {
+      coupon: objectId("Coupon"),
+      code: String,
+      discount: money(0),
+    },
+
     payment: {
       method: {
         type: String,
-        enum: ["cod", "upi", "card", "netbanking", "wallet", "paylater", "store_credit"],
+        enum: ["cod", "upi", "online", "card", "netbanking", "wallet", "paylater", "store_credit"],
         default: "cod",
       },
       status: {
@@ -167,6 +178,16 @@ const orderSchema = new mongoose.Schema(
           type: { type: String, enum: ["Point"], default: "Point" },
           coordinates: { type: [Number], default: undefined },
         },
+      },
+      // The delivery area (Admin → Delivery Areas) the order went to — the id
+      // to find it, the rest as it was at checkout, so renaming or removing
+      // the area later does not rewrite this order.
+      area: {
+        id: objectId("DeliveryArea", { index: true }),
+        name: String,
+        city: String,
+        state: String,
+        pincode: String,
       },
       slot: {
         date: Date,

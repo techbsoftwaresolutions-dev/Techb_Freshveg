@@ -1,28 +1,53 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { api, loadSession, saveSession } from "@/lib/client-api";
+import { api, loadSession, saveSession, captureReferral, pendingReferral, clearReferral } from "@/lib/client-api";
+import { brandImages } from "@/lib/brand";
 
 const AuthContext = createContext(null);
 const CartContext = createContext(null);
 const StoreContext = createContext(null);
 const WishlistContext = createContext(null);
+const BrandingContext = createContext(brandImages(null));
 
 const PINCODE_KEY = "commerce.web.pincode";
-// The place name the shopper picked for that pincode ("Sarjapura").
+// The place name the shopper picked for that pincode ("Sarjapura"), and the
+// delivery area's id (Admin → Delivery Areas), which checkout sends with the order.
 const AREA_KEY = "commerce.web.area";
+const AREA_ID_KEY = "commerce.web.areaId";
 
-export function Providers({ children }) {
+const remember = (pairs) => {
+  try {
+    for (const [key, value] of pairs) {
+      if (value) localStorage.setItem(key, value);
+      else localStorage.removeItem(key);
+    }
+  } catch {
+    // Not fatal — they will be asked again next visit.
+  }
+};
+
+// `branding` is settings.branding, fetched by the root layout.
+export function Providers({ children, branding }) {
+  const brand = useMemo(() => brandImages(branding), [branding]);
+
   // --- store / delivery location ---------------------------------------
   const [store, setStore] = useState(null);
   const [pincode, setPincodeState] = useState(null);
   const [area, setArea] = useState("");
+  const [areaId, setAreaId] = useState("");
+  // Shown in the location picker when a saved area has been switched off.
+  const [locationNotice, setLocationNotice] = useState("");
   const [storeReady, setStoreReady] = useState(false);
 
   useEffect(() => {
     let saved = null;
+    let savedArea = "";
+    let savedAreaId = "";
     try {
       saved = localStorage.getItem(PINCODE_KEY);
+      savedArea = localStorage.getItem(AREA_KEY) || "";
+      savedAreaId = localStorage.getItem(AREA_ID_KEY) || "";
     } catch {
       saved = null;
     }
@@ -30,20 +55,26 @@ export function Providers({ children }) {
     (async () => {
       if (saved) {
         try {
-          const data = await api.get("/storefront/serviceability", { pincode: saved });
+          // Re-checked every visit: the shop may have stopped delivering
+          // there since this shopper picked it.
+          const data = await api.get("/storefront/serviceability", { pincode: saved, area: savedAreaId || undefined });
           if (data.serviceable) {
+            // Picked before areas had ids: matched by the saved name.
+            const picked =
+              data.deliveryAreas?.find((a) => a.id === savedAreaId) ||
+              data.deliveryAreas?.find((a) => a.name === savedArea) ||
+              data.deliveryAreas?.[0];
             setPincodeState(saved);
-            let savedArea = "";
-            try {
-              savedArea = localStorage.getItem(AREA_KEY) || "";
-            } catch {
-              savedArea = "";
-            }
-            setArea(savedArea || data.areas?.[0] || "");
+            setArea(picked?.name || savedArea || data.areas?.[0] || "");
+            setAreaId(picked?.id || "");
             setStore({ ...data.store, ...data });
             setStoreReady(true);
             return;
           }
+          remember([[PINCODE_KEY, ""], [AREA_KEY, ""], [AREA_ID_KEY, ""]]);
+          setLocationNotice(
+            `We no longer deliver to ${savedArea || saved}. Please choose another location.`
+          );
         } catch {
           // fall through to the default store
         }
@@ -61,19 +92,19 @@ export function Providers({ children }) {
 
   // areaName: the place picked from the list; a typed pincode takes the
   // first place the shop has named for it.
-  const setPincode = useCallback(async (code, areaName) => {
+  // pickedAreaId: the delivery area chosen from the list (else the first the
+  // shop has for that pincode).
+  const setPincode = useCallback(async (code, areaName, pickedAreaId) => {
     const data = await api.get("/storefront/serviceability", { pincode: code });
     if (data.serviceable) {
-      const name = areaName || data.areas?.[0] || "";
+      const picked = data.deliveryAreas?.find((a) => a.id === pickedAreaId) || data.deliveryAreas?.[0];
+      const name = areaName || picked?.name || data.areas?.[0] || "";
       setPincodeState(code);
       setArea(name);
+      setAreaId(picked?.id || "");
+      setLocationNotice("");
       setStore({ ...data.store, ...data });
-      try {
-        localStorage.setItem(PINCODE_KEY, code);
-        localStorage.setItem(AREA_KEY, name);
-      } catch {
-        // Not fatal — they will be asked again next visit.
-      }
+      remember([[PINCODE_KEY, code], [AREA_KEY, name], [AREA_ID_KEY, picked?.id || ""]]);
     }
     return data;
   }, []);
@@ -97,10 +128,27 @@ export function Providers({ children }) {
 
   const requestOtp = useCallback((phone) => api.post("/auth/otp/request", { phone }), []);
 
+  // A referral link can land on any page; its code is held until sign-in.
+  useEffect(() => captureReferral(), []);
+
   const verifyOtp = useCallback(async (phone, code, name) => {
-    const data = await api.post("/auth/otp/verify", { phone, code, name });
+    const referralCode = pendingReferral();
+    const data = await api.post("/auth/otp/verify", {
+      phone, code, name,
+      ...(referralCode ? { referralCode, referralSource: "link" } : {}),
+    });
     saveSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     setUser(data.user);
+    if (referralCode) {
+      // An existing account that has not ordered yet can still be referred.
+      if (!data.isNewUser) {
+        data.referral = await api
+          .post("/referrals/claim", { code: referralCode, source: "link" })
+          .then((r) => ({ applied: true, message: r.message }))
+          .catch((err) => ({ applied: false, message: err.message }));
+      }
+      clearReferral();
+    }
     return data;
   }, []);
 
@@ -224,8 +272,24 @@ export function Providers({ children }) {
         setCart(data.cart);
         return data.cart;
       },
-      removeCoupon: async () => {
-        const data = await api.del("/cart/coupon", { store: storeId });
+      // With a code, only that coupon comes off (an offer code or a reward
+      // coupon); without, both do.
+      removeCoupon: async (code) => {
+        const data = await api.del("/cart/coupon", { store: storeId, ...(code ? { code } : {}) });
+        setCart(data.cart);
+        return data.cart;
+      },
+      // A reward coupon from Coupons, by id. The API prices it and refuses an
+      // unusable one with the reason.
+      applyRewardCoupon: async (couponId) => {
+        const data = await api.post("/cart/reward-coupon", { coupon: couponId, store: storeId });
+        setCart(data.cart);
+        return data.cart;
+      },
+      // Wallet / loyalty to put against this cart. The API re-prices and caps
+      // it, so the total shown is the one the order is written with.
+      setCredits: async (credits) => {
+        const data = await api.post("/cart/credits", { ...credits, store: storeId });
         setCart(data.cart);
         return data.cart;
       },
@@ -303,11 +367,12 @@ export function Providers({ children }) {
   );
 
   const storeValue = useMemo(
-    () => ({ store, storeId, pincode, area, ready: storeReady, setPincode }),
-    [store, storeId, pincode, area, storeReady, setPincode]
+    () => ({ store, storeId, pincode, area, areaId, locationNotice, ready: storeReady, setPincode }),
+    [store, storeId, pincode, area, areaId, locationNotice, storeReady, setPincode]
   );
 
   return (
+    <BrandingContext.Provider value={brand}>
     <AuthContext.Provider value={auth}>
       <StoreContext.Provider value={storeValue}>
         <CartContext.Provider value={cartApi}>
@@ -322,6 +387,7 @@ export function Providers({ children }) {
         </CartContext.Provider>
       </StoreContext.Provider>
     </AuthContext.Provider>
+    </BrandingContext.Provider>
   );
 }
 
@@ -329,3 +395,5 @@ export const useAuth = () => useContext(AuthContext);
 export const useCart = () => useContext(CartContext);
 export const useStore = () => useContext(StoreContext);
 export const useWishlist = () => useContext(WishlistContext);
+// { logo, symbol }: the uploaded brand images, else the bundled ones.
+export const useBranding = () => useContext(BrandingContext);

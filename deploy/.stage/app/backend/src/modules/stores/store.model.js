@@ -37,10 +37,9 @@ const storeSchema = new mongoose.Schema(
     // Coarse serviceability. Delivery zones (drawn polygons, per-zone charges)
     // refine this; a pincode list is what a small operation actually maintains.
     servicePincodes: { type: [String], default: [], index: true },
-    // The named places behind those pincodes ("Sarjapura", "Dommasandra"),
-    // so a customer can find their area by name. One pincode can cover
-    // several places. When a save sends this list, servicePincodes is derived
-    // from it (normalizeServiceAreas), so lookups stay on the pincode index.
+    // The named places behind those pincodes ("Sarjapura", "Dommasandra").
+    // Both fields are a copy of this store's active delivery areas, written by
+    // deliveryArea.service.syncStore — edit areas in Admin → Delivery Areas.
     serviceAreas: {
       type: [
         new mongoose.Schema(
@@ -85,11 +84,9 @@ const storeSchema = new mongoose.Schema(
       codEnabled: { type: Boolean, default: true },
       prepTimeMinutes: { type: Number, default: 30 },
       acceptingOrders: { type: Boolean, default: true },
-      // What a delivery partner earns per completed delivery. Kept on the
-      // store because a city branch pays differently from a small-town one,
-      // and it is the only figure the partner app's earnings are built from —
-      // nothing is estimated.
-      partnerFeePerDelivery: money(2500), // ₹25
+      // (Delivery boys are store employees on a salary, so there is no
+      // per-delivery fee here; the old partnerFeePerDelivery value is removed
+      // from saved stores by src/migrations/20261014-retire-delivery-fee.js.)
 
       // Manual UPI collection: no payment gateway, just a VPA (or UPI-linked
       // mobile number) the customer pays from their own UPI app. The order is
@@ -138,23 +135,5 @@ storeSchema.methods.deliveryAreas = function deliveryAreas() {
 };
 
 const Store = mongoose.model("Store", storeSchema);
-
-// Cleans an incoming serviceAreas list (trimmed, six-digit pincodes only, the
-// same place twice kept once) and returns it with the servicePincodes it
-// implies.
-Store.normalizeServiceAreas = function normalizeServiceAreas(list) {
-  const seen = new Set();
-  const serviceAreas = [];
-  for (const raw of Array.isArray(list) ? list : []) {
-    const pincode = String(raw?.pincode ?? "").trim();
-    const name = String(raw?.name ?? "").trim().replace(/\s+/g, " ");
-    if (!/^\d{6}$/.test(pincode)) continue;
-    const key = `${pincode}|${name.toLowerCase()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    serviceAreas.push({ pincode, name });
-  }
-  return { serviceAreas, servicePincodes: [...new Set(serviceAreas.map((a) => a.pincode))] };
-};
 
 module.exports = Store;

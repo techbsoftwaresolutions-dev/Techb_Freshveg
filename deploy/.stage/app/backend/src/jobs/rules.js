@@ -8,6 +8,8 @@ const Variant = require("../modules/catalog/variant.model");
 const Settings = require("../modules/settings/settings.model");
 const notificationService = require("../modules/notifications/notification.service");
 const loyaltyService = require("../modules/loyalty/loyalty.service");
+const orderService = require("../modules/orders/order.service");
+const paymentService = require("../modules/payments/payment.service");
 
 // The "smart notifications" from the spec, as scheduled rules rather than
 // hand-sent messages.
@@ -181,6 +183,47 @@ async function wishlistWatches(now = new Date()) {
   return { restock, priceDrop };
 }
 
+// How long an online order may wait for its payment. Longer than the checkout
+// sheet stays open (gateways.razorpay.checkout timeout), so nobody is still
+// paying when their order is released.
+const UNPAID_ORDER_MINUTES = 30;
+
+/**
+ * Online orders whose customer never finished paying. Stock was reserved at
+ * checkout, so an abandoned payment must not hold it forever. Each order is
+ * first checked with the gateway: a payment whose confirmation got lost (tab
+ * closed, no webhook) is applied, not cancelled. Manual UPI orders are left
+ * alone — the store confirms those by hand, on its own time.
+ */
+async function expireUnpaidOrders(now = new Date()) {
+  const cutoff = new Date(now.getTime() - UNPAID_ORDER_MINUTES * 60000);
+  const stale = await Order.find({
+    status: "PAYMENT_PENDING",
+    "payment.method": "online",
+    placedAt: { $lte: cutoff },
+  }).limit(100);
+
+  let paid = 0;
+  let cancelled = 0;
+  for (const order of stale) {
+    try {
+      const payment = await paymentService.reconcile(order);
+      if (payment) {
+        await orderService.applyCapturedPayment(payment, "Paid online (reconciled)");
+        paid += 1;
+      } else {
+        await orderService.transition(order, "CANCELLED", { role: "system" }, "Payment not completed in time");
+        cancelled += 1;
+      }
+    } catch (err) {
+      // Gateway unreachable: leave the order for the next sweep rather than
+      // cancel something that may have been paid.
+      console.warn(`[jobs] expireUnpaidOrders ${order.code}:`, err.message);
+    }
+  }
+  return { paid, cancelled };
+}
+
 /** Marks carts that will never come back, so they stop being counted as live. */
 async function expireCarts(now = new Date()) {
   const cutoff = new Date(now.getTime() - 14 * 86400000);
@@ -197,5 +240,6 @@ module.exports = {
   lowStockAlerts,
   wishlistWatches,
   expireCarts,
+  expireUnpaidOrders,
   expireLoyalty: loyaltyService.expirePoints,
 };

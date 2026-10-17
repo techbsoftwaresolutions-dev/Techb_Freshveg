@@ -49,8 +49,6 @@ const config = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
   },
 
-  redisUrl: process.env.REDIS_URL || "",
-
   currency: process.env.DEFAULT_CURRENCY || "INR",
   country: process.env.DEFAULT_COUNTRY || "IN",
 };
@@ -66,5 +64,17 @@ config.isProd = config.env === "production";
 // leave it off.
 const otpFlag = String(process.env.OTP_ON_SCREEN || "").trim().replace(/^["']|["']$/g, "").toLowerCase();
 config.otpOnScreen = !config.isProd || ["true", "1", "yes", "on"].includes(otpFlag);
+
+// Store-review sign-ins: REVIEW_LOGINS="customer:9999900001:246810,delivery_partner:9999900002:135790".
+// Each listed number signs in with its fixed code and no SMS. Use numbers that
+// belong to demo accounts holding no real person's data, give the codes only
+// in App Store Connect / Play Console review notes, and remove them after review.
+config.reviewLogins = new Map(
+  String(process.env.REVIEW_LOGINS || "")
+    .split(",")
+    .map((entry) => entry.trim().split(":"))
+    .filter(([role, phone, code]) => ["customer", "delivery_partner"].includes(role) && /^\d{10}$/.test(phone || "") && /^\d{6}$/.test(code || ""))
+    .map(([role, phone, code]) => [`${role}:${phone}`, code])
+);
 
 module.exports = config;

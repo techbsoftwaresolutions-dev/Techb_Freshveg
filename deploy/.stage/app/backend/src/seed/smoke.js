@@ -463,7 +463,7 @@ async function main() {
     token: adminToken,
     body: { partner: partner._id.toString() },
   });
-  check("delivery partner assigned", assigned.order?.status === "ASSIGNED_TO_DELIVERY", assigned.error);
+  check("delivery boy assigned", assigned.order?.status === "ASSIGNED_TO_DELIVERY", assigned.error);
 
   const partnerOtp = await call("POST", "/auth/otp/request", {
     body: { phone: partner.phone, role: "delivery_partner" },
@@ -472,7 +472,7 @@ async function main() {
     body: { phone: partner.phone, code: partnerOtp.devCode, role: "delivery_partner" },
   });
   const partnerToken = partnerLogin.accessToken;
-  check("delivery partner signs in", Boolean(partnerToken), partnerLogin.error);
+  check("delivery boy signs in", Boolean(partnerToken), partnerLogin.error);
 
   const queue = await call("GET", "/orders/delivery/queue", { token: partnerToken });
   check("the order shows in the partner's queue", queue.orders.length === 1, queue.stats);
@@ -489,7 +489,7 @@ async function main() {
     token: partnerToken,
     body: { status: "OUT_FOR_DELIVERY" },
   });
-  check("partner moved it out for delivery", out.order?.status === "OUT_FOR_DELIVERY", out.error);
+  check("delivery boy moved it out for delivery", out.order?.status === "OUT_FOR_DELIVERY", out.error);
 
   const wrongOtp = await call("POST", `/orders/${orderId}/deliver`, {
     token: partnerToken,
@@ -534,19 +534,15 @@ async function main() {
     { got: steps.find((s) => s.status === "PAYMENT_CONFIRMED")?.state }
   );
 
-  // --- partner earnings and history ---
+  // --- delivery boy's day and history ---
   const stores = await call("GET", "/stores", { token: adminToken });
   const hosur = stores.items.find((st) => st.code === "HSR01");
-  const fee = hosur.settings.partnerFeePerDelivery;
 
   const afterQueue = await call("GET", "/orders/delivery/queue", { token: partnerToken });
   check("the delivered run left the queue", afterQueue.orders.length === 0, afterQueue.stats);
   check("delivery counted for today", afterQueue.stats.deliveredToday === 1, afterQueue.stats);
-  // Earnings are computed, never estimated: one delivery at the store's rate.
-  check("earnings are deliveries x the store's per-delivery fee", afterQueue.stats.earnings === fee, {
-    earnings: afterQueue.stats.earnings,
-    fee,
-  });
+  // Delivery boys are salaried store employees: no per-delivery earnings.
+  check("no per-delivery earnings are reported", !("earnings" in afterQueue.stats), afterQueue.stats);
   check(
     "cash-on-delivery money shows as cash to deposit",
     afterQueue.stats.codCollected === placed.order.pricing.total,
@@ -554,7 +550,7 @@ async function main() {
   );
 
   const history = await call("GET", "/orders/delivery/history", { token: partnerToken });
-  check("the run appears in the partner's history", history.items.some((o) => o.id === orderId), {
+  check("the run appears in the delivery boy's history", history.items.some((o) => o.id === orderId), {
     got: history.items.map((o) => o.code),
   });
 

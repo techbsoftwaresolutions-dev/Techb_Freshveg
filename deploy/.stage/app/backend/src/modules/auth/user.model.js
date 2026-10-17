@@ -33,7 +33,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      match: [/^\d{10}$/, "Phone must be 10 digits"],
+      // An erased account keeps its row (orders and ledgers point at it) but
+      // not its number: "deleted-<id>" frees the number for a new sign-up.
+      match: [/^(\d{10}|deleted-[a-f0-9]{24})$/, "Phone must be 10 digits"],
     },
     email: { type: String, default: "", lowercase: true, trim: true },
     passwordHash: { type: String, default: "", select: false },
@@ -46,10 +48,13 @@ const userSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["active", "blocked", "pending"],
+      // "deleted": personal data erased (accountDeletion.service). Final —
+      // never the same as "blocked", which an admin can undo.
+      enum: ["active", "blocked", "pending", "deleted"],
       default: "active",
       index: true,
     },
+    deletedAt: Date,
     phoneVerifiedAt: Date,
     lastLoginAt: Date,
 

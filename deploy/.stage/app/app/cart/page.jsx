@@ -1,5 +1,6 @@
 "use client";
 
+import CouponPicker from "@/components/CouponPicker";
 import Link from "next/link";
 import { MorphingSquare } from "@/components/ui/morphing-square";
 import FreeDeliveryProgress from "@/components/FreeDeliveryProgress";
@@ -17,6 +18,7 @@ export default function CartPage() {
   const router = useRouter();
   const { store } = useStore();
   const billRef = useRef(null);
+  const confirmRef = useRef(null);
 
   // Phone only: the coupon box starts folded to one line.
   const [offersOpen, setOffersOpen] = useState(false);
@@ -53,7 +55,7 @@ export default function CartPage() {
 
   // Empties the cart through the API's own "clear" and re-reads it.
   async function clearCart() {
-    if (!window.confirm("Remove all items from your cart?")) return;
+    confirmRef.current?.close();
     try {
       await api.del("/cart", { store: store?.id });
     } catch {
@@ -90,7 +92,7 @@ export default function CartPage() {
             {itemCount} item{itemCount === 1 ? "" : "s"}
           </p>
         </div>
-        <button type="button" className="cart-clear" onClick={clearCart}>
+        <button type="button" className="cart-clear" onClick={() => confirmRef.current?.showModal()}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5" />
           </svg>
@@ -184,7 +186,7 @@ export default function CartPage() {
                       {offer.discount ? ` — ${rupees(offer.discount)}` : ""}
                     </span>
                     {offer.code ? (
-                      <button type="button" onClick={() => cart.removeCoupon().catch(() => {})}>
+                      <button type="button" onClick={() => cart.removeCoupon(offer.code).catch(() => {})}>
                         Remove
                       </button>
                     ) : null}
@@ -211,6 +213,9 @@ export default function CartPage() {
             ) : null}
 
             {couponError ? <p className="notice error" style={{ marginTop: 10, marginBottom: 0 }}>{couponError}</p> : null}
+            <div className="offers-body">
+              <CouponPicker />
+            </div>
           </div>
 
           <div className="panel bill-card" id="bill" ref={billRef}>
@@ -220,8 +225,11 @@ export default function CartPage() {
               {summary.catalogueSavings > 0 ? (
                 <Row label="Product discount" value={`− ${rupees(summary.catalogueSavings)}`} save />
               ) : null}
-              {summary.offerDiscount > 0 ? (
-                <Row label="Offer discount" value={`− ${rupees(summary.offerDiscount)}`} save />
+              {summary.offerDiscount - (summary.rewardDiscount || 0) > 0 ? (
+                <Row label="Offer discount" value={`− ${rupees(summary.offerDiscount - (summary.rewardDiscount || 0))}`} save />
+              ) : null}
+              {summary.rewardDiscount > 0 ? (
+                <Row label="Reward coupon" value={`− ${rupees(summary.rewardDiscount)}`} save />
               ) : null}
               <Row
                 label="Delivery fee"
@@ -259,6 +267,32 @@ export default function CartPage() {
           </div>
         </div>
       </div>
+
+      {/* Native <dialog>: showModal() gives focus trapping, Esc-to-cancel and
+          the top layer for free; a click on the backdrop lands on the dialog
+          itself, outside the inner box, and cancels too. */}
+      <dialog
+        ref={confirmRef}
+        className="confirm-dialog"
+        aria-labelledby="clear-cart-title"
+        aria-describedby="clear-cart-desc"
+        onClick={(e) => e.target === e.currentTarget && e.currentTarget.close()}
+      >
+        <div className="confirm-dialog-box">
+          <h2 id="clear-cart-title">Clear your cart?</h2>
+          <p id="clear-cart-desc">
+            {itemCount === 1 ? "The item" : `All ${itemCount} items`} will be removed from your cart.
+          </p>
+          <div className="confirm-dialog-actions">
+            <button type="button" className="btn" onClick={() => confirmRef.current?.close()} autoFocus>
+              Cancel
+            </button>
+            <button type="button" className="btn danger" onClick={clearCart}>
+              Clear cart
+            </button>
+          </div>
+        </div>
+      </dialog>
 
       {/* Phone: the total and the way forward stay in reach at the bottom. */}
       <div className="cart-bar">

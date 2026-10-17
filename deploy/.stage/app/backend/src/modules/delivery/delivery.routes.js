@@ -59,7 +59,11 @@ router.post(
     if (!order) throw ApiError.notFound("Order not found");
 
     if (req.user.role === "delivery_partner" && String(order.delivery.partner) !== req.user.id) {
-      throw ApiError.forbidden("This order is assigned to another partner");
+      throw ApiError.forbidden("This order is assigned to another delivery boy");
+    }
+    // A rider's position is recorded only while they are on this run.
+    if (!["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"].includes(order.status)) {
+      throw ApiError.conflict("This order is not on a delivery run");
     }
 
     const { lng, lat } = req.body;
@@ -94,6 +98,10 @@ router.get(
     const isOwner = String(order.customer) === req.user.id;
     if (!isOwner && !req.user.permissions.includes("delivery.view")) {
       throw ApiError.forbidden("Not your order");
+    }
+    // delivery.view is a rider's too, but only for their own runs.
+    if (req.user.role === "delivery_partner" && String(order.delivery.partner) !== req.user.id) {
+      throw ApiError.forbidden("This order is assigned to another delivery boy");
     }
 
     if (!["PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"].includes(order.status)) {

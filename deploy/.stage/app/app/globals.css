@@ -89,6 +89,12 @@ button { font: inherit; }
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
+/* Pages without the category bar (Header.jsx showsCategoryBar): the header is
+   just the main row, so nothing reserves room for the bar. A 404 inside /c
+   (an unknown slug) is a not-found page too, and drops the bar here. */
+body:has(.no-catbar) { --header-total: 81px; }
+body:has(.not-found-page) .catbar { display: none; }
+@media (max-width: 720px) { body:has(.no-catbar) { --header-total: 120px; } }
 
 /* Standing terms, stated once in the smallest type on the page. */
 .utility {
@@ -234,7 +240,6 @@ a.header-extra { cursor: pointer; }
 
 /* ------------------------------------------------------------- hero */
 
-
 /* ------------------------------------------------------------- sections */
 
 .section { margin: 36px 0; }
@@ -296,7 +301,6 @@ a.header-extra { cursor: pointer; }
 }
 .tile-name { font-size: 14px; font-weight: 650; line-height: 1.3; }
 .tile-count { font-size: 11.5px; color: var(--text-faint); }
-
 
 /* The four standing promises, as one tinted strip. */
 .assurance {
@@ -600,7 +604,7 @@ a.header-extra { cursor: pointer; }
 }
 @media (max-width: 720px) {
   .cart-toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
-  body:has(.cart-page) .cart-toast { bottom: calc(140px + env(safe-area-inset-bottom)); }
+  body:has(.cart-page) .cart-toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
 }
 .add-btn.block {
   width: 100%;
@@ -835,7 +839,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 /* One row: the brand block plus four link columns. The count is written out
    rather than left to auto-fill, so adding a fifth column is a deliberate
    edit to this line instead of a silent wrap onto a second row. */
-.footer-grid { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 32px; }
+.footer-grid { display: grid; grid-template-columns: 1.6fr repeat(5, 1fr); gap: 28px; }
 .footer-brand p { margin: 14px 0 0; font-size: 13px; line-height: 1.6; max-width: 34ch; }
 .footer-logo { display: inline-flex; align-items: center; gap: 10px; color: #fff; }
 .footer-logo:hover { color: #fff; }
@@ -910,7 +914,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
   cursor: pointer;
 }
 .banner-dot.current { background: #fff; }
-
 
 /* ------------------------------------------------------------- home page */
 
@@ -1036,6 +1039,103 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .hero-carousel .banner-dot { background: rgba(255, 255, 255, 0.6); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06); }
 .hero-carousel .banner-dot.current { background: var(--brand); }
 .hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: right center; }
+
+/* Video Hero design (components/VideoHero.jsx): the playlist fills the whole
+   screen below the header — out of the page column to both edges — with the
+   words and CTA low on the left over a dark wash that fades out to the right,
+   so the footage stays clear there. --header-h is measured by the component;
+   the fallbacks are the header's usual height, for the first paint. Its own background is the first video's
+   poster, so nothing shows black while it loads. */
+.video-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  width: 100vw;
+  height: calc(100vh - var(--header-h, 129px));
+  height: calc(100svh - var(--header-h, 129px)); /* phones: the visible height, not under the address bar */
+  min-height: 460px;
+  /* the hero sits in the centred page column; this pulls it to both edges */
+  margin: 0 calc(50% - 50vw) 8px;
+  background: var(--brand-deep) center / cover no-repeat;
+  isolation: isolate;
+}
+.video-hero-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.video-hero-media.current { opacity: 1; }
+.video-hero-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(8, 28, 15, 0.72) 0%, rgba(8, 28, 15, 0.45) 35%, rgba(8, 28, 15, 0) 62%),
+    linear-gradient(0deg, rgba(8, 28, 15, 0.45) 0%, rgba(8, 28, 15, 0) 45%);
+}
+.video-hero-copy {
+  position: relative;
+  z-index: 1;
+  /* text starts where the page column does, so it lines up with the header */
+  box-sizing: content-box;
+  width: min(44vw, 600px);
+  padding-left: max(24px, calc(50vw - var(--max) / 2 + 20px));
+  padding-bottom: clamp(36px, 8vh, 80px);
+}
+.video-hero-text {
+  margin: 0 0 24px;
+  font-family: var(--font);
+  font-size: clamp(26px, 2.5vw, 36px);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: #fff;
+  white-space: pre-line;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+.video-hero-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(100%, 420px);
+  height: 56px;
+  padding: 0 22px;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--brand-dark);
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.video-hero-cta:hover { background: var(--brand-soft); color: var(--brand-dark); transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) {
+  .video-hero-media { transition: none; }
+}
+@media (max-width: 720px) {
+  /* the column here is just the screen less its 16px gutter: step over it */
+  /* ...and stops above the bottom tab bar, which is fixed over the page here */
+  .video-hero {
+    width: auto;
+    margin: 0 -16px 8px;
+    height: calc(100svh - var(--header-h, 163px) - 64px - env(safe-area-inset-bottom));
+    min-height: 400px;
+  }
+  .video-hero-shade {
+    background:
+      linear-gradient(90deg, rgba(8, 28, 15, 0.55) 0%, rgba(8, 28, 15, 0.15) 70%, rgba(8, 28, 15, 0) 100%),
+      linear-gradient(0deg, rgba(8, 28, 15, 0.7) 0%, rgba(8, 28, 15, 0) 60%);
+  }
+  .video-hero-copy { box-sizing: border-box; width: 100%; padding: 0 16px 24px; }
+  .video-hero-text { font-size: clamp(22px, 6.4vw, 28px); line-height: 1.22; margin-bottom: 16px; max-width: 22ch; }
+  .video-hero-cta { width: 100%; height: 52px; font-size: 16px; border-radius: 14px; }
+}
 .hero-points {
   display: flex;
   gap: 22px;
@@ -1305,60 +1405,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .split.home:not(:has(.home-aside)) { grid-template-columns: minmax(0, 1fr); }
 .home-main { min-width: 0; }
 
-.mini-cart { display: flex; flex-direction: column; }
-.mini-cart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 10px; }
-.mini-cart-head h3 { margin: 0; }
-.mini-cart-empty { padding: 30px 4px 10px; text-align: center; color: var(--text-muted); font-size: 13px; }
-.mini-cart-empty p { margin: 0 0 4px; font-weight: 750; color: var(--text); font-size: 14.5px; }
-.mini-cart-items {
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-  max-height: 320px;
-  overflow-y: auto;
-  padding-right: 2px;
-  margin-bottom: 14px;
-}
-.mini-cart-item { display: flex; align-items: center; gap: 10px; }
-.mini-cart-thumb {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
-  border-radius: 8px;
-  background: var(--bg-alt);
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-}
-.mini-cart-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.mini-cart-info strong {
-  font-size: 13px;
-  font-weight: 650;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mini-cart-info span { font-size: 11px; color: var(--text-faint); }
-.mini-cart-info em { font-style: normal; font-size: 12.5px; font-weight: 750; }
-.mini-cart-more {
-  display: block;
-  text-align: center;
-  font-size: 12.5px;
-  font-weight: 650;
-  color: var(--brand);
-  padding-top: 2px;
-}
-.mini-cart-more:hover { text-decoration: underline; }
-.mini-cart-bill { border-top: 1px solid var(--border); padding-top: 12px; }
-.mini-cart-coupon { display: flex; gap: 8px; margin-top: 14px; }
 .catbar-offers {
   color: var(--accent);
   font-weight: 750;
   border-bottom-color: transparent;
 }
 .catbar-offers:hover { color: var(--accent); border-bottom-color: var(--accent); }
-
-
 
 /* ------------------------------------------------------------- category */
 
@@ -2304,6 +2356,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .choice-copy strong { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
 .choice-copy > span { font-size: 13px; color: var(--text-muted); }
 .choice-actions { display: flex; gap: 8px; flex-shrink: 0; }
+/* Checkbox flavour of .choice-radio (order page: pick items to return). */
+.choice-check { border-radius: 5px; }
+.choice.on .choice-check::after { border-radius: 2px; }
+.choice.off { opacity: 0.55; cursor: not-allowed; }
+.return-panel { padding-top: 14px; border-top: 1px solid var(--border); }
+.return-panel h3 { margin: 0 0 10px; }
 .address-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
 
 /* ---- UPI payment panel (checkout) */
@@ -2363,6 +2421,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .phone-input input { border-radius: 0 10px 10px 0; letter-spacing: 0.04em; }
 .otp-input { text-align: center; letter-spacing: 0.6em; font-size: 22px !important; font-weight: 600; height: 54px !important; }
 .auth-fine { margin: 14px 0 0; text-align: center; font-size: 12px; color: var(--text-faint); }
+.auth-fine a { color: var(--brand); font-weight: 600; text-decoration: underline; }
 .auth-change { margin-bottom: 14px; font-size: 13px; }
 .auth-resend { display: block; margin: 16px auto 0; font-size: 13.5px; }
 .auth-dev {
@@ -2826,7 +2885,6 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .badge { font-size: 9.5px; padding: 2px 6px; }
   .product-grid, .product-grid.wide { gap: 12px; }
 
-
   /* ---- category cards */
   .shop-row { grid-auto-columns: 62%; gap: 12px; }
   .shop-card strong { font-size: 13.5px; }
@@ -2849,48 +2907,53 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .footer h4 { margin-bottom: 10px; }
   .footer-base { flex-direction: column; gap: 4px; margin-top: 24px; }
 
-  /* ---- bottom tab bar */
+  /* ---- bottom tab bar: a floating dock — a rounded pill of round icon
+     buttons. Its footprint (6px gap + 58px pill = 64px) matches what the
+     body padding and the bars stacked above it already reserve. */
   .mobile-nav {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 10px;
+    right: 10px;
+    bottom: calc(6px + env(safe-area-inset-bottom));
     z-index: 60;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    box-shadow: 0 -4px 18px rgba(10, 30, 20, 0.06);
-    padding-bottom: env(safe-area-inset-bottom);
+    height: 58px;
+    padding: 0 4px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.94);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgba(10, 30, 20, 0.14), 0 2px 6px rgba(10, 30, 20, 0.06);
   }
   .mobile-nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    height: 60px;
-    font-size: 10.5px;
+    gap: 1px;
+    font-size: 10px;
     font-weight: 500;
     color: var(--text-muted);
-    position: relative;
   }
   .mobile-nav-item:hover { color: var(--text-muted); }
   .mobile-nav-item.current { color: var(--brand); font-weight: 600; }
-  .mobile-nav-item.current::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    width: 28px;
-    height: 3px;
-    border-radius: 0 0 3px 3px;
-    background: var(--brand);
+  .mobile-nav-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
   }
-  .mobile-nav-icon { position: relative; display: inline-flex; }
+  .mobile-nav-item.current .mobile-nav-icon { background: var(--brand-soft); transform: translateY(-2px) scale(1.08); }
+  .mobile-nav-item:active .mobile-nav-icon { transform: scale(0.88); transition-duration: 0.08s; }
   .mobile-nav-badge {
     position: absolute;
-    top: -6px;
-    right: -10px;
+    top: -3px;
+    right: -6px;
     min-width: 17px;
     height: 17px;
     padding: 0 4px;
@@ -3113,315 +3176,53 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .review-prompt-backdrop, .review-prompt { animation: none; }
 }
 
-/* ---------------------------------------------------------------------------
-   Homepage "Download the app" band (components/AppDownload.jsx). The button
-   installs the site as a PWA.
-   ------------------------------------------------------------------------- */
-.app-band {
-  --ab-ink: #15181b;
-  display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 24px 28px;
-  padding: 0 36px 0 20px;
-  border-radius: 28px;
-  background:
-    radial-gradient(120% 140% at 0% 100%, #e3f3e7 0%, transparent 55%),
-    radial-gradient(90% 120% at 100% 100%, #e6f3ea 0%, transparent 50%),
-    linear-gradient(100deg, #f2f9f4 0%, #eef7f1 60%, #f5faf6 100%);
-  border: 1px solid #e1eee5;
-  overflow: hidden;
-}
-
-/* phones + greenery */
-.app-band-art { position: relative; align-self: end; height: 230px; }
-.app-phone {
-  position: absolute;
-  bottom: -8px;
-  width: 116px;
-  height: 222px;
-  border: 6px solid var(--ab-ink);
-  border-radius: 26px;
-  background: var(--ab-ink);
-  box-shadow: 0 16px 34px rgba(10, 30, 20, 0.22);
-}
-.app-phone.back { left: 26px; bottom: -26px; transform: rotate(-12deg); }
-.app-phone.front { left: 112px; bottom: 6px; transform: rotate(7deg); z-index: 1; }
-.app-phone-screen {
-  position: relative;
+/* ------------------------------------------------------------ confirm dialog */
+/* A native <dialog> opened with showModal() (the cart's "Clear cart"). The
+   dialog element is the full-screen backdrop; the box inside is the card. */
+.confirm-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  border-radius: 20px;
-  background: #fff;
-  overflow: hidden;
-  padding: 24px 8px 8px;
-}
-.app-phone-notch {
-  position: absolute;
-  top: 6px;
-  left: 50%;
-  width: 38px;
-  height: 9px;
-  margin-left: -19px;
-  border-radius: 6px;
-  background: var(--ab-ink);
-}
-.app-phone-title { display: block; margin: 0 0 6px 2px; font-size: 10.5px; font-weight: 800; color: #1b7a3a; }
-.app-phone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px 4px; }
-.app-phone-tile {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  padding: 5px 0 3px;
-  border-radius: 8px;
-  background: #fbf6ec;
-}
-.app-phone.back .app-phone-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
-.app-phone.back .app-phone-tile { padding: 9px 0; background: #fdf3ef; }
-.app-phone-tile small { font-size: 6.5px; font-weight: 600; color: #4b5563; line-height: 1; }
-.app-phone-cta {
-  position: absolute;
-  left: 7px;
-  right: 7px;
-  bottom: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  height: 24px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #fb8c1e, #f06d0f);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 800;
-  box-shadow: 0 6px 12px rgba(240, 109, 15, 0.35);
-}
-.app-phone-cta svg { width: 11px; height: 11px; }
-.app-sprig { position: absolute; bottom: -6px; width: 92px; height: 92px; z-index: 2; }
-.app-sprig.left { left: -18px; }
-.app-sprig.right { left: 196px; width: 64px; height: 64px; transform: scaleX(-1); }
-.app-spark {
-  position: absolute;
-  top: 26px;
-  left: 24px;
-  width: 26px;
-  height: 22px;
-  background:
-    linear-gradient(#4caf63, #4caf63) 0 100% / 13px 3.5px no-repeat,
-    linear-gradient(#4caf63, #4caf63) 100% 0 / 3.5px 13px no-repeat;
-  transform: rotate(-30deg);
-  border-radius: 2px;
-}
-.app-leaf { position: absolute; right: -8px; top: 92px; color: #6fbf82; }
-
-/* copy */
-.app-band-copy { padding: 30px 0; min-width: 0; }
-.app-band-copy h2 {
-  margin: 0 0 8px;
-  font-size: 30px;
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.015em;
-  color: var(--text);
-}
-.app-band-nowrap { white-space: nowrap; }
-.app-band-brand { color: var(--brand); }
-.app-band-copy p {
-  max-width: 470px;
-  margin: 0 0 18px;
-  color: var(--text-muted);
-  font-size: 17px;
-  line-height: 1.45;
-}
-.app-band-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  min-height: 60px;
-  padding: 8px 20px 8px 14px;
-  border: 0;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--brand-dark), var(--brand-deep));
-  color: #fff;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: 0 10px 22px rgba(15, 74, 35, 0.28);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.app-band-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 26px rgba(15, 74, 35, 0.36); }
-.app-band-btn:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
-.app-band-btn-icon {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-}
-.app-band-btn-text { display: grid; }
-.app-band-btn small { font-size: 12.5px; font-weight: 500; opacity: 0.85; }
-.app-band-btn strong { font-size: 20px; font-weight: 700; line-height: 1.2; }
-.app-band-btn .app-arrow { margin-left: 18px; flex: none; }
-
-.app-band-help {
-  position: relative;
-  max-width: 440px;
-  margin-top: 12px;
-  padding: 10px 36px 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: #fff;
-  font-size: 14px;
-  color: var(--text);
-  box-shadow: var(--shadow-card);
-}
-.app-band-help:focus { outline: none; }
-.app-band-help p { margin: 0; color: inherit; font-size: inherit; }
-.app-band-help-close {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  width: 26px;
-  height: 26px;
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-/* features */
-.app-band-features {
-  display: flex;
-  gap: 2px;
+  max-width: none;
+  max-height: none;
   margin: 0;
-  padding: 6px 0 6px 22px;
-  border-left: 1px solid #d5e4da;
-  list-style: none;
-}
-.app-band-features li {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  width: 94px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.35;
-  text-align: center;
-  color: var(--text);
-}
-.app-band-icon {
-  display: grid;
+  padding: 16px;
+  border: 0;
+  background: rgba(10, 30, 20, 0.45);
   place-items: center;
-  width: 62px;
-  height: 62px;
-  border-radius: 50%;
 }
-.app-band-icon.tone-green { background: #d9f0df; color: #22a24a; }
-.app-band-icon.tone-pink { background: #fde0e8; color: #ec3f6d; }
-.app-band-icon.tone-peach { background: #fde9dc; color: #f4511e; }
-.app-band-icon.tone-violet { background: #ece4fd; color: #8b5cf6; }
-
-/* narrower desktops: the features take their own row under the copy */
-@media (max-width: 1180px) {
-  .app-band { grid-template-columns: 240px minmax(0, 1fr); row-gap: 0; }
-  .app-band-art { grid-row: 1 / span 2; }
-  .app-band-copy { padding-bottom: 14px; }
-  .app-band-features {
-    grid-column: 2;
-    justify-content: flex-start;
-    padding: 16px 0 28px;
-    border-left: 0;
-    border-top: 1px solid #d5e4da;
-  }
-  .app-band-features li { width: auto; flex: 1; max-width: 120px; font-size: 13.5px; }
-  .app-band-icon { width: 56px; height: 56px; }
+.confirm-dialog[open] { display: grid; animation: review-fade 0.18s ease-out; }
+.confirm-dialog::backdrop { background: transparent; }
+.confirm-dialog-box {
+  width: min(400px, 100%);
+  padding: 22px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(10, 30, 20, 0.25);
+  animation: review-rise 0.22s ease-out;
 }
+.confirm-dialog h2 { margin: 0 0 6px; font-size: 19px; }
+.confirm-dialog p { margin: 0 0 20px; font-size: 14px; color: var(--text-muted); }
+.confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.danger:hover:not(:disabled) { background: #991b1b; border-color: #991b1b; color: #fff; }
 
-/* phone: art on top, centred copy, a full-width button, features 2 x 2 */
 @media (max-width: 720px) {
-  .app-band {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-    padding: 0 16px 16px;
-    border-radius: 22px;
-    text-align: center;
+  .confirm-dialog { place-items: end stretch; padding: 0; }
+  .confirm-dialog-box {
+    width: 100%;
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
-  .app-band-art {
-    grid-row: 1;
-    width: 250px;
-    height: 150px;
-    margin: 0 auto;
-    align-self: auto;
-  }
-  .app-phone { transform-origin: bottom center; }
-  .app-phone.back { left: 34px; bottom: -64px; transform: rotate(-12deg) scale(0.8); }
-  .app-phone.front { left: 110px; bottom: -52px; transform: rotate(7deg) scale(0.8); }
-  .app-sprig.left { left: -6px; width: 74px; height: 74px; }
-  .app-sprig.right { left: 196px; width: 54px; height: 54px; }
-  .app-leaf { right: 4px; top: 40px; }
-  .app-spark { top: 18px; left: 20px; }
-  /* the copy sits on an opaque panel over the phones' lower halves */
-  .app-band-copy {
-    grid-row: 2;
-    position: relative;
-    z-index: 3;
-    margin: 0 -16px;
-    padding: 18px 16px 4px;
-    background: linear-gradient(#f3faf5, #eef7f1);
-    border-top: 1px solid #e1eee5;
-  }
-  .app-band-copy h2 { font-size: 23px; }
-  .app-band-copy p { margin: 0 auto 14px; font-size: 14.5px; }
-  .app-band-btn { display: flex; width: 100%; max-width: 360px; margin: 0 auto; min-height: 56px; }
-  .app-band-btn-text { flex: 1; }
-  .app-band-btn strong { font-size: 18px; }
-  .app-band-btn .app-arrow { margin-left: 8px; }
-  .app-band-help { margin-left: auto; margin-right: auto; text-align: left; }
-  .app-band-features {
-    grid-row: 3;
-    grid-column: 1;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 14px;
-    padding: 0;
-    border: 0;
-    position: relative;
-    z-index: 3;
-  }
-  .app-band-features li {
-    flex-direction: row;
-    gap: 10px;
-    max-width: none;
-    padding: 8px 10px;
-    border-radius: 14px;
-    background: #fff;
-    border: 1px solid #e3eee6;
-    font-size: 12.5px;
-    font-weight: 600;
-    line-height: 1.25;
-    text-align: left;
-  }
-  .app-band-icon { width: 38px; height: 38px; flex: none; }
-  .app-band-icon svg { width: 20px; height: 20px; }
+  .confirm-dialog-actions { flex-direction: column-reverse; }
+  .confirm-dialog-actions .btn { width: 100%; height: 46px; }
 }
-@media (max-width: 340px) {
-  .app-band-copy h2 { font-size: 21px; }
-  .app-band-btn { gap: 10px; padding: 8px 12px 8px 10px; }
-  .app-band-btn-icon { width: 34px; height: 34px; }
-  .app-band-btn-text { white-space: nowrap; }
-  .app-band-btn small { font-size: 11px; }
-  .app-band-btn strong { font-size: 16.5px; }
-  .app-band-btn .app-arrow { width: 20px; height: 20px; margin-left: 4px; }
-  .app-band-features { gap: 6px; }
-  .app-band-features li { padding: 7px; gap: 7px; font-size: 11.5px; }
-  .app-band-icon { width: 32px; height: 32px; }
-  .app-band-icon svg { width: 18px; height: 18px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-dialog[open], .confirm-dialog-box, .mobile-nav-icon { animation: none; transition: none; }
 }
+
 /* ------------------------------------------------ browse pages, phone
    "All products" and every category page. Above 720px none of this applies:
    the desktop sidebar, header and card are untouched. */
@@ -3667,7 +3468,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     position: fixed;
     left: 6px;
     right: 6px;
-    bottom: calc(64px + env(safe-area-inset-bottom));
+    bottom: calc(70px + env(safe-area-inset-bottom));
     z-index: 55;
   }
   .cat-delivery:empty { display: none; }
@@ -3677,7 +3478,6 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
    The numbered pager is a desktop control; on phones the rest of the
    catalogue loads as you scroll (see InfiniteProducts). */
 .more-status { display: flex; justify-content: center; min-height: 1px; }
-
 
 @media (max-width: 720px) {
   .pager, .pager-slug { display: none; }
@@ -3764,7 +3564,6 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 .help-call-numbers { display: flex; flex-wrap: wrap; gap: 8px; }
 .help-terms { margin-top: 6px !important; font-size: 13px !important; }
 @media (max-width: 720px) { .help-grid { grid-template-columns: minmax(0, 1fr); } }
-
 
 /* ------------------------------------------- free-delivery progress card */
 .fd {
@@ -4102,7 +3901,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 @media (max-width: 720px) {
   /* a calmer page: light background, the site's tab bar and footer out of the
      way (the checkout bar takes the bottom), a compact sticky header */
-  body:has(.cart-page) { background: var(--bg-alt); padding-bottom: calc(156px + env(safe-area-inset-bottom)); }
+  body:has(.cart-page) { background: var(--bg-alt); padding-bottom: calc(166px + env(safe-area-inset-bottom)); }
   body:has(.cart-page) .utility,
   body:has(.cart-page) .catbar,
   body:has(.cart-page) .footer,
@@ -4239,12 +4038,14 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(60px + env(safe-area-inset-bottom)); /* sits on top of the tab bar */
+    /* reaches the screen's bottom edge, so the floating tab bar sits on its
+       white rather than over the page; the bottom padding clears the bar */
+    bottom: 0;
     z-index: 59;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 14px;
+    padding: 10px 14px calc(78px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--border);
     background: #fff;
   }
@@ -4870,6 +4671,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 .pin-pop-areas button:hover, .pin-pop-areas button:focus-visible { background: var(--brand-soft); }
 .pin-pop-area-icon { width: 16px; height: 16px; flex: 0 0 auto; color: var(--brand); }
 .pin-pop-area-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pin-pop-area-city { font-weight: 400; color: var(--text-muted); }
 .pin-pop-area-code { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 @media (max-width: 720px) {
   .pin-pop { position: fixed; top: 120px; left: 16px; right: 16px; width: auto; }
@@ -4890,8 +4692,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .add-btn:active,
   .top-cat:active,
   .card:active,
-  .why-card:active,
-  .mobile-nav-item:active { transform: scale(0.97); transition: transform 0.08s ease; }
+  .why-card:active { transform: scale(0.97); transition: transform 0.08s ease; }
 
   /* ---- header: one slim promo line, logo + location, search, chips ---- */
   .header { background: #fff; box-shadow: 0 2px 10px rgba(10, 30, 20, 0.05); border-bottom: 0; }
@@ -5076,8 +4877,10 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .footer-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .footer-col-shop,
   .footer-col-account { display: none; }
-  .footer-col-care ul { flex-direction: row; flex-wrap: wrap; gap: 8px; }
-  .footer-col-care a {
+  .footer-col-care ul,
+  .footer-col-legal ul { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .footer-col-care a,
+  .footer-col-legal a {
     display: inline-block;
     padding: 6px 12px;
     border-radius: 999px;
@@ -5197,14 +5000,14 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 /* Header logo: the round Farmers Basket mark, shown whole (no crop). */
 .logo { width: auto; height: 78px; overflow: visible; }
 .logo-img { width: auto; height: 100%; transform: none; object-fit: contain; }
-.footer-mark { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 12px; }
-.fresh-band-mark img { display: block; width: 48px; height: 48px; border-radius: 12px; }
+.footer-mark { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 12px; object-fit: contain; }
+.fresh-band-mark img { display: block; width: 48px; height: 48px; border-radius: 12px; object-fit: contain; }
 @media (max-width: 720px) {
   .logo { width: auto; height: 54px; }
   .fresh-band-mark img { width: 40px; height: 40px; }
 }
 /* Sign-in page: the round Farmers Basket logo above the heading. */
-.auth-logo { display: block; width: 140px; height: auto; margin: 0 auto 10px; }
+.auth-logo { display: block; width: 140px; height: auto; max-height: 130px; object-fit: contain; margin: 0 auto 10px; }
 @media (max-width: 720px) { .auth-logo { width: 118px; } }
 /* ===========================================================================
    "Farm Fresh" homepage (FreshHome.jsx) on phones: app-style — photo-card
@@ -5395,7 +5198,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   /* The space for the fixed free-delivery bar belongs at the end of the page
      (below the promises box), not under the product grid. */
   .split.cat-layout { padding-bottom: 0; }
-  body:has(.cat-mobile-head) { padding-bottom: calc(64px + 56px + env(safe-area-inset-bottom)); }
+  body:has(.cat-mobile-head) { padding-bottom: calc(70px + 56px + env(safe-area-inset-bottom)); }
 }
 /* ------------------------------------------------ "All products" category panel
    The sidebar on /c: departments as photo rows with their totals, each
@@ -5623,6 +5426,17 @@ a.legal-contact-card:hover { border-color: var(--brand); background: var(--brand
 .legal-contact-card small { display: block; font-size: 11.5px; color: var(--text-faint); }
 .legal-contact-card strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .legal-foot { margin: 4px 0 0; text-align: center; font-size: 13.5px; color: var(--text-muted); }
+.legal-list { margin: 0 0 10px; padding-left: 20px; display: grid; gap: 6px; }
+.legal-list li { font-size: 14.5px; line-height: 1.7; color: var(--text-muted); }
+.legal-h3 { margin: 16px 0 6px; font-size: 15.5px; color: var(--text); }
+.legal-section a, .legal-lede a { color: var(--brand); font-weight: 600; text-decoration: underline; overflow-wrap: anywhere; }
+.legal-lede a { color: #fff; }
+.legal-foot { line-height: 1.9; }
+.legal-error { color: var(--danger) !important; font-weight: 600; }
+.legal-section form input:not([type="checkbox"]) {
+  margin-top: 6px; width: 100%; max-width: 260px; height: 44px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 10px; font: inherit; letter-spacing: 0.08em;
+}
 .legal-foot a { color: var(--brand); font-weight: 600; }
 
 @media (max-width: 900px) {
@@ -5635,7 +5449,7 @@ a.legal-contact-card:hover { border-color: var(--brand); background: var(--brand
   .legal-toc ol, .legal-glance ul, .legal-contact-grid { grid-template-columns: minmax(0, 1fr); }
   .legal-glance, .legal-section { padding: 18px 16px; border-radius: 14px; }
   .legal-section h2 { font-size: 16.5px; }
-  .legal-section p { font-size: 14px; }
+  .legal-section p, .legal-list li { font-size: 14px; }
 }
 /* phones: the summary and numbered sections are enough; skip the long contents list */
 @media (max-width: 600px) { .legal-toc { display: none; } .legal-body { margin-top: -16px; } }
@@ -5651,3 +5465,61 @@ a.legal-contact-card:hover { border-color: var(--brand); background: var(--brand
 @keyframes loader-spin { to { transform: rotate(360deg); } }
 @keyframes loader-pulse { 0%, 100% { transform: scale(0.94); opacity: 0.85; } 50% { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .page-loader-logo, .page-loader-ring { animation: none; } }
+
+/* ---- Support requests (Help page, components/SupportDesk.jsx) */
+.support-desk { margin-bottom: 20px; }
+.support-form { margin-top: 12px; }
+.support-row { width: 100%; text-align: left; background: none; border: 0; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+.support-row.on { background: var(--brand-mist); }
+.support-thread { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.support-msg { max-width: 85%; align-self: flex-start; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); }
+.support-msg.mine { align-self: flex-end; background: var(--brand-mist); border-color: transparent; }
+.support-msg p { margin: 4px 0; white-space: pre-wrap; }
+.support-msg-who, .support-msg-when { font-size: 12px; color: var(--text-muted); }
+.support-reply { display: flex; gap: 10px; align-items: flex-end; }
+.support-reply textarea { flex: 1; min-height: 60px; }
+
+/* ---- Reward coupons (CouponPicker, /account/coupons) and Refer & Earn ---- */
+.coupon-pick { display: grid; gap: 8px; margin: 12px 0; }
+.coupon-pick-head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.coupon-pick-head a { font-size: 13px; color: var(--brand-dark); font-weight: 600; }
+.coupon-pick-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; border: 1px dashed var(--border); border-radius: 10px; background: var(--surface, #fff);
+}
+.coupon-pick-row.applied { border-color: var(--save); background: var(--save-soft); }
+.coupon-pick-main { display: grid; gap: 2px; min-width: 0; }
+.coupon-pick-main strong { font-size: 14px; }
+.coupon-pick-main span { font-size: 12.5px; color: var(--text-muted); overflow-wrap: anywhere; }
+.coupon-pick-empty { font-size: 13px; color: var(--text-muted); margin: 10px 0 0; }
+.coupon-pick-empty a { color: var(--brand-dark); font-weight: 600; }
+
+.coupon-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.coupon-card {
+  display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start;
+  padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface, #fff); margin-bottom: 10px;
+}
+.coupon-card.muted { opacity: .65; }
+.coupon-value {
+  min-width: 72px; padding: 10px 8px; border-radius: 10px; text-align: center;
+  background: var(--brand-soft); color: var(--brand-dark); font-weight: 800; font-size: 18px;
+}
+.coupon-body { display: grid; gap: 4px; min-width: 0; }
+.coupon-body .row { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+.coupon-body p { margin: 0; font-size: 13px; color: var(--text-muted); }
+.coupon-code { font-family: ui-monospace, monospace; letter-spacing: 1px; font-size: 12.5px; }
+.coupon-details { font-size: 12.5px; color: var(--text-muted); display: grid; gap: 2px; margin-top: 6px; }
+
+.ref-share { display: grid; gap: 10px; margin-top: 12px; }
+.ref-share-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ref-share-row input { flex: 1; min-width: 0; font-size: 13px; }
+.ref-steps { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--text-muted); line-height: 1.6; }
+.ref-friend { padding: 12px 0; border-bottom: 1px solid var(--border); display: grid; gap: 6px; }
+.ref-friend:last-child { border-bottom: 0; }
+.ref-friend-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ref-friend small { color: var(--text-muted); font-size: 12.5px; }
+.ref-progress { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.ref-progress > span { display: block; height: 100%; background: var(--save); border-radius: inherit; transition: width .3s ease; }
+.coupon-body button.section-link {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; color: var(--brand-dark);
+}

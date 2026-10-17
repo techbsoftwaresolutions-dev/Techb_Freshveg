@@ -1,18 +1,20 @@
 import Link from "next/link";
 import FooterInstall from "@/components/FooterInstall";
-import logoIcon from "@/assets/logo-icon.png";
+import { brandImages } from "@/lib/brand";
+import { LEGAL_PAGES } from "@/lib/legal";
 
 // Only pages that exist are linked. About, careers and FAQs have no route
 // yet — they join these lists when they do, rather than sitting here as
 // links that go nowhere.
-export default function Footer({ categories = [] }) {
+export default function Footer({ categories = [], branding }) {
+  const brand = brandImages(branding);
   return (
     <footer className="footer">
       <div className="wrap">
         <div className="footer-grid">
           <div className="footer-brand">
             <Link href="/" className="footer-logo">
-              <img src={logoIcon.src} alt="The Farmers Basket logo" width="48" height="48" className="footer-mark" />
+              <img src={brand.symbol} alt="The Farmers Basket logo" width="48" height="48" className="footer-mark" />
               <span>
                 <span className="footer-logo-name">The Farmers Basket</span>
                 <span className="footer-logo-tag">Fresh Food • Better Life</span>
@@ -37,9 +39,16 @@ export default function Footer({ categories = [] }) {
             <ul>
               <li><Link href="/help">Help Center</Link></li>
               <li><Link href="/orders">Track Order</Link></li>
-              <li><Link href="/orders">Returns &amp; Refunds</Link></li>
               <li><a href="tel:+918072605216">Contact Us</a></li>
-              <li><Link href="/terms">Terms &amp; Conditions</Link></li>
+            </ul>
+          </div>
+
+          <div className="footer-col footer-col-legal">
+            <h4>Policies</h4>
+            <ul>
+              {LEGAL_PAGES.filter((page) => !page.href.startsWith("/delivery-app")).map((page) => (
+                <li key={page.href}><Link href={page.href}>{page.label}</Link></li>
+              ))}
             </ul>
           </div>
 

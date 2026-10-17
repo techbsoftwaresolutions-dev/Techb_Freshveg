@@ -185,6 +185,26 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
           </span>
           <IconChevron className="am-chev" width={16} height={16} />
         </Link>
+        <Link href="/account/refer" className="am-menu-row">
+          <span className="am-menu-icon">
+            <IconCrown width={19} height={19} />
+          </span>
+          <span className="am-menu-copy">
+            <strong>Refer &amp; earn</strong>
+            <span>Your code, friends&apos; progress and rewards</span>
+          </span>
+          <IconChevron className="am-chev" width={16} height={16} />
+        </Link>
+        <Link href="/account/coupons" className="am-menu-row">
+          <span className="am-menu-icon">
+            <IconFile width={19} height={19} />
+          </span>
+          <span className="am-menu-copy">
+            <strong>My coupons</strong>
+            <span>Rewards ready to use at checkout</span>
+          </span>
+          <IconChevron className="am-chev" width={16} height={16} />
+        </Link>
         <Link href="/terms" className="am-menu-row">
           <span className="am-menu-icon">
             <IconFile width={19} height={19} />

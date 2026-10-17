@@ -730,6 +730,14 @@ const stores = [
 
 const users = [
   {
+    name: "Super Admin",
+    phone: "9000000000",
+    email: "owner@samagramart.local",
+    role: "super_admin",
+    password: "super123",
+    status: "active",
+  },
+  {
     name: "Store Admin",
     phone: "9000000001",
     email: "admin@samagramart.local",

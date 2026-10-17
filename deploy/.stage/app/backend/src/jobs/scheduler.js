@@ -1,4 +1,6 @@
 const rules = require("./rules");
+const whatsappService = require("../modules/notifications/whatsapp.service");
+const referralService = require("../modules/referrals/referral.service");
 
 // A small in-process scheduler.
 //
@@ -13,7 +15,13 @@ const JOBS = [
   { name: "lowStockAlerts", everyMinutes: 12 * 60, run: rules.lowStockAlerts },
   { name: "winBack", everyMinutes: 24 * 60, run: rules.winBack },
   { name: "expireCarts", everyMinutes: 24 * 60, run: rules.expireCarts },
+  { name: "expireUnpaidOrders", everyMinutes: 5, run: rules.expireUnpaidOrders },
   { name: "expireLoyalty", everyMinutes: 24 * 60, run: rules.expireLoyalty },
+  // Queued WhatsApp order updates that are due a (re)try — see whatsapp.service.
+  { name: "whatsappQueue", everyMinutes: 1, run: () => whatsappService.retryDue() },
+  // Referral coupons owed but not yet issued, deliveries never recorded,
+  // coupon expiries and coupons held by a checkout that crashed.
+  { name: "referralRewards", everyMinutes: 10, run: () => referralService.sweep() },
 ];
 
 const timers = [];

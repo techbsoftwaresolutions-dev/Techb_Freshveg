@@ -10,6 +10,8 @@ const Otp = require("./otp.model");
 const { issueTokens, verifyRefreshToken } = require("./token.service");
 const { requireAuth } = require("../../middleware/auth");
 const { ROLES, STAFF_ROLES, PERMISSIONS } = require("./roles");
+const referralService = require("../referrals/referral.service");
+const deletionService = require("./accountDeletion.service");
 
 const router = express.Router();
 
@@ -32,6 +34,7 @@ const publicUser = (user) => ({
   phone: user.phone,
   email: user.email,
   role: user.role,
+  roleLabel: ROLES[user.role]?.label || user.role,
   permissions: user.permissions,
   status: user.status,
   walletBalance: user.walletBalance,
@@ -51,6 +54,18 @@ router.post(
     if (!/^\d{10}$/.test(phone)) throw ApiError.badRequest("Enter a valid 10-digit mobile number");
 
     const role = req.body.role === "delivery_partner" ? "delivery_partner" : "customer";
+
+    // App Store / Play review accounts sign in with a fixed code (see
+    // config.reviewLogins): nothing is sent, nothing is shown.
+    if (config.reviewLogins.has(`${role}:${phone}`)) {
+      return res.json({ success: true, message: `OTP sent to ${phone}`, expiresInSeconds: 300 });
+    }
+
+    // Per number as well as per IP: rotating addresses must not be a way to
+    // flood one person's phone (or the SMS bill).
+    const recent = await Otp.countDocuments({ phone, role, createdAt: { $gt: new Date(Date.now() - 15 * 60 * 1000) } });
+    if (recent >= 5) throw new ApiError(429, "Too many codes requested for this number. Try again in 15 minutes.");
+
     const code = randomCode();
 
     await Otp.create({
@@ -85,22 +100,29 @@ router.post(
     const code = String(req.body.code || "").trim();
     const role = req.body.role === "delivery_partner" ? "delivery_partner" : "customer";
 
-    const record = await Otp.findOne({ phone, role, consumedAt: null }).sort({ createdAt: -1 });
-    if (!record) throw ApiError.badRequest("Request an OTP first");
-    if (record.expiresAt < new Date()) throw ApiError.badRequest("That OTP has expired");
+    const reviewCode = config.reviewLogins.get(`${role}:${phone}`);
+    if (reviewCode) {
+      if (!crypto.timingSafeEqual(Buffer.from(Otp.hash(code)), Buffer.from(Otp.hash(reviewCode)))) {
+        throw ApiError.badRequest("Incorrect OTP");
+      }
+    } else {
+      const record = await Otp.findOne({ phone, role, consumedAt: null }).sort({ createdAt: -1 });
+      if (!record) throw ApiError.badRequest("Request an OTP first");
+      if (record.expiresAt < new Date()) throw ApiError.badRequest("That OTP has expired");
 
-    if (record.attempts >= 5) {
-      throw ApiError.badRequest("Too many wrong attempts. Request a new OTP.");
-    }
+      if (record.attempts >= 5) {
+        throw ApiError.badRequest("Too many wrong attempts. Request a new OTP.");
+      }
 
-    if (record.codeHash !== Otp.hash(code)) {
-      record.attempts += 1;
+      if (record.codeHash !== Otp.hash(code)) {
+        record.attempts += 1;
+        await record.save();
+        throw ApiError.badRequest("Incorrect OTP");
+      }
+
+      record.consumedAt = new Date();
       await record.save();
-      throw ApiError.badRequest("Incorrect OTP");
     }
-
-    record.consumedAt = new Date();
-    await record.save();
 
     // First OTP for a number creates the account — there is no separate signup
     // step for customers.
@@ -110,24 +132,45 @@ router.post(
     if (!user) {
       // A delivery partner cannot self-register; the store creates their account.
       if (role === "delivery_partner") {
-        throw ApiError.forbidden("This number is not registered as a delivery partner");
+        throw ApiError.forbidden("This number is not registered as a delivery boy. Ask your store to add you.");
       }
-      user = new User({
-        phone,
-        role,
-        name: req.body.name || "",
-        referralCode: `${phone.slice(-4)}${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
-      });
+      // The referral code is given after the first save (ensureCode): random,
+      // retried on a clash, and not derived from the phone number.
+      user = new User({ phone, role, name: req.body.name || "" });
       isNew = true;
     }
 
-    if (user.status === "blocked") throw ApiError.forbidden("This account has been blocked");
+    if (user.status === "blocked") {
+      // Admin → Delivery Boys calls a switched-off rider "Inactive".
+      throw ApiError.forbidden(
+        role === "delivery_partner"
+          ? "This account is inactive. Ask your store to reactivate it."
+          : "This account has been blocked"
+      );
+    }
 
     user.phoneVerifiedAt = new Date();
     user.lastLoginAt = new Date();
     await user.save();
 
-    res.json({ success: true, isNewUser: isNew, user: publicUser(user), ...issueTokens(user) });
+    // A friend's code carried in from a referral link (or typed at sign-up)
+    // attaches on account creation. Login never fails over it: the outcome
+    // goes back so the client can say what happened.
+    let referral = null;
+    if (role === "customer") {
+      await referralService.ensureCode(user).catch((err) => console.warn("[referral] code:", err.message));
+      const code = String(req.body.referralCode || "").trim();
+      if (code && isNew) {
+        referral = await referralService
+          .claim(user._id, code, { source: req.body.referralSource === "link" ? "link" : "signup" })
+          .then(() => ({ applied: true, message: "Referral code applied" }))
+          .catch((err) => ({ applied: false, message: err.message }));
+      } else if (code) {
+        referral = { applied: false, message: "Referral codes apply to new accounts — use Refer & Earn if you haven't ordered yet" };
+      }
+    }
+
+    res.json({ success: true, isNewUser: isNew, user: publicUser(user), referral, ...issueTokens(user) });
   })
 );
 
@@ -246,6 +289,58 @@ router.delete(
 
     await user.save();
     res.json({ success: true, addresses: user.addresses });
+  })
+);
+
+// ---------------------------------------------------------------- account deletion
+
+// What deleting would mean right now: for a customer, anything that stops it
+// (an order in progress, a pending refund, an open support request) and what
+// they would give up; for a delivery employee, their request's status.
+router.get(
+  "/me/deletion",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+    if (!user) throw ApiError.notFound("Account not found");
+    res.json({ success: true, ...(await deletionService.status(user)) });
+  })
+);
+
+// Customers: erased at once (the app and the website's /account-deletion
+// page). Delivery employees: a request their store admin acts on. Other staff
+// accounts are closed by a Super Admin in Admin → Users.
+router.post(
+  "/me/deletion",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+    if (!user) throw ApiError.notFound("Account not found");
+    if (String(req.body.confirm || "").trim().toUpperCase() !== "DELETE") {
+      throw ApiError.badRequest('Type DELETE to confirm');
+    }
+
+    if (user.role === "customer") {
+      const deletion = await deletionService.eraseCustomer(user, {
+        source: req.body.source === "web" ? "web" : "app",
+        reason: req.body.reason,
+        acknowledge: req.body.acknowledge === true,
+      });
+      return res.json({
+        success: true,
+        message: `Your account has been deleted. Reference ${deletion.reference}.`,
+        deletion,
+      });
+    }
+    if (user.role === "delivery_partner") {
+      const deletion = await deletionService.requestStaffDeletion(user, { reason: req.body.reason });
+      return res.status(202).json({
+        success: true,
+        message: "Your request has been sent to your store. Your account stays active until an admin completes it.",
+        deletion,
+      });
+    }
+    throw ApiError.forbidden("Staff accounts are closed by a Super Admin in Admin → Users");
   })
 );
 

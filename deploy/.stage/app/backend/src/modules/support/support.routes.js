@@ -16,6 +16,13 @@ router.use(requireAuth);
 
 const isStaff = (req) => req.user.permissions.includes("customers.view");
 
+// Internal notes are staff-only, even on your own ticket.
+function forCustomer(ticket) {
+  const plain = ticket.toJSON();
+  plain.messages = plain.messages.filter((m) => !m.internal);
+  return plain;
+}
+
 // ---------------------------------------------------------------- customer
 
 router.get(
@@ -78,12 +85,7 @@ router.get(
     const result = await paginate(SupportTicket, { customer: req.user.id }, req.query, {
       defaultSort: { createdAt: -1 },
     });
-    // Internal notes are staff-only, even on your own ticket.
-    result.items = result.items.map((ticket) => {
-      const plain = ticket.toJSON();
-      plain.messages = plain.messages.filter((m) => !m.internal);
-      return plain;
-    });
+    result.items = result.items.map(forCustomer);
     res.json({ success: true, ...result });
   })
 );
@@ -126,7 +128,7 @@ router.post(
       });
     }
 
-    res.json({ success: true, ticket });
+    res.json({ success: true, ticket: staff ? ticket : forCustomer(ticket) });
   })
 );
 

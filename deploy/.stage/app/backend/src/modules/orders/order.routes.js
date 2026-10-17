@@ -1,4 +1,5 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
 const { paginate } = require("../../core/query");
@@ -13,10 +14,71 @@ const Order = require("./order.model");
 const User = require("../auth/user.model");
 const Store = require("../stores/store.model");
 const orderService = require("./order.service");
+const audit = require("../audit/audit.service");
 const { STATUSES, allowedTransitions, buildTimeline, describeAction } = require("./orderStatus");
 
 const router = express.Router();
 router.use(requireAuth);
+
+// A delivery partner sees and moves only the orders assigned to them, and
+// never the customer's handover code: the code is how a delivery proves the
+// rider reached the customer.
+const isRider = (user) => user.role === "delivery_partner";
+
+function assertAssigned(order, user) {
+  if (isRider(user) && String(order.delivery?.partner) !== user.id) {
+    throw ApiError.forbidden("This order is assigned to another delivery boy");
+  }
+}
+
+// A rider gets what the run in hand needs and no more: the customer's name,
+// phone, address and instructions only while the order is on their run, and
+// never the email, staff notes, payment references or customer id. Once the
+// run is over, history keeps the area and the amounts (for the cash count),
+// not the person.
+const ON_RUN = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"];
+
+function forViewer(order, user) {
+  const json = typeof order.toJSON === "function" ? order.toJSON() : { ...order };
+  if (!isRider(user)) return json;
+
+  const live = ON_RUN.includes(json.status);
+  const delivery = json.delivery || {};
+  const address = delivery.address || {};
+  const { method, status, amountPaid } = json.payment || {};
+  return {
+    ...json,
+    customer: undefined,
+    customerSnapshot: live ? { name: json.customerSnapshot?.name, phone: json.customerSnapshot?.phone } : {},
+    customerNote: undefined,
+    internalNote: undefined,
+    statusHistory: undefined,
+    rating: undefined,
+    rewardCoupon: undefined,
+    payment: { method, status, amountPaid },
+    delivery: {
+      ...delivery,
+      otp: undefined,
+      proofPhoto: undefined,
+      signature: undefined,
+      deliveredLocation: undefined,
+      instructions: live ? delivery.instructions : undefined,
+      address: live ? address : { label: address.label, city: address.city, state: address.state, pincode: address.pincode },
+    },
+  };
+}
+
+// A customer's own order, without staff notes, and with the delivery
+// employee's phone only while the order is on its way.
+function forCustomer(order) {
+  const json = typeof order.toJSON === "function" ? order.toJSON() : { ...order };
+  const delivery = json.delivery || {};
+  return {
+    ...json,
+    internalNote: undefined,
+    delivery: { ...delivery, partnerPhone: ON_RUN.includes(json.status) ? delivery.partnerPhone : undefined },
+  };
+}
 
 // The whole status table, so the admin and delivery apps build their action
 // buttons from the engine rather than hardcoding a copy of it.
@@ -39,6 +101,7 @@ router.post(
       cartId: req.body.cart,
       userId: req.user.id,
       addressId: req.body.address,
+      deliveryAreaId: req.body.deliveryArea,
       paymentMethod: req.body.paymentMethod || "cod",
       slot: req.body.slot,
       note: req.body.note,
@@ -58,7 +121,7 @@ router.get(
     }
 
     const result = await paginate(Order, filter, req.query, { defaultSort: { placedAt: -1 } });
-    res.json({ success: true, ...result });
+    res.json({ success: true, ...result, items: result.items.map(forCustomer) });
   })
 );
 
@@ -74,7 +137,9 @@ router.get(
       throw ApiError.forbidden("Not your order");
     }
 
-    res.json({ success: true, tracking: orderService.trackingView(order) });
+    // The order itself rides along, so a detail screen needs one request and
+    // works for any order — not only the ones on the first page of /mine.
+    res.json({ success: true, tracking: orderService.trackingView(order), order: isOwner ? forCustomer(order) : order });
   })
 );
 
@@ -84,6 +149,12 @@ router.post(
     const order = await Order.findById(req.params.id);
     if (!order) throw ApiError.notFound("Order not found");
     if (String(order.customer) !== req.user.id) throw ApiError.forbidden("Not your order");
+    // Once the rider has collected it the goods are on the road: the website
+    // and app stop offering Cancel here, and so does the API (refund policy:
+    // docs/legal/refund-cancellation-policy.md).
+    if (["PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"].includes(order.status)) {
+      throw ApiError.conflict("This order is already on its way and can no longer be cancelled. Contact support if there is a problem.");
+    }
 
     await orderService.transition(
       order,
@@ -133,14 +204,18 @@ router.get(
 
 router.get(
   "/:id",
-  requirePermission("orders.view"),
+  requireAnyPermission("orders.view", "delivery.fulfil"),
   asyncHandler(async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) throw ApiError.notFound("Order not found");
+    assertAssigned(order, req.user);
+    // Where it was collected from — the delivery app's run and history screens.
+    const store = await Store.findById(order.store).select("name address contact");
 
     res.json({
       success: true,
-      order,
+      order: forViewer(order, req.user),
+      pickup: store ? { name: store.name, address: store.address, phone: store.contact?.phone || "" } : null,
       timeline: buildTimeline(order.status, order.statusHistory),
       // Exactly the moves this user may make from here.
       actions: allowedTransitions(order.status, req.user.role).map(describeAction),
@@ -156,6 +231,11 @@ router.post(
   asyncHandler(async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) throw ApiError.notFound("Order not found");
+    assertAssigned(order, req.user);
+    // A rider's handover goes through /deliver, which checks the customer's code.
+    if (isRider(req.user) && req.body.status === "DELIVERED") {
+      throw ApiError.badRequest("Confirm the delivery with the customer's handover code");
+    }
 
     await orderService.transition(
       order,
@@ -166,7 +246,7 @@ router.post(
 
     res.json({
       success: true,
-      order,
+      order: forViewer(order, req.user),
       actions: allowedTransitions(order.status, req.user.role).map(describeAction),
     });
   })
@@ -237,39 +317,76 @@ router.get(
           assignedToday: stats.assigned,
           deliveredToday: stats.delivered,
           openNow: stats.assigned - stats.delivered,
+          // Store ids this rider is limited to (empty = every store), so one
+          // list can serve a table of orders from several stores.
+          stores: partner.stores.map(String),
         };
       }),
     });
   })
 );
 
+// Assign, or reassign before pickup (Admin -> Orders table and order page).
 router.post(
   "/:id/assign",
   requirePermission("orders.assign"),
   asyncHandler(async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) throw ApiError.notFound("Order not found");
+    const before = order.delivery.partnerName || "";
 
     await orderService.assignDeliveryPartner(order, req.body.partner, {
       id: req.user.id, name: req.user.name, role: req.user.role,
     });
-    res.json({ success: true, order });
+    const after = order.delivery.partnerName;
+    if (before !== after) {
+      await audit.record({
+        req, action: before ? "reassign" : "assign", entity: "Order", entityId: order._id, label: order.code,
+        summary: before ? `Delivery moved from ${before} to ${after}` : `Delivery assigned to ${after}`,
+      });
+    }
+    res.json({
+      success: true,
+      message: before === after ? `Already assigned to ${after}` : `Assigned to ${after}`,
+      order,
+    });
+  })
+);
+
+// Remove the assignment before pickup: back to Ready for pickup, nobody on it.
+router.delete(
+  "/:id/assign",
+  requirePermission("orders.assign"),
+  asyncHandler(async (req, res) => {
+    const order = await Order.findById(req.params.id);
+    if (!order) throw ApiError.notFound("Order not found");
+    const removed = order.delivery.partnerName || "the delivery person";
+
+    await orderService.unassignDeliveryPartner(order, {
+      id: req.user.id, name: req.user.name, role: req.user.role,
+    });
+    await audit.record({
+      req, action: "unassign", entity: "Order", entityId: order._id, label: order.code,
+      summary: `Delivery unassigned from ${removed}`,
+    });
+    res.json({ success: true, message: `Removed ${removed} from ${order.code}`, order });
   })
 );
 
 // ---------------------------------------------------------------- delivery app
 
-const LIVE_STATUSES = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"];
+const LIVE_STATUSES = ON_RUN;
 
-// The partner app's home screen in one request: what is in hand right now, and
-// what today has been worth. Everything here is computed from real orders —
-// earnings are deliveries × the store's configured per-delivery fee, not an
-// estimate.
+// The delivery app's home screen in one request: what is in hand right now,
+// and how today's work stands. Delivery boys are store employees on a salary,
+// so there is nothing per delivery to add up — only counts and the cash on
+// delivery they are holding for the store.
 router.get(
   "/delivery/queue",
   requireRole("delivery_partner", "admin", "super_admin", "store_manager"),
   asyncHandler(async (req, res) => {
-    const partnerId = req.query.partner || req.user.id;
+    // Staff may look at anyone's queue; a delivery boy only ever at their own.
+    const partnerId = (!isRider(req.user) && req.query.partner) || req.user.id;
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -281,20 +398,14 @@ router.get(
         "delivery.partner": partnerId,
         status: "DELIVERED",
         "delivery.deliveredAt": { $gte: startOfDay },
-      }).select("store pricing payment delivery.deliveredAt code"),
-      Store.find({ status: { $ne: "closed" } }).select("name code address location contact settings"),
+      }).select("pricing payment delivery.deliveredAt code"),
+      Store.find({ status: { $ne: "closed" } }).select("name code address location contact"),
     ]);
 
     const storeById = new Map(stores.map((s) => [s.id, s]));
 
-    // Fee is per store, so a partner working two branches earns each branch's
-    // rate rather than an average.
-    const earnings = deliveredToday.reduce(
-      (sum, order) => sum + (storeById.get(String(order.store))?.settings?.partnerFeePerDelivery ?? 0),
-      0
-    );
-
-    // Cash the partner is holding and owes back to the store at shift end.
+    // Cash on delivery collected today: the store's money, handed in at the
+    // counter (Admin → Payments → Cash on delivery).
     const codCollected = deliveredToday
       .filter((order) => order.payment.method === "cod")
       .reduce((sum, order) => sum + (order.pricing?.total || 0), 0);
@@ -304,7 +415,7 @@ router.get(
     const withPickup = orders.map((order) => {
       const store = storeById.get(String(order.store));
       return {
-        ...order.toJSON(),
+        ...forViewer(order, req.user),
         pickup: store
           ? {
               id: store.id,
@@ -324,7 +435,6 @@ router.get(
         pending: orders.length,
         deliveredToday: deliveredToday.length,
         assignedToday: orders.length + deliveredToday.length,
-        earnings,
         codCollected,
       },
     });
@@ -336,7 +446,7 @@ router.get(
   "/delivery/history",
   requireRole("delivery_partner", "admin", "super_admin", "store_manager"),
   asyncHandler(async (req, res) => {
-    const partnerId = req.query.partner || req.user.id;
+    const partnerId = (!isRider(req.user) && req.query.partner) || req.user.id;
 
     const since = new Date();
     since.setHours(0, 0, 0, 0);
@@ -353,25 +463,35 @@ router.get(
       { defaultSort: { "delivery.deliveredAt": -1 } }
     );
 
-    res.json({ success: true, ...result });
+    res.json({ success: true, ...result, items: result.items.map((order) => forViewer(order, req.user)) });
   })
 );
+
+// The handover code is four digits, so wrong guesses are capped per person per
+// order; a rider who mistypes a few times is told to wait, not locked out.
+const handoverAttempts = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `${req.user.id}:${req.params.id}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: { message: "Too many wrong codes. Wait 15 minutes, or call the store." } },
+});
 
 router.post(
   "/:id/deliver",
   requireRole("delivery_partner", "admin", "super_admin", "store_manager"),
+  handoverAttempts,
   asyncHandler(async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) throw ApiError.notFound("Order not found");
-
-    if (req.user.role === "delivery_partner" && String(order.delivery.partner) !== req.user.id) {
-      throw ApiError.forbidden("This order is assigned to another partner");
-    }
+    assertAssigned(order, req.user);
 
     await orderService.completeDelivery(order, req.body, {
       id: req.user.id, name: req.user.name, role: req.user.role,
     });
-    res.json({ success: true, order });
+    res.json({ success: true, order: forViewer(order, req.user) });
   })
 );
 

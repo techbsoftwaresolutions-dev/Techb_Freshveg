@@ -9,6 +9,7 @@ const Brand = require("./brand.model");
 const Product = require("./product.model");
 const Variant = require("./variant.model");
 const Store = require("../stores/store.model");
+const deliveryAreas = require("../stores/deliveryArea.service");
 const Offer = require("../pricing/offer.model");
 const inventoryService = require("../inventory/inventory.service");
 
@@ -286,13 +287,27 @@ router.get(
         message: "We don't deliver to this pincode yet",
       });
     }
+    // The active delivery areas this pincode covers (Admin → Delivery Areas).
+    const areas = await deliveryAreas.activeAreas({ store: store._id, pincode });
+    // ?area= re-checks a place the customer picked earlier: one switched off
+    // since is reported as such, not quietly replaced by its neighbour.
+    if (req.query.area && !areas.some((a) => a.id === String(req.query.area))) {
+      return res.json({
+        success: true,
+        serviceable: false,
+        areaUnavailable: true,
+        message: "That delivery area is no longer available — choose another location",
+      });
+    }
 
     res.json({
       success: true,
       serviceable: true,
       store: { id: store.id, name: store.name, code: store.code },
-      // The named places this pincode covers ("Sarjapura", "Dommasandra").
-      areas: store.deliveryAreas().filter((a) => a.pincode === pincode && a.name).map((a) => a.name),
+      // The named places this pincode covers ("Sarjapura", "Dommasandra"),
+      // and the same as full records with the id an order refers to.
+      areas: areas.map((a) => a.name),
+      deliveryAreas: areas,
       isOpen: store.isOpenNow(),
       minOrderValue: store.settings.minOrderValue,
       freeDeliveryEnabled: store.settings.freeDeliveryEnabled !== false,

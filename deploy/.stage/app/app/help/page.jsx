@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import SupportDesk from "@/components/SupportDesk";
 
 export const metadata = {
   title: "Help Center — Orders, Delivery & Returns",
@@ -17,7 +19,7 @@ const TOPICS = [
   },
   {
     title: "Returns and refunds",
-    body: "Open the order and raise a return from there.",
+    body: "Open a delivered order and choose \"Return items\" — or raise a request below.",
     href: "/orders",
     label: "Go to my orders",
   },
@@ -42,6 +44,11 @@ export default function HelpPage() {
         <h1>Help Center</h1>
         <p>Pick what you need, or call us.</p>
       </header>
+
+      {/* Reads ?order= from the URL, so it needs its own Suspense boundary. */}
+      <Suspense fallback={null}>
+        <SupportDesk />
+      </Suspense>
 
       <div className="help-grid">
         {TOPICS.map((topic) => (

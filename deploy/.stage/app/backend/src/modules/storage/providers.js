@@ -10,6 +10,11 @@ const crypto = require("crypto");
 
 const MAX_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 5 * 1024 * 1024);
 
+// Homepage hero videos (Admin → Settings → Website → Video Hero). Cloudinary's
+// own ceiling for a single (non-chunked) upload is 100 MB.
+const MAX_VIDEO_BYTES = Number(process.env.MAX_VIDEO_UPLOAD_BYTES || 100 * 1024 * 1024);
+const VIDEO_FORMATS = ["mp4", "webm"];
+
 const CONTENT_TYPE = {
   jpg: "image/jpeg",
   png: "image/png",
@@ -59,6 +64,72 @@ const cloudinary = {
       .join("&");
 
     return crypto.createHash("sha1").update(canonical + this.apiSecret).digest("hex");
+  },
+
+  /** Every hero video sits under one folder, which is also the library. */
+  get videoFolder() {
+    return [this.rootFolder, "hero-videos"].filter(Boolean).join("/");
+  },
+
+  /** Site-wide images (logo, favicon) must come from this account. */
+  ownsImage(url) {
+    return typeof url === "string" && url.startsWith(`https://res.cloudinary.com/${this.cloudName}/image/upload/`);
+  },
+
+  /** Only videos from this account may be put on the homepage. */
+  ownsVideo(url) {
+    return typeof url === "string" && url.startsWith(`https://res.cloudinary.com/${this.cloudName}/video/upload/`);
+  },
+
+  /**
+   * Videos go from the admin's browser straight to Cloudinary — a 60 MB file
+   * should not be buffered through this API. The server only signs the
+   * parameters, so the secret never leaves it, and allowed_formats is inside
+   * the signature: a browser cannot swap in another file type.
+   */
+  signVideoUpload() {
+    const params = {
+      allowed_formats: VIDEO_FORMATS.join(","),
+      folder: this.videoFolder,
+      timestamp: String(Math.floor(Date.now() / 1000)),
+      unique_filename: "true",
+      use_filename: "true",
+    };
+    return {
+      uploadUrl: `https://api.cloudinary.com/v1_1/${this.cloudName}/video/upload`,
+      apiKey: this.apiKey,
+      params,
+      signature: this.sign(params),
+    };
+  },
+
+  /** The video library: what is already uploaded, newest first. */
+  async listVideos() {
+    // ponytail: first 100 only — follow next_cursor if the library outgrows it.
+    const url =
+      `https://api.cloudinary.com/v1_1/${this.cloudName}/resources/video/upload` +
+      `?max_results=100&prefix=${encodeURIComponent(`${this.videoFolder}/`)}`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Basic ${Buffer.from(`${this.apiKey}:${this.apiSecret}`).toString("base64")}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(`Cloudinary could not list the videos: ${payload?.error?.message || `HTTP ${response.status}`}`);
+      error.status = 502;
+      throw error;
+    }
+    return (payload.resources || [])
+      .map((r) => ({
+        url: r.secure_url,
+        publicId: r.public_id,
+        name: r.display_name || r.public_id.split("/").pop(),
+        bytes: r.bytes,
+        width: r.width,
+        height: r.height,
+        duration: r.duration,
+        createdAt: r.created_at,
+      }))
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   },
 
   async save(buffer, extension, folder) {
@@ -124,4 +195,4 @@ function resolve() {
   return cloudinary;
 }
 
-module.exports = { resolve, missingConfig, cloudinary, MAX_BYTES, CONTENT_TYPE };
+module.exports = { resolve, missingConfig, cloudinary, MAX_BYTES, CONTENT_TYPE, MAX_VIDEO_BYTES, VIDEO_FORMATS };

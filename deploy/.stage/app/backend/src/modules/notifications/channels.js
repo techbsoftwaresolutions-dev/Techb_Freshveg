@@ -46,5 +46,11 @@ module.exports = {
   sms,
   inapp,
   email: stub("Email", "SMTP_URL"),
-  whatsapp: stub("WhatsApp", "WHATSAPP_TOKEN"),
+  // WhatsApp only allows business-initiated messages through Meta-approved
+  // templates, so it is not a free-text channel here: order updates go out
+  // through whatsapp.service.js (see docs/WHATSAPP.md).
+  whatsapp: async () => ({
+    status: "skipped",
+    reason: "WhatsApp order updates are sent as approved templates, logged in WhatsAppMessage",
+  }),
 };

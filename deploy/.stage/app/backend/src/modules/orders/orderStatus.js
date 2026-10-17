@@ -74,7 +74,7 @@ const STATUSES = {
     actors: ["store_manager", "admin"],
   },
   ASSIGNED_TO_DELIVERY: {
-    label: "Assigned to delivery partner",
+    label: "Assigned to delivery boy",
     customerLabel: "Delivery partner assigned",
     group: "delivery",
     timeline: true,
@@ -182,7 +182,7 @@ const ACTION_LABELS = {
   PICKING: "Start picking items",
   PACKING: "Start packing",
   READY_FOR_PICKUP: "Mark ready for pickup",
-  ASSIGNED_TO_DELIVERY: "Assign delivery partner",
+  ASSIGNED_TO_DELIVERY: "Assign delivery boy",
   PICKED_UP: "Mark picked up",
   OUT_FOR_DELIVERY: "Mark out for delivery",
   ARRIVED: "Mark arrived",

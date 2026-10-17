@@ -1,4 +1,5 @@
 import { getCategories, getProducts, SITE_URL } from "@/lib/api";
+import { LEGAL_PAGES } from "@/lib/legal";
 
 // Built from the live catalogue, so a department or product added in the admin
 // is submittable to search engines without anyone editing a list. Category and
@@ -13,7 +14,7 @@ export default async function sitemap() {
     { url: SITE_URL, lastModified: now, changeFrequency: "daily", priority: 1, images: [`${SITE_URL}/og-image.jpg`] },
     { url: `${SITE_URL}/c`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${SITE_URL}/help`, lastModified: now, changeFrequency: "monthly", priority: 0.3 },
-    { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
+    ...LEGAL_PAGES.map((page) => ({ url: `${SITE_URL}${page.href}`, changeFrequency: "yearly", priority: 0.2 })),
   ];
 
   const categoryData = await getCategories();

@@ -36,7 +36,7 @@ const settingsSchema = new mongoose.Schema(
     payment: {
       codEnabled: { type: Boolean, default: true },
       onlineEnabled: { type: Boolean, default: false },
-      provider: { type: String, enum: ["none", "razorpay", "stripe"], default: "none" },
+      provider: { type: String, enum: ["none", "razorpay"], default: "none" },
       // Keys are read from the environment, never stored here — a settings
       // document ends up in backups, logs and admin screens.
       testMode: { type: Boolean, default: true },
@@ -55,11 +55,42 @@ const settingsSchema = new mongoose.Schema(
       expiryDays: { type: Number, default: 365 },
     },
 
+    // Referral & Rewards (Admin → Marketing → Referral & Rewards). Rules and
+    // their exact meaning: referrals/referral.service.js. Rewards are issued
+    // as single-use coupons, never wallet cash.
     referral: {
+      // Off: no new attributions, and purchases delivered while off neither
+      // count nor earn. Existing links, progress and issued coupons are kept,
+      // and progress resumes from where it was when it is switched back on.
       enabled: { type: Boolean, default: true },
-      referrerReward: money(5000), // ₹50 to the person who shared
-      refereeReward: money(5000),  // ₹50 to the new customer
-      minFirstOrderValue: money(19900),
+      // The referrer earns `reward` when a referred friend's count of
+      // qualifying purchases reaches exactly `purchases`. Validated on save:
+      // positive whole counts, no duplicates.
+      milestones: {
+        type: [{ _id: false, purchases: { type: Number, required: true }, reward: money(0) }],
+        default: () => [{ purchases: 1, reward: 5000 }],
+      },
+      // After the last milestone, every `repeatEvery` further qualifying
+      // purchases earn `repeatReward` again (0 = no repeating rewards).
+      repeatEvery: { type: Number, default: 0, min: 0 },
+      repeatReward: money(0),
+      // A one-off welcome coupon for the new customer on their first
+      // qualifying purchase (0 = none).
+      refereeReward: money(5000),
+      // Basis: merchandise subtotal after catalogue prices and offers, before
+      // delivery, packaging, wallet, points and reward coupons.
+      minQualifyingOrderValue: money(19900),
+      couponExpiryDays: { type: Number, default: 30, min: 1 },
+      // Merchandise value the cart must reach to redeem a reward coupon.
+      couponMinOrderValue: money(0),
+      // Whether a reward coupon may sit on the same order as an offer coupon
+      // code. Automatic offers (no code) always apply.
+      combinable: { type: Boolean, default: false },
+      // Most coupons one referrer can ever earn (0 = no cap).
+      maxRewardsPerReferrer: { type: Number, default: 0, min: 0 },
+      // Items in these categories (and below) are not discounted by a reward
+      // coupon.
+      excludedCategories: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }],
     },
 
     delivery: {
@@ -99,6 +130,16 @@ const settingsSchema = new mongoose.Schema(
       reviewsEnabled: { type: Boolean, default: true },
       reviewsNeedApproval: { type: Boolean, default: true },
       wishlistEnabled: { type: Boolean, default: true },
+      // The customer app's home hero, chosen in Admin → Settings → Apps and
+      // independent of the website's homeTemplate. "classic" is the banner
+      // strip; "video" plays the website's Video Hero playlist
+      // (website.videoHero), so the videos are uploaded once.
+      homeHero: { type: String, enum: ["classic", "video"], default: "classic" },
+      // The words over the app's hero, on either style. Empty text: Video
+      // Hero falls back to the website's hero text, Classic shows the banner
+      // alone.
+      heroText: { type: String, maxlength: 300, trim: true, default: "" },
+      heroCtaLabel: { type: String, maxlength: 30, trim: true, default: "Shop Now" },
     },
 
     website: {
@@ -108,8 +149,49 @@ const settingsSchema = new mongoose.Schema(
       socialLinks: { type: mongoose.Schema.Types.Mixed, default: {} },
       // Which homepage layout the storefront renders — chosen in Admin →
       // Settings, applies to every visitor. "classic" is the original design,
-      // "fresh" the "Farm Fresh Goodness" layout.
-      homeTemplate: { type: String, enum: ["classic", "fresh"], default: "classic" },
+      // "fresh" the "Farm Fresh Goodness" layout, "video" the Classic page
+      // with a full-card background video as its hero.
+      homeTemplate: { type: String, enum: ["classic", "fresh", "video"], default: "classic" },
+      // Kept when another design is chosen, so switching back needs no
+      // re-upload. Videos are Cloudinary references, never the bytes.
+      videoHero: {
+        text: {
+          type: String,
+          maxlength: 300,
+          default: "100% source traceable natural harvest from 800+ farms across South India.",
+        },
+        ctaLabel: { type: String, maxlength: 30, default: "Shop Now" },
+        videos: {
+          type: [
+            {
+              _id: false,
+              url: { type: String, required: true },
+              publicId: String,
+              name: String,
+              duration: Number,
+              bytes: Number,
+              width: Number,
+              height: Number,
+            },
+          ],
+          default: [],
+        },
+      },
+    },
+
+    // Brand images, uploaded in Admin → Settings → Branding (rules and the
+    // runtime vs build-time split: ./branding.js). Cloudinary URLs only, never
+    // the bytes. Empty means each client's bundled default.
+    branding: {
+      logo: { type: String, default: "" }, // headers, sign-in screens, loaders
+      symbol: { type: String, default: "" }, // the compact mark: footers, admin sidebar
+      favicon: { type: String, default: "" }, // browser tab (website, admin)
+      shareImage: { type: String, default: "" }, // Open Graph / link previews
+      // Launcher icons, one per app, applied at app build time. The customer
+      // icon is also the website's "Add to Home Screen" icon (live).
+      customerAppIcon: { type: String, default: "" },
+      deliveryAppIcon: { type: String, default: "" },
+      splash: { type: String, default: "" }, // splash artwork, applied at app build time
     },
 
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

@@ -11,6 +11,7 @@ import HomeSidebar from "@/components/HomeSidebar";
 import HeroCarousel from "@/components/HeroCarousel";
 import FlashDeal from "@/components/FlashDeal";
 import WhyFarmersBasket from "@/components/WhyFarmersBasket";
+import VideoHero from "@/components/VideoHero";
 import heroPhoto from "@/assets/Fresh Harvest Basket in Sunlit Fields.webp";
 import farmPhoto from "@/assets/Fresh Fruit Basket in Sunlit Greenery.webp";
 
@@ -63,7 +64,8 @@ export default async function HomePage() {
   }
 
   // The homepage design is chosen in Admin → Settings → Website.
-  if (settingsData?.settings?.website?.homeTemplate === "fresh") {
+  const website = settingsData?.settings?.website;
+  if (website?.homeTemplate === "fresh") {
     return <FreshHome home={home} categoryTree={categoryTree?.categories || []} />;
   }
 
@@ -75,6 +77,10 @@ export default async function HomePage() {
   // home_hero banner is passed through (not just the first) so more than
   // one rotates.
   const heroBanners = heroBannerData?.banners || [];
+  // "Video Hero" is this same page with the admin's video playlist as the
+  // hero; with no playable list it falls back to the classic hero.
+  const videoHero =
+    website?.homeTemplate === "video" && website.videoHero?.videos?.length ? website.videoHero : null;
   const departments = categories;
   // "Shop by Category" shows every shelf a shopper can open: a department's
   // aisles where it has them (the vegetable shelves), otherwise the
@@ -97,51 +103,55 @@ export default async function HomePage() {
         ) : null}
 
         <div className="home-main">
-          <section className="hero">
-            <div className="hero-media" aria-hidden={heroBanners.length ? undefined : "true"}>
-              {heroBanners.length ? (
-                <HeroCarousel banners={heroBanners} />
-              ) : (
-                <img src={heroPhoto.src} alt="Basket of farm-fresh vegetables delivered in Bangalore by The Farmers Basket" className="hero-photo" fetchPriority="high" />
-              )}
-            </div>
-
-            <div className="hero-main">
-              <span className="hero-eyebrow">Premium Fresh Vegetables</span>
-              <h1>
-                Fresh from the Farm. <span className="hero-accent">Delivered to Your Basket.</span>
-              </h1>
-              <p>
-                Farm-fresh vegetables, carefully selected for quality, freshness and export
-                standards — from {store?.name || "your neighbourhood store"}.
-              </p>
-              <div className="hero-cta">
-                <Link href="/c" className="btn primary lg">
-                  Shop Vegetables
-                  <IconArrow />
-                </Link>
-                <Link href="/search?q=organic" className="btn lg hero-secondary">
-                  Explore Organic
-                  <IconArrow />
-                </Link>
+          {videoHero ? (
+            <VideoHero videos={videoHero.videos} text={videoHero.text} ctaLabel={videoHero.ctaLabel} />
+          ) : (
+            <section className="hero">
+              <div className="hero-media" aria-hidden={heroBanners.length ? undefined : "true"}>
+                {heroBanners.length ? (
+                  <HeroCarousel banners={heroBanners} />
+                ) : (
+                  <img src={heroPhoto.src} alt="Basket of farm-fresh vegetables delivered in Bangalore by The Farmers Basket" className="hero-photo" fetchPriority="high" />
+                )}
               </div>
 
-              <ul className="hero-features">
-                <li>
-                  <IconLeafBadge />
-                  <span>Farm Fresh{" "}<br />Daily</span>
-                </li>
-                <li>
-                  <IconShield />
-                  <span>Organic &amp;{" "}<br />Export Quality</span>
-                </li>
-                <li>
-                  <IconTruck />
-                  <span>Fast Local{" "}<br />Delivery</span>
-                </li>
-              </ul>
-            </div>
-          </section>
+              <div className="hero-main">
+                <span className="hero-eyebrow">Premium Fresh Vegetables</span>
+                <h1>
+                  Fresh from the Farm. <span className="hero-accent">Delivered to Your Basket.</span>
+                </h1>
+                <p>
+                  Farm-fresh vegetables, carefully selected for quality, freshness and export
+                  standards — from {store?.name || "your neighbourhood store"}.
+                </p>
+                <div className="hero-cta">
+                  <Link href="/c" className="btn primary lg">
+                    Shop Vegetables
+                    <IconArrow />
+                  </Link>
+                  <Link href="/search?q=organic" className="btn lg hero-secondary">
+                    Explore Organic
+                    <IconArrow />
+                  </Link>
+                </div>
+
+                <ul className="hero-features">
+                  <li>
+                    <IconLeafBadge />
+                    <span>Farm Fresh{" "}<br />Daily</span>
+                  </li>
+                  <li>
+                    <IconShield />
+                    <span>Organic &amp;{" "}<br />Export Quality</span>
+                  </li>
+                  <li>
+                    <IconTruck />
+                    <span>Fast Local{" "}<br />Delivery</span>
+                  </li>
+                </ul>
+              </div>
+            </section>
+          )}
 
           {/* Departments as tiles — the one grid a returning shopper scans
               before typing a search. */}
@@ -297,7 +307,7 @@ export default async function HomePage() {
             </section>
           ) : null}
 
-          <WhyFarmersBasket />
+          <WhyFarmersBasket branding={settingsData?.settings?.branding} />
         </div>
       </div>
     </div>

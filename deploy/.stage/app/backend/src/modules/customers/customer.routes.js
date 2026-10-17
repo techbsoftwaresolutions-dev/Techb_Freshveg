@@ -10,6 +10,7 @@ const CustomerGroup = require("./customerGroup.model");
 const walletService = require("../wallet/wallet.service");
 const loyaltyService = require("../loyalty/loyalty.service");
 const audit = require("../audit/audit.service");
+const deletionService = require("../auth/accountDeletion.service");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -23,7 +24,8 @@ router.get(
   "/",
   canView,
   asyncHandler(async (req, res) => {
-    const filter = { role: "customer" };
+    // Erased accounts are tombstones for the order history, not customers.
+    const filter = { role: "customer", status: { $ne: "deleted" } };
     if (req.query.status) filter.status = req.query.status;
     if (req.query.group) {
       const group = await CustomerGroup.findById(req.query.group).select("members");
@@ -108,6 +110,7 @@ router.patch(
     const customer = await User.findOne({ _id: req.params.id, role: "customer" });
     if (!customer) throw ApiError.notFound("Customer not found");
 
+    if (customer.status === "deleted") throw ApiError.conflict("This account has been deleted and can't be changed");
     const before = audit.snapshot(customer);
 
     // Balances are ledger-owned; blocking is the one thing staff set directly.
@@ -122,6 +125,31 @@ router.patch(
     });
 
     res.json({ success: true, customer });
+  })
+);
+
+// Deletion on a customer's behalf, for a request that arrived by email or
+// phone (they lost the number, say). The same checks and the same erasure as
+// the in-app route; account managers only, never routine support staff.
+router.post(
+  "/:id/erase",
+  requirePermission("users.manage"),
+  asyncHandler(async (req, res) => {
+    const customer = await User.findOne({ _id: req.params.id, role: "customer" });
+    if (!customer) throw ApiError.notFound("Customer not found");
+    if (String(req.body.confirm || "").trim().toUpperCase() !== "DELETE") throw ApiError.badRequest("Type DELETE to confirm");
+    if (!String(req.body.note || "").trim()) {
+      throw ApiError.unprocessable("Record the request", { note: "Say how the customer asked (email, call) and how you checked it was them" });
+    }
+
+    const deletion = await deletionService.eraseCustomer(customer, {
+      source: "admin", reason: req.body.note, acknowledge: req.body.acknowledge === true, actor: req.user,
+    });
+    await audit.record({
+      req, action: "erase", entity: "Customer", entityId: customer._id, label: deletion.reference,
+      summary: `Customer account erased on request (${deletion.reference})`,
+    });
+    res.json({ success: true, message: `Customer erased. Reference ${deletion.reference}.`, deletion });
   })
 );
 

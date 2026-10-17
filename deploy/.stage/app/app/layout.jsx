@@ -2,15 +2,16 @@ import { Suspense } from "react";
 import { DM_Serif_Display, Poppins } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-import Header from "@/components/Header";
+import Header, { HeaderPlaceholder } from "@/components/Header";
 import Footer from "@/components/Footer";
 import MobileNav from "@/components/MobileNav";
 import PwaSupport from "@/components/PwaSupport";
 import ReviewPrompt from "@/components/ReviewPrompt";
-import { getCategories, getServiceAreas, SITE_URL } from "@/lib/api";
+import { getCategories, getPublicSettings, getServiceAreas, SITE_URL } from "@/lib/api";
+import { iconUrl, img } from "@/lib/format";
 import { BUSINESS, HOME_DESCRIPTION, HOME_TITLE, KEYWORDS, SHARE_IMAGE, SITE_NAME, jsonLdHtml, siteJsonLd } from "@/lib/seo";
 
-export const metadata = {
+const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: HOME_TITLE,
@@ -74,6 +75,25 @@ export const metadata = {
   formatDetection: { telephone: false },
 };
 
+// The browser-tab icon and link-preview picture are the ones uploaded in
+// Admin → Settings → Branding, or the bundled ones in /public until there are.
+// Pages that set their own share picture (products, categories) keep it.
+export async function generateMetadata() {
+  const branding = (await getPublicSettings())?.settings?.branding;
+  const favicon = branding?.favicon;
+  const share = branding?.shareImage
+    ? { ...SHARE_IMAGE, url: img(branding.shareImage, 1200).replace("/image/upload/", "/image/upload/c_fill,h_630,") }
+    : SHARE_IMAGE;
+  return {
+    ...metadata,
+    openGraph: { ...metadata.openGraph, images: [share] },
+    twitter: { ...metadata.twitter, images: [share.url] },
+    icons: favicon
+      ? { icon: iconUrl(favicon, 64), apple: iconUrl(favicon, 180, "white") }
+      : { icon: "/icon.png", apple: "/apple-icon.png" },
+  };
+}
+
 // Self-hosted by next/font at build time, so there is no request to Google from
 // the shopper's browser and no layout shift while it loads.
 const poppins = Poppins({
@@ -103,24 +123,25 @@ export const viewport = {
 export default async function RootLayout({ children }) {
   // The category bar is on every page, so it is fetched once in the layout and
   // cached — not re-requested per route.
-  const [data, areaData] = await Promise.all([getCategories(), getServiceAreas()]);
+  const [data, areaData, settingsData] = await Promise.all([getCategories(), getServiceAreas(), getPublicSettings()]);
   const categories = data?.categories || [];
+  const branding = settingsData?.settings?.branding || null;
 
   return (
     <html lang="en-IN" className={`${poppins.variable} ${serif.variable}`}>
       <body>
         {/* The shop and site as structured data, for Google's local results. */}
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdHtml(siteJsonLd(SITE_URL, areaData?.areas))} />
-        <Providers>
+        <Providers branding={branding}>
           {/* Header reads useSearchParams, which needs a Suspense boundary so
               the rest of the page can still be statically rendered. */}
-          <Suspense fallback={<div style={{ height: "var(--header-total)" }} />}>
+          <Suspense fallback={<HeaderPlaceholder />}>
             <Header categories={categories} />
           </Suspense>
 
           <main>{children}</main>
 
-          <Footer categories={categories} />
+          <Footer categories={categories} branding={branding} />
 
           <Suspense fallback={null}>
             <MobileNav />

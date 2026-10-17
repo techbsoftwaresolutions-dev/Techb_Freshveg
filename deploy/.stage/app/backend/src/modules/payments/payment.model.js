@@ -4,7 +4,7 @@ const { mongoose, baseOptions, money, objectId } = require("../../core/schemaBas
 // UPI try, a retry, then a successful card charge. The order's payment block is
 // the summary; these rows are what actually happened.
 
-const METHODS = ["cod", "upi", "card", "netbanking", "wallet", "paylater", "store_credit"];
+const METHODS = ["cod", "upi", "online", "card", "netbanking", "wallet", "paylater", "store_credit"];
 const STATUSES = ["created", "pending", "authorized", "captured", "failed", "cancelled", "refunded", "partially_refunded"];
 
 const paymentSchema = new mongoose.Schema(
@@ -22,7 +22,7 @@ const paymentSchema = new mongoose.Schema(
     amountRefunded: money(0),
     currency: { type: String, default: "INR" },
 
-    provider: { type: String, default: "none" }, // razorpay | stripe | none (cod/wallet)
+    provider: { type: String, default: "none" }, // razorpay | none (cod/upi/wallet)
     // What the gateway calls it. Kept so a support agent can paste an id from
     // the gateway dashboard into admin search and find the order.
     providerOrderId: { type: String, default: "", index: true },

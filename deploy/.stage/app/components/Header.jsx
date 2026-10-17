@@ -3,25 +3,42 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAuth, useCart, useStore } from "./Providers";
+import { useAuth, useBranding, useCart, useStore } from "./Providers";
 import { rupees } from "@/lib/format";
 import { api } from "@/lib/client-api";
 
-import logo from "@/assets/logo-farmers-basket.png";
 
 export default function Header({ categories = [] }) {
+  const brand = useBranding();
   const router = useRouter();
   const params = useSearchParams();
   const pathname = usePathname();
   const cart = useCart();
   const { user, signedIn } = useAuth();
-  const { store, pincode, area, setPincode } = useStore();
+  const { store, pincode, area, setPincode, locationNotice, ready: storeReady } = useStore();
 
   const [term, setTerm] = useState(params.get("q") || "");
   const [searchFocused, setSearchFocused] = useState(false);
   const typedPlaceholder = useTypedPlaceholder(!term && !searchFocused);
   const [pinOpen, setPinOpen] = useState(false);
   const closePin = useCallback(() => setPinOpen(false), []);
+  // No delivery location yet (or the saved one stopped being served): open
+  // the picker once per visit rather than on every page.
+  useEffect(() => {
+    if (!storeReady || pincode) return;
+    // A saved area that has been switched off always says so.
+    if (locationNotice) {
+      setPinOpen(true);
+      return;
+    }
+    try {
+      if (sessionStorage.getItem("commerce.web.locationPrompted")) return;
+      sessionStorage.setItem("commerce.web.locationPrompted", "1");
+    } catch {
+      return; // no storage: don't risk prompting on every page
+    }
+    setPinOpen(true);
+  }, [storeReady, pincode, locationNotice]);
   const [openCategory, setOpenCategory] = useState(null);
   // Hover opens and closes a dropdown as the pointer moves through it, which
   // breaks the instant the pointer leaves the page to do anything else — to
@@ -63,9 +80,7 @@ export default function Header({ categories = [] }) {
   // On "All products" and category pages the search box filters the listing
   // in place (see ListingSearch) instead of opening the /search page.
   const onListing = pathname === "/c" || pathname.startsWith("/c/");
-  // Information pages (terms, help, policies) are for reading, not shopping —
-  // no category bar under the header there.
-  const onInfoPage = INFO_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
+  const showCatbar = showsCategoryBar(pathname);
   const tellListing = (value) => window.dispatchEvent(new CustomEvent("listing-search", { detail: value }));
 
   const submit = (event) => {
@@ -76,7 +91,7 @@ export default function Header({ categories = [] }) {
   };
 
   return (
-    <header className="header">
+    <header className={showCatbar ? "header" : "header no-catbar"}>
       <div className="wrap header-main">
         {/* Phone, on the cart page only (see globals.css): all categories. */}
         <Link href="/c" className="header-burger" aria-label="All categories">
@@ -85,7 +100,8 @@ export default function Header({ categories = [] }) {
         <Link href="/" className="logo">
           {/* The artwork carries a wide white margin; .logo crops it so the
               basket and wordmark fill the header row. */}
-          <img src={logo.src} alt="The Farmers Basket" width={logo.width} height={logo.height} className="logo-img" />
+          {/* The logo uploaded in Admin → Settings → Branding, else the bundled one. */}
+          <img src={brand.logo} alt="The Farmers Basket" className="logo-img" />
         </Link>
 
         <form className="search-form" onSubmit={submit} role="search">
@@ -130,7 +146,7 @@ export default function Header({ categories = [] }) {
               </span>
             </button>
             {pinOpen ? (
-              <PincodePopover onDone={closePin} setPincode={setPincode} store={store} />
+              <PincodePopover onDone={closePin} setPincode={setPincode} store={store} notice={locationNotice} />
             ) : null}
           </div>
 
@@ -186,7 +202,7 @@ export default function Header({ categories = [] }) {
         </div>
       </div>
 
-      {onInfoPage ? null : (
+      {showCatbar ? (
       <nav className="catbar" aria-label="Categories" ref={catbarRef}>
         <div className="wrap catbar-inner">
           <Link href="/c" className="catbar-all">
@@ -264,13 +280,26 @@ export default function Header({ categories = [] }) {
           </Link>
         </div>
       </nav>
-      )}
+      ) : null}
     </header>
   );
 }
 
-// Pages that show the header without the category bar.
-const INFO_PAGES = ["/terms", "/help", "/privacy", "/refund-policy", "/shipping-policy", "/about"];
+// The category bar is for browsing: Home and the category listings only —
+// /c and /c/<slug> (departments and their aisles share that one route).
+// Everywhere else (cart, account, policies, product pages, 404s…) it is left
+// out. The query string never counts: usePathname doesn't include it.
+export function showsCategoryBar(pathname) {
+  const path = (pathname || "/").replace(/\/+$/, "") || "/";
+  return path === "/" || path === "/c" || /^\/c\/[^/]+$/.test(path);
+}
+
+// What layout.jsx shows while the header streams in: the header's height, with
+// or without the bar, so the page doesn't jump when it arrives.
+export function HeaderPlaceholder() {
+  const pathname = usePathname();
+  return <div className={showsCategoryBar(pathname) ? undefined : "no-catbar"} style={{ height: "var(--header-total)" }} />;
+}
 
 // The search box's placeholder types itself out, one product at a time
 // ("Search for "Tomatoes"", erased, then "Search for "Fresh milk""…), while the
@@ -334,11 +363,12 @@ function useTypedPlaceholder(active) {
   return text;
 }
 
-// The delivery check: a small pop-up under "Deliver to". The shopper types a
-// place name or a pincode and picks from the areas the shop delivers to (set
-// per store in the admin), or checks any 6-digit pincode directly. Closes on a
-// click outside, on Escape, or shortly after a served area is confirmed.
-function PincodePopover({ onDone, setPincode, store }) {
+// The delivery check: a small pop-up under "Deliver to". The shopper types an
+// area, city or pincode and picks from the areas the shop delivers to (Admin →
+// Delivery Areas, fetched fresh each time it opens), or checks a 6-digit
+// pincode directly. Closes on a click outside, on Escape, or shortly after a
+// served area is confirmed.
+function PincodePopover({ onDone, setPincode, store, notice }) {
   const [value, setValue] = useState("");
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -359,7 +389,12 @@ function PincodePopover({ onDone, setPincode, store }) {
 
   const query = value.trim().toLowerCase();
   const matches = areas
-    .filter((a) => !query || a.pincode.startsWith(query) || a.name.toLowerCase().includes(query))
+    .filter(
+      (a) =>
+        !query ||
+        a.pincode.startsWith(query) ||
+        [a.name, a.city, a.state].some((field) => (field || "").toLowerCase().includes(query))
+    )
     .slice(0, 8);
   const isPincode = /^\d{6}$/.test(value.trim());
 
@@ -380,10 +415,10 @@ function PincodePopover({ onDone, setPincode, store }) {
     };
   }, [onDone]);
 
-  const choose = async (code, name) => {
+  const choose = async (code, name, id) => {
     setBusy(true);
     try {
-      const data = await setPincode(code, name);
+      const data = await setPincode(code, name, id);
       setResult({ ...data, picked: name || data.areas?.[0] || "", pincode: code });
       if (data.serviceable) setTimeout(onDone, 900);
     } catch {
@@ -396,7 +431,7 @@ function PincodePopover({ onDone, setPincode, store }) {
   const check = (event) => {
     event.preventDefault();
     if (isPincode) choose(value.trim());
-    else if (matches.length) choose(matches[0].pincode, matches[0].name);
+    else if (matches.length) choose(matches[0].pincode, matches[0].name, matches[0].id);
   };
 
   return (
@@ -416,8 +451,8 @@ function PincodePopover({ onDone, setPincode, store }) {
             setValue(e.target.value.slice(0, 40));
             setResult(null);
           }}
-          placeholder="Area or pincode"
-          aria-label="Area name or pincode"
+          placeholder="Area, city or pincode"
+          aria-label="Area, city or pincode"
           autoComplete="off"
         />
         <button className="btn primary" disabled={(!isPincode && !(query && matches.length)) || busy}>
@@ -425,13 +460,18 @@ function PincodePopover({ onDone, setPincode, store }) {
         </button>
       </form>
 
+      {notice && !result ? <p className="pin-pop-result no">{notice}</p> : null}
+
       {!result && matches.length ? (
         <ul className="pin-pop-areas" aria-label="Areas we deliver to">
           {matches.map((a) => (
-            <li key={`${a.pincode}-${a.name}`}>
-              <button type="button" onClick={() => choose(a.pincode, a.name)} disabled={busy}>
+            <li key={a.id || `${a.pincode}-${a.name}`}>
+              <button type="button" onClick={() => choose(a.pincode, a.name, a.id)} disabled={busy}>
                 <IconPin className="pin-pop-area-icon" />
-                <span className="pin-pop-area-name">{a.name || `Pincode ${a.pincode}`}</span>
+                <span className="pin-pop-area-name">
+                  {a.name || `Pincode ${a.pincode}`}
+                  {a.city && a.city !== a.name ? <span className="pin-pop-area-city">, {a.city}</span> : null}
+                </span>
                 <span className="pin-pop-area-code">{a.pincode}</span>
               </button>
             </li>

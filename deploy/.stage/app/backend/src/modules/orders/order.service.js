@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 
 const Order = require("./order.model");
 const Cart = require("../cart/cart.model");
@@ -12,7 +13,11 @@ const paymentService = require("../payments/payment.service");
 const walletService = require("../wallet/wallet.service");
 const loyaltyService = require("../loyalty/loyalty.service");
 const referralService = require("../referrals/referral.service");
+const couponService = require("../referrals/coupon.service");
 const notificationService = require("../notifications/notification.service");
+const whatsappService = require("../notifications/whatsapp.service");
+const deliveryAreaService = require("../stores/deliveryArea.service");
+const DeliveryArea = require("../stores/deliveryArea.model");
 const inventoryService = require("../inventory/inventory.service");
 const {
   STATUSES,
@@ -50,7 +55,7 @@ function appendStatus(order, status, actor, note = "") {
 // Turns a priced cart into an order. Stock is reserved here, not at
 // ORDER_ACCEPTED, because the moment a customer has paid the items have to be
 // theirs — a reservation that fails must fail the checkout, not the picking.
-async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", slot, note, source = "app" }) {
+async function placeOrder({ cartId, userId, addressId, deliveryAreaId, paymentMethod = "cod", slot, note, source = "app" }) {
   const cart = await Cart.findOne({ _id: cartId, customer: userId, status: "active" });
   if (!cart) throw ApiError.notFound("Cart not found");
 
@@ -61,7 +66,26 @@ async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", sl
   const address = customer.addresses.id(addressId) || customer.defaultAddress();
   if (!address) throw ApiError.badRequest("Add a delivery address before placing the order");
 
-  if (store.servicePincodes.length && !store.servicePincodes.includes(address.pincode)) {
+  // Checked here, not only in the picker: the area must be one the admin has
+  // open for delivery right now. The area the customer picked is honoured
+  // when it covers the address; one switched off since they picked it is a
+  // clear refusal, not a silent swap. (With no delivery areas set up at all,
+  // the store's own pincode list still decides, as before.)
+  let deliveryArea = null;
+  if (await deliveryAreaService.hasAreas()) {
+    if (deliveryAreaId) {
+      const picked = mongoose.isValidObjectId(deliveryAreaId) ? await DeliveryArea.findById(deliveryAreaId) : null;
+      if (!picked || !picked.active) {
+        throw ApiError.conflict(
+          `${picked ? picked.name : "The delivery area you picked"} is no longer one of our delivery areas — choose another location`
+        );
+      }
+    }
+    deliveryArea = await deliveryAreaService.areaForCheckout({ storeId: store._id, pincode: address.pincode, preferredId: deliveryAreaId });
+    if (!deliveryArea) {
+      throw ApiError.conflict(`We don't deliver to ${address.pincode} yet — choose an address in one of our delivery areas`);
+    }
+  } else if (store.servicePincodes.length && !store.servicePincodes.includes(address.pincode)) {
     throw ApiError.conflict(`${store.name} does not deliver to ${address.pincode}`);
   }
 
@@ -79,6 +103,24 @@ async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", sl
       { shortfall: summary.summary.shortfallToMinimum }
     );
   }
+  // Checked before any stock is reserved: an unknown method would otherwise
+  // only fail at save, and an online order with no working gateway could
+  // never be paid.
+  if (!Order.schema.path("payment.method").enumValues.includes(paymentMethod)) {
+    throw ApiError.badRequest("Choose a payment method");
+  }
+  if (paymentService.isOnline(paymentMethod)) {
+    const reason = await paymentService.onlineUnavailableReason(summary.summary.total);
+    if (reason) throw ApiError.badRequest(reason);
+  }
+  // A reward coupon left on the cart that no longer applies is a refusal, not
+  // a silent full-price order: the customer must see what they will pay.
+  if (cart.rewardCoupon && !summary.rewardCoupon?.ok) {
+    throw ApiError.conflict(
+      `${summary.rewardCoupon?.reason || "Your coupon can't be used"} — remove the coupon to continue`,
+      { coupon: summary.rewardCoupon }
+    );
+  }
   if (paymentMethod === "cod") {
     if (!store.settings.codEnabled) throw ApiError.badRequest("Cash on delivery is not available at this store");
     if (summary.summary.total > store.settings.maxCodValue) {
@@ -88,88 +130,109 @@ async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", sl
     }
   }
 
-  // Reserve everything before writing the order; if any line fails, release
-  // what was already taken so a failed checkout leaves no stock locked up.
-  const reserved = [];
+  // The coupon is taken first and atomically: of two checkouts racing for it,
+  // the second fails here, before any stock is touched.
+  const orderId = new mongoose.Types.ObjectId();
+  const code = await nextOrderCode();
+  const reward = summary.rewardCoupon?.ok ? summary.rewardCoupon : null;
+  if (reward) {
+    await couponService.reserve(reward.id, customer._id, { orderId, orderCode: code, discount: reward.discount });
+  }
+  let order;
   try {
-    for (const line of summary.items) {
-      await inventoryService.reserve(store._id, line.variant, line.quantity, {
-        refType: "checkout",
-        reason: "Order placement",
-      });
-      reserved.push(line);
+    // Reserve everything before writing the order; if any line fails, release
+    // what was already taken so a failed checkout leaves no stock locked up.
+    const reserved = [];
+    try {
+      for (const line of summary.items) {
+        await inventoryService.reserve(store._id, line.variant, line.quantity, {
+          refType: "checkout",
+          reason: "Order placement",
+        });
+        reserved.push(line);
+      }
+    } catch (err) {
+      for (const line of reserved) {
+        await inventoryService.release(store._id, line.variant, line.quantity, {
+          refType: "checkout",
+          reason: "Checkout rolled back",
+        });
+      }
+      throw err;
     }
+
+    order = new Order({
+      _id: orderId,
+      code,
+      customer: userId,
+      customerSnapshot: { name: customer.name, phone: customer.phone, email: customer.email },
+      store: store._id,
+      source,
+      status: "ORDER_PLACED",
+      items: summary.items.map((line) => ({
+        variant: line.variant,
+        product: line.product,
+        // Snapshotted with the rest of the line: the return window and the right
+        // to return at all are read off this category later, and a product moved
+        // to another department must not change a past order's terms.
+        category: line.category,
+        name: line.name,
+        variantName: line.variantName,
+        sku: line.sku,
+        image: line.image,
+        unit: line.unit,
+        packSize: line.packSize,
+        weightGrams: line.weightGrams || 0,
+        quantity: line.quantity,
+        unitPrice: line.pricing.unitPrice,
+        mrp: line.pricing.mrp,
+        lineTotal: line.pricing.lineTotal,
+        discount: line.pricing.discount,
+        payable: line.pricing.payable,
+        taxRatePct: line.pricing.taxRatePct,
+        tax: line.pricing.tax,
+      })),
+      pricing: summary.summary,
+      appliedOffers: summary.offers.applied.map((o) => ({
+        offer: o.rewardCoupon ? undefined : o.id, code: o.code, title: o.title, type: o.type, discount: o.discount,
+      })),
+      rewardCoupon: reward ? { coupon: reward.id, code: reward.code, discount: reward.discount } : undefined,
+      payment: {
+        method: paymentMethod,
+        // COD is owed on delivery; everything else has to clear before the store
+        // starts picking.
+        status: paymentMethod === "cod" ? "pending" : "pending",
+        amountPaid: 0,
+      },
+      delivery: {
+        address: {
+          label: address.label, contactName: address.contactName || customer.name,
+          contactPhone: address.contactPhone || customer.phone,
+          line1: address.line1, line2: address.line2, landmark: address.landmark,
+          city: address.city, state: address.state, pincode: address.pincode,
+          location: address.location,
+        },
+        area: deliveryArea
+          ? { id: deliveryArea._id, name: deliveryArea.name, city: deliveryArea.city, state: deliveryArea.state, pincode: deliveryArea.pincode }
+          : undefined,
+        slot: slot || cart.deliverySlot,
+        otp: deliveryOtp(),
+        instructions: note || "",
+        expectedBy: new Date(Date.now() + (store.settings.prepTimeMinutes + 30) * 60000),
+      },
+      customerNote: note || "",
+    });
+
+    appendStatus(order, "ORDER_PLACED", { role: "system" }, `Placed from ${source}`);
+    await order.save();
   } catch (err) {
-    for (const line of reserved) {
-      await inventoryService.release(store._id, line.variant, line.quantity, {
-        refType: "checkout",
-        reason: "Checkout rolled back",
-      });
+    // Nothing was written, so the coupon goes back. (Stock is released by the
+    // reservation loop's own rollback.)
+    if (reward) {
+      await couponService.releaseForOrder({ _id: orderId, rewardCoupon: { coupon: reward.id } }).catch(() => {});
     }
     throw err;
   }
-
-  const code = await nextOrderCode();
-
-  const order = new Order({
-    code,
-    customer: userId,
-    customerSnapshot: { name: customer.name, phone: customer.phone, email: customer.email },
-    store: store._id,
-    source,
-    status: "ORDER_PLACED",
-    items: summary.items.map((line) => ({
-      variant: line.variant,
-      product: line.product,
-      // Snapshotted with the rest of the line: the return window and the right
-      // to return at all are read off this category later, and a product moved
-      // to another department must not change a past order's terms.
-      category: line.category,
-      name: line.name,
-      variantName: line.variantName,
-      sku: line.sku,
-      image: line.image,
-      unit: line.unit,
-      packSize: line.packSize,
-      weightGrams: line.weightGrams || 0,
-      quantity: line.quantity,
-      unitPrice: line.pricing.unitPrice,
-      mrp: line.pricing.mrp,
-      lineTotal: line.pricing.lineTotal,
-      discount: line.pricing.discount,
-      payable: line.pricing.payable,
-      taxRatePct: line.pricing.taxRatePct,
-      tax: line.pricing.tax,
-    })),
-    pricing: summary.summary,
-    appliedOffers: summary.offers.applied.map((o) => ({
-      offer: o.id, code: o.code, title: o.title, type: o.type, discount: o.discount,
-    })),
-    payment: {
-      method: paymentMethod,
-      // COD is owed on delivery; everything else has to clear before the store
-      // starts picking.
-      status: paymentMethod === "cod" ? "pending" : "pending",
-      amountPaid: 0,
-    },
-    delivery: {
-      address: {
-        label: address.label, contactName: address.contactName || customer.name,
-        contactPhone: address.contactPhone || customer.phone,
-        line1: address.line1, line2: address.line2, landmark: address.landmark,
-        city: address.city, state: address.state, pincode: address.pincode,
-        location: address.location,
-      },
-      slot: slot || cart.deliverySlot,
-      otp: deliveryOtp(),
-      instructions: note || "",
-      expectedBy: new Date(Date.now() + (store.settings.prepTimeMinutes + 30) * 60000),
-    },
-    customerNote: note || "",
-  });
-
-  appendStatus(order, "ORDER_PLACED", { role: "system" }, `Placed from ${source}`);
-  await order.save();
 
   // Charge the wallet and points promised in the summary — through the
   // ledgers, so the balances stay explainable.
@@ -195,6 +258,7 @@ async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", sl
     .catch((err) => console.warn("[order] payment initiate:", err.message));
 
   for (const applied of summary.offers.applied) {
+    if (applied.rewardCoupon) continue;
     await Offer.findByIdAndUpdate(applied.id, { $inc: { "limits.usedCount": 1 } });
   }
 
@@ -242,7 +306,7 @@ async function transition(order, to, actor = {}, note = "") {
     // records the partner first.
     case "ASSIGNED_TO_DELIVERY":
       if (!order.delivery?.partner) {
-        throw ApiError.badRequest("Choose a delivery partner to assign this order to");
+        throw ApiError.badRequest("Choose a delivery boy to assign this order to");
       }
       break;
 
@@ -250,6 +314,12 @@ async function transition(order, to, actor = {}, note = "") {
       order.payment.status = "paid";
       order.payment.paidAt = new Date();
       order.payment.amountPaid = order.pricing.total;
+      break;
+
+    // Taken back from the rider before they collected it: nobody holds it
+    // now, so the rider's name must not linger on the order.
+    case "READY_FOR_PICKUP":
+      if (order.status === "ASSIGNED_TO_DELIVERY") clearPartner(order);
       break;
 
     case "PICKED_UP":
@@ -281,8 +351,19 @@ async function transition(order, to, actor = {}, note = "") {
       break;
     }
 
+    case "ORDER_CONFIRMED":
+      // COD straight away, online once paid: the coupon is now spent.
+      await couponService.redeemForOrder(order);
+      break;
+
     case "CANCELLED":
     case "REJECTED":
+      // Cancelled before delivery: the coupon goes back to the customer.
+      await couponService.releaseForOrder(order);
+      // An online order abandoned before payment: give the customer their
+      // cart back (unless they have started a new one), so giving up on the
+      // payment sheet does not mean shopping again from scratch.
+      if (order.status === "PAYMENT_PENDING") await restoreCart(order);
       await releaseStock(order, actor, to === "CANCELLED" ? "Order cancelled" : "Order rejected");
       order.cancellation = { reason: note, by: actor.id, byRole: role, at: new Date() };
       // Points and wallet spent on this order go back before the refund, so a
@@ -309,11 +390,61 @@ async function transition(order, to, actor = {}, note = "") {
   appendStatus(order, to, actor, note);
   await order.save();
 
+  // Referral progress follows the saved status, never a client's word for
+  // it. Both calls are idempotent; a failure here is logged and recovered by
+  // the scheduler's referral sweep rather than failing the delivery.
+  if (to === "DELIVERED") {
+    await referralService.recordPurchase(order).catch((err) => console.warn(`[referral] ${order.code}:`, err.message));
+  } else if (["CANCELLED", "REJECTED", "REFUNDED"].includes(to)) {
+    await referralService.reviewOrder(order).catch((err) => console.warn(`[referral] ${order.code}:`, err.message));
+  }
+
   // Tell the customer last, once the state change has actually stuck — a
   // notification about something that then failed to save is worse than none.
   await announce(order, to);
+  // WhatsApp is queued, not awaited: a slow or unreachable Meta must not hold
+  // up (or fail) the order. It never throws; retries run from the scheduler.
+  whatsappService.enqueueForStatus(order, to);
 
   return order;
+}
+
+/**
+ * Moves an order on once its online payment is captured. The customer's
+ * confirm, the gateway webhook and the reconciliation sweep can all learn of
+ * the same payment, but only the one that flipped the payment row to captured
+ * (payment.service markCaptured) calls this — so it runs once per payment.
+ */
+async function applyCapturedPayment(payment, note) {
+  const order = await Order.findById(payment.order);
+  if (!order) return null;
+
+  if (order.status === "PAYMENT_PENDING") {
+    order.payment.provider = payment.provider;
+    order.payment.transactionId = payment.providerPaymentId;
+    await transition(order, "PAYMENT_CONFIRMED", { role: "system" }, note);
+    await transition(order, "ORDER_CONFIRMED", { role: "system" });
+    return order;
+  }
+
+  // Money arrived for an order that can no longer take it — cancelled (or
+  // expired) while the customer was paying, or already paid by another
+  // attempt. Send it back rather than keep it.
+  await paymentService.refundUnapplied(
+    payment,
+    order.payment.status === "paid" ? "Duplicate payment for this order" : `Paid after the order was ${order.status.toLowerCase()}`
+  );
+  return order;
+}
+
+async function restoreCart(order) {
+  const cart = await Cart.findOne({ convertedOrder: order._id, status: "converted" });
+  if (!cart) return;
+  const fresh = await Cart.exists({ customer: cart.customer, store: cart.store, status: "active" });
+  if (fresh) return;
+  cart.status = "active";
+  cart.convertedOrder = undefined;
+  await cart.save();
 }
 
 // Every status change the customer should hear about goes out through the
@@ -400,26 +531,72 @@ async function creditRewards(order) {
     });
   }
 
-  // A first delivered order is what makes a referral real — until then the
-  // referrer could invite themselves and collect.
-  await referralService.settleForOrder(order).catch(() => {});
-
   return { points: earned.points, cashback };
 }
 
+function clearPartner(order) {
+  order.delivery.partner = undefined;
+  order.delivery.partnerName = "";
+  order.delivery.partnerPhone = "";
+  order.delivery.assignedAt = undefined;
+}
+
+// When an order can change hands. It goes to a rider once it is packed
+// (Ready for pickup) and can move to another rider until it is collected
+// (Assigned). Before that it is still the store's to prepare; after, the goods
+// are in someone's bag; and a closed order has nothing left to deliver.
+function assignmentBlock(order) {
+  if (["READY_FOR_PICKUP", "ASSIGNED_TO_DELIVERY"].includes(order.status)) return null;
+  const group = STATUSES[order.status]?.group;
+  if (group === "delivery") {
+    return `${order.delivery.partnerName || "The delivery person"} has already collected this order, so it can't change hands now`;
+  }
+  if (group === "closed" || group === "returns") {
+    return `This order is ${STATUSES[order.status].label.toLowerCase()}, so there is nothing to deliver`;
+  }
+  return "Mark the order ready for pickup before assigning a delivery person";
+}
+
+// Assigns, or reassigns before pickup. Re-saving the same person changes
+// nothing. The customer is told through the ASSIGNED_TO_DELIVERY transition.
 async function assignDeliveryPartner(order, partnerId, actor) {
+  const blocked = assignmentBlock(order);
+  if (blocked) throw ApiError.conflict(blocked);
+
+  if (!mongoose.isValidObjectId(partnerId)) throw ApiError.badRequest("Choose a delivery person");
   const partner = await User.findOne({ _id: partnerId, role: "delivery_partner" });
-  if (!partner) throw ApiError.badRequest("That delivery partner does not exist");
-  if (partner.status !== "active") throw ApiError.badRequest("That delivery partner is not active");
+  if (!partner) throw ApiError.badRequest("That delivery boy does not exist");
+  if (partner.status !== "active") throw ApiError.badRequest(`${partner.name} is inactive. Choose an active delivery person`);
+  // Store-scoped riders only take that store's orders (empty = every store).
+  if (partner.stores?.length && !partner.stores.some((store) => String(store) === String(order.store))) {
+    throw ApiError.badRequest(`${partner.name} doesn't deliver for this store`);
+  }
+  if (order.status === "ASSIGNED_TO_DELIVERY" && String(order.delivery.partner) === partner.id) return order;
 
   order.delivery.partner = partner._id;
   order.delivery.partnerName = partner.name;
   order.delivery.partnerPhone = partner.phone;
   order.delivery.assignedAt = new Date();
 
-  if (canTransition(order.status, "ASSIGNED_TO_DELIVERY")) {
+  if (order.status === "READY_FOR_PICKUP") {
     return transition(order, "ASSIGNED_TO_DELIVERY", actor, `Assigned to ${partner.name}`);
   }
+  await order.save();
+  return order;
+}
+
+// Takes the order back from its rider before pickup: it returns to Ready for
+// pickup with nobody on it, and leaves the rider's queue. An order collected
+// or closed keeps its rider, for the record.
+async function unassignDeliveryPartner(order, actor) {
+  const blocked = assignmentBlock(order);
+  if (blocked) throw ApiError.conflict(blocked);
+  if (!order.delivery.partner) throw ApiError.conflict("This order has no delivery person to remove");
+
+  if (order.status === "ASSIGNED_TO_DELIVERY") {
+    return transition(order, "READY_FOR_PICKUP", actor, `Unassigned from ${order.delivery.partnerName}`);
+  }
+  clearPartner(order);
   await order.save();
   return order;
 }
@@ -450,7 +627,9 @@ function trackingView(order) {
     isOpen: order.isOpen,
     timeline: buildTimeline(order.status, order.statusHistory),
     expectedBy: order.delivery.expectedBy,
-    partner: order.delivery.partner
+    // The delivery employee's name and number are the customer's to use
+    // while the order is on its way, not afterwards.
+    partner: order.delivery.partner && ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"].includes(order.status)
       ? { name: order.delivery.partnerName, phone: order.delivery.partnerPhone }
       : null,
     otp: ["OUT_FOR_DELIVERY", "ARRIVED", "PICKED_UP"].includes(order.status) ? order.delivery.otp : null,
@@ -461,7 +640,9 @@ function trackingView(order) {
 module.exports = {
   placeOrder,
   transition,
+  applyCapturedPayment,
   assignDeliveryPartner,
+  unassignDeliveryPartner,
   completeDelivery,
   trackingView,
   nextOrderCode,

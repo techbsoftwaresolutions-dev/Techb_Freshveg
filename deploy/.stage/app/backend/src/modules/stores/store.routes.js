@@ -4,6 +4,7 @@ const ApiError = require("../../core/ApiError");
 const { paginate } = require("../../core/query");
 const { requireAuth, requirePermission, optionalAuth } = require("../../middleware/auth");
 const Store = require("./store.model");
+const deliveryAreas = require("./deliveryArea.service");
 const Order = require("../orders/order.model");
 const Payment = require("../payments/payment.model");
 const User = require("../auth/user.model");
@@ -42,24 +43,13 @@ router.get(
 );
 
 // Public: every place the shop delivers to, for the "Deliver to" picker —
-// pincode and place name, sorted by name. Pincodes with no place name set
-// are listed by pincode alone.
+// the active areas from Admin → Delivery Areas (name, city, state, pincode,
+// and the id an order refers to). Only areas of stores that are open.
 router.get(
   "/service-areas",
   asyncHandler(async (req, res) => {
-    const stores = await Store.find({ status: "active" }).select("name servicePincodes serviceAreas").sort({ isDefault: -1, _id: 1 });
-    const seen = new Set();
-    const areas = [];
-    for (const store of stores) {
-      for (const area of store.deliveryAreas()) {
-        const key = `${area.pincode}|${area.name.toLowerCase()}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        areas.push(area);
-      }
-    }
-    areas.sort((a, b) => !a.name - !b.name || a.name.localeCompare(b.name) || a.pincode.localeCompare(b.pincode));
-    res.json({ success: true, areas });
+    const openStores = await Store.find({ status: "active" }).distinct("_id");
+    res.json({ success: true, areas: await deliveryAreas.activeAreas({ store: { $in: openStores } }) });
   })
 );
 
@@ -104,11 +94,11 @@ router.patch(
       throw ApiError.badRequest("Free delivery must be on or off");
     }
 
-    // Named delivery areas decide the pincode list, so the two never disagree.
+    // Coverage is managed in Admin → Delivery Areas and copied onto the store
+    // from there (deliveryArea.service.syncStore); a store save never edits it.
     const update = { ...req.body };
-    if (Array.isArray(update.serviceAreas)) {
-      Object.assign(update, Store.normalizeServiceAreas(update.serviceAreas));
-    }
+    delete update.serviceAreas;
+    delete update.servicePincodes;
 
     const store = await Store.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
     if (!store) throw ApiError.notFound("Store not found");

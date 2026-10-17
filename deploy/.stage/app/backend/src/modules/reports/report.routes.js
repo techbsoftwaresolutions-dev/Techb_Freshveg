@@ -9,7 +9,6 @@ const Inventory = require("../inventory/inventory.model");
 const User = require("../auth/user.model");
 const Payment = require("../payments/payment.model");
 const Category = require("../catalog/category.model");
-const cache = require("../../core/cache");
 
 const router = express.Router();
 router.use(requireAuth, requirePermission("reports.view"));
