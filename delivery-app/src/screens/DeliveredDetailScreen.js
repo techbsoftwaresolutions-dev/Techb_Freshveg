@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
 import { clockTime, colors, formatAddress, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill, callNumber } from "../components/ui";
@@ -15,6 +15,7 @@ export default function DeliveredDetailScreen({ route }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   useEffect(() => {
     api
@@ -103,6 +104,23 @@ export default function DeliveredDetailScreen({ route }) {
         </Card>
       ) : null}
 
+      {order.delivery?.proofPhoto ? (
+        <Card style={{ padding: spacing.md, gap: spacing.sm }}>
+          <Text style={styles.label}>Delivery photo</Text>
+          <Pressable onPress={() => setPhotoOpen(true)}>
+            <Image source={{ uri: order.delivery.proofPhoto }} style={styles.photo} resizeMode="cover" />
+          </Pressable>
+          <Text style={type.small}>Tap the photo to see it full size.</Text>
+        </Card>
+      ) : null}
+
+      <Modal visible={photoOpen} transparent animationType="fade" onRequestClose={() => setPhotoOpen(false)}>
+        <Pressable style={styles.viewer} onPress={() => setPhotoOpen(false)}>
+          <Image source={{ uri: order.delivery?.proofPhoto }} style={styles.viewerImage} resizeMode="contain" />
+          <Text style={styles.viewerHint}>Tap anywhere to close</Text>
+        </Pressable>
+      </Modal>
+
       {error ? <Notice tone="error">{error}</Notice> : null}
     </ScrollView>
   );
@@ -114,4 +132,8 @@ const styles = StyleSheet.create({
   label: { ...type.tiny, textTransform: "uppercase", fontWeight: "800", letterSpacing: 0.5 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   amount: { ...type.body, fontWeight: "800" },
+  photo: { width: "100%", height: 220, borderRadius: 12, backgroundColor: colors.border },
+  viewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center" },
+  viewerImage: { width: "100%", height: "85%" },
+  viewerHint: { color: "#fff", marginTop: 12, opacity: 0.7 },
 });

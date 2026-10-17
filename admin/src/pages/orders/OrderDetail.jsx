@@ -344,6 +344,21 @@ export default function OrderDetail() {
               </>
             )}
           </Card>
+
+          {order.delivery?.proofPhoto && (
+            <Card title="Delivery photo">
+              <a href={order.delivery.proofPhoto} target="_blank" rel="noreferrer">
+                <img
+                  src={order.delivery.proofPhoto}
+                  alt="Proof of delivery"
+                  style={{ width: "100%", maxHeight: 280, objectFit: "cover", borderRadius: 10, display: "block" }}
+                />
+              </a>
+              <p className="faint" style={{ fontSize: 12, marginBottom: 0 }}>
+                Taken by {order.delivery.partnerName || "the partner"} at the door. Click to open full size.
+              </p>
+            </Card>
+          )}
         </div>
       </div>
 
