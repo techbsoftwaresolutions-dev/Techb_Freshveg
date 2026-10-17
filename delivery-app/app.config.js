@@ -38,6 +38,19 @@ export default {
       ],
     },
     web: { bundler: "metro" },
+    plugins: [
+      // The camera only, for the product photo at the door (DeliveryScreen).
+      // No photo library and no microphone: a gallery image proves nothing.
+      [
+        "expo-image-picker",
+        {
+          cameraPermission:
+            "The camera is used to photograph the customer's products at the door before handover, as proof of what was delivered.",
+          photosPermission: false,
+          microphonePermission: false,
+        },
+      ],
+    ],
     extra: {
       apiBaseUrl: process.env.API_BASE_URL,
       // Where the legal notices live (Profile → Legal & account).

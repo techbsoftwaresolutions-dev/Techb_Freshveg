@@ -35,7 +35,7 @@ Scope: backend API, both apps, website; 16 Oct 2026. Only launch blockers were f
 | R5 | Medium | Audit log and notifications have no retention limit; audit log stores IP and user agent | Apply internal-retention-schedule.md (TTL indexes) |
 | R6 | Low | `CORS_ORIGINS` unset = all origins allowed | Confirm it is set in production (it is in the staged deploy env) |
 | R7 | Low | Erased accounts free the phone number, so the same person can be referred again | Keep a keyed hash of erased numbers for referral-fraud checks only (disclose in privacy policy) |
-| R8 | Low | Delivered proof photos (if ever used) live in Cloudinary; erasure clears the URL on the order but does not delete the Cloudinary asset | Delete the asset via the Cloudinary API when the feature is used |
+| R8 | Low | ~~Delivered proof photos live in Cloudinary; erasure clears the URL but not the asset~~ **Resolved:** product photos are authenticated Cloudinary assets, deleted via the API on account deletion, on retake and after 90 days | — |
 | R9 | Low | Website order page shows "Cancel" for orders in a return state; API refuses (409) | Hide it for RETURN_* statuses |
 
 ## Checked and found acceptable

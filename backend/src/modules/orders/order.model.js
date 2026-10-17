@@ -207,7 +207,21 @@ const orderSchema = new mongoose.Schema(
       // Proof of delivery.
       otp: { type: String, default: "" },
       otpVerifiedAt: Date,
-      proofPhoto: { type: String, default: "" },
+      proofPhoto: { type: String, default: "" }, // legacy: a URL, never set by the apps
+      // The rider's photo of the products at the door, before handover
+      // (POST /orders/:id/product-photo). An authenticated Cloudinary image:
+      // the id is kept, never a public URL — viewers get an expiring link.
+      productPhoto: {
+        publicId: String,
+        format: String,
+        width: Number,
+        height: Number,
+        bytes: Number,
+        sha256: String, // a retried upload of the same photo is recognised, not stored twice
+        uploadedBy: objectId("User"),
+        uploadedByName: String,
+        uploadedAt: Date,
+      },
       signature: { type: String, default: "" },
       deliveredLocation: {
         type: { type: String, enum: ["Point"], default: "Point" },

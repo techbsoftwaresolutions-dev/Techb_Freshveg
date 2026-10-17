@@ -2,7 +2,7 @@
 
 > **STATUS: DRAFT — NOT READY FOR PUBLICATION.** Privacy policy URL for the "Farmers Basket Delivery" app (com.samagramart.partner) in Play Console and App Store Connect.
 > Delivery staff are salaried employees of the store — NOT independent or gig partners. Code: role `delivery_partner` (backend/src/modules/auth/roles.js, label "Delivery Boy"), created only by an admin (users/user.routes.js), phone-OTP sign-in. The per-delivery fee was retired (src/migrations/20261014-retire-delivery-fee.js).
-> What the app reads: GET /orders/delivery/queue, /orders/delivery/history, /orders/:id — customer data trimmed by order.routes.js forViewer() (contact details only while the order is on the rider's run). The app requests NO device permissions (no location, camera, contacts, notifications); "Navigate" opens the phone's maps app, "Call" opens the dialer. The backend can store location pings (delivery/delivery.routes.js POST /orders/:id/ping, 7-day TTL) but the app does not send any today — if GPS tracking is added, this notice, the store listing and a prominent in-app disclosure must change first.
+> What the app reads: GET /orders/delivery/queue, /orders/delivery/history, /orders/:id — customer data trimmed by order.routes.js forViewer() (contact details only while the order is on the rider's run). The app requests ONE device permission: the camera, asked only when the rider taps "Take Product Photo" (expo-image-picker, camera only — no photo library, no microphone; POST /orders/:id/product-photo). No location, contacts or notifications; "Navigate" opens the phone's maps app, "Call" opens the dialer. The backend can store location pings (delivery/delivery.routes.js POST /orders/:id/ping, 7-day TTL) but the app does not send any today — if GPS tracking is added, this notice, the store listing and a prominent in-app disclosure must change first.
 > LAWYER: interaction with the employment contract/HR policy; legal basis for employee data under DPDP s.7(i) (employment); retention of employment records.
 
 This notice explains how [[BRAND]] handles personal data in the Farmers Basket Delivery app. The app is used only by the store's own employees who deliver customer orders. It is not open to the public and nobody can sign up for it themselves.
@@ -16,13 +16,16 @@ It covers you, the delivery employee, and the customers whose orders you deliver
 - **Account details the store enters** — your name, mobile number, optionally an email address, your role and which stores you deliver for.
 - **Sign-in** — you sign in with a one-time code sent to your number. We record when you last signed in.
 - **Work records** — which orders were assigned to you, each step you marked (picked up, out for delivery, arrived, delivered) with the time, the handover-code check, and cash-on-delivery amounts you collected and when they were handed in at the store.
+- **Product photos** — the photo of the products you take at the door, with who took it and when.
 - **Deletion requests** you make in the app, and the store's response.
 
-The app does not use your phone's location, camera, microphone, contacts or files, does not run in the background, and contains no analytics or advertising tools. When you tap **Navigate**, your phone's maps app opens with the address; that app's own privacy terms apply to what it does.
+The app uses your phone's camera only when you tap **Take Product Photo**, to photograph the customer's products at the door before handover — the photo goes straight to the store's systems and is not saved to your phone's gallery. It does not use your location, microphone, contacts or files, does not run in the background, and contains no analytics or advertising tools. When you tap **Navigate**, your phone's maps app opens with the address; that app's own privacy terms apply to what it does.
 
 ## Customers' data you see {#customer-data}
 
 While an order is on your run you see the customer's name, the delivery phone number, address and delivery instructions, so you can deliver it. You never see the customer's email address, payment details, account details or the handover code (the customer gives it to you at the door). After the run, your history shows only the area, pincode and amounts of past deliveries, not the customer's contact details.
+
+When you take the product photo, photograph the products only. Do not include the customer or anyone else, the inside of their home, documents or other belongings, and never ask a customer to appear in it. The photo is kept for 90 days for complaints about the delivery, then deleted.
 
 Use customer data only to deliver the order in hand — see the [Delivery App Usage Terms](/delivery-app-terms).
 

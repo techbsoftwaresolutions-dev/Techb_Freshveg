@@ -144,6 +144,12 @@
   },
   "hotPaths": [
     {
+      "path": "src/modules/storage/providers.js",
+      "accessCount": 4,
+      "lastAccessed": 1792236801312,
+      "type": "file"
+    },
+    {
       "path": "src/modules/settings/settings.routes.js",
       "accessCount": 3,
       "lastAccessed": 1791981149690,
@@ -153,6 +159,18 @@
       "path": "src/modules/settings/settings.model.js",
       "accessCount": 2,
       "lastAccessed": 1792058745806,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/orders/order.service.js",
+      "accessCount": 2,
+      "lastAccessed": 1792236825063,
+      "type": "file"
+    },
+    {
+      "path": "test/productPhoto.test.js",
+      "accessCount": 2,
+      "lastAccessed": 1792236952777,
       "type": "file"
     },
     {
@@ -249,6 +267,12 @@
       "path": "test/otpLogin.test.js",
       "accessCount": 1,
       "lastAccessed": 1792134692396,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/orders/order.model.js",
+      "accessCount": 1,
+      "lastAccessed": 1792236809190,
       "type": "file"
     }
   ],

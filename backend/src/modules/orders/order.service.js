@@ -6,6 +6,7 @@ const Cart = require("../cart/cart.model");
 const Store = require("../stores/store.model");
 const User = require("../auth/user.model");
 const Offer = require("../pricing/offer.model");
+const Settings = require("../settings/settings.model");
 const ApiError = require("../../core/ApiError");
 const { nextSequence, highestIssued } = require("../../core/sequence");
 const cartService = require("../cart/cart.service");
@@ -603,13 +604,22 @@ async function unassignDeliveryPartner(order, actor) {
 
 // Delivery completion with proof. The OTP is the customer's, so a partner
 // cannot close an order they never handed over.
-async function completeDelivery(order, { otp, photo, signature, location }, actor) {
+// The photo is never taken from this request: a client-sent URL proves
+// nothing. It comes only from the rider's upload (POST /:id/product-photo).
+async function completeDelivery(order, { otp, signature, location }, actor) {
   if (order.delivery.otp && String(otp) !== order.delivery.otp) {
     throw ApiError.badRequest("That delivery OTP is incorrect");
   }
+  // Admin → Settings → Delivery → "Require a photo at handover". Riders only:
+  // a counter pickup marked delivered by staff has no doorstep to photograph.
+  if (actor.role === "delivery_partner" && !order.delivery.productPhoto?.publicId) {
+    const settings = await Settings.load();
+    if (settings.delivery?.proofPhotoRequired) {
+      throw ApiError.badRequest("Take the product photo before confirming the delivery");
+    }
+  }
 
   order.delivery.otpVerifiedAt = new Date();
-  if (photo) order.delivery.proofPhoto = photo;
   if (signature) order.delivery.signature = signature;
   if (location?.length === 2) {
     order.delivery.deliveredLocation = { type: "Point", coordinates: location };

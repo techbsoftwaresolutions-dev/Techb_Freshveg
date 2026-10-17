@@ -7,6 +7,7 @@ import { MorphingSquare } from "@/components/ui/morphing-square";
 import { useAuth, useCart } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
+import BackLink from "@/components/BackLink";
 
 // The customer's reward coupons. Issued by the API when a referred friend
 // reaches a milestone; applying one goes through the cart, which prices it.
@@ -67,10 +68,8 @@ export default function CouponsPage() {
 
   return (
     <div className="wrap wrap-narrow">
-      <header className="page-title">
-        <Link href="/account" className="section-link">
-          ← Back to account
-        </Link>
+      <header className="page-title has-back">
+        <BackLink />
         <h1>My coupons</h1>
       </header>
 

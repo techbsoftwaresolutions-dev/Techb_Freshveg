@@ -35,7 +35,8 @@ Taken from the code on branch `farmers_basket`, 16 Oct 2026. Every row names whe
 | Assignment and status steps, delivery time | app + admin | `Order.delivery.*`, `statusHistory` | |
 | COD collected / settled | system | `Payment.codCollectedBy/At`, `codSettledAt` | |
 | Location pings (lat/lng, speed, battery) | **API exists, app never sends** | `DeliveryTracking` (7-day TTL) | ping now refused outside an active run |
-| Proof photo / signature / delivered location | **fields exist, app never sends** | `Order.delivery.proofPhoto/signature/deliveredLocation` | |
+| Product photo at delivery | delivery app camera, after ARRIVED, before handover (`POST /orders/:id/product-photo`) | `Order.delivery.productPhoto` (Cloudinary **authenticated** asset id, size, sha256, uploader, time) — no public URL stored; viewers get a signed download link expiring in ≤2 h | customer (own order), assigned rider (while on run), staff with `orders.view`. Deleted after 90 days (`jobs/rules.js expireDeliveryPhotos`, held while a return is open) and on account deletion |
+| Legacy proof photo URL / signature / delivered location | **fields exist, app never sends** | `Order.delivery.proofPhoto/signature/deliveredLocation` | `/deliver` no longer accepts a photo URL |
 | Deletion requests | app | `AccountDeletion` | |
 
 ### Staff using the admin portal (out of store scope, listed for completeness)

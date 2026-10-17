@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/client-api";
+import BackLink from "@/components/BackLink";
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -53,10 +54,8 @@ export default function EditProfilePage() {
 
   return (
     <div className="wrap wrap-narrow">
-      <header className="page-title">
-        <Link href="/account" className="section-link">
-          ← Back to account
-        </Link>
+      <header className="page-title has-back">
+        <BackLink />
         <h1>Edit profile</h1>
       </header>
 

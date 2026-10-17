@@ -134,9 +134,45 @@ async function request(method, path, { body, query, retry = true } = {}) {
   return payload;
 }
 
+// A camera photo as the raw request body (the API checks the bytes, not the
+// name). XHR rather than fetch: fetch cannot report upload progress.
+async function uploadImage(path, { uri, type }, onProgress, retry = true) {
+  const session = await loadSession();
+  const blob = await (await fetch(uri)).blob();
+
+  const result = await new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${BASE}${path}`);
+    xhr.setRequestHeader("Content-Type", type || "image/jpeg");
+    if (session?.accessToken) xhr.setRequestHeader("Authorization", `Bearer ${session.accessToken}`);
+    xhr.timeout = 90000;
+    xhr.upload.onprogress = (event) => event.lengthComputable && onProgress?.(event.loaded / event.total);
+    xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText });
+    xhr.onerror = xhr.ontimeout = () => resolve({ status: 0 });
+    xhr.send(blob);
+  });
+
+  if (result.status === 0) throw new ApiError(0, "No connection. The photo was not saved — try again.");
+  if (result.status === 401 && retry && session?.refreshToken && (await refreshSession())) {
+    return uploadImage(path, { uri, type }, onProgress, false);
+  }
+
+  let payload = {};
+  try {
+    payload = JSON.parse(result.text);
+  } catch {
+    // not JSON — a proxy error page; the status below says what happened
+  }
+  if (result.status < 200 || result.status >= 300 || payload.success === false) {
+    throw new ApiError(result.status, payload.error?.message || "The photo was not saved — try again.");
+  }
+  return payload;
+}
+
 export const api = {
   get: (path, query) => request("GET", path, { query }),
   post: (path, body) => request("POST", path, { body }),
   patch: (path, body) => request("PATCH", path, { body }),
   del: (path, body) => request("DELETE", path, { body }),
+  uploadImage,
 };

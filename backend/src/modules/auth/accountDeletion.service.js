@@ -15,6 +15,7 @@ const Refund = require("../payments/refund.model");
 const Coupon = require("../referrals/coupon.model");
 const CustomerGroup = require("../customers/customerGroup.model");
 const AuditLog = require("../audit/audit.model");
+const storage = require("../storage/providers");
 const walletService = require("../wallet/wallet.service");
 const loyaltyService = require("../loyalty/loyalty.service");
 
@@ -101,6 +102,18 @@ async function scrubCustomer(user, reference) {
   // person: name, phone, email, street address, map pin, free-text notes and
   // the delivery photo. City, state and pincode stay — the place of supply
   // on a GST invoice.
+  // The doorstep product photos go from Cloudinary too, not only from the
+  // order. One that will not delete is logged and left for the 90-day sweep
+  // (jobs/rules.js expireDeliveryPhotos) — erasure itself goes ahead.
+  const photographed = await Order.find({ customer: id, "delivery.productPhoto.publicId": { $exists: true } })
+    .select("delivery.productPhoto.publicId");
+  for (const order of photographed) {
+    await storage.cloudinary
+      .destroy(order.delivery.productPhoto.publicId, "authenticated")
+      .then(() => Order.updateOne({ _id: order._id }, { $unset: { "delivery.productPhoto": "" } }))
+      .catch((err) => console.warn(`[account-deletion] product photo for ${order.id} not deleted: ${err.message}`));
+  }
+
   await Order.updateMany(
     { customer: id },
     {

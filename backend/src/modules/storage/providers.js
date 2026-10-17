@@ -22,6 +22,41 @@ const CONTENT_TYPE = {
   gif: "image/gif",
 };
 
+// Allow-list, not a block-list: the set of things a grocery catalogue needs is
+// small and known, and anything else is either a mistake or an attack.
+const ALLOWED = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
+// The bytes decide the type, not the filename or the client's Content-Type —
+// both are trivially forged.
+const SIGNATURES = [
+  { ext: "jpg", bytes: [0xff, 0xd8, 0xff] },
+  { ext: "png", bytes: [0x89, 0x50, 0x4e, 0x47] },
+  { ext: "gif", bytes: [0x47, 0x49, 0x46, 0x38] },
+  { ext: "webp", bytes: [0x52, 0x49, 0x46, 0x46], offset: 0 },
+];
+
+function sniff(buffer) {
+  for (const signature of SIGNATURES) {
+    const offset = signature.offset || 0;
+    const matches = signature.bytes.every((byte, index) => buffer[offset + index] === byte);
+    if (matches) {
+      // WEBP also needs "WEBP" at byte 8; RIFF alone is not enough.
+      if (signature.ext === "webp" && buffer.slice(8, 12).toString() !== "WEBP") continue;
+      return signature.ext;
+    }
+  }
+  return null;
+}
+
+// How long a link to a private image (a delivery photo) works once handed to
+// a signed-in viewer. Each order read issues a fresh one.
+const PRIVATE_URL_SECONDS = 60 * 60;
+
 /**
  * Cloudinary, against their REST upload API rather than the SDK — the same
  * choice the payment gateways make, so the request shape is visible here
@@ -132,16 +167,19 @@ const cloudinary = {
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   },
 
-  async save(buffer, extension, folder) {
+  // `type: "authenticated"` keeps the image off the public CDN: it can then
+  // only be fetched through privateUrl(), which this API hands out per viewer.
+  async save(buffer, extension, folder, { type } = {}) {
     const timestamp = Math.floor(Date.now() / 1000);
     const target = [this.rootFolder, folderName(folder)].filter(Boolean).join("/");
 
-    const signed = { folder: target, timestamp };
+    const signed = { folder: target, timestamp, type };
     const form = new FormData();
     form.append("file", new Blob([buffer], { type: CONTENT_TYPE[extension] || "image/jpeg" }));
     form.append("api_key", this.apiKey);
     form.append("timestamp", String(timestamp));
     form.append("folder", target);
+    if (type) form.append("type", type);
     form.append("signature", this.sign(signed));
 
     const response = await fetch(
@@ -166,7 +204,45 @@ const cloudinary = {
       bytes: payload.bytes ?? buffer.length,
       width: payload.width,
       height: payload.height,
+      format: payload.format || extension,
     };
+  },
+
+  /** Deletes an uploaded image. Throws on failure; callers decide if that matters. */
+  async destroy(publicId, type = "upload") {
+    const params = { public_id: publicId, timestamp: String(Math.floor(Date.now() / 1000)), type };
+    const form = new FormData();
+    for (const [key, value] of Object.entries(params)) form.append(key, value);
+    form.append("api_key", this.apiKey);
+    form.append("signature", this.sign(params));
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${this.cloudName}/image/destroy`, { method: "POST", body: form });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !["ok", "not found"].includes(payload.result)) {
+      throw new Error(`Cloudinary could not delete ${publicId}: ${payload?.error?.message || payload.result || `HTTP ${response.status}`}`);
+    }
+  },
+
+  /**
+   * A link to an authenticated image that stops working after an hour
+   * (Cloudinary's download API, signed here). An unguessable URL is not access
+   * control on its own; an expiring one handed out only after the API has
+   * checked who is asking comes much closer.
+   */
+  privateUrl(publicId, format, type = "authenticated") {
+    // Signed on the hour, so a page polling its order every few seconds gets
+    // the same link (and the browser's cached image) rather than a new one
+    // per poll. Valid for one to two hours from issue.
+    const issued = Math.floor(Date.now() / 1000 / PRIVATE_URL_SECONDS) * PRIVATE_URL_SECONDS;
+    const params = {
+      expires_at: String(issued + 2 * PRIVATE_URL_SECONDS),
+      format,
+      public_id: publicId,
+      timestamp: String(issued),
+      type,
+    };
+    const query = new URLSearchParams({ ...params, api_key: this.apiKey, signature: this.sign(params) });
+    return `https://api.cloudinary.com/v1_1/${this.cloudName}/image/download?${query}`;
   },
 };
 
@@ -195,4 +271,4 @@ function resolve() {
   return cloudinary;
 }
 
-module.exports = { resolve, missingConfig, cloudinary, MAX_BYTES, CONTENT_TYPE, MAX_VIDEO_BYTES, VIDEO_FORMATS };
+module.exports = { resolve, missingConfig, cloudinary, sniff, ALLOWED, MAX_BYTES, CONTENT_TYPE, MAX_VIDEO_BYTES, VIDEO_FORMATS };

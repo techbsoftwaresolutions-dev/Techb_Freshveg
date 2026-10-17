@@ -105,6 +105,8 @@ export default function Header({ categories = [] }) {
           <img src={brand.logo} alt="The Farmers Basket" className="logo-img" />
         </Link>
 
+        {/* Account, help and policy pages are for reading, not shopping: no search box. */}
+        {NO_SEARCH.test(pathname || "/") ? null : (
         <form className="search-form" onSubmit={submit} role="search">
           <input
             type="search"
@@ -122,6 +124,7 @@ export default function Header({ categories = [] }) {
             <IconSearch className="search-form-submit-icon" />
           </button>
         </form>
+        )}
 
         <div className="header-actions">
           <div className="pin-anchor">
@@ -289,6 +292,9 @@ export default function Header({ categories = [] }) {
 // /c and /c/<slug> (departments and their aisles share that one route).
 // Everywhere else (cart, account, policies, product pages, 404s…) it is left
 // out. The query string never counts: usePathname doesn't include it.
+const NO_SEARCH =
+  /^\/(account|help|terms|privacy-policy|terms-and-conditions|refund-cancellation-policy|shipping-delivery-policy|referral-terms|account-deletion|cookies-storage|delivery-app-privacy|delivery-app-terms)(\/|$)/;
+
 export function showsCategoryBar(pathname) {
   const path = (pathname || "/").replace(/\/+$/, "") || "/";
   return path === "/" || path === "/c" || /^\/c\/[^/]+$/.test(path);

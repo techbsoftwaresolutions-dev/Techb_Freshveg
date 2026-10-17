@@ -10,6 +10,7 @@ const notificationService = require("../modules/notifications/notification.servi
 const loyaltyService = require("../modules/loyalty/loyalty.service");
 const orderService = require("../modules/orders/order.service");
 const paymentService = require("../modules/payments/payment.service");
+const storage = require("../modules/storage/providers");
 
 // The "smart notifications" from the spec, as scheduled rules rather than
 // hand-sent messages.
@@ -224,6 +225,34 @@ async function expireUnpaidOrders(now = new Date()) {
   return { paid, cancelled };
 }
 
+// Doorstep product photos are kept 90 days — long enough for a missing-item
+// or damage complaint — then deleted from Cloudinary and the order. An order
+// with a return still open keeps its photo until the return is settled
+// (docs/legal/internal-retention-schedule.md).
+const PRODUCT_PHOTO_DAYS = 90;
+
+async function expireDeliveryPhotos(now = new Date()) {
+  if (!storage.cloudinary.configured) return { skipped: "storage not configured" };
+  const orders = await Order.find({
+    "delivery.productPhoto.publicId": { $exists: true },
+    "delivery.productPhoto.uploadedAt": { $lte: new Date(now.getTime() - PRODUCT_PHOTO_DAYS * 86400000) },
+    status: { $nin: ["RETURN_REQUESTED", "RETURN_APPROVED", "RETURN_PICKED"] },
+  }).select("delivery.productPhoto").limit(200);
+
+  let deleted = 0;
+  for (const order of orders) {
+    try {
+      await storage.cloudinary.destroy(order.delivery.productPhoto.publicId, "authenticated");
+    } catch (err) {
+      console.warn(`[jobs] product photo for ${order.id} not deleted, retrying next run: ${err.message}`);
+      continue;
+    }
+    await Order.updateOne({ _id: order._id }, { $unset: { "delivery.productPhoto": "" } });
+    deleted += 1;
+  }
+  return { deleted };
+}
+
 /** Marks carts that will never come back, so they stop being counted as live. */
 async function expireCarts(now = new Date()) {
   const cutoff = new Date(now.getTime() - 14 * 86400000);
@@ -241,5 +270,6 @@ module.exports = {
   wishlistWatches,
   expireCarts,
   expireUnpaidOrders,
+  expireDeliveryPhotos,
   expireLoyalty: loyaltyService.expirePoints,
 };

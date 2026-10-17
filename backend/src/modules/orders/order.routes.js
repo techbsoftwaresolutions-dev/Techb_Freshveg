@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const asyncHandler = require("../../core/asyncHandler");
@@ -15,6 +16,8 @@ const User = require("../auth/user.model");
 const Store = require("../stores/store.model");
 const orderService = require("./order.service");
 const audit = require("../audit/audit.service");
+const Settings = require("../settings/settings.model");
+const storage = require("../storage/providers");
 const { STATUSES, allowedTransitions, buildTimeline, describeAction } = require("./orderStatus");
 
 const router = express.Router();
@@ -38,9 +41,25 @@ function assertAssigned(order, user) {
 // not the person.
 const ON_RUN = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"];
 
+// The product photo as a viewer gets it: an expiring link issued now, never
+// the stored asset id. Staff also see who took it.
+function photoView(photo, { staff = false } = {}) {
+  if (!photo?.publicId) return null;
+  return {
+    url: storage.cloudinary.configured ? storage.cloudinary.privateUrl(photo.publicId, photo.format) : "",
+    width: photo.width,
+    height: photo.height,
+    uploadedAt: photo.uploadedAt,
+    ...(staff ? { uploadedBy: photo.uploadedBy ? String(photo.uploadedBy) : null, uploadedByName: photo.uploadedByName } : {}),
+  };
+}
+
 function forViewer(order, user) {
   const json = typeof order.toJSON === "function" ? order.toJSON() : { ...order };
-  if (!isRider(user)) return json;
+  const photo = order.delivery?.productPhoto;
+  if (!isRider(user)) {
+    return { ...json, delivery: { ...json.delivery, productPhoto: photoView(photo, { staff: true }) } };
+  }
 
   const live = ON_RUN.includes(json.status);
   const delivery = json.delivery || {};
@@ -60,6 +79,8 @@ function forViewer(order, user) {
       ...delivery,
       otp: undefined,
       proofPhoto: undefined,
+      // Their own photo, while the run is on; not the archive afterwards.
+      productPhoto: live ? photoView(photo) : null,
       signature: undefined,
       deliveredLocation: undefined,
       instructions: live ? delivery.instructions : undefined,
@@ -76,7 +97,11 @@ function forCustomer(order) {
   return {
     ...json,
     internalNote: undefined,
-    delivery: { ...delivery, partnerPhone: ON_RUN.includes(json.status) ? delivery.partnerPhone : undefined },
+    delivery: {
+      ...delivery,
+      partnerPhone: ON_RUN.includes(json.status) ? delivery.partnerPhone : undefined,
+      productPhoto: photoView(order.delivery?.productPhoto),
+    },
   };
 }
 
@@ -162,7 +187,7 @@ router.post(
       { id: req.user.id, name: req.user.name, role: "customer" },
       req.body.reason || "Cancelled by customer"
     );
-    res.json({ success: true, order });
+    res.json({ success: true, order: forCustomer(order) });
   })
 );
 
@@ -176,7 +201,7 @@ router.post(
 
     order.rating = { ...req.body, ratedAt: new Date() };
     await order.save();
-    res.json({ success: true, order });
+    res.json({ success: true, order: forCustomer(order) });
   })
 );
 
@@ -210,13 +235,18 @@ router.get(
     if (!order) throw ApiError.notFound("Order not found");
     assertAssigned(order, req.user);
     // Where it was collected from — the delivery app's run and history screens.
-    const store = await Store.findById(order.store).select("name address contact");
+    const [store, settings] = await Promise.all([
+      Store.findById(order.store).select("name address contact"),
+      Settings.load(),
+    ]);
 
     res.json({
       success: true,
       order: forViewer(order, req.user),
       pickup: store ? { name: store.name, address: store.address, phone: store.contact?.phone || "" } : null,
       timeline: buildTimeline(order.status, order.statusHistory),
+      // Whether /deliver will refuse a rider's handover without a product photo.
+      photoRequired: Boolean(settings.delivery?.proofPhotoRequired),
       // Exactly the moves this user may make from here.
       actions: allowedTransitions(order.status, req.user.role).map(describeAction),
     });
@@ -492,6 +522,108 @@ router.post(
       id: req.user.id, name: req.user.name, role: req.user.role,
     });
     res.json({ success: true, order: forViewer(order, req.user) });
+  })
+);
+
+// ---------------------------------------------------------------- product photo
+
+// The rider's photo of the products at the door, taken after "I've arrived"
+// and before the handover. It is evidence of what was brought, not of the
+// handover itself: it never moves the order on. Until the handover it can be
+// retaken (the previous one is deleted — nothing was handed over yet); once
+// the order leaves ARRIVED it is fixed.
+const PHOTO_TYPES = ["jpg", "png", "webp"];
+
+// Best effort: an upload the order did not take must not linger in Cloudinary.
+async function discardUpload(publicId) {
+  try {
+    await storage.cloudinary.destroy(publicId, "authenticated");
+  } catch (err) {
+    console.warn(`[product-photo] could not delete unused upload ${publicId}: ${err.message}`);
+  }
+}
+
+router.post(
+  "/:id/product-photo",
+  requireRole("delivery_partner"),
+  express.raw({ type: Object.keys(storage.ALLOWED), limit: storage.MAX_BYTES }),
+  asyncHandler(async (req, res) => {
+    const order = await Order.findById(req.params.id);
+    if (!order) throw ApiError.notFound("Order not found");
+    assertAssigned(order, req.user);
+    if (order.status !== "ARRIVED") {
+      throw ApiError.conflict(
+        order.status === "DELIVERED"
+          ? "This order is already delivered; its photo can no longer be changed"
+          : "Take the product photo after you mark that you've arrived"
+      );
+    }
+
+    if (!Buffer.isBuffer(req.body) || !req.body.length) {
+      throw ApiError.badRequest("Send the photo as a JPEG, PNG or WebP image");
+    }
+    const format = storage.sniff(req.body);
+    if (!PHOTO_TYPES.includes(format)) throw ApiError.badRequest("That file is not a JPEG, PNG or WebP photo");
+
+    // A retry of a photo already saved (the response was lost on a bad
+    // network) gets the saved one back instead of a second upload.
+    const sha256 = crypto.createHash("sha256").update(req.body).digest("hex");
+    const current = order.delivery.productPhoto?.publicId ? order.delivery.productPhoto : null;
+    if (current?.sha256 === sha256) {
+      return res.json({ success: true, order: forViewer(order, req.user) });
+    }
+
+    const saved = await storage.resolve().save(req.body, format, "delivery-proof", { type: "authenticated" });
+    const photo = {
+      publicId: saved.path,
+      format: saved.format,
+      width: saved.width,
+      height: saved.height,
+      bytes: saved.bytes,
+      sha256,
+      uploadedBy: req.user.id,
+      uploadedByName: req.user.name,
+      uploadedAt: new Date(),
+    };
+
+    // Saved only if nothing moved while the bytes were in flight: still
+    // arrived, still this rider's, still the photo this one replaces. A
+    // cancellation, reassignment or a second upload racing this one wins, and
+    // this upload is thrown away rather than left orphaned.
+    let updated;
+    try {
+      updated = await Order.findOneAndUpdate(
+        {
+          _id: order._id,
+          status: "ARRIVED",
+          "delivery.partner": req.user.id,
+          "delivery.productPhoto.publicId": current?.publicId ?? null,
+        },
+        { $set: { "delivery.productPhoto": photo } },
+        { new: true }
+      );
+    } catch (err) {
+      await discardUpload(photo.publicId);
+      throw err;
+    }
+    if (!updated) {
+      await discardUpload(photo.publicId);
+      throw ApiError.conflict("The order changed while the photo was uploading. Reopen it and try again");
+    }
+    if (current) await discardUpload(current.publicId);
+
+    await audit.record({
+      req,
+      action: current ? "replace_photo" : "upload_photo",
+      entity: "Order",
+      entityId: order._id,
+      label: order.code,
+      summary: current
+        ? `Product photo retaken at delivery (was ${current.publicId}, now ${photo.publicId})`
+        : `Product photo taken at delivery (${photo.publicId})`,
+    });
+
+    res.status(201).json({ success: true, order: forViewer(updated, req.user) });
   })
 );
 

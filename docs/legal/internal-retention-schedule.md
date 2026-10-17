@@ -16,6 +16,7 @@
 | Reviews | `Review` | until deletion (deleted with the account) | same | user content |
 | WhatsApp delivery log | `WhatsAppMessage` | forever (masked number) | delete after 90 days | minimisation |
 | Delivery tracking pings | `DeliveryTracking` | 7 days (TTL) | same | dispute window |
+| Product photo at delivery | `Order.delivery.productPhoto` + Cloudinary asset | 90 days from capture (daily job `expireDeliveryPhotos`; kept while a return is open); immediately on account deletion; a retake before handover deletes the earlier photo | same [LAWYER: confirm 90 days covers complaint/chargeback window] | dispute resolution |
 | Referral records | `Referral`, `Coupon` | forever | as orders (they explain coupon discounts on invoices) | |
 | Account-deletion receipts | `AccountDeletion` | forever | [LAWYER] years | proof of erasure |
 | Admin audit log (incl. IP, user agent) | `AuditLog` | forever | security logs ≥ 1 year (DPDP R8 logs) and ≥ 180 days (CERT-In) [LAWYER]; then delete | security |

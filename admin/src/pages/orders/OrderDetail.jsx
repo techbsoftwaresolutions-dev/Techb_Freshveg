@@ -347,6 +347,8 @@ export default function OrderDetail() {
               </>
             )}
           </Card>
+
+          <DeliveryPhotoCard order={order} />
         </div>
       </div>
 
@@ -510,6 +512,47 @@ function Row({ label, value, tone }) {
         {value}
       </td>
     </tr>
+  );
+}
+
+// The delivery boy's photo of the products at the door, before handover. A
+// saved photo is not a delivery: only the handover code closes the order.
+// The link expires about an hour after the page loaded.
+function DeliveryPhotoCard({ order }) {
+  const photo = order.delivery?.productPhoto;
+  return (
+    <Card title="Delivery photo proof">
+      {photo ? (
+        <div className="stack" style={{ gap: 8 }}>
+          {photo.url ? (
+            <a href={photo.url} target="_blank" rel="noopener noreferrer" title="Open full size">
+              <img
+                src={photo.url}
+                alt={`Products for ${order.code}, photographed at delivery`}
+                style={{ display: "block", width: "100%", maxHeight: 280, objectFit: "contain", borderRadius: 8, background: "var(--bg)" }}
+              />
+            </a>
+          ) : (
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>Saved, but image storage is not configured on this API.</p>
+          )}
+          <div>
+            <Pill tone={order.status === "DELIVERED" ? "ok" : "warn"}>
+              {order.status === "DELIVERED" ? "Delivered" : "Photo saved · not yet delivered"}
+            </Pill>
+          </div>
+          <span className="faint" style={{ fontSize: 12 }}>
+            {order.code} · taken by {photo.uploadedByName || "the delivery boy"} · {when(photo.uploadedAt)}
+          </span>
+        </div>
+      ) : (
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+          Photo not uploaded.
+          {["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"].includes(order.status)
+            ? ""
+            : " The delivery boy takes it at the door, after marking arrived."}
+        </p>
+      )}
+    </Card>
   );
 }
 

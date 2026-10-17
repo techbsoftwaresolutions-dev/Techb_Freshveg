@@ -1,36 +1,36 @@
 "use client";
 
-import { useState } from "react";
-import { detectPlatform, isAndroidOtherBrowser, promptInstall, useInstallPrompt } from "@/lib/install-prompt";
+import { useEffect, useState } from "react";
+import { detectPlatform, isAndroidOtherBrowser, promptInstall, useInstallPrompt, waitForPrompt } from "@/lib/install-prompt";
 
 // "Get the app" in the footer: the app is this site installed as a PWA. The
-// button opens the browser's own install dialog where there is one (Chrome,
-// Edge, Samsung Internet), and otherwise says how to install by hand (Safari
-// on iPhone, Firefox). Hidden when already running as the installed app.
+// button opens the browser's own install dialog, so it only shows once the
+// browser has offered one (Chrome, Edge) — a browser that never does (Firefox
+// or Safari on a computer, or the app already installed) has nothing to
+// click. Two exceptions say how instead, as neither has a dialog: Safari on
+// iPhone (Share → Add to Home Screen) and Android browsers other than Chrome.
 const HINTS = {
   ios: "In Safari, tap Share, then “Add to Home Screen”.",
-  android: "Open the browser menu ⋮ and tap “Install app” or “Add to Home screen”.",
-  desktop: "Use the install icon in the address bar, or the browser menu → Install The Farmers Basket.",
   chrome: "To install safely on Android, open thefarmersbasket.in in Google Chrome, then tap Install. Other browsers build an app Android may block as unsafe.",
   done: "Installed! Open The Farmers Basket from your home screen.",
 };
 
 export default function FooterInstall() {
-  const { canPrompt, installed } = useInstallPrompt();
+  const { mounted, canPrompt, installed } = useInstallPrompt();
   const [hint, setHint] = useState(null);
+  // Stays shown once offered: Chrome takes a moment to re-offer after a "Cancel".
+  const [offered, setOffered] = useState(false);
+  useEffect(() => {
+    if (canPrompt) setOffered(true);
+  }, [canPrompt]);
 
-  if (installed && hint !== "done") return null;
+  if (!mounted || (installed && hint !== "done")) return null;
+  const manual = isAndroidOtherBrowser() ? "chrome" : detectPlatform() === "ios" ? "ios" : null;
+  if (!offered && !manual && !hint) return null;
 
   const install = async () => {
-    if (isAndroidOtherBrowser()) {
-      setHint("chrome");
-      return;
-    }
-    if (canPrompt) {
-      if ((await promptInstall()) === "accepted") setHint("done");
-      return;
-    }
-    setHint(detectPlatform());
+    if (manual) return setHint(manual);
+    if ((await waitForPrompt(3000)) && (await promptInstall()) === "accepted") setHint("done");
   };
 
   return (

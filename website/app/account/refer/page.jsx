@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
+import BackLink from "@/components/BackLink";
 
 // Refer & Earn, on the API's rules (backend referrals/referral.service): a
 // friend can be referred once, before their first order; the referrer earns
@@ -106,10 +107,8 @@ export default function ReferPage() {
 
   return (
     <div className="wrap wrap-narrow">
-      <header className="page-title">
-        <Link href="/account" className="section-link">
-          ← Back to account
-        </Link>
+      <header className="page-title has-back">
+        <BackLink />
         <h1>Refer &amp; earn</h1>
       </header>
 

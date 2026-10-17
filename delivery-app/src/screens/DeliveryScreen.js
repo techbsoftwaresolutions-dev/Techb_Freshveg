@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Image, Linking, ScrollView, StyleSheet, View } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, TextInput } from "../components/Text";
 import { api } from "../api/client";
 import { colors, formatAddress, radius, rupees, shadow, spacing, type } from "../theme";
 import {
-  Button, Card, Divider, EmptyState, IconTile, ItemThumb, Loading, Notice,
+  Button, Card, Divider, EmptyState, IconTile, ItemThumb, Loading, Notice, Pill,
   callNumber, openMaps,
 } from "../components/ui";
 
@@ -35,7 +36,7 @@ const STEP_COPY = {
   },
   ARRIVED: {
     heading: "At the address",
-    sub: "Ask the customer for their 4-digit code.",
+    sub: "Photograph the products, then ask the customer for their 4-digit code.",
     leg: "drop",
     action: null, // handover is its own flow, below
   },
@@ -51,6 +52,7 @@ export default function DeliveryScreen({ route, navigation }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [otp, setOtp] = useState("");
+  const [photoRequired, setPhotoRequired] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -60,6 +62,7 @@ export default function DeliveryScreen({ route, navigation }) {
         api.get("/orders/delivery/queue"),
       ]);
       setOrder(detail.order);
+      setPhotoRequired(Boolean(detail.photoRequired));
       setPickup(queue.orders.find((o) => o.id === orderId)?.pickup || null);
       setError("");
     } catch (err) {
@@ -138,6 +141,8 @@ export default function DeliveryScreen({ route, navigation }) {
       };
 
   const collectCash = order.payment?.method === "cod" && order.payment?.status !== "paid";
+  const photoSaved = Boolean(order.delivery?.productPhoto);
+  const photoMissing = photoRequired && !photoSaved;
 
   return (
     <View style={styles.screen}>
@@ -230,7 +235,11 @@ export default function DeliveryScreen({ route, navigation }) {
           </View>
         </Card>
 
-        {/* Handover */}
+        {/* Product photo, then handover */}
+        {order.status === "ARRIVED" ? (
+          <ProductPhotoCard orderId={orderId} order={order} required={photoRequired} onSaved={setOrder} />
+        ) : null}
+
         {order.status === "ARRIVED" ? (
           <Card style={{ padding: spacing.md, gap: spacing.md }}>
             <Text style={type.h2}>Handover code</Text>
@@ -271,9 +280,13 @@ export default function DeliveryScreen({ route, navigation }) {
         {order.status === "ARRIVED" ? (
           <Button
             title="Confirm delivery"
-            subtitle={collectCash ? `after collecting ${rupees(order.pricing?.total)}` : undefined}
+            subtitle={
+              photoMissing
+                ? "take the product photo first"
+                : collectCash ? `after collecting ${rupees(order.pricing?.total)}` : undefined
+            }
             loading={busy}
-            disabled={otp.length !== 4}
+            disabled={otp.length !== 4 || photoMissing}
             onPress={handOver}
           />
         ) : (
@@ -285,6 +298,119 @@ export default function DeliveryScreen({ route, navigation }) {
         )}
       </View>
     </View>
+  );
+}
+
+// The photo of the products at the door, before they are handed over. It is
+// proof of what was brought, not of the handover: saving it moves nothing on.
+// "Saved" is shown only once the API has the photo — a preview on this phone
+// is not a saved photo.
+function ProductPhotoCard({ orderId, order, required, onSaved }) {
+  const saved = order.delivery?.productPhoto;
+  const [pending, setPending] = useState(null); // taken, not yet uploaded
+  const [progress, setProgress] = useState(null); // 0..1 while uploading
+  const [error, setError] = useState("");
+  const [blocked, setBlocked] = useState(false); // camera permission refused for good
+  const uploading = progress !== null;
+
+  async function takePhoto() {
+    setError("");
+    // Asked here, when the rider taps, never on opening the screen.
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      setBlocked(!permission.canAskAgain);
+      setError(
+        permission.canAskAgain
+          ? "The camera is needed to photograph the products. Tap again and allow it."
+          : "Camera access is turned off for this app. Turn it on in your phone's settings."
+      );
+      return;
+    }
+    try {
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.5, exif: false });
+      if (!result.canceled && result.assets?.[0]) setPending(result.assets[0]);
+    } catch {
+      setError("The camera could not be opened on this phone.");
+    }
+  }
+
+  async function confirm() {
+    if (uploading) return;
+    setError("");
+    setProgress(0);
+    try {
+      const data = await api.uploadImage(
+        `/orders/${orderId}/product-photo`,
+        { uri: pending.uri, type: pending.mimeType || "image/jpeg" },
+        setProgress
+      );
+      onSaved(data.order);
+      setPending(null);
+    } catch (err) {
+      // The photo stays on screen, so a retry needs no new picture.
+      setError(err.message);
+    } finally {
+      setProgress(null);
+    }
+  }
+
+  const shown = pending ? { uri: pending.uri, width: pending.width, height: pending.height } : saved ? { uri: saved.url, width: saved.width, height: saved.height } : null;
+  const time = saved?.uploadedAt ? new Date(saved.uploadedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+
+  return (
+    <Card style={{ padding: spacing.md, gap: spacing.md }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
+        <Text style={type.h2}>Product photo</Text>
+        {saved && !pending ? (
+          <Pill tone="success">Photo saved</Pill>
+        ) : pending ? (
+          <Pill tone="warn">Not saved yet</Pill>
+        ) : (
+          <Pill tone={required ? "danger" : "default"}>{required ? "Required" : "Not taken"}</Pill>
+        )}
+      </View>
+      <Text style={type.small}>
+        Photograph the products before you hand them over. Keep the customer, the inside of their home and
+        any papers out of the picture.
+      </Text>
+
+      {shown?.uri ? (
+        <Image
+          source={{ uri: shown.uri }}
+          style={[styles.photo, shown.width && shown.height ? { aspectRatio: shown.width / shown.height } : null]}
+          resizeMode="contain"
+          accessibilityLabel={pending ? "Preview of the product photo" : "Saved product photo"}
+        />
+      ) : null}
+
+      {saved && !pending ? (
+        <Text style={type.tiny}>Saved{time ? ` at ${time}` : ""}. This is not the handover — confirm it below with the customer's code.</Text>
+      ) : null}
+
+      <Notice tone="error">{error}</Notice>
+      {blocked ? <Button title="Open settings" variant="outline" icon="settings-outline" onPress={() => Linking.openSettings()} /> : null}
+
+      {pending ? (
+        <View style={{ flexDirection: "row", gap: spacing.sm }}>
+          <Button title="Retake" variant="outline" icon="camera-reverse-outline" style={{ flex: 1 }} disabled={uploading} onPress={takePhoto} />
+          <Button
+            title={error ? "Retry upload" : "Use this photo"}
+            subtitle={uploading ? `Uploading ${Math.round(progress * 100)}%` : undefined}
+            icon={uploading ? undefined : "cloud-upload-outline"}
+            style={{ flex: 1 }}
+            disabled={uploading}
+            onPress={confirm}
+          />
+        </View>
+      ) : (
+        <Button
+          title={saved ? "Retake photo" : "Take Product Photo"}
+          variant={saved ? "outline" : "primary"}
+          icon="camera-outline"
+          onPress={takePhoto}
+        />
+      )}
+    </Card>
   );
 }
 
@@ -376,6 +502,8 @@ const styles = StyleSheet.create({
 
   itemRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   itemQty: { ...type.body, fontWeight: "700", minWidth: 46, textAlign: "right" },
+
+  photo: { width: "100%", aspectRatio: 4 / 3, maxHeight: 360, borderRadius: radius.md, backgroundColor: colors.bg },
 
   otpInput: {
     borderWidth: 1,

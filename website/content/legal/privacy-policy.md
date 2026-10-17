@@ -29,6 +29,7 @@ The legal entity responsible for your personal data (the "Data Fiduciary" under 
 
 - **Your account record** — when it was created, when you last signed in, your notification choices, your referral code, wallet balance and loyalty points, and the history of every wallet and points change.
 - **Order and delivery records** — each status change of your order and who made it, the four-digit handover code that confirms delivery, the name and phone number of the store employee delivering it, and the time it was delivered.
+- **A photo of your products at delivery** — when the delivery employee arrives, they photograph the products before handing them over, as a record of what was brought. They are told to photograph only the products and to keep you, the inside of your home and any papers out of the picture. You can see the photo on your order page; only you, the delivery employee during the delivery, and store staff who manage orders can open it.
 - **Payment records** — for online payments, the payment method, amount, status and the payment provider's reference numbers. We do **not** receive or store your card number, UPI PIN or bank login; you enter those directly with the payment provider.
 - **Notifications** we send you inside the app or website, and a log of WhatsApp order updates (with your number masked).
 - **Your cart and wishlist.**
@@ -57,7 +58,7 @@ We do not sell your personal data. We share only what each party needs:
 - **Our delivery staff** — the store's own employees who deliver your order see your name, the delivery phone number, the address and your delivery instructions while the order is on their run. After delivery their app no longer shows your contact details.
 - **Payment provider** — when you pay online, Razorpay processes the payment. It receives the amount and the details you enter on its payment screen; we may pre-fill your name, phone number and email to save you typing. Razorpay handles that data under its own privacy policy.
 - **Messaging providers** — the SMS service that delivers login codes receives your mobile number and the code. If WhatsApp order updates are switched on, Meta's WhatsApp Business service receives your number and the order update.
-- **Hosting and storage providers** — our servers and database are run by cloud providers on our behalf. Product and brand images are served by Cloudinary; your device fetches them from Cloudinary's servers, which see your device's internet (IP) address like any website does.
+- **Hosting and storage providers** — our servers and database are run by cloud providers on our behalf. Product and brand images are served by Cloudinary; your device fetches them from Cloudinary's servers, which see your device's internet (IP) address like any website does. Delivery photos are also stored with Cloudinary, as private images: they are not on the public image network, and each link our servers hand out to a signed-in viewer stops working within two hours.
 - **Authorities** — when the law requires it, for example tax authorities or a valid order from a court or law enforcement agency.
 
 Our hosting providers are: [[HOSTING_PROVIDERS]].
@@ -67,6 +68,7 @@ Our hosting providers are: [[HOSTING_PROVIDERS]].
 - **Account details** (name, phone, email, addresses, preferences, cart, wishlist, notifications, reviews): until you delete your account — see [Account deletion & data retention](/account-deletion).
 - **Orders, invoices, payments, refunds, and the wallet and points ledgers**: kept after account deletion, without your name and contact details, for as long as tax and accounting laws require (currently [[FINANCIAL_RECORD_RETENTION]]) and to deal with disputes and chargebacks.
 - **Closed support requests**: kept without your name and phone number as a record of complaints and how they were resolved.
+- **Delivery photos**: deleted automatically 90 days after they are taken (later only while a return or complaint about that order is still open), and straight away if you delete your account.
 - **Login codes**: deleted automatically within about an hour of expiring.
 - **Records of who changed what in our admin system**: kept for security and audit; a customer's details in these records are removed when the account is deleted.
 

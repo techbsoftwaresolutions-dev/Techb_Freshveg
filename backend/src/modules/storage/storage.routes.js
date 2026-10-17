@@ -15,36 +15,7 @@ const router = express.Router();
 
 const MAX_BYTES = storage.MAX_BYTES;
 
-// Allow-list, not a block-list: the set of things a grocery catalogue needs is
-// small and known, and anything else is either a mistake or an attack.
-const ALLOWED = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
-
-// The bytes decide the type, not the filename or the client's Content-Type —
-// both are trivially forged.
-const SIGNATURES = [
-  { ext: "jpg", bytes: [0xff, 0xd8, 0xff] },
-  { ext: "png", bytes: [0x89, 0x50, 0x4e, 0x47] },
-  { ext: "gif", bytes: [0x47, 0x49, 0x46, 0x38] },
-  { ext: "webp", bytes: [0x52, 0x49, 0x46, 0x46], offset: 0 },
-];
-
-function sniff(buffer) {
-  for (const signature of SIGNATURES) {
-    const offset = signature.offset || 0;
-    const matches = signature.bytes.every((byte, index) => buffer[offset + index] === byte);
-    if (matches) {
-      // WEBP also needs "WEBP" at byte 8; RIFF alone is not enough.
-      if (signature.ext === "webp" && buffer.slice(8, 12).toString() !== "WEBP") continue;
-      return signature.ext;
-    }
-  }
-  return null;
-}
+const { ALLOWED, sniff } = storage;
 
 router.use(requireAuth);
 

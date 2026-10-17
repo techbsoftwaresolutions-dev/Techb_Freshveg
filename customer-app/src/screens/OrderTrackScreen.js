@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "../components/Text";
 import { api } from "../api/client";
@@ -201,6 +201,10 @@ export default function OrderTrackScreen({ route, navigation }) {
         </Card>
       ) : null}
 
+      {order?.delivery?.productPhoto?.url ? (
+        <DeliveryPhoto key={order.delivery.productPhoto.url} photo={order.delivery.productPhoto} delivered={tracking.status === "DELIVERED"} />
+      ) : null}
+
       {/* Timeline — steps this order skipped (a COD order never passes through
           "payment received") are not shown at all. */}
       <Card style={{ padding: spacing.lg }}>
@@ -329,6 +333,42 @@ export default function OrderTrackScreen({ route, navigation }) {
   );
 }
 
+// The delivery partner's photo of the products at the door, taken before
+// handover — the same record the website and the store see. Until the order
+// is delivered it says so: a photo is not a handover. Tap for full size.
+function DeliveryPhoto({ photo, delivered }) {
+  const [state, setState] = useState("loading");
+  const [open, setOpen] = useState(false);
+  const ratio = photo.width && photo.height ? photo.width / photo.height : 4 / 3;
+  const source = { uri: photo.url };
+
+  return (
+    <Card style={{ padding: spacing.lg, gap: spacing.sm }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
+        <Text style={type.h3}>Product photo at delivery</Text>
+        <Pill tone={delivered ? "save" : "warn"}>{delivered ? "Delivered" : "Not handed over yet"}</Pill>
+      </View>
+      {state === "error" ? (
+        <Notice tone="error">The photo couldn't load. Reopen this order to try again.</Notice>
+      ) : (
+        <Pressable onPress={() => setOpen(true)} accessibilityRole="imagebutton" accessibilityLabel="Your products, photographed at delivery. Opens full size.">
+          <View style={[styles.photoFrame, { aspectRatio: ratio }]}>
+            <Image source={source} style={StyleSheet.absoluteFill} resizeMode="contain" onLoad={() => setState("ready")} onError={() => setState("error")} />
+            {state === "loading" ? <ActivityIndicator color={colors.primary} /> : null}
+          </View>
+        </Pressable>
+      )}
+      <Text style={type.small}>Taken by your delivery partner before handing the order over.</Text>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.photoViewer} onPress={() => setOpen(false)} accessibilityLabel="Close photo">
+          <Image source={source} style={{ width: "100%", height: "100%" }} resizeMode="contain" />
+        </Pressable>
+      </Modal>
+    </Card>
+  );
+}
+
 function Row({ label, value, tone, bold }) {
   return (
     <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
@@ -347,6 +387,16 @@ function Row({ label, value, tone, bold }) {
 }
 
 const styles = StyleSheet.create({
+  photoFrame: {
+    width: "100%",
+    maxHeight: 380,
+    borderRadius: radius.md,
+    overflow: "hidden",
+    backgroundColor: colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoViewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", padding: spacing.md },
   screen: { flex: 1, backgroundColor: colors.bg },
   hero: {
     flexDirection: "row",

@@ -71,6 +71,26 @@ export async function promptInstall() {
   return outcome;
 }
 
+// Resolves true once the browser has an install prompt ready, false after `ms`.
+// Chrome re-offers the prompt just after one is dismissed; a tap in that gap
+// waits for it. Keep `ms` short: prompt() needs the tap's user activation.
+export function waitForPrompt(ms) {
+  if (deferred) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const ready = () => {
+      if (!deferred) return;
+      clearTimeout(timer);
+      listeners.delete(ready);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      listeners.delete(ready);
+      resolve(false);
+    }, ms);
+    listeners.add(ready);
+  });
+}
+
 // Re-renders when the prompt arrives or the app gets installed. Everything is
 // false until mounted, so the server HTML and the first client render match.
 export function useInstallPrompt() {

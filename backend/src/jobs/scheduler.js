@@ -16,6 +16,7 @@ const JOBS = [
   { name: "winBack", everyMinutes: 24 * 60, run: rules.winBack },
   { name: "expireCarts", everyMinutes: 24 * 60, run: rules.expireCarts },
   { name: "expireUnpaidOrders", everyMinutes: 5, run: rules.expireUnpaidOrders },
+  { name: "expireDeliveryPhotos", everyMinutes: 24 * 60, run: rules.expireDeliveryPhotos },
   { name: "expireLoyalty", everyMinutes: 24 * 60, run: rules.expireLoyalty },
   // Queued WhatsApp order updates that are due a (re)try — see whatsapp.service.
   { name: "whatsappQueue", everyMinutes: 1, run: () => whatsappService.retryDue() },

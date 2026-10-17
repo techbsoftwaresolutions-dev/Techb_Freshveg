@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { MorphingSquare } from "@/components/ui/morphing-square";
 import { useAuth, useWishlist } from "@/components/Providers";
 import ProductCard from "@/components/ProductCard";
 import EmptyState from "@/components/EmptyState";
+import BackLink from "@/components/BackLink";
 
 // Everything the shopper hearted, as the same cards the shop uses — so the
 // heart takes an item off this page and "Add" puts it in the cart. The list is
@@ -30,10 +30,8 @@ export default function WishlistPage() {
 
   return (
     <div className="wrap">
-      <header className="page-title">
-        <Link href="/account" className="section-link">
-          ← Back to account
-        </Link>
+      <header className="page-title has-back">
+        <BackLink />
         <h1>Your wishlist</h1>
         {wishlist.count ? (
           <p>

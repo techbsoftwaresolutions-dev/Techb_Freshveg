@@ -49,6 +49,37 @@ export default function OrderPage() {
   );
 }
 
+// The delivery partner's photo of your products at the door, taken before
+// handover. Until the order is delivered it says so: a photo is not a
+// handover. The link is issued per page load and expires within two hours.
+function DeliveryPhoto({ photo, delivered }) {
+  const [state, setState] = useState("loading");
+  if (!photo.url) return null;
+  return (
+    <div className="panel delivery-photo">
+      <h3>Product photo at delivery</h3>
+      <p className="delivery-photo-status">
+        {delivered ? "Delivered" : "Delivery photo captured · not handed over yet"}
+        {photo.uploadedAt ? <span> · {when(photo.uploadedAt)}</span> : null}
+      </p>
+      {state === "error" ? (
+        <p className="notice error">The photo couldn&rsquo;t load. Refresh the page to try again.</p>
+      ) : (
+        <a href={photo.url} target="_blank" rel="noopener noreferrer" className={`delivery-photo-frame ${state}`} title="Open full size">
+          <img
+            src={photo.url}
+            alt="Your products, photographed at your door before handover"
+            width={photo.width || undefined}
+            height={photo.height || undefined}
+            onLoad={() => setState("ready")}
+            onError={() => setState("error")}
+          />
+        </a>
+      )}
+    </div>
+  );
+}
+
 function OrderDetail() {
   const { id } = useParams();
   const router = useRouter();
@@ -262,6 +293,8 @@ function OrderDetail() {
               </a>
             </div>
           ) : null}
+
+          {order?.delivery?.productPhoto ? <DeliveryPhoto key={order.delivery.productPhoto.url} photo={order.delivery.productPhoto} delivered={tracking.status === "DELIVERED"} /> : null}
 
           <div className="panel">
             <h3>Order progress</h3>

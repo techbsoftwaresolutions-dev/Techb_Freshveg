@@ -2022,6 +2022,22 @@ input:disabled, select:disabled, textarea:disabled { background: var(--bg-alt); 
 .page-title h1 { font-size: 26px; font-weight: 700; }
 .page-title p { margin: 4px 0 0; color: var(--text-muted); font-size: 13.5px; }
 .page-title-accent { color: var(--brand); }
+/* A title with a round back button beside it (components/BackLink); a
+   subtitle lines up under the title, not under the button. */
+.page-title.has-back { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-items: center; }
+.page-title.has-back > :not(.page-back) { grid-column: 2; }
+.page-back {
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+}
+.page-back:hover { color: var(--brand); border-color: var(--brand); }
 
 .page-loading {
   padding: 96px 20px;
@@ -2616,6 +2632,13 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   color: var(--brand-dark);
 }
 .otp-card strong { font-size: 28px; font-weight: 700; letter-spacing: 0.25em; }
+/* Delivery product photo (order page). Sized by the photo's own aspect
+   ratio — never stretched — and never wider than its panel. */
+.delivery-photo-status { margin: -6px 0 12px; font-size: 13px; color: var(--text-muted); }
+.delivery-photo-frame { display: block; border-radius: var(--radius); overflow: hidden; background: var(--bg-alt); }
+.delivery-photo-frame.loading { min-height: 180px; }
+.delivery-photo-frame img { display: block; width: 100%; height: auto; max-height: 420px; object-fit: contain; }
+
 .partner-card { display: flex; align-items: center; gap: 14px; }
 .partner-card > div { flex: 1; display: flex; flex-direction: column; }
 .partner-card > div span { font-size: 12.5px; color: var(--text-faint); }

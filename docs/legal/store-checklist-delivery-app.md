@@ -36,7 +36,8 @@ The app is useless to the public (no self-sign-up). Two options — **business d
 | App activity → Other actions | Yes | No | App functionality | pick-up / out-for-delivery / arrived / delivered steps, handover-code entry |
 | Financial info → Other financial info | Yes | No | App functionality | cash-on-delivery amounts collected, for reconciliation |
 | Location | **No** | — | — | no permission; pings API unused |
-| Photos, Contacts, Messages, Files, Device IDs, Diagnostics | No | — | — | |
+| Photos and videos → Photos | Yes | No | App functionality | product photo at the door before handover (camera only); stored on the store's servers, deleted after 90 days |
+| Contacts, Messages, Files, Device IDs, Diagnostics | No | — | — | |
 
 Customer data shown in the app (name, phone, address while on a run) is received from the server for delivery; it is covered in the customer app's form and the delivery privacy notice. If Play's form review asks, explain it is not collected *from* the delivery app's user.
 
