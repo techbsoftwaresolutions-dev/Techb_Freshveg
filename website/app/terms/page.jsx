@@ -10,7 +10,7 @@ const EFFECTIVE_DATE = "1 October 2026";
 
 export default function TermsPage() {
   return (
-    <div className="wrap wrap-narrow">
+    <div className="wrap">
       <header className="page-title">
         <Link href="/account" className="section-link">
           ← Back to account

@@ -17,12 +17,26 @@ const router = express.Router();
 // OTP endpoints are the cheapest thing to abuse on a storefront — each request
 // costs an SMS — so they are rate limited per IP regardless of the phone asked
 // for.
-const otpLimiter = rateLimit({
+const limiterMessage = (text) => ({ success: false, error: { message: text } });
+
+// Asking for a code costs an SMS, so it is the tighter limit.
+const otpRequestLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: { message: "Too many OTP requests. Try again in a few minutes." } },
+  message: limiterMessage("Too many OTP requests. Try again in a few minutes."),
+});
+
+// Checking a code costs nothing, so it is only limited against guessing, and
+// successful logins don't count towards the limit.
+const otpVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: limiterMessage("Too many attempts. Try again in a few minutes."),
 });
 
 const randomCode = () => String(crypto.randomInt(100000, 1000000));
@@ -46,7 +60,7 @@ const publicUser = (user) => ({
 
 router.post(
   "/otp/request",
-  otpLimiter,
+  otpRequestLimiter,
   asyncHandler(async (req, res) => {
     const phone = String(req.body.phone || "").trim();
     if (!/^\d{10}$/.test(phone)) throw ApiError.badRequest("Enter a valid 10-digit mobile number");
@@ -60,6 +74,11 @@ router.post(
 
     // Customers only: a fixed code for listed test numbers, never texted.
     const testCode = role === "customer" ? sms.testCodeFor(phone) : "";
+    // OTP_SHOW_CODE=true: show the code on screen for any customer number
+    // instead of texting it. Testing only — anyone could then sign in as any
+    // number — so it applies to customers only and switches itself off the
+    // moment a real SMS provider is configured.
+    const showCode = role === "customer" && process.env.OTP_SHOW_CODE === "true" && !sms.isConfigured();
     const code = testCode || config.otp.fixedCode || randomCode();
 
     const record = await Otp.create({
@@ -73,7 +92,7 @@ router.post(
     // the apps are testable. Production never returns it (that is what the
     // SMS is for), and a deployment with no SMS provider fails loudly here
     // instead of saying "OTP sent" when nothing was.
-    if (!testCode && !config.isProd && !sms.isConfigured()) {
+    if (!testCode && (showCode || (!config.isProd && !sms.isConfigured()))) {
       console.log(`[otp] ${phone} -> ${code}`);
     } else if (!testCode) {
       try {
@@ -92,14 +111,14 @@ router.post(
       success: true,
       message: `OTP sent to ${phone}`,
       expiresInSeconds: 300,
-      ...(config.isProd ? {} : { devCode: code }),
+      ...(!config.isProd || showCode ? { devCode: code } : {}),
     });
   })
 );
 
 router.post(
   "/otp/verify",
-  otpLimiter,
+  otpVerifyLimiter,
   asyncHandler(async (req, res) => {
     const phone = String(req.body.phone || "").trim();
     const code = String(req.body.code || "").trim();

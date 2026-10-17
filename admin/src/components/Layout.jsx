@@ -304,6 +304,15 @@ export default function Layout() {
   const [openTickets, setOpenTickets] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  // The hamburger: hides the sidebar on a desktop, opens it as a drawer on a phone.
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [navDrawer, setNavDrawer] = useState(false);
+  const toggleNav = () => {
+    if (window.matchMedia("(max-width: 720px)").matches) setNavDrawer((open) => !open);
+    else setNavCollapsed((hidden) => !hidden);
+  };
+  // Going to a page closes the phone drawer.
+  useEffect(() => setNavDrawer(false), [location.pathname]);
 
   // Closes the profile dropdown on an outside click or Escape, same as any
   // native menu would, rather than leaving it open until the next reload.
@@ -371,11 +380,16 @@ export default function Layout() {
   }, [location.pathname]);
 
   return (
-    <div className="shell">
+    <div className={`shell${navCollapsed ? " nav-collapsed" : ""}${navDrawer ? " nav-open" : ""}`}>
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <img className="mark-img" src={`${import.meta.env.BASE_URL}logo-mark.png`} alt="" width="34" height="28" />
-          <span>Hosur Basket</span>
+          <img className="mark-img" src={`${import.meta.env.BASE_URL}logo-mark.png`} alt="" width="46" height="38" />
+          <div className="brand-text">
+            <strong>
+              Hosur<span>Basket</span>
+            </strong>
+            <small>Your everyday supermarket</small>
+          </div>
         </div>
         <nav>
           {groups.map((group, index) => {
@@ -447,14 +461,34 @@ export default function Layout() {
             );
           })}
         </nav>
+
+        <div className="sidebar-art" aria-hidden="true">
+          <svg viewBox="0 0 220 150" width="100%" height="150" fill="none">
+            <path d="M34 150C14 142 6 118 18 92c18 8 28 26 26 46-1 4-3 8-4 12Z" fill="#3fae5a" opacity=".9" />
+            <path d="M44 150c-2-24 8-52 34-66 4 34-8 56-30 66h-4Z" fill="#2e8f47" />
+            <path d="M18 150c-8-18-6-40 6-58 10 18 10 40 0 58h-6Z" fill="#6fcf7c" opacity=".85" />
+            <path d="M70 150c6-14 18-24 34-26-2 14-14 24-30 26h-4Z" fill="#59c06c" opacity=".8" />
+            <circle cx="62" cy="138" r="11" fill="#e0382f" />
+            <path d="M56 130c3-3 8-3 12 0-3 1-5 3-6 5-2-2-4-4-6-5Z" fill="#2e8f47" />
+          </svg>
+          <p>
+            Fresh Products
+            <br />
+            Healthy Life
+          </p>
+        </div>
       </aside>
+
+      <div className="nav-backdrop" onClick={() => setNavDrawer(false)} />
 
       <div className="main">
         <header className="topbar">
           <div className="inline" style={{ flex: 1, minWidth: 0 }}>
-            <strong style={{ fontSize: 14, whiteSpace: "nowrap" }}>
-              {titleFor(location.pathname)}
-            </strong>
+            <button type="button" className="topbar-burger" onClick={toggleNav} aria-label="Toggle menu">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h10" />
+              </svg>
+            </button>
             <form
               className="topbar-search"
               onSubmit={submitSearch}

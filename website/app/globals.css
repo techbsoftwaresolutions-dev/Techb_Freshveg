@@ -4733,3 +4733,16 @@ body:has(.cart-page) .logo-img { height: 32px; }
 @media (prefers-reduced-motion: reduce) {
   .footer-social-icon, .footer-social-icon:hover { transition: none; transform: none; }
 }
+
+/* Track Order, Help Center, Terms, Cart, Account and Sign In pages: no category bar. */
+.header-info .catbar { display: none; }
+
+/* Terms & Conditions: full-width layout */
+.legal-page { padding: 28px 32px 32px; }
+.legal-page h2 { font-size: 18px; margin: 26px 0 8px; }
+.legal-page p { font-size: 15px; line-height: 1.7; }
+@media (max-width: 720px) {
+  .legal-page { padding: 18px 16px 22px; }
+  .legal-page h2 { font-size: 16px; }
+  .legal-page p { font-size: 14px; }
+}

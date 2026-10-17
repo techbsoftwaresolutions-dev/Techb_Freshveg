@@ -41,6 +41,54 @@ import {
   IconShield,
 } from "../components/Icons";
 
+// Slides for the banner at the top of the dashboard. Each one is a shortcut
+// to the screen an admin is most likely to want next.
+const PROMO_SLIDES = [
+  { title: "Fresh Groceries", accent: "Better Living", text: "Quality products, delivered with care.", cta: "View Catalog", to: "/catalog/products" },
+  { title: "Orders on the move", accent: "Keep them flowing", text: "Check what is new, packed and out for delivery.", cta: "Open Orders", to: "/orders" },
+  { title: "Shelves stay full", accent: "Never miss a sale", text: "See what is running low before it runs out.", cta: "Review Stock", to: "/inventory" },
+];
+
+function PromoBanner() {
+  const [index, setIndex] = useState(0);
+  const slide = PROMO_SLIDES[index];
+  const go = (step) => setIndex((i) => (i + step + PROMO_SLIDES.length) % PROMO_SLIDES.length);
+
+  // Moves on by itself every few seconds, like the storefront's banners.
+  useEffect(() => {
+    const id = setInterval(() => setIndex((i) => (i + 1) % PROMO_SLIDES.length), 6000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <section className="promo" aria-roledescription="carousel" aria-label="Shortcuts">
+      <button type="button" className="promo-arrow left" onClick={() => go(-1)} aria-label="Previous">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
+      </button>
+      <div className="promo-copy" key={index}>
+        <h2>
+          {slide.title}
+          <br />
+          {slide.accent}
+        </h2>
+        <p>{slide.text}</p>
+        <Link to={slide.to} className="promo-cta">
+          {slide.cta}
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        </Link>
+      </div>
+      <button type="button" className="promo-arrow right" onClick={() => go(1)} aria-label="Next">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+      </button>
+      <div className="promo-dots">
+        {PROMO_SLIDES.map((_, i) => (
+          <button key={i} type="button" className={i === index ? "on" : ""} onClick={() => setIndex(i)} aria-label={`Slide ${i + 1}`} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // Builds a fully-populated 14-day series (UTC-dated, matching how the
 // backend groups `trend`) so a missing day reads as zero rather than
 // quietly shifting every later day one slot to the left.
@@ -227,7 +275,7 @@ export default function Dashboard() {
       <div className="grid cols-6" style={{ marginBottom: 14 }}>
         <Stat
           icon={IconWallet}
-          hue="violet"
+          hue="green"
           label="Total Revenue"
           value={rupees(lifetime.revenue)}
           trend={revenueTrend}
@@ -247,7 +295,7 @@ export default function Dashboard() {
         />
         <Stat
           icon={IconCustomers}
-          hue="green"
+          hue="violet"
           label="Total Customers"
           value={customersTotal}
           foot="View customers"
@@ -255,7 +303,7 @@ export default function Dashboard() {
         />
         <Stat
           icon={IconProducts}
-          hue="indigo"
+          hue="orange"
           label="Total Products"
           value={productsTotal}
           foot="View catalog"
@@ -280,7 +328,57 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid dashboard-cols swap" style={{ marginBottom: 14 }}>
+      <div className="grid dashboard-3" style={{ marginBottom: 14 }}>
+        <div style={{ display: "grid", gap: 14 }}>
+          <PromoBanner />
+          <Card
+            title="Top Selling Products"
+            actions={
+              <Link className="btn sm" to="/reports">
+                View all
+              </Link>
+            }
+            tight
+          >
+            {topProducts.length ? (
+              <div className="rank-list">
+                {topProducts.map((product, index) => (
+                  <div className="rank-item" key={product.id || product.name}>
+                    <span className="rank-num">{index + 1}</span>
+                    {product.image ? (
+                      <img src={product.image} alt="" className="rank-thumb" />
+                    ) : (
+                      <span className="rank-thumb rank-thumb-fallback">
+                        <IconProducts />
+                      </span>
+                    )}
+                    <div className="rank-body">
+                      <div className="rank-row">
+                        <span className="row-title">{product.name}</span>
+                        <strong>{rupees(product.revenue)}</strong>
+                      </div>
+                      <div className="row-sub">{product.units} units</div>
+                      <div className="rank-bar">
+                        <span
+                          style={{
+                            width: `${Math.round(((product.revenue || 0) / maxProductRevenue) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Empty
+                title="No sales yet"
+                hint="Top sellers show up once orders come in."
+              />
+            )}
+          </Card>
+
+        </div>
+
         <div style={{ display: "grid", gap: 14 }}>
           <Card
             title="Sales Overview"
@@ -337,52 +435,6 @@ export default function Dashboard() {
                 icon={IconChartLine}
                 title="No orders yet"
                 hint="They will appear here as they come in."
-              />
-            )}
-          </Card>
-
-          <Card
-            title="Top Selling Products"
-            actions={
-              <Link className="btn sm" to="/reports">
-                View all
-              </Link>
-            }
-            tight
-          >
-            {topProducts.length ? (
-              <div className="rank-list">
-                {topProducts.map((product, index) => (
-                  <div className="rank-item" key={product.id || product.name}>
-                    <span className="rank-num">{index + 1}</span>
-                    {product.image ? (
-                      <img src={product.image} alt="" className="rank-thumb" />
-                    ) : (
-                      <span className="rank-thumb rank-thumb-fallback">
-                        <IconProducts />
-                      </span>
-                    )}
-                    <div className="rank-body">
-                      <div className="rank-row">
-                        <span className="row-title">{product.name}</span>
-                        <strong>{rupees(product.revenue)}</strong>
-                      </div>
-                      <div className="row-sub">{product.units} units</div>
-                      <div className="rank-bar">
-                        <span
-                          style={{
-                            width: `${Math.round(((product.revenue || 0) / maxProductRevenue) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Empty
-                title="No sales yet"
-                hint="Top sellers show up once orders come in."
               />
             )}
           </Card>

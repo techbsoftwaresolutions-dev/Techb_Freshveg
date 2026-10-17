@@ -67,8 +67,14 @@ export default function Header({ categories = [] }) {
     else if (q.length >= 2) router.push(`/search?q=${encodeURIComponent(q)}`);
   };
 
+  // Track Order, Help Center, Terms, Cart, Account and Sign In are reading pages: no category bar
+  // under the search box (see CSS).
+  const infoPage = ["/orders", "/help", "/terms", "/cart", "/account", "/login"].some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+
   return (
-    <header className="header">
+    <header className={`header${infoPage ? " header-info" : ""}`}>
       {/* The standing terms, stated once and out of the way. A shopper reads
           this on the first visit and never again, so it gets the smallest
           type on the page rather than a banner that has to be dismissed.
