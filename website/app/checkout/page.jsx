@@ -6,6 +6,8 @@ import { useAuth, useCart } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
 import { payWithRazorpay } from "@/lib/razorpay";
+import SavedAddresses from "@/components/SavedAddresses";
+import { useServiceability } from "@/lib/use-serviceability";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -20,15 +22,15 @@ export default function CheckoutPage() {
   const [note, setNote] = useState("");
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [removingId, setRemovingId] = useState(null);
 
   useEffect(() => {
     if (ready && !signedIn) router.replace("/login?next=/checkout");
   }, [ready, signedIn, router]);
 
   const addresses = user?.addresses || [];
+  const selectedAddress = addresses.find((a) => a.id === addressId) || null;
+  const pincodeServiceable = useServiceability(selectedAddress ? [selectedAddress.pincode] : []);
+  const addressUnserviceable = Boolean(selectedAddress) && pincodeServiceable(selectedAddress.pincode) === false;
 
   useEffect(() => {
     if (!addressId && addresses.length) {
@@ -54,22 +56,6 @@ export default function CheckoutPage() {
       })
       .catch(() => setMethods([]));
   }, [storeId, cartTotal]);
-
-  async function removeAddress(id) {
-    setRemovingId(id);
-    try {
-      const { addresses: fresh } = await api.del(`/auth/me/addresses/${id}`);
-      if (addressId === id) {
-        const next = fresh.find((a) => a.isDefault) || fresh[0];
-        setAddressId(next?.id || null);
-      }
-      await refreshUser();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setRemovingId(null);
-    }
-  }
 
   const summary = cart.summary;
 
@@ -117,9 +103,9 @@ export default function CheckoutPage() {
   const upiMethod = methods?.find((m) => m.key === "upi");
 
   const steps = [
-    { label: "Delivery address", done: Boolean(addressId) },
-    { label: "Payment", done: Boolean(method) },
-    { label: "Review & place order", done: false },
+    { label: "Delivery address", short: "Address", done: Boolean(addressId) },
+    { label: "Payment", short: "Payment", done: Boolean(method) },
+    { label: "Review & place order", short: "Review", done: false },
   ];
 
   return (
@@ -134,7 +120,8 @@ export default function CheckoutPage() {
           return (
             <li key={step.label} className={`checkout-step${step.done ? " done" : ""}${active ? " active" : ""}`}>
               <span className="num" aria-hidden="true">{step.done ? "\u2713" : index + 1}</span>
-              {step.label}
+              <span className="step-label-full">{step.label}</span>
+              <span className="step-label-short">{step.short}</span>
               {index < steps.length - 1 ? <span className="checkout-step-line" aria-hidden="true" /> : null}
             </li>
           );
@@ -151,94 +138,14 @@ export default function CheckoutPage() {
                 <span className="step-num">1</span>
                 Delivery address
               </h3>
-              {addresses.length ? (
-                <button
-                  className="btn sm"
-                  onClick={() => {
-                    setEditingId(null);
-                    setAdding((v) => !v);
-                  }}
-                >
-                  {adding ? "Cancel" : "+ Add new"}
-                </button>
-              ) : null}
             </div>
 
             {!addresses.length ? (
-              <p className="notice warn" style={{ marginTop: 12, marginBottom: 0 }}>
-                Add an address to continue — fill in the form below.
+              <p className="notice warn" style={{ margin: "12px 0" }}>
+                Add an address to continue.
               </p>
             ) : null}
-
-            <div className="choice-list">
-              {addresses.map((address) =>
-                editingId === address.id ? (
-                  <AddressForm
-                    key={address.id}
-                    address={address}
-                    onCancel={() => setEditingId(null)}
-                    onSaved={async () => {
-                      setEditingId(null);
-                      await refreshUser();
-                    }}
-                  />
-                ) : (
-                  <div key={address.id} className={`choice${addressId === address.id ? " on" : ""}`}>
-                    <label className="choice-main">
-                      <input
-                        type="radio"
-                        name="address"
-                        checked={addressId === address.id}
-                        onChange={() => setAddressId(address.id)}
-                      />
-                      <span className="choice-radio" aria-hidden="true" />
-                      <span className="choice-copy">
-                        <strong>
-                          {address.label}
-                          {address.isDefault ? <span className="pill brand">Default</span> : null}
-                        </strong>
-                        <span>
-                          {[address.line1, address.line2, address.landmark, address.city, address.pincode]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </span>
-                      </span>
-                    </label>
-                    <div className="choice-actions">
-                      <button
-                        type="button"
-                        className="btn sm"
-                        onClick={() => {
-                          setAdding(false);
-                          setEditingId(address.id);
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn sm"
-                        disabled={removingId === address.id}
-                        onClick={() => removeAddress(address.id)}
-                      >
-                        {removingId === address.id ? "Removing…" : "Remove"}
-                      </button>
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-
-            {adding || !addresses.length ? (
-              <AddressForm
-                onSaved={async () => {
-                  setAdding(false);
-                  const fresh = await refreshUser();
-                  const latest = fresh?.addresses?.[fresh.addresses.length - 1];
-                  if (latest) setAddressId(latest.id);
-                }}
-              />
-            ) : null}
+            <SavedAddresses selectedId={addressId} onSelect={setAddressId} />
           </section>
 
           <section className="panel">
@@ -283,10 +190,12 @@ export default function CheckoutPage() {
                     />
                     <span className="choice-radio" aria-hidden="true" />
                     <span className="choice-copy">
-                      <strong>Pay with Razorpay</strong>
-                      <span>UPI apps, cards and netbanking — confirmed instantly</span>
+                      <strong>
+                        Pay with Razorpay
+                        <span className="pill accent choice-tag">Recommended</span>
+                      </strong>
+                      <span>UPI, cards &amp; netbanking</span>
                     </span>
-                    <span className="pill accent">Recommended</span>
                   </label>
                 ) : null}
 
@@ -393,7 +302,7 @@ export default function CheckoutPage() {
             <div className="panel-head">
               <h3>
                 <span className="step-num">3</span>
-                Delivery instructions <span className="panel-head-note">Optional</span>
+                <span className="nowrap-title">Delivery instructions</span> <span className="panel-head-note">Optional</span>
               </h3>
             </div>
             <textarea
@@ -464,7 +373,7 @@ export default function CheckoutPage() {
             <button
               className="btn primary block lg"
               style={{ marginTop: 16 }}
-              disabled={!addressId || !summary.meetsMinimum || placing}
+              disabled={!addressId || addressUnserviceable || !summary.meetsMinimum || placing}
               onClick={placeOrder}
             >
               {placing ? "Placing order…" : method === "upi" && upiTab === "razorpay" ? "Pay & place order" : "Place order"}
@@ -473,97 +382,5 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-function AddressForm({ address, onSaved, onCancel }) {
-  const [form, setForm] = useState(
-    address
-      ? {
-          label: address.label || "Home",
-          line1: address.line1 || "",
-          landmark: address.landmark || "",
-          city: address.city || "",
-          pincode: address.pincode || "",
-        }
-      : { label: "Home", line1: "", landmark: "", city: "", pincode: "" }
-  );
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const set = (key) => (event) => setForm((f) => ({ ...f, [key]: event.target.value }));
-
-  async function save(event) {
-    event.preventDefault();
-    setSaving(true);
-    setError("");
-    try {
-      if (address) {
-        await api.patch(`/auth/me/addresses/${address.id}`, form);
-      } else {
-        await api.post("/auth/me/addresses", form);
-      }
-      onSaved();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form onSubmit={save} className="address-form">
-      {error ? <p className="notice error">{error}</p> : null}
-
-      <div className="field">
-        <label htmlFor="label">Label</label>
-        <select id="label" value={form.label} onChange={set("label")} style={{ width: 160 }}>
-          <option>Home</option>
-          <option>Work</option>
-          <option>Other</option>
-        </select>
-      </div>
-
-      <div className="field">
-        <label htmlFor="line1">Flat / house, street</label>
-        <input id="line1" type="text" value={form.line1} onChange={set("line1")} required />
-      </div>
-
-      <div className="field">
-        <label htmlFor="landmark">Landmark (optional)</label>
-        <input id="landmark" type="text" value={form.landmark} onChange={set("landmark")} />
-      </div>
-
-      <div className="field-row">
-        <div className="field">
-          <label htmlFor="city">City</label>
-          <input id="city" type="text" value={form.city} onChange={set("city")} required />
-        </div>
-        <div className="field">
-          <label htmlFor="pincode">Pincode</label>
-          <input
-            id="pincode"
-            type="tel"
-            value={form.pincode}
-            onChange={(e) => setForm((f) => ({ ...f, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-            required
-          />
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 10 }}>
-        <button
-          className="btn primary"
-          disabled={saving || !form.line1 || !form.city || form.pincode.length !== 6}
-        >
-          {saving ? "Saving…" : address ? "Save changes" : "Save address"}
-        </button>
-        {onCancel ? (
-          <button type="button" className="btn" onClick={onCancel} disabled={saving}>
-            Cancel
-          </button>
-        ) : null}
-      </div>
-    </form>
   );
 }

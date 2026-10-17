@@ -1,0 +1,11 @@
+// A "use client" page cannot export metadata, so the title for this route
+// lives in a thin server layout alongside it.
+export const metadata = {
+  title: "Your cart",
+  description: "Review the items in your Hosur Basket basket before checking out.",
+  robots: { index: false, follow: false },
+};
+
+export default function Layout({ children }) {
+  return children;
+}

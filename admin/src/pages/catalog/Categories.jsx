@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
@@ -573,14 +574,14 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
           <input type="text" value={form.name} onChange={set("name")} disabled={!editable} />
         </Field>
         <Field label="Parent category" >
-          <select value={form.parent} onChange={set("parent")} disabled={!editable}>
+          <Select value={form.parent} onChange={set("parent")} disabled={!editable}>
             <option value="">— Top level —</option>
             {parentOptions.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       </div>
       <div className="grid cols-2">
@@ -631,11 +632,11 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
       </Field>
       <div className="grid cols-3">
         <Field label="Status">
-          <select value={form.status} onChange={set("status")} disabled={!editable}>
+          <Select value={form.status} onChange={set("status")} disabled={!editable}>
             <option value="active">Active</option>
             <option value="hidden">Hidden</option>
             <option value="archived">Archived</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Tile colour">
           <input type="text" value={form.color} onChange={set("color")} placeholder="#DCFCE7" disabled={!editable} />
@@ -708,7 +709,7 @@ function FeaturesTab({ detail, features, resolved, onSave, saving, editable }) {
                   </div>
                 </td>
                 <td>
-                  <select
+                  <Select
                     value={valueFor(feature.key)}
                     onChange={(e) => change(feature.key, e.target.value)}
                     disabled={!editable}
@@ -716,7 +717,7 @@ function FeaturesTab({ detail, features, resolved, onSave, saving, editable }) {
                     <option value="inherit">Inherit</option>
                     <option value="true">On</option>
                     <option value="false">Off</option>
-                  </select>
+                  </Select>
                 </td>
                 <td>
                   <Pill tone={resolved[feature.key] ? "ok" : undefined}>
@@ -751,14 +752,14 @@ function FieldsTab({ schema, attributes, ownBindingIds, onBind, onUnbind, saving
 
       {editable && (
         <div className="toolbar">
-          <select value={adding} onChange={(e) => setAdding(e.target.value)}>
+          <Select value={adding} onChange={(e) => setAdding(e.target.value)}>
             <option value="">— Add a field —</option>
             {unbound.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name} ({a.inputType})
               </option>
             ))}
-          </select>
+          </Select>
           <button
             className="btn"
             disabled={!adding || saving}

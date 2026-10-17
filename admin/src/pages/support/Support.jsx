@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
@@ -378,12 +379,12 @@ function ResolveModal({ ticket, busy, onClose, onResolve }) {
       }
     >
       <Field label="How was this resolved?">
-        <select value={type} onChange={(e) => setType(e.target.value)}>
+        <Select value={type} onChange={(e) => setType(e.target.value)}>
           <option value="explained">Explained — no action needed</option>
           <option value="refund">Refunded</option>
           <option value="replacement">Replacement sent</option>
           <option value="goodwill">Goodwill gesture</option>
-        </select>
+        </Select>
       </Field>
 
       {type === "refund" ? (

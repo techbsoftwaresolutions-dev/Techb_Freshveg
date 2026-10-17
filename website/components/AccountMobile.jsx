@@ -15,6 +15,7 @@ import {
   IconUser,
   IconWallet,
 } from "./AccountIcons";
+import SavedAddresses from "@/components/SavedAddresses";
 import { StatusBadge } from "./OrderCard";
 
 // The account screen as a phone sees it. It is only a different arrangement of
@@ -54,13 +55,7 @@ function Tile({ icon: Icon, title, value, note, children }) {
   );
 }
 
-const MAX_ADDRESSES = 2;
-
 export default function AccountMobile({ user, initials, store, pincode, recentOrders, shared, onShare, onSignOut }) {
-  const addresses = user.addresses || [];
-  const shownAddresses = addresses.slice(0, MAX_ADDRESSES);
-  const moreAddresses = addresses.length - shownAddresses.length;
-
   return (
     <div className="acct-m">
       <AccountHead />
@@ -154,24 +149,7 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
             Saved addresses
           </h2>
         </div>
-        {shownAddresses.length ? (
-          <>
-            {shownAddresses.map((address) => (
-              <div key={address.id} className="am-address">
-                <strong>
-                  {address.label}
-                  {address.isDefault ? <span className="am-default">Default</span> : null}
-                </strong>
-                <span>
-                  {[address.line1, address.line2, address.landmark, address.city, address.pincode].filter(Boolean).join(", ")}
-                </span>
-              </div>
-            ))}
-            {moreAddresses > 0 ? <p className="am-more">+{moreAddresses} more saved</p> : null}
-          </>
-        ) : (
-          <p className="am-empty">No addresses saved yet — you can add one at checkout.</p>
-        )}
+        <SavedAddresses />
       </section>
 
       <nav className="am-card am-menu" aria-label="Account">

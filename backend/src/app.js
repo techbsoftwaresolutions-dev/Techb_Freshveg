@@ -49,6 +49,12 @@ app.get("/api/health", (_req, res) => {
       state: states[mongoose.connection.readyState] || "unknown",
       name: mongoose.connection.name || null,
     },
+    // Counts only, never values: lets you confirm from a browser that the
+    // host passed the SMS settings to the running app.
+    login: {
+      smsProviderSet: require("./modules/auth/sms.service").isConfigured(),
+      testNumbers: String(process.env.OTP_TEST_NUMBERS || "").split(",").filter((x) => x.includes(":")).length,
+    },
     time: new Date().toISOString(),
   });
 });

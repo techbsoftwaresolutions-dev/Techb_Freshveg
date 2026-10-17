@@ -755,13 +755,17 @@ const users = [
   {
     name: "Kumar (Delivery)",
     phone: "9000000003",
+    email: "kumar@samagramart.local",
     role: "delivery_partner",
+    password: "delivery123",
     status: "active",
   },
   {
     name: "Ravi (Delivery)",
     phone: "9000000004",
+    email: "ravi@samagramart.local",
     role: "delivery_partner",
+    password: "delivery123",
     status: "active",
   },
   {

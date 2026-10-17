@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { Banner, Card, Field, Loading, Tabs } from "../../components/ui";
@@ -153,11 +154,11 @@ export default function General() {
 
             <div className="grid cols-2">
               <Field label="Gateway" help="API keys come from the server's environment, never from here.">
-                <select value={draft.provider || "none"} onChange={set("provider")}>
+                <Select value={draft.provider || "none"} onChange={set("provider")}>
                   <option value="none">None — cash and wallet only</option>
                   <option value="razorpay">Razorpay</option>
                   <option value="stripe">Stripe</option>
-                </select>
+                </Select>
               </Field>
               <Field label="Refunds">
                 <label className="checkbox" style={{ marginTop: 8 }}>

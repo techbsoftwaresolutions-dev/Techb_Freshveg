@@ -106,7 +106,6 @@ export default async function CategoriesPage({ searchParams }) {
                 ))}
               </div>
 
-              {meta && meta.pages > 1 ? <Pagination meta={meta} query={query} /> : null}
               {meta && meta.pages > page ? (
                 <InfiniteProducts
                   key={JSON.stringify(listQuery)}
@@ -128,78 +127,5 @@ export default async function CategoriesPage({ searchParams }) {
 
       <DeliveryBar />
     </SearchProvider>
-  );
-}
-
-// Numbered pages, as real links. Someone deep in a catalogue wants to jump,
-// not press "next" eleven times.
-function Pagination({ meta, query }) {
-  const linkFor = (page) => {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(query)) {
-      if (key !== "page" && value) params.set(key, String(value));
-    }
-    if (page > 1) params.set("page", String(page));
-    const qs = params.toString();
-    return `/c${qs ? `?${qs}` : ""}`;
-  };
-
-  // A window around the current page rather than every page: forty page
-  // numbers is not navigation, it is wallpaper.
-  const pages = [];
-  const first = Math.max(1, Math.min(meta.page - 2, meta.pages - 4));
-  const last = Math.min(meta.pages, first + 4);
-  for (let p = first; p <= last; p += 1) pages.push(p);
-
-  return (
-    <nav className="pager" aria-label="Pagination">
-      <span className="pager-status">
-        Page {meta.page} of {meta.pages}
-      </span>
-
-      {meta.page > 1 ? (
-        <Link href={linkFor(meta.page - 1)} className="pager-step" rel="prev">
-          Previous
-        </Link>
-      ) : (
-        <span className="pager-step disabled">Previous</span>
-      )}
-
-      {first > 1 ? (
-        <>
-          <Link href={linkFor(1)} className="pager-page">1</Link>
-          {first > 2 ? <span className="pager-gap">…</span> : null}
-        </>
-      ) : null}
-
-      {pages.map((p) =>
-        p === meta.page ? (
-          <span key={p} className="pager-page current" aria-current="page">
-            {p}
-          </span>
-        ) : (
-          <Link key={p} href={linkFor(p)} className="pager-page">
-            {p}
-          </Link>
-        )
-      )}
-
-      {last < meta.pages ? (
-        <>
-          {last < meta.pages - 1 ? <span className="pager-gap">…</span> : null}
-          <Link href={linkFor(meta.pages)} className="pager-page">
-            {meta.pages}
-          </Link>
-        </>
-      ) : null}
-
-      {meta.hasNext ? (
-        <Link href={linkFor(meta.page + 1)} className="pager-step" rel="next">
-          Next
-        </Link>
-      ) : (
-        <span className="pager-step disabled">Next</span>
-      )}
-    </nav>
   );
 }

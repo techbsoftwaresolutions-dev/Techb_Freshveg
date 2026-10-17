@@ -125,6 +125,38 @@ async function request(method, path, { body, query, retry = true } = {}) {
   return payload;
 }
 
+// Upload one photo (a local file uri from the camera) and get back its URL.
+// The backend takes the image as the raw request body.
+export async function uploadImage(uri, folder = "proof") {
+  const session = await loadSession();
+  let blob;
+  try {
+    blob = await (await fetch(uri)).blob();
+  } catch {
+    throw new ApiError(0, "Couldn't read the photo. Take it again.");
+  }
+  const type = ["image/jpeg", "image/png", "image/webp"].includes(blob.type) ? blob.type : "image/jpeg";
+
+  let response;
+  try {
+    response = await fetch(`${BASE}/uploads?folder=${encodeURIComponent(folder)}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": type,
+        ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+      },
+      body: blob,
+    });
+  } catch {
+    throw new ApiError(0, "No connection. The photo was not uploaded — try again.");
+  }
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.success === false || !payload.url) {
+    throw new ApiError(response.status, payload.error?.message || "Photo upload failed");
+  }
+  return payload.url;
+}
+
 export const api = {
   get: (path, query) => request("GET", path, { query }),
   post: (path, body) => request("POST", path, { body }),

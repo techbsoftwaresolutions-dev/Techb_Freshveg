@@ -10,11 +10,7 @@ export default function Footer({ categories = [] }) {
         <div className="footer-grid">
           <div className="footer-brand">
             <Link href="/" className="footer-logo">
-              <FooterMark />
-              <span>
-                <span className="footer-logo-name">Hosur Basket</span>
-                <span className="footer-logo-tag">Fresh Food • Better Life</span>
-              </span>
+              <img src="/logo-horizontal.png" alt="Hosur Basket — your everyday supermarket" className="footer-logo-img" width="216" height="60" />
             </Link>
             <p>
               Fresh fruit, vegetables, groceries and household essentials, delivered from your
@@ -65,23 +61,34 @@ export default function Footer({ categories = [] }) {
               </li>
               <li>Hosur, Tamil Nadu</li>
             </ul>
+            {/* Display only for now — no links until the pages exist. */}
+            <div className="footer-social" role="group" aria-label="Social media">
+              <span className="footer-social-icon" role="img" aria-label="Facebook">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                  <path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.6-1.5h1.6V4.4c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4.1v2.1H7.6v3h2.7V21h3.2z" />
+                </svg>
+              </span>
+              <span className="footer-social-icon" role="img" aria-label="Instagram">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+                  <circle cx="12" cy="12" r="4" />
+                  <circle cx="17.4" cy="6.6" r="1" fill="currentColor" stroke="none" />
+                </svg>
+              </span>
+              <span className="footer-social-icon" role="img" aria-label="YouTube">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
+                  <path d="m10 9.2 5 2.8-5 2.8z" fill="currentColor" stroke="none" />
+                </svg>
+              </span>
+            </div>
           </div>
         </div>
 
         <div className="footer-base">
           <span>© {new Date().getFullYear()} Hosur Basket. All rights reserved.</span>
-          <span>Prices include all taxes</span>
         </div>
       </div>
     </footer>
-  );
-}
-
-function FooterMark() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true" className="footer-mark">
-      <path d="M22 44C9 42 2 31 4 14c11 1 19 8 20 20 0 4-1 7-2 10Z" fill="#6cc070" />
-      <path d="M24 44c1-14 7-26 20-32 2 17-5 29-18 32h-2Z" fill="#a5d6a7" />
-    </svg>
   );
 }

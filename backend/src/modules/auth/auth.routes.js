@@ -7,6 +7,7 @@ const ApiError = require("../../core/ApiError");
 const config = require("../../config");
 const User = require("./user.model");
 const Otp = require("./otp.model");
+const sms = require("./sms.service");
 const { issueTokens, verifyRefreshToken } = require("./token.service");
 const { requireAuth } = require("../../middleware/auth");
 const { ROLES, STAFF_ROLES, PERMISSIONS } = require("./roles");
@@ -16,12 +17,26 @@ const router = express.Router();
 // OTP endpoints are the cheapest thing to abuse on a storefront — each request
 // costs an SMS — so they are rate limited per IP regardless of the phone asked
 // for.
-const otpLimiter = rateLimit({
+const limiterMessage = (text) => ({ success: false, error: { message: text } });
+
+// Asking for a code costs an SMS, so it is the tighter limit.
+const otpRequestLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: { message: "Too many OTP requests. Try again in a few minutes." } },
+  message: limiterMessage("Too many OTP requests. Try again in a few minutes."),
+});
+
+// Checking a code costs nothing, so it is only limited against guessing, and
+// successful logins don't count towards the limit.
+const otpVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: limiterMessage("Too many attempts. Try again in a few minutes."),
 });
 
 const randomCode = () => String(crypto.randomInt(100000, 1000000));
@@ -45,38 +60,65 @@ const publicUser = (user) => ({
 
 router.post(
   "/otp/request",
-  otpLimiter,
+  otpRequestLimiter,
   asyncHandler(async (req, res) => {
     const phone = String(req.body.phone || "").trim();
     if (!/^\d{10}$/.test(phone)) throw ApiError.badRequest("Enter a valid 10-digit mobile number");
 
     const role = req.body.role === "delivery_partner" ? "delivery_partner" : "customer";
-    const code = config.otp.fixedCode || randomCode();
 
-    await Otp.create({
+    // One text per number every 20 seconds — each one costs money, and the
+    // per-IP limit above does nothing against one number being hammered.
+    const recent = await Otp.findOne({ phone, role, createdAt: { $gt: new Date(Date.now() - 20 * 1000) } });
+    if (recent) throw ApiError.badRequest("A code was just sent. Wait a few seconds before asking for another.");
+
+    // Customers only: a fixed code for listed test numbers, never texted.
+    const testCode = role === "customer" ? sms.testCodeFor(phone) : "";
+    // OTP_SHOW_CODE=true: show the code on screen for any customer number
+    // instead of texting it. Testing only — anyone could then sign in as any
+    // number — so it applies to customers only and switches itself off the
+    // moment a real SMS provider is configured.
+    const showCode = role === "customer" && process.env.OTP_SHOW_CODE === "true" && !sms.isConfigured();
+    const code = testCode || config.otp.fixedCode || randomCode();
+
+    const record = await Otp.create({
       phone,
       role,
       codeHash: Otp.hash(code),
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
-    // TODO: hand off to the SMS provider. Until one is wired up the code comes
-    // back in the response in non-production so the apps are testable — this is
-    // gated on NODE_ENV so it can never leak from a deployed environment.
-    console.log(`[otp] ${phone} -> ${code}`);
+    // Development: no SMS account needed — the code is logged and returned so
+    // the apps are testable. Production never returns it (that is what the
+    // SMS is for), and a deployment with no SMS provider fails loudly here
+    // instead of saying "OTP sent" when nothing was.
+    if (!testCode && (showCode || (!config.isProd && !sms.isConfigured()))) {
+      console.log(`[otp] ${phone} -> ${code}`);
+    } else if (!testCode) {
+      try {
+        await sms.sendOtp(phone, code);
+      } catch (err) {
+        await record.deleteOne().catch(() => {});
+        console.error(`[otp] could not send to ${phone}: ${err.message}`);
+        if (err instanceof sms.SmsNotConfiguredError) {
+          throw new ApiError(503, "SMS login isn't set up on the server yet. Please try again later.");
+        }
+        throw new ApiError(502, "We couldn't send the code right now. Please try again in a minute.");
+      }
+    }
 
     res.json({
       success: true,
       message: `OTP sent to ${phone}`,
       expiresInSeconds: 300,
-      ...(config.isProd ? {} : { devCode: code }),
+      ...(!config.isProd || showCode ? { devCode: code } : {}),
     });
   })
 );
 
 router.post(
   "/otp/verify",
-  otpLimiter,
+  otpVerifyLimiter,
   asyncHandler(async (req, res) => {
     const phone = String(req.body.phone || "").trim();
     const code = String(req.body.code || "").trim();
@@ -145,6 +187,33 @@ router.post(
     // be used to discover which numbers are staff accounts.
     if (!user || !(await user.verifyPassword(String(password || "")))) {
       throw ApiError.unauthorized("Incorrect phone number or password");
+    }
+    if (user.status !== "active") throw ApiError.forbidden("This account is not active");
+
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    res.json({ success: true, user: publicUser(user), ...issueTokens(user) });
+  })
+);
+
+// Delivery partners sign in to the delivery app with the email and password the
+// store set for them in Admin → Users (the OTP route above stays, but the app
+// no longer uses it until an SMS provider is connected).
+router.post(
+  "/partner/login",
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }),
+  asyncHandler(async (req, res) => {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+
+    const user = email
+      ? await User.findOne({ email, role: "delivery_partner" }).select("+passwordHash")
+      : null;
+
+    // One message for "no such email" and "wrong password".
+    if (!user || !(await user.verifyPassword(password))) {
+      throw ApiError.unauthorized("Incorrect email or password");
     }
     if (user.status !== "active") throw ApiError.forbidden("This account is not active");
 

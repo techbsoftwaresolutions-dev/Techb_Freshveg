@@ -12,9 +12,11 @@ export default {
     orientation: "portrait",
     userInterfaceStyle: "light",
     scheme: "samagramart",
+    icon: "./assets/icon.png",
 
     splash: {
-      backgroundColor: "#16A34A",
+      image: "./assets/splash-icon.png",
+      backgroundColor: "#FFFDF6",
       resizeMode: "contain",
     },
 
@@ -25,11 +27,12 @@ export default {
 
     android: {
       package: "com.samagramart.customer",
-      adaptiveIcon: { backgroundColor: "#16A34A" },
+      adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#FFFDF6" },
     },
 
     web: {
       bundler: "metro",
+      favicon: "./assets/favicon.png",
     },
 
     extra: {

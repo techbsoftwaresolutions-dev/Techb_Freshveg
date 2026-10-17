@@ -802,7 +802,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .footer-brand p { margin: 14px 0 0; font-size: 13px; line-height: 1.6; max-width: 34ch; }
 .footer-logo { display: inline-flex; align-items: center; gap: 10px; color: #fff; }
 .footer-logo:hover { color: #fff; }
-.footer-mark { width: 44px; height: 44px; flex: 0 0 44px; }
+.footer-mark { width: 46px; height: 46px; flex: 0 0 46px; object-fit: contain; background: #fffdf6; border-radius: 12px; padding: 4px; }
 .footer-logo-name { display: block; font-size: 24px; font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
 .footer-logo-tag { display: block; font-size: 11px; color: rgba(255, 255, 255, 0.7); }
 .footer h4 { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 14px; }
@@ -855,10 +855,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
   inset: 0;
   background: linear-gradient(
     90deg,
-    rgba(15, 74, 35, 0.96) 0%,
-    rgba(15, 74, 35, 0.88) 30%,
-    rgba(15, 74, 35, 0.45) 58%,
-    rgba(15, 74, 35, 0) 85%
+    rgba(48, 90, 18, 0.96) 0%,
+    rgba(48, 90, 18, 0.88) 30%,
+    rgba(48, 90, 18, 0.45) 58%,
+    rgba(48, 90, 18, 0) 85%
   );
 }
 .banner-slide.has-image .banner-copy strong { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.2); }
@@ -1178,7 +1178,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 
 /* Logo lockup: leaf mark, then the wordmark over its tagline. */
 .logo-row { display: flex; align-items: center; gap: 8px; }
-.logo-mark { display: block; width: 46px; height: 46px; flex: 0 0 46px; }
+.logo-mark { display: block; width: 46px; height: 46px; flex: 0 0 46px; object-fit: contain; }
 .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
 .logo-name { font-weight: 700; font-size: 27px; letter-spacing: -0.02em; color: var(--brand-dark); }
 .logo-name-accent { color: #4caf50; }
@@ -2356,7 +2356,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
   gap: 16px;
   padding: 22px 24px;
   border-radius: 16px;
-  background: linear-gradient(100deg, var(--brand-deep) 0%, var(--brand) 100%);
+  background: var(--btn-gradient, linear-gradient(100deg, #305a12 0%, #547f1a 55%, #6c961e 100%));
   color: #fff;
   margin-bottom: 16px;
 }
@@ -2485,7 +2485,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   margin-top: 22px;
   padding: 16px 20px;
   border-radius: 14px;
-  background: linear-gradient(100deg, var(--brand) 0%, #2e9a52 100%);
+  background: var(--btn-gradient, linear-gradient(100deg, #305a12 0%, #547f1a 55%, #6c961e 100%));
   color: #fff;
 }
 .placed-banner strong { font-size: 16px; font-weight: 600; }
@@ -2804,9 +2804,9 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .banner-shade {
     background: linear-gradient(
       160deg,
-      rgba(15, 74, 35, 0.94) 0%,
-      rgba(15, 74, 35, 0.8) 55%,
-      rgba(15, 74, 35, 0.35) 100%
+      rgba(48, 90, 18, 0.94) 0%,
+      rgba(48, 90, 18, 0.8) 55%,
+      rgba(48, 90, 18, 0.35) 100%
     );
   }
   .banner-copy strong { font-size: 19px; }
@@ -3940,7 +3940,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     padding: 16px;
     margin-top: 4px;
     border-radius: 20px;
-    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    background: var(--btn-gradient, linear-gradient(100deg, #305a12 0%, #547f1a 55%, #6c961e 100%));
     color: #fff;
     overflow: hidden;
   }
@@ -4311,3 +4311,438 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 .pdp-share-btn.whatsapp { background: #e9f8ef; border-color: #bfe8cf; color: #12803f; }
 .pdp-share-btn.whatsapp:hover { background: #dcf3e5; color: #0e6b34; border-color: #9fd9b6; }
 @media (max-width: 359px) { .pdp-share-prefix { display: none; } }
+
+
+/* ---- Brand logo (horizontal lockup image) ---- */
+.logo-img { display: block; height: 56px; width: auto; max-width: 100%; }
+.footer-logo-img {
+  display: block;
+  height: 60px;
+  width: auto;
+  max-width: 100%;
+  background: #fffdf6;
+  border-radius: 14px;
+  padding: 8px 16px;
+}
+@media (max-width: 900px) {
+  .logo-img { height: 46px; }
+}
+@media (max-width: 600px) {
+  .logo-img { height: 38px; }
+  .footer-logo-img { height: 52px; }
+}
+@media (max-width: 380px) {
+  .logo-img { height: 34px; }
+}
+body:has(.cart-page) .logo-img { height: 32px; }
+
+/* ---- Account: saved addresses (add, edit, delete, set default) ---- */
+.addr-book { display: flex; flex-direction: column; gap: 12px; }
+.addr-note { margin: 0; }
+.addr-list { display: flex; flex-direction: column; }
+.addr-item { display: flex; flex-direction: column; gap: 10px; padding: 14px 0; }
+.addr-item + .addr-item { border-top: 1px solid var(--border); }
+.addr-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.addr-main strong { display: flex; align-items: center; gap: 8px; font-size: 14.5px; }
+.addr-badge {
+  font-size: 11px; font-weight: 600; color: var(--brand-dark);
+  background: var(--brand-mist); border-radius: 999px; padding: 2px 9px;
+}
+.addr-contact { font-size: 13px; color: var(--text); }
+.addr-text { font-size: 13px; line-height: 1.5; color: var(--text-muted); overflow-wrap: anywhere; }
+.addr-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.addr-confirm { font-size: 13px; color: var(--text-muted); margin-right: 2px; }
+.addr-btn {
+  height: 32px; padding: 0 13px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: #fff; color: var(--text);
+  font: inherit; font-size: 12.5px; font-weight: 500;
+}
+.addr-btn:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+.addr-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.addr-btn.danger { color: var(--danger); border-color: #efc4c4; }
+.addr-btn.danger:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+.addr-empty { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.addr-add {
+  align-self: flex-start; height: 40px; padding: 0 18px; border-radius: 10px; cursor: pointer;
+  border: 1.5px dashed var(--brand); background: var(--brand-mist); color: var(--brand-dark);
+  font: inherit; font-size: 14px; font-weight: 600;
+}
+.addr-add:hover { background: #fff; }
+.addr-default-check { display: flex; align-items: center; gap: 8px; margin: 2px 0 14px; font-size: 13.5px; cursor: pointer; }
+.addr-default-check input { width: 16px; height: 16px; accent-color: var(--brand); }
+.addr-book .address-form { margin-top: 4px; padding: 14px 0 6px; border-top: 1px solid var(--border); }
+.addr-book .notice.ok { background: var(--brand-mist); border-color: #d3eadb; color: var(--brand-dark); padding: 9px 12px; border-radius: 8px; font-size: 13px; }
+
+/* ======== Delivery address: add/edit screen, change sheet, checkout row ======== */
+
+/* ---- Add / edit address screen (AddressEditor + AddressForm) ---- */
+.ae-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: #f1f4f2;
+  display: flex; align-items: stretch; justify-content: center;
+}
+.ae-screen { width: 100%; max-width: 560px; display: flex; flex-direction: column; min-height: 0; background: #f1f4f2; }
+.ae-head {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  background: #fff; border-bottom: 1px solid var(--border);
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+}
+.ae-head h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text); }
+.ae-back { display: grid; place-items: center; width: 36px; height: 36px; border: 0; background: none; color: var(--text); cursor: pointer; border-radius: 50%; margin-left: -6px; }
+.ae-back:hover { background: var(--brand-mist); }
+.ae-form { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ae-body { flex: 1; overflow-y: auto; padding: 14px 14px 24px; display: flex; flex-direction: column; gap: 12px; }
+.ae-card { background: #fff; border-radius: 14px; padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 16px; }
+.ae-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.ae-note { margin: 0; }
+
+/* Underlined input whose label floats up once there is text. */
+.ae-field { position: relative; display: block; }
+.ae-field input {
+  width: 100%; box-sizing: border-box; height: 44px; padding: 14px 0 4px;
+  border: 0; border-bottom: 1.5px solid #cfd8d3; border-radius: 0; background: transparent;
+  font: inherit; font-size: 15px; color: var(--text); outline: none; box-shadow: none;
+}
+.ae-field input:focus { border-bottom-color: var(--brand); }
+.ae-field span {
+  position: absolute; left: 0; top: 13px; font-size: 15px; color: #8b9a92;
+  pointer-events: none; transition: all 0.15s ease; transform-origin: left top;
+}
+.ae-field input:focus + span,
+.ae-field input:not(:placeholder-shown) + span { top: 0; font-size: 11.5px; color: var(--brand); }
+
+.ae-choice { gap: 14px; }
+.ae-locate {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  height: 52px; border: 0; border-radius: 10px; cursor: pointer;
+  background: #2a2f36; color: #fff; font: inherit; font-size: 16px; font-weight: 600;
+}
+.ae-locate:hover:not(:disabled) { background: #1b1f24; }
+.ae-locate:disabled { opacity: 0.7; cursor: progress; }
+.ae-enter {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; border: 0; background: none; cursor: pointer;
+  color: var(--brand); font: inherit; font-size: 15px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.ae-relocate {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--brand); background: var(--brand-mist); color: var(--brand-dark);
+  font: inherit; font-size: 13px; font-weight: 600;
+}
+.ae-relocate:disabled { opacity: 0.6; cursor: progress; }
+
+.ae-label-pick { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ae-label-pick > span { width: 100%; font-size: 12.5px; color: var(--text-muted); }
+.ae-label-pick button {
+  height: 34px; padding: 0 18px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: #fff; color: var(--text); font: inherit; font-size: 13.5px;
+}
+.ae-label-pick button.on { border-color: var(--brand); background: var(--brand-mist); color: var(--brand-dark); font-weight: 600; }
+
+.ae-foot { padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)); background: #fff; border-top: 1px solid var(--border); }
+.ae-save {
+  width: 100%; height: 50px; border: 0; border-radius: 10px; cursor: pointer;
+  background: var(--brand); color: #fff; font: inherit; font-size: 16px; font-weight: 600;
+}
+.ae-save:hover:not(:disabled) { background: var(--brand-dark); }
+.ae-save:disabled { opacity: 0.45; cursor: not-allowed; }
+
+@media (min-width: 700px) {
+  .ae-overlay { align-items: center; background: rgba(15, 30, 20, 0.5); }
+  .ae-screen { height: min(720px, 92vh); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+}
+
+/* ---- Change delivery address: bottom sheet (AddressPicker) ---- */
+.ap-overlay {
+  position: fixed; inset: 0; z-index: 1900; background: rgba(15, 30, 20, 0.55);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.ap-sheet {
+  width: 100%; max-width: 560px; max-height: 88vh; display: flex; flex-direction: column;
+  background: #fff; border-radius: 18px 18px 0 0; overflow: hidden;
+  animation: ap-up 0.22s ease-out;
+}
+@keyframes ap-up { from { transform: translateY(40px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+.ap-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.ap-head h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+.ap-close { display: grid; place-items: center; width: 34px; height: 34px; border: 0; background: none; cursor: pointer; border-radius: 50%; color: var(--text); }
+.ap-close:hover { background: var(--brand-mist); }
+.ap-add {
+  display: block; width: 100%; text-align: left; padding: 15px 18px; border: 0; border-bottom: 6px solid #f1f4f2;
+  background: #fff; cursor: pointer; font: inherit; font-size: 14.5px; font-weight: 700;
+  color: var(--brand); letter-spacing: 0.03em; text-transform: uppercase;
+}
+.ap-add:hover { background: var(--brand-mist); }
+.ap-list { overflow-y: auto; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+.ap-item { padding: 14px 18px 10px; border-bottom: 1px solid var(--border); position: relative; }
+.ap-item.on { background: var(--brand-mist); }
+.ap-item.blocked .ap-pick { opacity: 0.45; cursor: not-allowed; }
+.ap-unserv {
+  display: inline-block; margin-bottom: 8px; padding: 4px 12px; border-radius: 999px;
+  background: #fde1e1; color: #c0281c; font-size: 12.5px; font-weight: 600;
+}
+.ap-pick { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; font: inherit; color: var(--text); }
+.ap-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ap-copy strong { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 15px; }
+.ap-tag { font-size: 11px; font-weight: 600; color: var(--text-muted); background: #eef1ef; border-radius: 5px; padding: 2px 7px; }
+.ap-tag.brand { color: var(--brand-dark); background: #dff0e3; }
+.ap-text { font-size: 13.5px; line-height: 1.5; color: var(--text-muted); overflow-wrap: anywhere; }
+.ap-phone { font-size: 13.5px; color: var(--text-muted); }
+.ap-radio { flex: none; width: 22px; height: 22px; margin-top: 2px; border-radius: 50%; border: 2px solid #b9c4be; background: #fff; box-sizing: border-box; }
+.ap-radio.on { border: 6px solid var(--brand); }
+.ap-actions { display: flex; align-items: center; gap: 16px; padding-top: 8px; }
+.ap-link { padding: 4px 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; color: var(--brand); }
+.ap-link.danger { color: var(--danger); }
+.ap-confirm { font-size: 13px; color: var(--text-muted); }
+@media (min-width: 700px) {
+  .ap-overlay { align-items: center; }
+  .ap-sheet { border-radius: 16px; animation: none; }
+}
+
+/* ---- Checkout: the chosen address with a Change button ---- */
+.co-addr { margin-top: 6px; }
+.co-addr-warn {
+  display: inline-block; margin: 8px 0 10px; padding: 6px 14px; border-radius: 999px;
+  background: #fde1e1; color: #c0281c; font-size: 13.5px; font-weight: 600;
+}
+.co-addr-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 4px; }
+.co-addr-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.co-addr-copy.dim { opacity: 0.5; }
+.co-addr-copy strong { font-size: 15px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.co-addr-copy strong > span:not(.co-addr-tag) { font-weight: 500; color: var(--text-muted); }
+.co-addr-copy > span { font-size: 13.5px; line-height: 1.5; color: var(--text-muted); overflow-wrap: anywhere; }
+.co-addr-tag { font-size: 11px; font-weight: 600; color: var(--text-muted); background: #eef1ef; border-radius: 5px; padding: 2px 7px; }
+.co-addr-change {
+  flex: none; height: 38px; padding: 0 20px; border-radius: 8px; cursor: pointer;
+  border: 1.5px solid var(--text); background: #fff; color: var(--text); font: inherit; font-size: 14.5px; font-weight: 600;
+}
+.co-addr-change:hover { border-color: var(--brand); color: var(--brand); }
+
+/* ---- Account page: address list and form open in the card itself ---- */
+.addr-inline-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 10px; }
+.addr-inline-head strong { font-size: 14.5px; }
+.addr-inline-list { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; }
+.addr-inline-list .addr-inline-head { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.addr-inline-add { border-bottom: 1px solid var(--border) !important; }
+.addr-inline-list .ap-list { padding-bottom: 0; max-height: 420px; }
+.addr-inline-list .ap-item:last-child { border-bottom: 0; }
+.ae-inline .ae-form { display: block; }
+.ae-inline .ae-body { overflow: visible; padding: 0; }
+.ae-inline .ae-card { border: 1px solid var(--border); }
+.ae-inline .ae-foot { background: none; border-top: 0; padding: 12px 0 0; }
+
+/* Account address card: the Change button sits at the top, level with the label. */
+.addr-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.addr-top strong { display: flex; align-items: center; gap: 8px; font-size: 14.5px; }
+
+/* ---- Checkout progress on a phone: one straight line, a tick for every
+   finished step, short labels under the circles ---- */
+.step-label-short { display: none; }
+@media (max-width: 720px) {
+  .checkout-steps { flex-wrap: nowrap; gap: 0; align-items: flex-start; margin: 0 0 18px; }
+  .checkout-step {
+    position: relative; flex: 1 1 0; min-width: 0;
+    flex-direction: column; align-items: center; gap: 6px;
+    text-align: center; font-size: 12px; line-height: 1.2; white-space: nowrap;
+  }
+  .step-label-full { display: none; }
+  .step-label-short { display: inline; }
+  .checkout-step-line {
+    display: block; position: absolute; top: 11px; left: calc(50% + 17px);
+    width: calc(100% - 34px); height: 2px; margin: 0; background: var(--border);
+  }
+  .checkout-step.done .checkout-step-line { background: var(--save); }
+}
+
+/* ---- Checkout: keep the address and payment options to two lines at most ---- */
+.co-addr-card { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
+.co-addr-card.dim { opacity: 0.5; }
+.co-addr-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.co-addr-top strong { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; }
+.co-addr-top .co-addr-change { height: 34px; padding: 0 18px; font-size: 14px; }
+.co-addr-text {
+  font-size: 13.5px; line-height: 1.5; color: var(--text-muted);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+.co-addr-phone { font-size: 13px; color: var(--text-muted); }
+
+/* Payment options: a one-line title, a description of at most two lines. */
+.choice-copy strong { white-space: nowrap; overflow: hidden; }
+.choice-copy > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.choice-copy strong .pill { flex: none; font-size: 11px; padding: 2px 8px; }
+
+/* Smaller Change button on the checkout address card */
+.co-addr-top .co-addr-change { height: 28px; padding: 0 12px; font-size: 12.5px; font-weight: 600; border-width: 1px; border-radius: 7px; }
+
+/* Checkout polish: tiny Change button, a badge that fits, a one-line heading */
+.co-addr-top .co-addr-change {
+  height: 26px !important; min-height: 0 !important; padding: 0 11px !important;
+  font-size: 12px !important; font-weight: 600 !important; line-height: 1 !important;
+  border-width: 1px !important; border-radius: 6px !important; width: auto !important;
+}
+.choice.has-badge { position: relative; }
+.choice-badge {
+  position: absolute; top: -10px; right: 14px; margin: 0;
+  font-size: 11px; padding: 3px 10px; line-height: 1.2; white-space: nowrap;
+  background: #fff3df; border: 1px solid #f3dfbf;
+}
+.nowrap-title { white-space: nowrap; }
+.panel-head h3 { flex-wrap: nowrap; }
+.panel-head-note { flex: none; white-space: nowrap; }
+
+/* Payment options: small radio dots, and "Recommended" on the title's own line */
+.choice-radio { width: 16px; height: 16px; flex: 0 0 16px; }
+.choice.on .choice-radio::after { width: 8px; height: 8px; }
+.choice-main { gap: 10px; }
+.choice-copy strong { flex-wrap: nowrap; gap: 6px; white-space: nowrap; overflow: visible; }
+.choice-copy strong .choice-tag {
+  flex: none; margin: 0; padding: 1px 7px; font-size: 10px; font-weight: 600; line-height: 1.5;
+  background: #fff3df; border: 1px solid #f3dfbf; color: #b45309;
+}
+
+/* "Recommended" must stay inside the box: slightly tighter title + tag */
+.choice-copy strong:has(.choice-tag) { font-size: 13px; gap: 5px; max-width: 100%; }
+.choice-copy strong .choice-tag { font-size: 9px; padding: 1px 5px; letter-spacing: 0; }
+@media (max-width: 360px) {
+  .choice-copy strong:has(.choice-tag) { font-size: 12.5px; }
+  .choice-copy strong .choice-tag { font-size: 8.5px; padding: 1px 4px; }
+}
+
+/* Payment options: same compact size for every option */
+.choice-copy strong { font-size: 13px !important; gap: 5px; max-width: 100%; }
+.choice-copy > span { font-size: 12px !important; line-height: 1.35; }
+@media (max-width: 360px) {
+  .choice-copy strong { font-size: 12.5px !important; }
+  .choice-copy > span { font-size: 11.5px !important; }
+}
+
+/* My Account (mobile): recent orders — every line on a single row */
+.am-order { gap: 8px; }
+.am-order-main { overflow: hidden; }
+.am-order-main strong { font-size: 12.5px !important; letter-spacing: -0.2px; white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal !important; word-break: keep-all; }
+.am-order-main span { font-size: 11.5px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.am-order-side { gap: 3px; }
+.am-order-side strong { font-size: 13.5px !important; white-space: nowrap; }
+.am-order-side .badge, .am-order-side .pill, .am-order-side [class*="status"] { font-size: 10.5px !important; padding: 2px 8px !important; white-space: nowrap; }
+.am-order .am-chev { flex: none; margin-left: -2px; }
+.am-order-side .ob { font-size: 10.5px !important; padding: 2px 8px !important; white-space: nowrap; }
+
+/* Address form: "Get address" / "Enter address" — matching brand buttons,
+   sentence case (first letter capital, the rest small). */
+.ae-choice { gap: 10px; }
+.ae-locate, .ae-enter {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; height: 44px; border-radius: 10px; cursor: pointer;
+  font: inherit; font-size: 15px; font-weight: 600; letter-spacing: 0; text-transform: none;
+}
+.ae-locate { border: 1px solid var(--brand); background: var(--brand); color: #fff; }
+.ae-locate:hover:not(:disabled) { background: var(--brand-dark); }
+.ae-enter { border: 1px solid var(--brand); background: #fff; color: var(--brand-dark); }
+.ae-enter:hover { background: var(--brand-mist); }
+
+/* Buttons use the green of the "Basket" word in the Hosur Basket logo
+   (the logo's lime-olive, darkened just enough for white text to stay readable). */
+:root { --btn: #547f1a; --btn-dark: #3f6314; --btn-soft: #eef5e1; }
+.btn.primary,
+.search-form button,
+.add-btn,
+.add-btn.block,
+.qty,
+.pill-btn,
+.oc-btn.primary,
+.ae-save,
+.ae-locate,
+.install-bar-btn,
+.cart-bar-cta,
+.pack-in-cart,
+.pager-page.current { background: var(--btn); border-color: var(--btn); }
+.btn.primary:hover:not(:disabled),
+.search-form button:hover,
+.add-btn:hover:not(:disabled),
+.add-btn.block:hover:not(:disabled),
+.pill-btn:hover,
+.oc-btn.primary:hover,
+.ae-save:hover:not(:disabled),
+.ae-locate:hover:not(:disabled) { background: var(--btn-dark); border-color: var(--btn-dark); }
+.add-btn[aria-busy="true"]:disabled { background: var(--btn); border-color: var(--btn); }
+.ae-enter { border-color: var(--btn); color: var(--btn-dark); }
+.ae-enter:hover { background: var(--btn-soft); }
+
+/* "Get address" and "Enter address" sit side by side on one row. */
+.ae-choice { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+.ae-choice .ae-locate,
+.ae-choice .ae-enter { flex: 1 1 0; width: auto; min-width: 0; white-space: nowrap; }
+@media (max-width: 420px) {
+  .ae-choice { gap: 8px; }
+  .ae-choice .ae-locate,
+  .ae-choice .ae-enter { gap: 6px; font-size: 13.5px; padding: 0 8px; }
+  .ae-choice svg { width: 16px; height: 16px; }
+}
+
+/* ---- Button green everywhere: % OFF tags and the promo gradients ---- */
+:root { --btn-gradient: linear-gradient(100deg, #305a12 0%, #547f1a 55%, #6c961e 100%); }
+.badge, .pill.save { background: var(--btn); color: #fff; }
+.cat-chip-pct { background: var(--btn); }
+/* Promo banner ("Fresh picks, every morning" and the other strips): the same
+   gradient as the logo's "Basket" word, with the soft highlight on top. */
+.banner-slide {
+  background-color: var(--btn-dark);
+  background-image: radial-gradient(120% 140% at 100% 50%, rgba(255, 255, 255, 0.14), transparent 60%), var(--btn-gradient) !important;
+}
+.banner-slide.has-image { background-image: none !important; }
+
+/* Products load as you scroll, on every screen size (no page numbers). */
+.pager, .pager-slug { display: none; }
+.product-grid.more-products { margin-top: 18px; }
+.more-status { display: flex; justify-content: center; padding: 22px 0 8px; min-height: 48px; }
+
+/* Sign-in card: the brand logo in place of the old leaf tile. */
+.auth-logo { display: block; width: 92px; height: auto; margin: 0 auto 14px; object-fit: contain; }
+
+/* Phones: no breadcrumb trail above the content (desktop keeps it). The
+   product page's BreadcrumbList for search engines is separate and stays. */
+@media (max-width: 720px) {
+  .crumbs { display: none; }
+}
+
+/* Footer social icons — display only (not links). */
+.footer-social { display: flex; gap: 10px; margin-top: 16px; }
+.footer-social-icon {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: default;
+}
+
+/* Footer social icons: react to the cursor with each network's colour. */
+.footer-social-icon {
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.footer-social-icon:hover {
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+.footer-social-icon[aria-label="Facebook"]:hover { background: #1877f2; }
+.footer-social-icon[aria-label="Instagram"]:hover {
+  background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285aeb 90%);
+}
+.footer-social-icon[aria-label="YouTube"]:hover { background: #ff0000; }
+@media (prefers-reduced-motion: reduce) {
+  .footer-social-icon, .footer-social-icon:hover { transition: none; transform: none; }
+}
+
+/* Track Order, Help Center, Terms, Cart, Account and Sign In pages: no category bar. */
+.header-info .catbar { display: none; }
+
+/* Terms & Conditions: full-width layout */
+.legal-page { padding: 28px 32px 32px; }
+.legal-page h2 { font-size: 18px; margin: 26px 0 8px; }
+.legal-page p { font-size: 15px; line-height: 1.7; }
+@media (max-width: 720px) {
+  .legal-page { padding: 18px 16px 22px; }
+  .legal-page h2 { font-size: 16px; }
+  .legal-page p { font-size: 14px; }
+}

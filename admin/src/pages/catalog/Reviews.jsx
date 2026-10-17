@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import {
-  Banner, Card, Empty, Loading, Modal, Pagination, Pill, Rating, Table, Tabs, when,
+  Banner, Card, Empty, Loading, Modal, Pagination, Rating, Table, Tabs, when,
 } from "../../components/ui";
 
 // Moderation queue. The point of the screen is the pending tab — everything
@@ -123,9 +123,24 @@ export default function Reviews() {
                   label: "Customer",
                   render: (row) => (
                     <div className="stack">
-                      <span>{row.customerName || "—"}</span>
+                      <span className="inline" style={{ gap: 6 }}>
+                        {row.customerName || "—"}
+                        {row.verifiedPurchase ? (
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="16"
+                            height="16"
+                            role="img"
+                            aria-label="Verified purchase"
+                            style={{ flex: "0 0 auto" }}
+                          >
+                            <title>Verified purchase</title>
+                            <circle cx="12" cy="12" r="11" fill="#1f9a52" />
+                            <path d="m7 12.5 3.2 3.2L17 9" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        ) : null}
+                      </span>
                       <span className="row-sub">{when(row.createdAt)}</span>
-                      {row.verifiedPurchase ? <Pill tone="ok">verified purchase</Pill> : null}
                     </div>
                   ),
                 },

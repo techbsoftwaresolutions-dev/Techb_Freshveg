@@ -1,3 +1,5 @@
+import DatePicker from "../components/DatePicker";
+import Select from "../components/Select";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
@@ -24,7 +26,7 @@ const blank = {
   priority: 0,
 };
 
-// <input type="datetime-local"> wants "YYYY-MM-DDTHH:mm" in local time, not
+// The date-time picker works in "YYYY-MM-DDTHH:mm" in local time, not
 // the ISO string the API stores — these two just convert between them.
 function toLocalInputValue(iso) {
   if (!iso) return "";
@@ -283,7 +285,8 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
             disabled={saving || !form.title.trim() || (form.requiresCode && !form.code.trim())}
             onClick={() =>
               onSave({
-                ...form,
+                ...(({ isLive, id: _id, createdAt, updatedAt, ...rest }) => rest)(form),
+                ...(form.id ? { id: form.id } : {}),
                 conditions: { ...form.conditions, categories: selectedCategories },
                 schedule: { ...form.schedule, endsAt: fromLocalInputValue(form.schedule?.endsAt) },
               })
@@ -311,13 +314,13 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
 
       <div className="grid cols-2">
         <Field label="How it applies">
-          <select
+          <Select
             value={form.requiresCode ? "coupon" : "auto"}
             onChange={(e) => set("requiresCode", e.target.value === "coupon")}
           >
             <option value="auto">Automatically</option>
             <option value="coupon">Customer enters a code</option>
-          </select>
+          </Select>
         </Field>
         {form.requiresCode && (
           <Field label="Coupon code">
@@ -334,13 +337,13 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
       <div className="section-label">Reward</div>
       <div className="grid cols-3">
         <Field label="Type">
-          <select value={form.type} onChange={(e) => set("type", e.target.value)}>
+          <Select value={form.type} onChange={(e) => set("type", e.target.value)}>
             <option value="percentage">Percentage off</option>
             <option value="fixed">Fixed amount off</option>
             <option value="free_delivery">Free delivery</option>
             <option value="bogo">Buy X get Y</option>
             <option value="cashback">Wallet cashback</option>
-          </select>
+          </Select>
         </Field>
 
         {form.type === "percentage" && (
@@ -421,7 +424,7 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
           />
         </Field>
         <Field label="Limit to categories" help="Includes everything beneath the ones you pick.">
-          <select
+          <Select
             multiple
             size={4}
             value={selectedCategories}
@@ -434,7 +437,7 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
                 {c.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       </div>
 
@@ -453,19 +456,19 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
         help="Optional. Set this to run the offer as a countdown 'Flash Deal' on the homepage — leave it blank for a regular offer with no countdown."
         style={{ marginBottom: 14 }}
       >
-        <input
-          type="datetime-local"
+        <DatePicker
+          withTime
           value={toLocalInputValue(form.schedule?.endsAt)}
-          onChange={(e) => setSchedule("endsAt", e.target.value)}
+          onChange={(next) => setSchedule("endsAt", next)}
         />
       </Field>
       <div className="grid cols-3">
         <Field label="Status">
-          <select value={form.status} onChange={(e) => set("status", e.target.value)}>
+          <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
             <option value="draft">Draft</option>
             <option value="active">Active</option>
             <option value="paused">Paused</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Priority" help="Higher wins when two offers clash.">
           <input type="number" value={form.priority} onChange={(e) => set("priority", Number(e.target.value))} />
