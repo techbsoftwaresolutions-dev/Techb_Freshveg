@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"D:/TechB/fresh market/Techb_Freshveg/customer-app/src\\\" && python - <<'EOF'\\nimport re\\ndef edit(p, pairs):\\n    s=open(p,encoding='utf-8').read()\\n    for a,b in pairs:\\n        asse...",
+  "error": "Exit code 2\n/usr/bin/bash: -c: line 104: unexpected EOF while looking for matching `''",
+  "timestamp": "2026-10-17T09:25:49.460Z",
+  "retry_count": 1
+}

@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"javascript_tool\",\"input\":{\"action\":\"javascript_exec\",\"text\":\"location.reload()\"}},{\"name\":\"computer\",\"input\":{\"action\":\"wait\",\"duration\":2}},{\"name\":\"computer\",\"input\":{\"action\":\"...",
+  "error": "[javascript_tool:javascript_exec] undefined\n\n\nTab Context:\n- Executed on tabId: seed\n- Available tabs:\n  • tabId seed: \"Shop Fresh Vegetables, Fruits & Milk Online in Bangalore | The Farmers Basket\" (\"http://localhost:3100/c\")\n- Viewport: emulating 375x812 (you set this; reset it with preset \"desktop\" when you finish testing; the app also clears it when your turn ends or the pane's width changes)\n[computer:wait] waited 2s\n\n\nTab Context:\n- Executed on tabId: seed\n- Available tabs:\n  • tabId seed:...",
+  "timestamp": "2026-10-17T09:29:39.203Z",
+  "retry_count": 1
+}

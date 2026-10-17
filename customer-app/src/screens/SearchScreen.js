@@ -8,10 +8,13 @@ import { useStore } from "../context/StoreContext";
 import { colors, radius, spacing, type } from "../theme";
 import { EmptyState, Loading, Pill } from "../components/ui";
 import ProductCard from "../components/ProductCard";
+import { useTabBarScroll, useTabBarSpace } from "../navigation/tabBarScroll";
 
 const POPULAR = ["Tomato", "Onion", "Rice", "Milk", "Apple", "Atta", "Oil"];
 
 export default function SearchScreen({ navigation, route }) {
+  const scroll = useTabBarScroll();
+  const { space } = useTabBarSpace();
   const { storeId } = useStore();
   const cart = useCart();
 
@@ -86,7 +89,8 @@ export default function SearchScreen({ navigation, route }) {
           keyExtractor={(item) => item.id}
           numColumns={2}
           columnWrapperStyle={{ gap: spacing.md, paddingHorizontal: spacing.lg }}
-          contentContainerStyle={{ gap: spacing.md, paddingVertical: spacing.md, paddingBottom: spacing.xxl }}
+          contentContainerStyle={{ gap: spacing.md, paddingVertical: spacing.md, paddingBottom: spacing.xxl + space }}
+          {...scroll}
           ListHeaderComponent={
             suggestions.length ? (
               <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: 6 }}>

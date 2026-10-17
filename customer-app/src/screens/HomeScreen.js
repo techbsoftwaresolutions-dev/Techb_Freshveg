@@ -11,6 +11,7 @@ import { Card, EmptyState, IconTile, Loading, Notice, SectionHeader } from "../c
 import ProductCard from "../components/ProductCard";
 import VideoHeroBanner, { HeroShade } from "../components/VideoHeroBanner";
 import BrandLogo, { primeBranding } from "../components/BrandLogo";
+import { useTabBarScroll, useTabBarSpace } from "../navigation/tabBarScroll";
 
 const CARD_WIDTH = 176;
 
@@ -18,6 +19,8 @@ const CARD_WIDTH = 176;
 // pill, category chips, the hero banners, "Shop by Category", the farm story
 // band, offers, then one product rail per department.
 export default function HomeScreen({ navigation }) {
+  const scroll = useTabBarScroll();
+  const { space } = useTabBarSpace();
   const insets = useSafeAreaInsets();
   const { store, pincode, storeId } = useStore();
   const cart = useCart();
@@ -84,7 +87,8 @@ export default function HomeScreen({ navigation }) {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={{ paddingBottom: spacing.xxl }}
+      contentContainerStyle={{ paddingBottom: spacing.xxl + space }}
+      {...scroll}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       stickyHeaderIndices={[0]}
     >

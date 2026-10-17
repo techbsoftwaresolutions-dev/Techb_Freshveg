@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Image, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Animated, Image, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, TextInput } from "../components/Text";
 import { useCart } from "../context/CartContext";
@@ -9,10 +9,13 @@ import { Button, Card, Divider, EmptyState, IconTile, Loading, Notice, Pill } fr
 import QtyStepper from "../components/QtyStepper";
 import CouponPicker from "../components/CouponPicker";
 import FreeDeliveryProgress from "../components/FreeDeliveryProgress";
+import { useTabBarScroll, useTabBarSpace } from "../navigation/tabBarScroll";
 
 // The website's mobile cart: free-delivery progress, item cards with a soft
 // stepper, offers & coupons, the bill, and a sticky "Proceed to checkout".
 export default function CartScreen({ navigation }) {
+  const scroll = useTabBarScroll();
+  const { space, footerLift } = useTabBarSpace();
   const cart = useCart();
   const { signedIn } = useAuth();
   const [code, setCode] = useState("");
@@ -28,7 +31,7 @@ export default function CartScreen({ navigation }) {
   if (!cart.items.length) {
     return (
       <EmptyState
-        icon="cart-outline"
+        icon="cart"
         title="Your cart is empty"
         hint="Add a few things and they will show up here."
         action={<Button title="Start shopping" onPress={() => navigation.navigate("HomeTab")} style={{ minWidth: 180 }} />}
@@ -62,7 +65,7 @@ export default function CartScreen({ navigation }) {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 130, gap: spacing.md }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 130 + space, gap: spacing.md }} {...scroll}>
         <View style={styles.titleRow}>
           <Text style={type.small}>
             {itemCount} item{itemCount === 1 ? "" : "s"}
@@ -216,7 +219,7 @@ export default function CartScreen({ navigation }) {
         ) : null}
       </ScrollView>
 
-      <View style={styles.checkoutBar}>
+      <Animated.View style={[styles.checkoutBar, { paddingBottom: spacing.md + space }, footerLift]}>
         <View style={{ flex: 1 }}>
           <Text style={styles.checkoutTotal}>{rupees(summary.total)}</Text>
           <Text style={type.tiny}>
@@ -230,7 +233,7 @@ export default function CartScreen({ navigation }) {
           onPress={() => navigation.navigate(signedIn ? "Checkout" : "Login")}
           style={{ minWidth: 200 }}
         />
-      </View>
+      </Animated.View>
 
       {/* Back button (Android) and a tap on the dimmed backdrop both cancel. */}
       <Modal visible={confirmClear} transparent animationType="fade" onRequestClose={() => setConfirmClear(false)}>

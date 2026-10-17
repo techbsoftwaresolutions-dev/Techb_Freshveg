@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FlatList, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Animated, FlatList, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "../components/Text";
 import { api } from "../api/client";
@@ -9,6 +9,7 @@ import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
 import { EmptyState, Loading, Notice } from "../components/ui";
 import ProductCard from "../components/ProductCard";
 import FreeDeliveryProgress from "../components/FreeDeliveryProgress";
+import { useTabBarScroll, useTabBarSpace } from "../navigation/tabBarScroll";
 
 const SORTS = [
   { key: "", label: "Relevance" },
@@ -18,7 +19,13 @@ const SORTS = [
   { key: "newest", label: "Newest" },
 ];
 
+// Room for the floating free-delivery bar (FreeDeliveryProgress "bar"), which
+// sits over the end of the list.
+const DELIVERY_BAR = 56;
+
 export default function ProductListScreen({ route, navigation }) {
+  const scroll = useTabBarScroll();
+  const { space, footerLift } = useTabBarSpace();
   const { slug, title, openFilter, openSort } = route.params;
   const { storeId } = useStore();
   const cart = useCart();
@@ -121,7 +128,7 @@ export default function ProductListScreen({ route, navigation }) {
             switching between a department's subcategories feels like one
             continuous flow instead of two different screens. */}
         {landing?.children?.length ? (
-          <ScrollView style={styles.rail} contentContainerStyle={{ paddingVertical: spacing.sm }}>
+          <ScrollView style={styles.rail} contentContainerStyle={{ paddingVertical: spacing.sm, paddingBottom: spacing.sm + space + DELIVERY_BAR }}>
             <Pressable
               style={[styles.railItem, !subcategory && styles.railItemActive]}
               onPress={() => setSubcategory(null)}
@@ -285,7 +292,8 @@ export default function ProductListScreen({ route, navigation }) {
               keyExtractor={(item) => item.id}
               numColumns={2}
               columnWrapperStyle={{ gap: spacing.sm, paddingHorizontal: spacing.sm }}
-              contentContainerStyle={{ gap: spacing.md, paddingVertical: spacing.md, paddingBottom: spacing.xxl }}
+              contentContainerStyle={{ gap: spacing.md, paddingVertical: spacing.md, paddingBottom: spacing.xxl + space + DELIVERY_BAR }}
+              {...scroll}
               onEndReached={loadMore}
               onEndReachedThreshold={0.4}
               onScrollBeginDrag={() => setSortMenuOpen(false)}
@@ -331,9 +339,12 @@ export default function ProductListScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* The website's floating free-delivery bar on category pages. The tab
-          bar takes its own space, so this simply ends the screen above it. */}
-      <FreeDeliveryProgress variant="bar" />
+      {/* The website's floating free-delivery bar on category pages, pinned
+          to the bottom edge with the tab bar floating on its white; it drops
+          with the tab bar when that scrolls away. */}
+      <Animated.View style={[styles.deliveryDock, footerLift]} pointerEvents="box-none">
+        <FreeDeliveryProgress variant="bar" style={{ paddingBottom: 10 + space }} />
+      </Animated.View>
     </View>
   );
 }
@@ -365,6 +376,7 @@ function Chip({ label, active, onPress, swatch, tone }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  deliveryDock: { position: "absolute", left: 0, right: 0, bottom: 0 },
   body: { flex: 1, flexDirection: "row" },
 
   // flexGrow/flexShrink 0: a ScrollView grows by default on the web build,

@@ -6,7 +6,9 @@
 // the offline page — so a flaky connection still opens the app instantly and
 // shows a proper "you're offline" screen instead of the browser's dinosaur.
 
-const VERSION = "v1";
+// Bumping this drops every older cache on activate. v2: v1 could hold dev-mode
+// (un-hashed) build files from a localhost run, serving stale code.
+const VERSION = "v2";
 const STATIC_CACHE = `freshmart-static-${VERSION}`;
 const OFFLINE_URL = "/offline";
 

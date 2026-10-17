@@ -12,10 +12,11 @@ import {
   IconHeadset,
   IconPin,
   IconShare,
-  IconUser,
+  IconHeart,
   IconWallet,
 } from "./AccountIcons";
 import { StatusBadge } from "./OrderCard";
+import Icon from "./Icon";
 
 // The account screen as a phone sees it. It is only a different arrangement of
 // what the page already has: the same user, store and recent-orders data, and
@@ -177,11 +178,21 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
       <nav className="am-card am-menu" aria-label="Account">
         <Link href="/account/edit" className="am-menu-row">
           <span className="am-menu-icon">
-            <IconUser width={19} height={19} />
+            <Icon name="account" size={19} />
           </span>
           <span className="am-menu-copy">
             <strong>Edit profile</strong>
             <span>Update your name and email</span>
+          </span>
+          <IconChevron className="am-chev" width={16} height={16} />
+        </Link>
+        <Link href="/account/wishlist" className="am-menu-row">
+          <span className="am-menu-icon">
+            <IconHeart width={19} height={19} />
+          </span>
+          <span className="am-menu-copy">
+            <strong>Your wishlist</strong>
+            <span>Products you saved with the heart</span>
           </span>
           <IconChevron className="am-chev" width={16} height={16} />
         </Link>

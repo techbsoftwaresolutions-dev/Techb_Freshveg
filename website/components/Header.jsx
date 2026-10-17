@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Icon from "./Icon";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth, useBranding, useCart, useStore } from "./Providers";
@@ -105,7 +106,6 @@ export default function Header({ categories = [] }) {
         </Link>
 
         <form className="search-form" onSubmit={submit} role="search">
-          <IconSearch className="search-form-icon" />
           <input
             type="search"
             value={term}
@@ -154,7 +154,7 @@ export default function Header({ categories = [] }) {
 
           {/* Phone: these two live in the bottom tab bar instead (globals.css). */}
           <Link href="/orders" className="header-btn header-extra">
-            <IconBox className="header-btn-icon" />
+            <Icon name="orders" className="header-btn-icon" />
             <span>
               <span className="sub">Returns &amp;</span>
               <span className="main">Orders</span>
@@ -166,7 +166,7 @@ export default function Header({ categories = [] }) {
               hrefs and hydration fails. /account redirects to /login by
               itself, so the behaviour is identical either way. */}
           <Link href="/account" className="header-btn header-extra">
-            <IconUser className="header-btn-icon" />
+            <Icon name="account" className="header-btn-icon" />
             {/* The label depends on the stored session, which the server
                 render cannot see — suppressHydrationWarning sits on the
                 element whose own text varies. */}
@@ -185,7 +185,7 @@ export default function Header({ categories = [] }) {
 
           <Link href="/cart" className="header-btn cart-btn">
             <span className="cart-btn-icon">
-              <IconCart className="header-btn-icon" />
+              <Icon name="cart" className="header-btn-icon" />
               <span className="cart-badge" suppressHydrationWarning>
                 {cart.lineCount}
               </span>
@@ -497,8 +497,8 @@ function PincodePopover({ onDone, setPincode, store, notice }) {
   );
 }
 
-// Small inline glyphs — no icon package is installed, and these four are all
-// the chrome needs.
+// Small inline glyphs for the chrome; the brand icons (cart, account,
+// orders) come from ./Icon.
 function IconPin(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
@@ -512,14 +512,6 @@ function IconSearch(props) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
       <circle cx="10.5" cy="10.5" r="6.2" />
       <path d="M20 20l-4.6-4.6" />
-    </svg>
-  );
-}
-function IconUser(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-      <circle cx="12" cy="8" r="3.4" />
-      <path d="M5 20c0-3.4 3.1-6 7-6s7 2.6 7 6" />
     </svg>
   );
 }
@@ -602,27 +594,10 @@ function IconCaret(props) {
     </svg>
   );
 }
-function IconCart(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-      <path d="M2.5 3.5h2.6l2.3 11.2a1.6 1.6 0 0 0 1.6 1.3h8.3a1.6 1.6 0 0 0 1.6-1.2l1.6-6.8H6.2" />
-      <circle cx="9.5" cy="20" r="1.4" />
-      <circle cx="17.5" cy="20" r="1.4" />
-    </svg>
-  );
-}
 function IconMenu(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" {...props}>
       <path d="M4 6.5h16M4 12h16M4 17.5h16" />
-    </svg>
-  );
-}
-function IconBox(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-      <path d="M21 8.2 12 3.5 3 8.2v7.6l9 4.7 9-4.7V8.2Z" />
-      <path d="M3.3 8.3 12 12.8l8.7-4.5M12 12.8v7.5M7.6 5.9l8.9 4.6" />
     </svg>
   );
 }

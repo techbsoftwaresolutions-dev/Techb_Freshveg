@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ActivityIndicator, Image, Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
+import Icon, { ICONS } from "./Icon";
 import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
 
 // The customer app's building blocks (customer-app/src/components/ui.js) with
@@ -165,7 +166,8 @@ export function IconTile({ name, size = 20, box = 40, tone = "primary", style })
         style,
       ]}
     >
-      <Ionicons name={name} size={size} color={t.fg} />
+      {/* Brand icons (components/Icon) where the set has one, Ionicons otherwise. */}
+      {ICONS[name] ? <Icon name={name} size={size + 4} /> : <Ionicons name={name} size={size} color={t.fg} />}
     </View>
   );
 }

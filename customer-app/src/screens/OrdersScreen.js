@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { colors, radius, rupees, shadow, spacing, type } from "../theme";
 import { Button, EmptyState, Loading } from "../components/ui";
+import { useTabBarScroll, useTabBarSpace } from "../navigation/tabBarScroll";
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
 const MAX_THUMBS = 4;
@@ -60,6 +61,8 @@ function infoLine(order) {
 }
 
 export default function OrdersScreen({ navigation }) {
+  const scroll = useTabBarScroll();
+  const { space } = useTabBarSpace();
   const { signedIn } = useAuth();
   const cart = useCart();
   const [orders, setOrders] = useState([]);
@@ -135,7 +138,7 @@ export default function OrdersScreen({ navigation }) {
   if (!signedIn) {
     return (
       <EmptyState
-        icon="bag-handle-outline"
+        icon="orders"
         title="Sign in to see your orders"
         hint="Your order history and live tracking live here."
         action={<Button title="Sign in" onPress={() => navigation.navigate("Login")} style={{ minWidth: 180 }} />}
@@ -148,7 +151,7 @@ export default function OrdersScreen({ navigation }) {
   if (!orders.length) {
     return (
       <EmptyState
-        icon="bag-handle-outline"
+        icon="orders"
         title="No orders yet"
         hint="When you place an order it will appear here with live tracking."
         action={<Button title="Start shopping" onPress={() => navigation.navigate("HomeTab")} style={{ minWidth: 180 }} />}
@@ -159,7 +162,8 @@ export default function OrdersScreen({ navigation }) {
   return (
     <FlatList
       style={{ backgroundColor: colors.bg }}
-      contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}
+      contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.lg + space, gap: spacing.md }}
+      {...scroll}
       data={orders}
       keyExtractor={(item) => item.id}
       onEndReached={loadMore}

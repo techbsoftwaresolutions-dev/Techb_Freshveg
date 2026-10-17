@@ -12,14 +12,27 @@ const DISMISS_FOR_MS = 14 * 24 * 60 * 60 * 1000;
 //
 // The worker is only registered in a production build. In `next dev` the
 // build files are not content-hashed, so caching them would serve yesterday's
-// code after an edit.
+// code after an edit — and a worker left behind by an earlier `npm start` on
+// the same localhost port would do exactly that (old client code hydrating
+// new server HTML), so dev removes it and its cache.
 export default function PwaSupport() {
   const { mounted, canPrompt, installed } = useInstallPrompt();
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    if ("serviceWorker" in navigator) {
+      if (process.env.NODE_ENV === "production") {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      } else {
+        navigator.serviceWorker
+          .getRegistrations()
+          .then((registrations) => registrations.forEach((registration) => registration.unregister()))
+          .catch(() => {});
+        caches
+          ?.keys()
+          .then((keys) => keys.filter((key) => key.startsWith("freshmart-")).forEach((key) => caches.delete(key)))
+          .catch(() => {});
+      }
     }
     setDismissed(recentlyDismissed());
   }, []);

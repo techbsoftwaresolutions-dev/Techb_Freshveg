@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { Text } from "../components/Text";
+import Icon from "../components/Icon";
 import BrandLogo from "../components/BrandLogo";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -69,17 +69,12 @@ export default function QueueScreen({ navigation }) {
             <BrandLogo style={styles.logo} />
           </View>
           <View style={styles.shiftPill}>
-            <Ionicons name="bicycle-outline" size={17} color={colors.primary} />
+            <Icon name="run" size={20} />
             <Text style={styles.shiftText}>On shift</Text>
           </View>
         </View>
         <View>
           <Text style={type.h1}>Hi, {user?.name?.split(" ")[0] || "there"}</Text>
-          <Text style={type.small}>
-            {orders.length
-              ? `${orders.length} ${orders.length === 1 ? "delivery" : "deliveries"} in hand`
-              : "Nothing assigned right now"}
-          </Text>
         </View>
       </View>
 
@@ -117,7 +112,7 @@ export default function QueueScreen({ navigation }) {
         }
         ListEmptyComponent={
           <EmptyState
-            icon="bicycle-outline"
+            icon="run"
             title="No deliveries assigned"
             hint="When the store assigns you an order it will appear here. Pull down to refresh."
           />
@@ -143,7 +138,7 @@ export default function QueueScreen({ navigation }) {
               {/* Where to go next — the store while it is unpicked, the
                   customer once it is in the bag. */}
               <View style={styles.legRow}>
-<IconTile name={atStore ? "storefront-outline" : "location-outline"} />
+                <IconTile name={atStore ? "storefront-outline" : "location-outline"} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.legLabel}>{atStore ? "Pick up from" : "Deliver to"}</Text>
                   <Text style={styles.legName} numberOfLines={1}>

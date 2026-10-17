@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"navigate\",\"input\":{\"url\":\"http://localhost:3108/cart\"}},{\"name\":\"javascript_tool\",\"input\":{\"action\":\"javascript_exec\",\"text\":\"await navigator.serviceWorker.register('/sw.js'); awa...",
+  "error": "[navigate] navigated to http://localhost:3108/cart\n\n\nTab Context:\n- Executed on tabId: seed\n- Available tabs:\n  • tabId seed: \"Your cart | The Farmers Basket\" (\"http://localhost:3108/cart\")\n\nactions[1] (javascript_tool:javascript_exec) failed: javascript_tool failed: TypeError: Failed to register a ServiceWorker for scope ('http://localhost:3108/') with script ('http://localhost:3108/sw.js'): An unknown error occurred when fetching the script. (1 completed, 3 remaining)",
+  "timestamp": "2026-10-17T06:41:32.209Z",
+  "retry_count": 1
+}

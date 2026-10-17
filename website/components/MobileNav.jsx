@@ -1,28 +1,73 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "./Providers";
+import Icon from "./Icon";
 
 // The phone's primary navigation, fixed to the bottom of the screen where a
 // thumb can reach it — the header's account and cart buttons are hidden at
 // this width, so these five are the way around the shop. Desktop never sees
 // it (hidden in CSS above 720px).
 const ITEMS = [
-  { href: "/", label: "Home", icon: IconHome, match: (p) => p === "/" },
-  { href: "/c", label: "Categories", icon: IconGrid, match: (p) => p === "/c" || p.startsWith("/c/") },
-  { href: "/cart", label: "Cart", icon: IconCart, match: (p) => p === "/cart" || p === "/checkout", badge: true },
-  { href: "/orders", label: "Orders", icon: IconBag, match: (p) => p.startsWith("/orders") },
-  { href: "/account", label: "Account", icon: IconUser, match: (p) => p === "/account" || p === "/login" },
+  { href: "/", label: "Home", icon: "home", match: (p) => p === "/" },
+  { href: "/c", label: "Categories", icon: "categories", match: (p) => p === "/c" || p.startsWith("/c/") },
+  { href: "/cart", label: "Cart", icon: "cart", match: (p) => p === "/cart" || p === "/checkout", badge: true },
+  { href: "/orders", label: "Orders", icon: "orders", match: (p) => p.startsWith("/orders") },
+  { href: "/account", label: "Account", icon: "account", match: (p) => p === "/account" || p === "/login" },
 ];
+
+// Scroll-away tuning: the bar never hides within TOP_ZONE px of the top, and
+// flips only after FLIP px of travel in one direction, so finger jitter and
+// scroll noise never toggle it.
+const TOP_ZONE = 56;
+const FLIP = 12;
 
 export default function MobileNav() {
   const pathname = usePathname() || "/";
   const cart = useCart();
 
+  // The bar slides away while the shopper scrolls down and comes back as soon
+  // as they scroll up a little, or reach the top or the very bottom (where the
+  // body's padding has room for it). The state lives on <html data-nav-hidden>,
+  // not in React: scrolling never re-renders, and the bars stacked above the
+  // nav (globals.css) follow it down. Re-run per page so a new page starts with
+  // the bar showing.
+  useEffect(() => {
+    const root = document.documentElement;
+    let lastY = window.scrollY;
+    let travel = 0; // px moved in the current direction
+    let frame = 0;
+
+    const update = () => {
+      frame = 0;
+      const y = Math.max(0, window.scrollY); // iOS overscroll goes negative
+      const dy = y - lastY;
+      lastY = y;
+      // A jump of a whole screen is the browser restoring or an anchor, not a
+      // swipe: keep the bar as it is.
+      if (Math.abs(dy) > window.innerHeight) return;
+      travel = dy * travel > 0 ? travel + dy : dy;
+      const atEnd = y + window.innerHeight >= root.scrollHeight - 2;
+      if (y < TOP_ZONE || atEnd || travel < -FLIP) delete root.dataset.navHidden;
+      else if (travel > FLIP) root.dataset.navHidden = "";
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+      delete root.dataset.navHidden;
+    };
+  }, [pathname]);
+
   return (
     <nav className="mobile-nav" aria-label="Main">
-      {ITEMS.map(({ href, label, icon: Icon, match, badge }) => {
+      {ITEMS.map(({ href, label, icon, match, badge }) => {
         const here = match(pathname);
         return (
           <Link
@@ -30,9 +75,10 @@ export default function MobileNav() {
             href={href}
             className={`mobile-nav-item${here ? " current" : ""}`}
             aria-current={here ? "page" : undefined}
+            aria-label={label}
           >
             <span className="mobile-nav-icon">
-              <Icon />
+              <Icon name={icon} size={26} />
               {/* The cart belongs to a device-scoped session the server
                   render cannot see, so the count legitimately differs. */}
               {badge && cart.lineCount > 0 ? (
@@ -41,67 +87,9 @@ export default function MobileNav() {
                 </span>
               ) : null}
             </span>
-            <span>{label}</span>
           </Link>
         );
       })}
     </nav>
-  );
-}
-
-const iconProps = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.8,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  width: 22,
-  height: 22,
-  "aria-hidden": true,
-};
-
-function IconHome() {
-  return (
-    <svg {...iconProps}>
-      <path d="M3.5 10.5 12 3.5l8.5 7" />
-      <path d="M5.5 9v10.5h13V9" />
-      <path d="M10 19.5v-5.5h4v5.5" />
-    </svg>
-  );
-}
-function IconGrid() {
-  return (
-    <svg {...iconProps}>
-      <rect x="4" y="4" width="6.5" height="6.5" rx="2" />
-      <rect x="13.5" y="4" width="6.5" height="6.5" rx="2" />
-      <rect x="4" y="13.5" width="6.5" height="6.5" rx="2" />
-      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2" />
-    </svg>
-  );
-}
-function IconCart() {
-  return (
-    <svg {...iconProps}>
-      <path d="M2.5 3.5h2.6l2.3 11.2a1.6 1.6 0 0 0 1.6 1.3h8.3a1.6 1.6 0 0 0 1.6-1.2l1.6-6.8H6.2" />
-      <circle cx="9.5" cy="20" r="1.4" />
-      <circle cx="17.5" cy="20" r="1.4" />
-    </svg>
-  );
-}
-function IconBag() {
-  return (
-    <svg {...iconProps}>
-      <path d="M6.5 8h11l1 12.2a1.8 1.8 0 0 1-1.8 1.8H7.3a1.8 1.8 0 0 1-1.8-1.8L6.5 8Z" />
-      <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
-    </svg>
-  );
-}
-function IconUser() {
-  return (
-    <svg {...iconProps}>
-      <circle cx="12" cy="8" r="3.4" />
-      <path d="M5 20c0-3.4 3.1-6 7-6s7 2.6 7 6" />
-    </svg>
   );
 }

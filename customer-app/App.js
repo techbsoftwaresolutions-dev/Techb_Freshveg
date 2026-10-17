@@ -17,6 +17,7 @@ import { StoreProvider } from "./src/context/StoreContext";
 import { CartProvider } from "./src/context/CartContext";
 import { WishlistProvider } from "./src/context/WishlistContext";
 import RootNavigator from "./src/navigation/RootNavigator";
+import ReviewPrompt from "./src/components/ReviewPrompt";
 
 // Android lets a person pick a decorative/script system font in Settings ->
 // Display, and most Text in this app has no fontFamily of its own, so it
@@ -53,6 +54,7 @@ export default function App() {
             <WishlistProvider>
               <StatusBar style="dark" />
               <RootNavigator />
+              <ReviewPrompt />
             </WishlistProvider>
           </CartProvider>
         </StoreProvider>

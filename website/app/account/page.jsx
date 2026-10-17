@@ -206,6 +206,12 @@ export default function AccountPage() {
               <span>Update your name and email</span>
             </span>
           </Link>
+          <Link href="/account/wishlist" className="list-row">
+            <span className="list-row-main">
+              <strong>Your wishlist</strong>
+              <span>Products you saved with the heart</span>
+            </span>
+          </Link>
           <Link href="/account/refer" className="list-row">
             <span className="list-row-main">
               <strong>Refer &amp; earn</strong>

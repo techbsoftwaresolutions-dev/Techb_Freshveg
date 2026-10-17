@@ -1,7 +1,7 @@
 {
-  "tool_name": "mcp__Claude_Browser__preview_stop",
-  "tool_input_preview": "{\"serverId\":\"preview-local_edba1569-9f30-4919-bedc-d4bf14bcb578\"}",
-  "error": "preview_stop takes a process id from preview_list, not the session previewId.",
-  "timestamp": "2026-10-16T11:39:02.430Z",
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"tabs_select\",\"input\":{\"tabId\":\"seed\"}},{\"name\":\"navigate\",\"input\":{\"url\":\"http://localhost:3108/\",\"tabId\":\"seed\"}},{\"name\":\"computer\",\"input\":{\"action\":\"wait\",\"duration\":3,\"tabId\"...",
+  "error": "actions[0] (tabs_select) failed: No preview is open. Use `preview_start` or `navigate` with {\"url\": \"https://…\"} to open a browser tab at a URL, or `preview_start` with {\"name\": \"…\"} to start a dev server from .claude/launch.json. (0 completed, 9 remaining)",
+  "timestamp": "2026-10-17T06:40:09.580Z",
   "retry_count": 1
 }

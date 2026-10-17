@@ -71,7 +71,7 @@ export default function HistoryScreen({ navigation }) {
       }
       ListEmptyComponent={
         error ? null : <EmptyState
-          icon="time-outline"
+          icon="history"
           title="No completed deliveries"
           hint="Your last seven days of deliveries will show up here."
         />

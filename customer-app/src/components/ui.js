@@ -2,6 +2,7 @@ import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
+import Icon, { ICONS } from "./Icon";
 import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
 
 // The website's mobile building blocks (website/app/globals.css: .btn, .panel,
@@ -140,7 +141,8 @@ export function SectionHeader({ title, actionLabel, onAction }) {
 export function IconTile({ name, size = 20, box = 40, style }) {
   return (
     <View style={[styles.iconTile, { width: box, height: box, borderRadius: box > 48 ? radius.lg : radius.md }, style]}>
-      <Ionicons name={name} size={size} color={colors.primary} />
+      {/* Brand icons (components/Icon) where the set has one, Ionicons otherwise. */}
+      {ICONS[name] ? <Icon name={name} size={size + 4} /> : <Ionicons name={name} size={size} color={colors.primary} />}
     </View>
   );
 }

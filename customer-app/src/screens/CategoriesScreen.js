@@ -6,6 +6,7 @@ import { api } from "../api/client";
 import { useStore } from "../context/StoreContext";
 import { colors, fontFamily, radius, rupees, shadow, spacing } from "../theme";
 import { EmptyState, Loading, Notice } from "../components/ui";
+import { useTabBarScroll, useTabBarSpace } from "../navigation/tabBarScroll";
 
 // A small, repeating palette for the department and subcategory icon tiles —
 // categories don't carry a brand color of their own, so this is what stands
@@ -17,6 +18,8 @@ import { EmptyState, Loading, Notice } from "../components/ui";
 // narrow screen. The tree itself comes from the engine, so a new department
 // appears here on its own.
 export default function CategoriesScreen({ navigation }) {
+  const scroll = useTabBarScroll();
+  const { space } = useTabBarSpace();
   const { store } = useStore();
   const [categories, setCategories] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -46,7 +49,7 @@ export default function CategoriesScreen({ navigation }) {
     // right subcategory panel used to scroll independently of each other,
     // which felt like two separate screens glued together. Now a single
     // swipe moves both at once, like any normal page.
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.screenContent, { paddingBottom: space }]} showsVerticalScrollIndicator={false} {...scroll}>
       {/* Departments */}
       <View style={styles.rail}>
         {categories.map((category, index) => {

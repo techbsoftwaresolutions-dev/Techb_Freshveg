@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Dimensions, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Animated, Dimensions, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "../components/Text";
 import { api } from "../api/client";
 import { useCart } from "../context/CartContext";
@@ -9,8 +9,11 @@ import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../com
 import QtyStepper from "../components/QtyStepper";
 import ProductCard from "../components/ProductCard";
 import CustomerReviews from "../components/CustomerReviews";
+import { useTabBarScroll, useTabBarSpace } from "../navigation/tabBarScroll";
 
 export default function ProductDetailScreen({ route, navigation }) {
+  const scroll = useTabBarScroll();
+  const { space, footerLift } = useTabBarSpace();
   const { slug } = route.params;
   const { storeId } = useStore();
   const cart = useCart();
@@ -61,7 +64,7 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 110 + space }} {...scroll}>
         <View style={styles.gallery} onLayout={(e) => setGalleryWidth(e.nativeEvent.layout.width)}>
           {product.media?.length ? (
             <ScrollView
@@ -283,7 +286,7 @@ export default function ProductDetailScreen({ route, navigation }) {
       {/* Sticky cart bar, so the way out of a deep product page is always
           visible. */}
       {cart.count > 0 ? (
-        <View style={styles.cartBar}>
+        <Animated.View style={[styles.cartBar, { paddingBottom: spacing.md + space }, footerLift]}>
           <View style={{ flex: 1 }}>
             <Text style={styles.cartBarCount}>
               {cart.lineCount} item{cart.lineCount === 1 ? "" : "s"}
@@ -291,7 +294,7 @@ export default function ProductDetailScreen({ route, navigation }) {
             <Text style={styles.cartBarTotal}>{rupees(cart.summary?.total)}</Text>
           </View>
           <Button title="View cart" onPress={() => navigation.navigate("CartTab")} />
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   );

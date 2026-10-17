@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Icon from "./Icon";
 
 // One layout for every "nothing here" moment — empty cart, no orders, no
 // search results, a missing page — so they read as the same shop: a soft
@@ -43,13 +44,8 @@ const ICONS = {
       <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
     </svg>
   ),
-  cart: (
-    <svg {...iconProps}>
-      <path d="M2.5 3.5h2.6l2.3 11.2a1.6 1.6 0 0 0 1.6 1.3h8.3a1.6 1.6 0 0 0 1.6-1.2l1.6-6.8H6.2" />
-      <circle cx="9.5" cy="20" r="1.4" />
-      <circle cx="17.5" cy="20" r="1.4" />
-    </svg>
-  ),
+  // The brand cart (./Icon), duotone like the tab bar.
+  cart: <Icon name="cart" size={34} />,
   search: (
     <svg {...iconProps}>
       <circle cx="10.5" cy="10.5" r="6.2" />
@@ -71,6 +67,11 @@ const ICONS = {
   filter: (
     <svg {...iconProps}>
       <path d="M4 5h16l-6 7.5V19l-4 2v-8.5L4 5Z" />
+    </svg>
+  ),
+  heart: (
+    <svg {...iconProps}>
+      <path d="M12 20.5s-7.5-4.6-10-9.3C.6 8 1.8 4.5 5 3.4c2.1-.7 4.2 0 5.6 1.8l1.4 1.8 1.4-1.8c1.4-1.8 3.5-2.5 5.6-1.8 3.2 1.1 4.4 4.6 3 7.8-2.5 4.7-10 9.3-10 9.3Z" />
     </svg>
   ),
 };

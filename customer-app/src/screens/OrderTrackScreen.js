@@ -7,6 +7,7 @@ import { onlinePaymentSupported, payOnline } from "../api/razorpay";
 import { useCart } from "../context/CartContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
+import { checkReviews } from "../components/ReviewPrompt";
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
 
@@ -73,6 +74,12 @@ export default function OrderTrackScreen({ route, navigation }) {
   useEffect(() => {
     if (tracking && tracking.status !== "PAYMENT_PENDING") setNotice(null);
   }, [tracking]);
+
+  // The review prompt (components/ReviewPrompt) opens once the order is delivered.
+  const delivered = tracking?.status === "DELIVERED";
+  useEffect(() => {
+    if (delivered) checkReviews();
+  }, [delivered]);
 
   async function payNow() {
     setPaying(true);

@@ -1,7 +1,7 @@
 {
-  "tool_name": "PowerShell",
-  "tool_input_preview": "{\"command\":\"$src = \\\"D:\\\\TechB\\\\fresh market\\\\Techb_Freshveg\\\\website\\\"; $dst = \\\"D:\\\\TechB\\\\_site_check_7d65\\\"; robocopy $src $dst /E /XD node_modules .next .omc /NFL /NDL /NJH /NJS | Out-Null; New-I...",
-  "error": "Exit code 1\napp\r\nassets\r\ncomponents\r\ncontent\r\nlib\r\nnode_modules\r\npublic\r\n.env.example\r\n.env.local\r\njsconfig.json\r\nnext.config.mjs\r\npackage-lock.json\r\npackage.json\r\nserver.js\r\n\r\nDone.\r\n\r\n\r\n[demo] API on http://localhost:5077/api/v1\r\n[demo] health: http://localhost:5077/api/health\r\n[demo] in-memory database â€” everything is discarded on exit.",
-  "timestamp": "2026-10-16T11:30:16.861Z",
-  "retry_count": 1
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"computer\",\"input\":{\"action\":\"left_click\",\"ref\":\"ref_3\",\"action_summary\":\"Focuses the code field\"}},{\"name\":\"computer\",\"input\":{\"action\":\"type\",\"text\":\"239519\",\"action_summary\":\"Ty...",
+  "error": "[computer:left_click] left_click at (197, 488) [ref_3]\n\n\nTab Context:\n- Executed on tabId: tab-1\n- Available tabs:\n  • tabId tab-1: \"Login\" (\"http://127.0.0.1:8097/\")\n- Viewport: emulating 393x852 (you set this; reset it with preset \"desktop\" when you finish testing; the app also clears it when your turn ends or the pane's width changes)\n[computer:type] typed 6 chars\n\n\nTab Context:\n- Executed on tabId: tab-1\n- Available tabs:\n  • tabId tab-1: \"Login\" (\"http://127.0.0.1:8097/\")\n- Viewport: emulat...",
+  "timestamp": "2026-10-17T07:29:14.088Z",
+  "retry_count": 2
 }

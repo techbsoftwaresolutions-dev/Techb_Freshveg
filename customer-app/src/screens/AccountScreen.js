@@ -9,10 +9,13 @@ import { useStore } from "../context/StoreContext";
 import { colors, radius, rupees, shadow, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, IconTile } from "../components/ui";
 import { statusLook } from "./OrdersScreen";
+import { useTabBarScroll, useTabBarSpace } from "../navigation/tabBarScroll";
 
 // The website's mobile account page (components/AccountMobile.jsx): a green
 // profile card, four balance tiles, recent orders, saved addresses and a menu.
 export default function AccountScreen({ navigation }) {
+  const scroll = useTabBarScroll();
+  const { space } = useTabBarSpace();
   const { user, signedIn, signOut } = useAuth();
   const { store, pincode } = useStore();
   const [recent, setRecent] = useState(null);
@@ -30,7 +33,7 @@ export default function AccountScreen({ navigation }) {
   if (!signedIn) {
     return (
       <EmptyState
-        icon="person-outline"
+        icon="account"
         title="Sign in to your account"
         hint="Track orders, save addresses, and use your wallet and loyalty points."
         action={
@@ -58,7 +61,7 @@ export default function AccountScreen({ navigation }) {
     Share.share({ message: `Join me on The Farmers Basket — sign up with my referral code ${user.referralCode}.` }).catch(() => {});
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl }}>
+    <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl + space }} {...scroll}>
       {/* Profile */}
       <View style={styles.hero}>
         <View style={styles.heroAvatar}>
@@ -168,7 +171,8 @@ export default function AccountScreen({ navigation }) {
       {/* Menu */}
       <Card style={{ paddingVertical: spacing.xs }}>
         {[
-          { label: "Edit profile", hint: "Update your name and email", icon: "person-outline", to: "EditProfile" },
+          { label: "Edit profile", hint: "Update your name and email", icon: "account", to: "EditProfile" },
+          { label: "Your wishlist", hint: "Products you saved with the heart", icon: "heart-outline", to: "Wishlist" },
           { label: "Refer & earn", hint: "Your code, friends' progress and rewards", icon: "gift-outline", to: "Referral" },
           { label: "My coupons", hint: "Rewards ready to use at checkout", icon: "pricetags-outline", to: "Coupons" },
           { label: "Notifications", hint: "Inbox and what we send you", icon: "notifications-outline", to: "Notifications" },

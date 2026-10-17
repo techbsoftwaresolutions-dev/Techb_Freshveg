@@ -1,7 +1,8 @@
-import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Animated, Platform, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import Icon from "../components/Icon";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -23,9 +24,11 @@ const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 // The customer app's bottom bar and headers (customer-app/src/navigation/
-// RootNavigator.js): line icons, green when active with a short bar over the
-// active tab, in the same floating rounded bar.
-const TAB_ICONS = { Queue: "bicycle-outline", History: "time-outline", Profile: "person-outline" };
+// RootNavigator.js): the brand's duotone icons (components/Icon), icons only,
+// in round buttons on the same floating pill; the active one fills dark green.
+const TAB_ICONS = { Queue: "run", History: "history", Profile: "account" };
+const ACTIVE_LINE = "#E3F4E8";
+const ACTIVE_TINT = "rgba(198, 230, 207, 0.3)";
 
 const TITLE = { fontFamily: fontFamily.bold, fontSize: 19, color: colors.text };
 
@@ -45,12 +48,22 @@ function BackButton({ navigation }) {
   );
 }
 
-function TabIcon({ focused, color, name }) {
+// The tab bar draws every icon twice (an active and an inactive copy, swapped
+// by opacity), so `focused` is fixed per copy; `active` is the tab's real state
+// and drives the spring.
+function TabIcon({ name, active }) {
+  const lift = useRef(new Animated.Value(active ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(lift, { toValue: active ? 1 : 0, friction: 5, tension: 160, useNativeDriver: Platform.OS !== "web" }).start();
+  }, [active, lift]);
+
+  const transform = [{ scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) }];
+
   return (
-    <View style={styles.tabIcon}>
-      {focused ? <View style={styles.activeBar} /> : null}
-      <Ionicons name={name} size={23} color={color} />
-    </View>
+    <Animated.View style={[styles.tabIcon, active && styles.tabIconActive, { transform }]}>
+      <Icon name={name} size={26} {...(active ? { color: ACTIVE_LINE, tint: ACTIVE_TINT, inverse: colors.primaryDark } : null)} />
+    </Animated.View>
   );
 }
 
@@ -61,13 +74,15 @@ function MainTabs() {
 
   return (
     <Tabs.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={({ route, navigation }) => ({
         headerShown: route.name !== "Queue",
-        tabBarIcon: ({ focused, color }) => <TabIcon focused={focused} color={color} name={TAB_ICONS[route.name]} />,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarIcon: () => <TabIcon name={TAB_ICONS[route.name]} active={navigation.isFocused()} />,
+        // Icons only; each screen's tabBarAccessibilityLabel names its tab for
+        // screen readers, since there is no visible text to read.
+        tabBarShowLabel: false,
+        tabBarIconStyle: styles.tabIconSlot,
+        tabBarItemStyle: styles.tabItem,
         tabBarStyle: [styles.tabBar, { marginBottom: Math.max(bottom, 10) }],
-        tabBarLabelStyle: styles.tabLabel,
         headerStyle: { backgroundColor: colors.surface },
         headerTitleStyle: TITLE,
         headerTitleAlign: "left",
@@ -75,9 +90,9 @@ function MainTabs() {
         sceneStyle: { backgroundColor: colors.bg },
       })}
     >
-      <Tabs.Screen name="Queue" component={QueueScreen} options={{ title: "My runs" }} />
-      <Tabs.Screen name="History" component={HistoryScreen} options={{ title: "History" }} />
-      <Tabs.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile" }} />
+      <Tabs.Screen name="Queue" component={QueueScreen} options={{ title: "My runs", tabBarAccessibilityLabel: "My runs" }} />
+      <Tabs.Screen name="History" component={HistoryScreen} options={{ title: "History", tabBarAccessibilityLabel: "History" }} />
+      <Tabs.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile", tabBarAccessibilityLabel: "Profile" }} />
     </Tabs.Navigator>
   );
 }
@@ -124,12 +139,14 @@ export default function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
+  // A floating pill of equal round buttons: 64 tall, a 46 circle per tab
+  // centred in it, so nothing clips and the spacing is even.
   tabBar: {
-    height: 68,
-    paddingTop: 6,
-    paddingBottom: 6,
-    marginHorizontal: 10,
-    borderRadius: 24,
+    height: 64,
+    paddingTop: 0,
+    paddingBottom: 0,
+    marginHorizontal: 12,
+    borderRadius: 32,
     borderWidth: 1,
     borderTopWidth: 1,
     borderColor: colors.border,
@@ -138,8 +155,11 @@ const styles = StyleSheet.create({
     ...shadow.card,
     elevation: 6,
   },
-  tabLabel: { fontSize: 11, fontFamily: fontFamily.medium, marginTop: 2 },
-  tabIcon: { width: 40, height: 26, alignItems: "center", justifyContent: "center" },
-  activeBar: { position: "absolute", top: -7, width: 28, height: 3, borderRadius: 2, backgroundColor: colors.primary },
+  tabItem: { paddingHorizontal: 0, paddingVertical: 0, justifyContent: "center", alignItems: "center" },
+  // Fills the tab button's height (it pads 5 top and bottom and stacks from
+  // the top); the icon is centred in this slot, so the circle sits mid-bar.
+  tabIconSlot: { width: 46, flex: 1 },
+  tabIcon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
+  tabIconActive: { backgroundColor: colors.primaryDark },
   back: { width: 40, height: 40, marginRight: 4, alignItems: "center", justifyContent: "center" },
 });

@@ -71,10 +71,7 @@ backend/farmers-admin-login.txt
 
 # Environment files hold secrets (database, Cloudinary, WhatsApp, JWT) — never
 # commit them. The .env.example templates are the shareable versions.
-.env
-.env.*
-*.env
-!.env.example
+
 
 # expo prebuild output for the customer app (react-native-razorpay needs a
 # native build) - regenerated from app.config.js, never edited by hand.

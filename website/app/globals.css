@@ -148,11 +148,11 @@ a.utility-item:hover { color: #fff; opacity: 0.85; }
 .search-form { flex: 1; max-width: 620px; position: relative; }
 /* input[type="search"] in the selector: the generic form-field rule further
    down matches with the same weight and would otherwise reset the padding
-   that keeps the text clear of the magnifier. */
+   that keeps the text clear of the search button. */
 .search-form input[type="search"] {
   width: 100%;
   height: 48px;
-  padding: 0 64px 0 46px;
+  padding: 0 64px 0 20px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--surface);
@@ -619,7 +619,7 @@ a.header-extra { cursor: pointer; }
 .qty.block { display: flex; width: 100%; height: 38px; }
 .qty.block .value { font-size: 13.5px; }
 
-input[type="text"], input[type="tel"], input[type="search"], input[type="number"], select, textarea {
+input[type="text"], input[type="email"], input[type="tel"], input[type="search"], input[type="number"], select, textarea {
   width: 100%;
   height: 44px;
   padding: 0 14px;
@@ -634,6 +634,7 @@ input[type="text"], input[type="tel"], input[type="search"], input[type="number"
 input::placeholder, textarea::placeholder { color: var(--text-faint); }
 textarea { height: auto; min-height: 92px; padding: 12px 14px; resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+input:disabled, select:disabled, textarea:disabled { background: var(--bg-alt); color: var(--text-muted); cursor: not-allowed; }
 
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .field label { font-size: 13px; font-weight: 500; color: var(--text-muted); }
@@ -851,6 +852,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .footer a { font-size: 13px; color: rgba(255, 255, 255, 0.78); }
 .footer a:hover { color: #fff; }
 .footer ul.footer-social { flex-direction: row; gap: 10px; margin-top: 16px; }
+/* The phone footer's tile icons and arrows (shown in the phone rules below). */
+.footer-ico, .footer-tile-arrow { display: none; }
 .footer-install { margin-top: 20px; }
 .footer-install h4 { margin-bottom: 10px; }
 .footer-install-btn {
@@ -1339,14 +1342,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 }
 
 .search-form { display: flex; align-items: center; }
-.search-form-icon {
-  position: absolute;
-  left: 18px;
-  width: 18px;
-  height: 18px;
-  color: var(--text-muted);
-  pointer-events: none;
-}
 
 /* ------------------------------------------------------------- top categories */
 
@@ -2765,8 +2760,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   }
 
   .search-form { grid-row: 2; grid-column: 1 / -1; order: 0; max-width: none; }
-  .search-form input[type="search"] { height: 44px; font-size: 13.5px; padding: 0 56px 0 42px; }
-  .search-form-icon { left: 15px; }
+  .search-form input[type="search"] { height: 44px; font-size: 13.5px; padding: 0 56px 0 16px; }
   .search-form button { width: 44px; height: 36px; }
   .search-form-submit-icon { width: 18px; height: 18px; }
 
@@ -2921,41 +2915,54 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
     height: 58px;
     padding: 0 4px;
     border: 1px solid var(--border);
-    border-radius: 22px;
+    border-radius: 999px;
     background: rgba(255, 255, 255, 0.94);
     -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
     box-shadow: 0 10px 30px rgba(10, 30, 20, 0.14), 0 2px 6px rgba(10, 30, 20, 0.06);
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s, visibility 0s;
   }
+  /* Scrolled away (MobileNav sets the flag): below the screen edge, shadow
+     included, and visibility hidden once it has gone so it can't be tapped
+     or tabbed to. A keyboard user already inside it keeps it. */
+  html[data-nav-hidden] .mobile-nav:not(:has(:focus-visible)) {
+    transform: translateY(calc(100% + 46px + env(safe-area-inset-bottom)));
+    opacity: 0;
+    visibility: hidden;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1), opacity 0.25s, visibility 0s 0.25s;
+  }
+  /* The bars that float above the nav drop into its 64px while it's away. */
+  .install-bar, .cat-delivery, .cart-bar { transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  html[data-nav-hidden] :is(.install-bar, .cat-delivery, .cart-bar) { transform: translateY(64px); }
   .mobile-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1px;
-    font-size: 10px;
-    font-weight: 500;
-    color: var(--text-muted);
+    display: grid;
+    place-items: center;
+    -webkit-tap-highlight-color: transparent;
   }
-  .mobile-nav-item:hover { color: var(--text-muted); }
-  .mobile-nav-item.current { color: var(--brand); font-weight: 600; }
   .mobile-nav-icon {
     position: relative;
     display: grid;
     place-items: center;
-    width: 36px;
-    height: 36px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
   }
-  .mobile-nav-item.current .mobile-nav-icon { background: var(--brand-soft); transform: translateY(-2px) scale(1.08); }
+  /* The app's active tab: dark-green circle, the icon recoloured light green. */
+  .mobile-nav-item.current .mobile-nav-icon {
+    background: var(--brand-dark);
+    transform: scale(1.06);
+    --icon-line: #e3f4e8;
+    --icon-tint: rgba(198, 230, 207, 0.3);
+    --icon-inverse: var(--brand-dark);
+  }
   .mobile-nav-item:active .mobile-nav-icon { transform: scale(0.88); transition-duration: 0.08s; }
   .mobile-nav-badge {
     position: absolute;
-    top: -3px;
-    right: -6px;
-    min-width: 17px;
-    height: 17px;
+    top: 1px;
+    right: -2px;
+    min-width: 19px;
+    height: 19px;
     padding: 0 4px;
     border-radius: 999px;
     background: var(--brand);
@@ -3221,6 +3228,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   .confirm-dialog[open], .confirm-dialog-box, .mobile-nav-icon { animation: none; transition: none; }
+  .mobile-nav, html[data-nav-hidden] .mobile-nav, .install-bar, .cat-delivery, .cart-bar { transition: none !important; }
 }
 
 /* ------------------------------------------------ browse pages, phone
@@ -4877,16 +4885,47 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .footer-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .footer-col-shop,
   .footer-col-account { display: none; }
+  /* Customer care three across, policies two across: tiles of icon,
+     label and arrow. */
   .footer-col-care ul,
-  .footer-col-legal ul { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .footer-col-legal ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .footer-col-care ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .footer-col-care a,
   .footer-col-legal a {
-    display: inline-block;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.1);
-    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    min-height: 46px;
+    padding: 8px 8px 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.3;
   }
+  .footer-col-care a:active,
+  .footer-col-legal a:active { background: rgba(255, 255, 255, 0.16); }
+  .footer-ico, .footer-tile-arrow { display: block; flex: 0 0 auto; }
+  .footer-tile-label { flex: 1; min-width: 0; }
+  .footer-tile-arrow { opacity: 0.8; }
+  @media (max-width: 400px) {
+    .footer-col-care a { gap: 6px; padding-left: 8px; font-size: 11px; }
+    .footer-col-care .footer-ico { width: 18px; height: 18px; }
+  }
+
+  /* Get in touch: the two numbers side by side, then mail and place. */
+  .footer ul.footer-contact { flex-direction: row; flex-wrap: wrap; gap: 12px 0; }
+  .footer-contact li { display: flex; align-items: center; }
+  .footer-contact li + li { margin-left: 14px; padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, 0.2); }
+  .footer-contact li.footer-contact-mail,
+  .footer-contact li.footer-contact-place { flex-basis: 100%; margin-left: 0; padding-left: 0; border-left: 0; }
+  .footer-contact a,
+  .footer-contact li { gap: 10px; color: #fff; font-size: 13px; }
+  .footer-contact a { display: flex; align-items: center; }
+  .footer-contact .footer-ico { width: 18px; height: 18px; }
   .footer-install { margin-top: 16px; }
   .footer-install-btn { width: 100%; justify-content: center; }
   .footer-brand p { max-width: none; }
@@ -5335,7 +5374,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   /* the cart: solid brand pill */
   .header-btn.cart-btn { margin-left: 4px; padding: 6px 18px 6px 8px; background: var(--brand); border-color: var(--brand); color: #fff; box-shadow: 0 4px 12px rgba(31, 122, 61, 0.22); }
   .header-btn.cart-btn:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
-  .header-btn.cart-btn .header-btn-icon { width: 22px; height: 22px; flex-basis: 22px; padding: 7px; background: rgba(255, 255, 255, 0.16); color: #fff; }
+  .header-btn.cart-btn .header-btn-icon { width: 22px; height: 22px; flex-basis: 22px; padding: 7px; background: rgba(255, 255, 255, 0.16); color: #fff; --icon-line: #fff; --icon-tint: rgba(255, 255, 255, 0.28); --icon-inverse: var(--brand); }
   .header-btn.cart-btn:hover .header-btn-icon { background: rgba(255, 255, 255, 0.22); }
   .header-btn.cart-btn .sub { color: rgba(255, 255, 255, 0.8); }
   .header-btn.cart-btn .main { color: #fff; font-size: 15px; font-weight: 700; }

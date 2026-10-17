@@ -1,6 +1,7 @@
 import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Icon from "./Icon";
 import { Text } from "./Text";
 import { colors, formatQty, radius } from "../theme";
 
@@ -58,7 +59,7 @@ export default function QtyStepper({
           <ActivityIndicator size="small" color={colors.onPrimary} />
         ) : (
           <>
-            {wide ? <Ionicons name="cart-outline" size={16} color={colors.onPrimary} /> : null}
+            {wide ? <Icon name="cart" size={18} color={colors.onPrimary} tint="rgba(255,255,255,0.28)" /> : null}
             <Text style={[styles.addText, wide && { fontSize: 13.5 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
               {wide ? "Add to Basket" : "Add"}
             </Text>
