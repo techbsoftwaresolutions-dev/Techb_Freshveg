@@ -1852,7 +1852,7 @@ body { background: var(--bg); }
 .dash-greet p { margin: 4px 0 0; color: var(--text-muted); font-size: 14px; }
 
 .grid.dashboard-3 {
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.1fr) minmax(0, 0.95fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.25fr);
   align-items: start;
 }
 @media (max-width: 1280px) {
@@ -1952,3 +1952,32 @@ body { background: var(--bg); }
   background: linear-gradient(180deg, transparent 0%, rgba(20, 86, 48, 0.55) 100%);
 }
 @media (max-height: 880px) { .sidebar-art { display: none; } }
+
+/* Recent Orders on the dashboard: every cell stays on one line (order number,
+   customer, status, total) instead of wrapping letter by letter in the narrow
+   column. The wider third column above gives it room; if a screen is still too
+   narrow the table scrolls sideways rather than wrapping. */
+table.data.recent-orders th,
+table.data.recent-orders td { white-space: nowrap; padding-left: 10px; padding-right: 10px; }
+table.data.recent-orders .pill { font-size: 11px; padding: 2px 8px; white-space: nowrap; }
+table.data.recent-orders .stack { display: grid; gap: 2px; }
+
+/* Keep the lists inside their cards. A grid column sizes itself to its widest
+   non-wrapping text by default, which pushed the time off the right edge and
+   under the next card; minmax(0, 1fr) lets the title shrink and show "…" instead. */
+.activity-list,
+.rank-list { grid-template-columns: minmax(0, 1fr); }
+.activity-item,
+.rank-item { min-width: 0; }
+.activity-item .activity-body { min-width: 0; }
+.activity-item .activity-time { margin-left: 4px; }
+
+/* Dashboard lists share one text size with the tables (12.5px) so no card looks
+   louder than its neighbours. Recent Activity keeps its title on a single line,
+   trimmed with "…" if it is too long (hover shows the whole text). */
+.grid.dashboard-3 .row-title { font-size: 12.5px; line-height: 1.35; }
+.grid.dashboard-3 .row-sub { font-size: 11px; }
+.grid.dashboard-3 .rank-row .row-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.activity-item .activity-body { overflow-wrap: normal; }
+.activity-item .activity-body .row-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.activity-item .activity-body .row-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

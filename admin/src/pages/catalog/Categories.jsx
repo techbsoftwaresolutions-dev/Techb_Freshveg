@@ -5,7 +5,7 @@ import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import SelectMenu from "../../components/SelectMenu";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Field, Loading, Modal, Pill } from "../../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pill, useConfirm } from "../../components/ui";
 import { IconChevronDown, IconSearch } from "../../components/Icons";
 
 // The category editor is where the engine is configured. Three tabs, matching
@@ -172,6 +172,7 @@ function MobileCategoryList({ tree, editable, saving, onOpen, onAddChild, onDele
 }
 
 export default function Categories() {
+  const [confirm, confirmDialog] = useConfirm();
   const { can } = useAuth();
   const editable = can("catalog.manage");
 
@@ -290,7 +291,7 @@ export default function Categories() {
   // has subcategories or products) so the confirm prompt already reflects
   // what's about to happen rather than a delete that immediately 409s.
   async function removeCategory(target) {
-    if (!window.confirm(`Delete "${target.name}"? This can't be undone.`)) return;
+    if (!(await confirm({ title: "Delete category?", message: `Delete "${target.name}"? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
     setSaving(true);
     setError("");
     setBlockingProducts([]);
@@ -324,6 +325,7 @@ export default function Categories() {
 
   return (
     <div className={`page cats-page${mobileEditing ? " m-editing" : ""}`}>
+      {confirmDialog}
       <div className="page-head cats-head">
         <div>
           <h1>Categories</h1>

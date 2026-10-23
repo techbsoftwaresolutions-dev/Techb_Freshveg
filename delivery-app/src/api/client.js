@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -127,32 +128,80 @@ async function request(method, path, { body, query, retry = true } = {}) {
 
 // Upload one photo (a local file uri from the camera) and get back its URL.
 // The backend takes the image as the raw request body.
+//
+// On a phone, `fetch(uri).blob()` can hand back an empty blob for a camera
+// file, which the server then rejects ("Send the image as the raw request
+// body"). React Native's XMLHttpRequest can send the file straight from its
+// uri as the raw body, so that is used on devices; the browser build keeps
+// the blob route.
+function guessType(uri) {
+  const ext = String(uri).split("?")[0].split(".").pop().toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
+function sendFile(url, uri, type, token) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Content-Type", type);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.onload = () => {
+      let payload = {};
+      try {
+        payload = JSON.parse(xhr.responseText);
+      } catch {
+        /* non-JSON reply */
+      }
+      resolve({ status: xhr.status, payload });
+    };
+    xhr.onerror = () => reject(new Error("network"));
+    xhr.ontimeout = () => reject(new Error("network"));
+    xhr.timeout = 60000;
+    xhr.send({ uri });
+  });
+}
+
 export async function uploadImage(uri, folder = "proof") {
   const session = await loadSession();
-  let blob;
-  try {
-    blob = await (await fetch(uri)).blob();
-  } catch {
-    throw new ApiError(0, "Couldn't read the photo. Take it again.");
-  }
-  const type = ["image/jpeg", "image/png", "image/webp"].includes(blob.type) ? blob.type : "image/jpeg";
+  const url = `${BASE}/uploads?folder=${encodeURIComponent(folder)}`;
+  let status;
+  let payload;
 
-  let response;
-  try {
-    response = await fetch(`${BASE}/uploads?folder=${encodeURIComponent(folder)}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": type,
-        ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-      },
-      body: blob,
-    });
-  } catch {
-    throw new ApiError(0, "No connection. The photo was not uploaded — try again.");
+  if (Platform.OS === "web") {
+    let blob;
+    try {
+      blob = await (await fetch(uri)).blob();
+    } catch {
+      throw new ApiError(0, "Couldn't read the photo. Take it again.");
+    }
+    if (!blob.size) throw new ApiError(0, "The photo was empty. Take it again.");
+    const type = ["image/jpeg", "image/png", "image/webp"].includes(blob.type) ? blob.type : "image/jpeg";
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": type,
+          ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+        },
+        body: blob,
+      });
+      status = response.status;
+      payload = await response.json().catch(() => ({}));
+    } catch {
+      throw new ApiError(0, "No connection. The photo was not uploaded — try again.");
+    }
+  } else {
+    try {
+      ({ status, payload } = await sendFile(url, uri, guessType(uri), session?.accessToken));
+    } catch {
+      throw new ApiError(0, "No connection. The photo was not uploaded — try again.");
+    }
   }
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload.success === false || !payload.url) {
-    throw new ApiError(response.status, payload.error?.message || "Photo upload failed");
+
+  if (status < 200 || status >= 300 || payload.success === false || !payload.url) {
+    throw new ApiError(status, payload.error?.message || "Photo upload failed");
   }
   return payload.url;
 }

@@ -4,9 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import FormRoute from "../../components/FormRoute";
-import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table } from "../../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, useConfirm } from "../../components/ui";
 
 export default function Brands() {
+  const [confirm, confirmDialog] = useConfirm();
   const { can } = useAuth();
   const editable = can("catalog.manage");
   const navigate = useNavigate();
@@ -40,7 +41,7 @@ export default function Brands() {
   // live product is still filed under it, and that refusal's message is
   // what ends up in the banner below.
   async function removeBrand(brand) {
-    if (!window.confirm(`Delete "${brand.name}"? This can't be undone.`)) return;
+    if (!(await confirm({ title: "Delete brand?", message: `Delete "${brand.name}"? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
     setRemovingId(brand.id);
     setError("");
     try {
@@ -55,6 +56,7 @@ export default function Brands() {
 
   return (
     <div className="page">
+      {confirmDialog}
       <div className="page-head">
         <div>
           <h1>Brands</h1>

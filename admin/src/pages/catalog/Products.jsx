@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees } from "../../components/ui";
+import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees, useConfirm } from "../../components/ui";
 
 export default function Products() {
+  const [confirm, confirmDialog] = useConfirm();
   const { can } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -82,7 +83,7 @@ export default function Products() {
   // at these documents), so drop it from the visible list here rather than
   // trusting a refetch to hide it again.
   async function removeProduct(product) {
-    if (!window.confirm(`Delete "${product.name}"? This can't be undone.`)) return;
+    if (!(await confirm({ title: "Delete product?", message: `Delete "${product.name}"? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
     setRemovingId(product.id);
     setError("");
     try {
@@ -97,6 +98,7 @@ export default function Products() {
 
   return (
     <div className="page">
+      {confirmDialog}
       <div className="page-head">
         <div>
           <h1>Products</h1>

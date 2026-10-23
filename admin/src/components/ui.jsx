@@ -189,6 +189,52 @@ function ModalDialog({ title, onClose, children, footer, wide }) {
   );
 }
 
+// A proper popup for "are you sure?" questions, in place of the browser's
+// window.confirm box. Use it as:
+//   const [confirm, confirmDialog] = useConfirm();
+//   if (!(await confirm({ title, message, confirmLabel }))) return;
+//   ...and render {confirmDialog} somewhere in the page.
+export function ConfirmDialog({ title, message, confirmLabel = "Delete", cancelLabel = "Cancel", tone = "danger", onAnswer }) {
+  return (
+    <ModalDialog
+      title={title}
+      onClose={() => onAnswer(false)}
+      footer={
+        <>
+          <button type="button" className="btn ghost" onClick={() => onAnswer(false)} autoFocus>
+            {cancelLabel}
+          </button>
+          <button type="button" className={`btn ${tone}`} onClick={() => onAnswer(true)}>
+            {confirmLabel}
+          </button>
+        </>
+      }
+    >
+      <p style={{ margin: 0, lineHeight: 1.55 }}>{message}</p>
+    </ModalDialog>
+  );
+}
+
+export function useConfirm() {
+  const [asking, setAsking] = useState(null);
+  const resolver = useRef(null);
+
+  const confirm = (options) =>
+    new Promise((resolve) => {
+      resolver.current = resolve;
+      setAsking(options);
+    });
+
+  const answer = (value) => {
+    setAsking(null);
+    resolver.current?.(value);
+    resolver.current = null;
+  };
+
+  const dialog = asking ? <ConfirmDialog {...asking} onAnswer={answer} /> : null;
+  return [confirm, dialog];
+}
+
 export function Field({ label, help, error, children, inherited }) {
   return (
     <div className="field">
