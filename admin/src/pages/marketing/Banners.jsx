@@ -5,7 +5,7 @@ import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import {
-  Banner as Notice, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table,
+  Banner as Notice, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, useConfirm,
 } from "../../components/ui";
 
 const PLACEMENT_LABEL = {
@@ -17,6 +17,7 @@ const PLACEMENT_LABEL = {
 };
 
 export default function Banners() {
+  const [confirm, confirmDialog] = useConfirm();
   const { can } = useAuth();
   const canManage = can("marketing.manage");
 
@@ -46,7 +47,7 @@ export default function Banners() {
   }
 
   async function removeBanner(banner) {
-    if (!window.confirm(`Delete the banner "${banner.title}"? This can't be undone — pause it instead to just take it off the site.`)) return;
+    if (!(await confirm({ title: "Delete banner?", message: `Delete the banner "${banner.title}"? This can't be undone — pause it instead to just take it off the site.`, confirmLabel: "Yes, delete" }))) return;
     setBusyId(banner.id);
     setError("");
     try {
@@ -74,6 +75,7 @@ export default function Banners() {
 
   return (
     <div className="page">
+      {confirmDialog}
       <div className="page-head">
         <div>
           <h1>Banners</h1>

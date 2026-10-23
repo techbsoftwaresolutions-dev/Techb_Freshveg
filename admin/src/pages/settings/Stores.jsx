@@ -4,11 +4,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Switch, Table, rupees } from "../../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Switch, Table, rupees, useConfirm } from "../../components/ui";
 
 // Commercial rules are per store — a city branch can carry a higher free
 // delivery threshold than a small-town one without any code change.
 export default function Stores() {
+  const [confirm, confirmDialog] = useConfirm();
   const { can } = useAuth();
   const editable = can("settings.manage");
 
@@ -40,7 +41,7 @@ export default function Stores() {
   // on record, the default store, staff or offers tied to it alone) and says
   // why; that reason is shown as it comes.
   async function removeStore(store) {
-    if (!window.confirm(`Delete "${store.name}"? Its stock, delivery zones and slots go with it. This can't be undone.`)) return;
+    if (!(await confirm({ title: "Delete store?", message: `Delete "${store.name}"? Its stock, delivery zones and slots go with it. This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
     setDeleting(store.id);
     setError("");
     setDeleted("");
@@ -60,6 +61,7 @@ export default function Stores() {
 
   return (
     <div className="page">
+      {confirmDialog}
       <div className="page-head">
         <div>
           <h1>Stores</h1>
