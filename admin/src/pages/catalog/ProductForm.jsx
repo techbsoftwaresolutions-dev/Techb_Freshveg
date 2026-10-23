@@ -711,10 +711,6 @@ function MediaUploader({ media, name, editable, onChange }) {
                   </div>
                 ) : null}
               </div>
-              {/* Shown so a stored image URL can be checked at a glance —
-                  broken photos are much faster to diagnose when the URL is
-                  right there instead of hidden behind a DevTools lookup. */}
-              <div className="media-url" title={item.url}>{item.url}</div>
             </div>
           ))}
         </div>
