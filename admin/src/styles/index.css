@@ -1981,3 +1981,13 @@ table.data.recent-orders .stack { display: grid; gap: 2px; }
 .activity-item .activity-body { overflow-wrap: normal; }
 .activity-item .activity-body .row-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .activity-item .activity-body .row-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Inventory filter bar: tabs, search, category, subcategory and store sit on one
+   line on a normal desktop screen. The boxes are a little narrower than the
+   default so they all fit; on a narrower window the bar wraps as before. */
+@media (min-width: 1300px) {
+  .toolbar.inv-toolbar { flex-wrap: nowrap; }
+  .toolbar.inv-toolbar .btn { flex: 0 0 auto; white-space: nowrap; }
+  .toolbar.inv-toolbar input[type="search"] { min-width: 120px; width: 170px; flex: 0 1 170px; }
+  .toolbar.inv-toolbar .select-menu { min-width: 120px; width: 150px; flex: 0 1 150px; }
+}
