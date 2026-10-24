@@ -5,7 +5,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // and a category tree flattened into a long column of "— — Name" rows.
 //
 // Options may carry a `depth`: depth-0 options that have children below them
-// read as section headings, and their children indent under them. Long lists
+// read as section headings, and their children indent under them. An option
+// can also say `heading: true|false` outright (a main category with no
+// sub-categories is still a main category), carry an `icon` (an emoji)
+// shown before its label, and be `disabled`: still listed, greyed out, and
+// not choosable (its `hint` can say why). Long lists
 // get a search box that matches on the option or its parent's name, so
 // "exotic" finds both "Exotic Fruits" and "Exotic Vegetables".
 //
@@ -42,7 +46,7 @@ export default function SelectMenu({
         ...option,
         depth,
         section: depth === 0 ? null : section,
-        isHeading: depth === 0 && Boolean(next && (next.depth || 0) > 0),
+        isHeading: option.heading ?? (depth === 0 && Boolean(next && (next.depth || 0) > 0)),
       };
     });
   }, [options]);
@@ -87,6 +91,7 @@ export default function SelectMenu({
   }, [query]);
 
   const choose = (option) => {
+    if (option.disabled) return;
     setOpen(false);
     if (String(option.value) !== String(value ?? "")) onChange(option.value);
   };
@@ -126,6 +131,7 @@ export default function SelectMenu({
         <span className={selected ? "select-menu-value" : "select-menu-placeholder"}>
           {selected ? (
             <>
+              {selected.icon ? <span className="select-menu-icon" aria-hidden="true">{selected.icon}</span> : null}
               {selected.section ? <span className="select-menu-path">{selected.section.label} › </span> : null}
               {selected.label}
             </>
@@ -169,10 +175,12 @@ export default function SelectMenu({
                     data-index={index}
                     role="option"
                     aria-selected={isSelected}
+                    aria-disabled={option.disabled || undefined}
                     className={[
                       "select-menu-option",
                       option.isHeading ? "heading" : "",
                       option.isEmpty ? "empty" : "",
+                      option.disabled ? "disabled" : "",
                       index === active ? "active" : "",
                       isSelected ? "selected" : "",
                     ].join(" ")}
@@ -181,6 +189,7 @@ export default function SelectMenu({
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => choose(option)}
                   >
+                    {option.icon ? <span className="select-menu-icon" aria-hidden="true">{option.icon}</span> : null}
                     <span className="select-menu-label">
                       {query && option.section ? <span className="select-menu-path">{option.section.label} › </span> : null}
                       {option.label}

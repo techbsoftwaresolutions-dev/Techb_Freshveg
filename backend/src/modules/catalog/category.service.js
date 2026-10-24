@@ -84,7 +84,21 @@ async function updateCategory(id, payload) {
     payload.slug = await uniqueSlug(Category, payload.slug, category._id);
   }
 
+  const wasActive = category.status === "active";
+  const statusChanged = payload.status !== undefined && payload.status !== category.status;
+  if (statusChanged && payload.status === "active") {
+    // Under a parent that is still switched off it would surface on the site
+    // as a top-level category, so the parent goes back on first.
+    const offAncestor = await Category.findOne({
+      _id: { $in: reparenting ? [] : category.ancestors },
+      status: { $ne: "active" },
+    }).select("name");
+    if (offAncestor) throw ApiError.badRequest(`Activate "${offAncestor.name}" first — this category sits inside it.`);
+  }
+
   Object.assign(category, payload);
+  // A status set on the category itself is its own, whatever an ancestor did.
+  if (statusChanged) category.hiddenBy = null;
 
   if (reparenting || slugChanged) {
     await category.recomputeLineage();
@@ -96,7 +110,44 @@ async function updateCategory(id, payload) {
     await syncProductPaths(category._id);
   }
 
+  if (statusChanged && wasActive !== (category.status === "active")) {
+    await setStatusCascade(category._id, category.status === "active");
+  } else if (reparenting && category.status === "active") {
+    // Moved under a parent that is switched off: hide along with it.
+    const off = await Category.findOne({ _id: { $in: category.ancestors }, status: { $ne: "active" } })
+      .sort({ level: 1 })
+      .select("hiddenBy");
+    if (off) {
+      const by = off.hiddenBy || off._id;
+      await Category.updateOne({ _id: category._id }, { status: "hidden", hiddenBy: by });
+      await hideBeneath(category._id, by);
+      category.status = "hidden";
+      category.hiddenBy = by;
+    }
+  }
+
   return category;
+}
+
+// Disable / Activate (Admin → Categories). Switching a category off hides it
+// from customers together with everything beneath it: its sub-categories
+// (else the storefront's tree would promote them to top level) and every
+// product in them (product queries only look at the product's own status).
+// Each is marked hidden *by this category*, so switching it back on restores
+// exactly those, and nothing that was already hidden for its own reasons.
+async function setStatusCascade(categoryId, active) {
+  if (active) {
+    await Category.updateMany({ hiddenBy: categoryId }, { status: "active", hiddenBy: null });
+    await Product.updateMany({ hiddenBy: categoryId }, { status: "active", hiddenBy: null });
+  } else {
+    await hideBeneath(categoryId, categoryId);
+  }
+  await refreshProductCounts();
+}
+
+async function hideBeneath(categoryId, by) {
+  await Category.updateMany({ ancestors: categoryId, status: "active" }, { status: "hidden", hiddenBy: by });
+  await Product.updateMany({ categoryPath: categoryId, status: "active" }, { status: "hidden", hiddenBy: by });
 }
 
 async function deleteCategory(id) {

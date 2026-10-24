@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { bannerVars, img, photoStyle } from "@/lib/format";
 import { getBanners, getCategories, getHome, getPublicSettings } from "@/lib/api";
 import { HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
 import FreshHome from "@/components/FreshHome";
@@ -13,7 +13,6 @@ import FlashDeal from "@/components/FlashDeal";
 import WhyFarmersBasket from "@/components/WhyFarmersBasket";
 import VideoHero from "@/components/VideoHero";
 import heroPhoto from "@/assets/Fresh Harvest Basket in Sunlit Fields.webp";
-import farmPhoto from "@/assets/Fresh Fruit Basket in Sunlit Greenery.webp";
 
 // Flip to true to bring the left department sidebar back on the homepage —
 // see the comment beside its render call for what else that involves.
@@ -27,14 +26,12 @@ export const metadata = {
   alternates: { canonical: "/" },
 };
 
-// Shown in the merchandising strip until the admin publishes a home_strip
-// banner of its own; BannerCarousel supplies the photo.
-const DEFAULT_PROMO = {
-  id: "organic-export",
-  title: "Organic & Export Quality Collection",
-  subtitle: "Handpicked premium vegetables for superior taste, nutrition and global standards.",
-  target: { kind: "search", value: "organic" },
-};
+// Banner 1 (home_story) and Banner 2 (home_strip) come only from the admin —
+// one without a title and an image is not shown at all.
+const filled = (data) => (data?.banners || []).filter((banner) => banner.title && banner.image);
+
+// Banner 1's points take these icons in order.
+const POINT_ICONS = [IconLeafBadge, IconAward, IconBox];
 
 // Sold-out products sink to the end of a row rather than leading it — a shelf
 // that opens on "Sold out" reads as an empty store.
@@ -44,9 +41,10 @@ const inStockFirst = (products) =>
 // Server-rendered, so the whole shelf is in the HTML a crawler receives — no
 // spinner, no client fetch waterfall.
 export default async function HomePage() {
-  const [home, bannerData, heroBannerData, settingsData, categoryTree] = await Promise.all([
+  const [home, bannerData, storyData, heroBannerData, settingsData, categoryTree] = await Promise.all([
     getHome(),
     getBanners("home_strip"),
+    getBanners("home_story"),
     getBanners("home_hero"),
     getPublicSettings(),
     getCategories(),
@@ -70,7 +68,8 @@ export default async function HomePage() {
   }
 
   const { offers = [], featured = [], rails = [], store, categories = [], flashDeal = null } = home;
-  const banners = bannerData?.banners?.length ? bannerData.banners : [DEFAULT_PROMO];
+  const banners = filled(bannerData);
+  const story = filled(storyData)[0];
   // The admin's own empty-state hint is the spec here: "falls back to its
   // built-in hero until you add one" — so a hero banner is optional, and
   // the bundled produce photo is that fallback. Every
@@ -180,27 +179,34 @@ export default async function HomePage() {
 
           {/* The brand story: the photo fills the band, the copy sits on the
               wash to its left (same structure as the hero). */}
-          <section className="story">
-            <img src={farmPhoto.src} alt="Fresh fruit basket from local farms near Bangalore" className="story-photo" loading="lazy" />
-            <div className="story-copy">
-              <span className="hero-eyebrow">Direct from Farmers</span>
-              <h2 className="story-title">From Our Farms to Your Home</h2>
-              <ul className="hero-features">
-                <li>
-                  <IconLeafBadge />
-                  <span>Direct Sourcing{" "}<br />from Trusted Farmers</span>
-                </li>
-                <li>
-                  <IconAward />
-                  <span>Careful Grading{" "}<br />for Best Quality</span>
-                </li>
-                <li>
-                  <IconBox />
-                  <span>Hygienic Packing{" "}<br />for Maximum Freshness</span>
-                </li>
-              </ul>
-            </div>
-          </section>
+          {story ? (
+            <section className="story" style={bannerVars(story)}>
+              <img
+                src={img(story.image, 1600)}
+                alt={story.title}
+                className="story-photo"
+                loading="lazy"
+                style={photoStyle(story)}
+              />
+              <div className="story-copy">
+                {story.subtitle ? <span className="hero-eyebrow">{story.subtitle}</span> : null}
+                <h2 className="story-title">{story.title}</h2>
+                {story.points?.length ? (
+                  <ul className="hero-features">
+                    {story.points.slice(0, 3).map((point, i) => {
+                      const Icon = POINT_ICONS[i];
+                      return (
+                        <li key={i}>
+                          <Icon />
+                          <span style={{ whiteSpace: "pre-line" }}>{point}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           {offers.length ? (
             <div className="promo-row" id="offers">

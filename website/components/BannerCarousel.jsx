@@ -1,17 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { bannerVars, img, photoStyle } from "@/lib/format";
 import { useEffect, useRef, useState } from "react";
-import crate from "@/assets/Fresh Harvest in a Sunlit Crate.webp";
-import basket from "@/assets/Fresh Fruit Basket in Sunlit Greenery.webp";
-import splash from "@/assets/Fresh Produce Splash Banner.webp";
 
 const ROTATE_MS = 7000;
-
-// The strip's own photography, one per slide in order. A banner that has its
-// own image uploaded in the admin shows that instead.
-const BACKDROPS = [crate.src, basket.src, splash.src];
 
 // Where a banner's target points. The admin stores a kind and a value rather
 // than a URL, so the shape of the site can change without rewriting banners.
@@ -72,6 +65,8 @@ export default function BannerCarousel({ banners = [] }) {
   return (
     <section
       className={`promo-carousel${still ? " still" : ""}`}
+      // One box for every slide, so it takes the first banner's height.
+      style={banners[0]?.height ? { "--banner-h": `${banners[0].height}px` } : undefined}
       aria-roledescription="carousel"
       aria-label="Promotions"
       onMouseEnter={() => setHovered(true)}
@@ -90,25 +85,25 @@ export default function BannerCarousel({ banners = [] }) {
         const href = hrefFor(banner.target);
         const [lead, accent] = splitTitle(banner.title);
         const current = i === index;
-        const photo = banner.image ? img(banner.image, 1600) : BACKDROPS[i % BACKDROPS.length];
         const Wrap = href ? Link : "div";
         return (
           <Wrap
             key={banner.id || i}
             {...(href ? { href } : {})}
             className={`promo-slide${current ? " current" : ""}`}
+            style={bannerVars(banner)}
             aria-hidden={current ? undefined : true}
             tabIndex={current ? undefined : -1}
             aria-roledescription="slide"
             aria-label={`${i + 1} of ${count}: ${banner.title}`}
           >
             <img
-              src={photo}
-              alt={banner.title || "Fresh vegetables and fruits at The Farmers Basket"}
+              src={img(banner.image, 1600)}
+              alt={banner.title}
               className="promo-photo"
               loading={i === 0 ? "eager" : "lazy"}
               decoding="async"
-              style={banner.image ? { objectPosition: `${banner.focalX ?? 50}% ${banner.focalY ?? 50}%` } : undefined}
+              style={photoStyle(banner)}
             />
             <span className="promo-shade" aria-hidden="true" />
             <div className="promo-copy">

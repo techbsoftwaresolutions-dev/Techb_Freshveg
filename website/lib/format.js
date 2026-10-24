@@ -42,3 +42,31 @@ export function videoPoster(url, width = 1600) {
   if (typeof url !== "string" || !url.includes("/video/upload/")) return undefined;
   return url.replace("/video/upload/", `/video/upload/so_0,q_auto,w_${width},c_limit/`).replace(/\.\w+$/, ".jpg");
 }
+
+// How Banner 1 / Banner 2 frame their photo, as set in the admin: at 100% the
+// whole photo shows uncropped (contain), sitting at the chosen position; zoom
+// enlarges it around that same point. `scale` rather than `transform`, so it
+// stacks with any transform the slot already animates.
+export const photoStyle = (banner) => {
+  const focus = `${banner.focalX ?? 50}% ${banner.focalY ?? 50}%`;
+  return {
+    objectFit: "contain",
+    objectPosition: focus,
+    transformOrigin: focus,
+    scale: String((banner.imageScale ?? 100) / 100),
+  };
+};
+
+// Banner 1 / Banner 2's colours, wash and height from the admin, as CSS
+// variables the stylesheet reads (globals.css .story / .promo-*): --banner-bg
+// the banner's own colour, --fade-color the wash's, --fade-to how far across
+// the wash stays solid, --fade-opacity its strength, --banner-h the desktop
+// height. Unset colours fall back to the site's own; phones keep their own
+// height and wash shape.
+export const bannerVars = (banner) => ({
+  "--fade-to": `${banner.fade ?? 45}%`,
+  "--fade-opacity": (banner.fadeOpacity ?? 100) / 100,
+  ...(banner.backgroundColor ? { "--banner-bg": banner.backgroundColor } : {}),
+  ...(banner.fadeColor ? { "--fade-color": banner.fadeColor } : {}),
+  ...(banner.height ? { "--banner-h": `${banner.height}px` } : {}),
+});

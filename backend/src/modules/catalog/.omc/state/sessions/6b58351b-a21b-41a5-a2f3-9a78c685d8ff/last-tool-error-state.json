@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__ccd_turn__update_plan",
+  "tool_input_preview": "{\"items\":[{\"content\":\"Inspect categories, icons and storefront filters\",\"status\":\"completed\"},{\"content\":\"Disable cascade in backend\",\"status\":\"in_progress\"},{\"content\":\"Disable / Activate button on c...",
+  "error": "items also needs \"scope\": \"first_task\", \"continuation\" or \"new_task\" — what this request is to the session. Send the same items again with it.",
+  "timestamp": "2026-10-24T11:12:55.223Z",
+  "retry_count": 1
+}

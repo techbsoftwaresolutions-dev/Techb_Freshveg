@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__computer",
+  "tool_input_preview": "{\"action\":\"screenshot\"}",
+  "error": "There is no page to screenshot, zoom into or click — this tool only acts on a page in the Browser pane (not on files, the desktop or other apps). No preview is open. Use `preview_start` or `navigate` with {\"url\": \"https://…\"} to open a browser tab at a URL, or `preview_start` with {\"name\": \"…\"} to start a dev server from .claude/launch.json.",
+  "timestamp": "2026-10-24T10:04:10.011Z",
+  "retry_count": 1
+}

@@ -31,7 +31,13 @@ router.get(
         mobileImage: b.mobileImage,
         focalX: b.focalX,
         focalY: b.focalY,
+        imageScale: b.imageScale,
+        fade: b.fade,
+        fadeOpacity: b.fadeOpacity,
+        height: b.height,
         backgroundColor: b.backgroundColor,
+        fadeColor: b.fadeColor,
+        points: b.points,
         placement: b.placement,
         target: b.target,
       })),
@@ -64,7 +70,7 @@ router.get(
     res.json({
       success: true,
       ...result,
-      placements: ["home_hero", "home_strip", "category_top", "cart", "app_launch"],
+      placements: ["home_hero", "home_story", "home_strip", "category_top", "cart", "app_launch"],
     });
   })
 );

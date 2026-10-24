@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, toast } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, when } from "../../components/ui";
 
@@ -29,7 +29,30 @@ export default function Inventory() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [adjusting, setAdjusting] = useState(null);
+  const [adding, setAdding] = useState(null);
+  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
+  const searchable = tab === "stock" || tab === "low" || tab === "out";
+  // Category tabs, as on the Products page: the main (top-level) categories,
+  // each covering everything under it.
+  const [roots, setRoots] = useState([]);
+  const [category, setCategory] = useState("");
+
+  useEffect(() => {
+    api
+      .get("/catalog/categories/tree", { status: "active" })
+      .then(({ tree }) => setRoots(tree))
+      .catch(() => {});
+  }, []);
+
+  // Typing waits for a pause before asking the server again.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQ(search.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     api
@@ -48,29 +71,25 @@ export default function Inventory() {
       : tab === "out" ? "/inventory/out-of-stock"
       : tab === "expiring" ? "/inventory/expiring"
       : tab === "movements" ? "/inventory/movements"
-      : "/inventory";
+      : "/inventory/variants";
 
     api
-      .get(path, { store: store || undefined, page, limit: 20 })
+      .get(path, {
+        store: store || undefined,
+        page,
+        limit: 20,
+        q: searchable && q ? q : undefined,
+        category: category || undefined,
+      })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [tab, store, page]);
+  }, [tab, store, page, q, searchable, category]);
 
   useEffect(() => {
     if (!store && tab !== "movements") return;
     load();
   }, [load, store, tab]);
-
-  async function adjust(payload) {
-    try {
-      await api.post("/inventory/adjust", { ...payload, store });
-      setAdjusting(null);
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
 
   return (
     <div className="page">
@@ -83,19 +102,42 @@ export default function Inventory() {
       <Banner tone="error">{error}</Banner>
 
       <div className="toolbar">
-        {TABS.map((t) => (
+        {[{ id: "", name: "All" }, ...roots].map((root) => (
           <button
-            key={t.key}
-            className={`btn sm${tab === t.key ? " primary" : ""}`}
+            key={root.id || "all"}
+            className={`btn sm${category === root.id ? " primary" : ""}`}
             onClick={() => {
-              setTab(t.key);
+              setCategory(root.id);
               setPage(1);
             }}
           >
-            {t.label}
+            {root.name}
           </button>
         ))}
         <span className="spacer" />
+        <select
+          value={tab}
+          aria-label="Inventory view"
+          onChange={(e) => {
+            setTab(e.target.value);
+            setPage(1);
+          }}
+        >
+          {TABS.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        {searchable ? (
+          <input
+            type="search"
+            placeholder="Product, variant or SKU"
+            aria-label="Search inventory"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        ) : null}
         <select value={store} onChange={(e) => setStore(e.target.value)}>
           {stores.map((s) => (
             <option key={s.id} value={s.id}>
@@ -119,13 +161,16 @@ export default function Inventory() {
               columns={[
                 {
                   key: "product",
-                  label: "Item",
+                  label: "Product",
+                  render: (row) => <span className="row-title">{row.product?.name}</span>,
+                },
+                {
+                  key: "variant",
+                  label: "Variant",
                   render: (row) => (
                     <div className="stack">
-                      <span className="row-title">{row.product?.name}</span>
-                      <span className="row-sub">
-                        {row.variant?.name} · <span className="tag">{row.variant?.sku}</span>
-                      </span>
+                      <span>{row.variant?.name || "—"}</span>
+                      <span className="row-sub"><span className="tag">{row.variant?.sku}</span></span>
                     </div>
                   ),
                 },
@@ -168,11 +213,8 @@ export default function Inventory() {
                   align: "right",
                   render: (row) =>
                     editable && (
-                      <button
-                        className="btn sm"
-                        onClick={() => setAdjusting(row)}
-                      >
-                        Adjust
+                      <button className="btn sm" onClick={() => setAdding(row)}>
+                        Add stock
                       </button>
                     ),
                 },
@@ -181,12 +223,14 @@ export default function Inventory() {
               empty={
                 <Empty
                   title={
-                    tab === "low" ? "Nothing is running low"
+                    q ? `Nothing matches “${q}”`
+                    : tab === "low" ? "Nothing is running low"
                     : tab === "out" ? "Nothing is out of stock"
                     : "No stock recorded"
                   }
                   hint={
-                    tab === "low" ? "Every item is above its threshold."
+                    q ? "Try part of the product name, the pack size or the SKU."
+                    : tab === "low" ? "Every item is above its threshold."
                     : tab === "out" ? "Every item on sale at this store has at least one unit available."
                     : "Receive stock to get started."
                   }
@@ -198,8 +242,16 @@ export default function Inventory() {
         )}
       </Card>
 
-      {adjusting && (
-        <AdjustModal row={adjusting} onClose={() => setAdjusting(null)} onSave={adjust} />
+      {adding && (
+        <AddStockModal
+          row={adding}
+          store={store}
+          onClose={() => setAdding(null)}
+          onAdded={() => {
+            setAdding(null);
+            load();
+          }}
+        />
       )}
     </div>
   );
@@ -300,43 +352,73 @@ function ExpiringTable({ rows }) {
   );
 }
 
-function AdjustModal({ row, onClose, onSave }) {
-  const [quantity, setQuantity] = useState(row.onHand);
-  const [reason, setReason] = useState("Stock count");
+// Same call as the product page's Stock card (POST /inventory/receive): the
+// amount is added to what is on hand, never written over it, and lands in the
+// movement log as a "receive" with your name against it.
+function AddStockModal({ row, store, onClose, onAdded }) {
+  const [quantity, setQuantity] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const amount = Number(quantity);
+  const valid = Number.isInteger(amount) && amount > 0;
+  const pack = row.variant?.name || row.product?.unit || "units";
+
+  async function submit(event) {
+    event?.preventDefault();
+    if (!valid || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api.post("/inventory/receive", { store, variant: row.variant.id, quantity: amount });
+      toast("success", `Added ${amount} × ${pack} to ${row.product?.name}`);
+      onAdded();
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
 
   return (
     <Modal
-      title={`Adjust — ${row.product?.name}`}
-      onClose={onClose}
+      title={`Add stock — ${row.product?.name}${row.variant?.name ? ` · ${row.variant.name}` : ""}`}
+      onClose={busy ? () => {} : onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose}>
+          <button className="btn" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button
-            className="btn primary"
-            onClick={() => onSave({ variant: row.variant.id, quantity: Number(quantity), reason })}
-          >
-            Save adjustment
+          <button className="btn primary" onClick={submit} disabled={!valid || busy}>
+            {busy ? "Adding…" : "Add stock"}
           </button>
         </>
       }
     >
-      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        Enter the quantity actually on the shelf. The difference is written to the movement log with
-        your name against it.
-      </p>
-      <div className="grid cols-2">
-        <Field label="Counted quantity">
-          <input type="number" autoFocus value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+      <Banner tone="error">{error}</Banner>
+      <form onSubmit={submit} className="grid cols-2">
+        <Field label="Currently on hand">
+          <input type="text" value={`${row.onHand ?? 0} × ${pack}`} disabled />
         </Field>
-        <Field label="Currently recorded">
-          <input type="number" value={row.onHand} disabled />
+        <Field
+          label={`Quantity to add (${pack})`}
+          help={quantity && !valid ? "Enter a whole number above 0." : undefined}
+        >
+          <input
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            autoFocus
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+          />
         </Field>
-      </div>
-      <Field label="Reason">
-        <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} />
-      </Field>
+      </form>
+      {valid ? (
+        <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
+          On hand after: <strong>{(row.onHand ?? 0) + amount}</strong>
+        </p>
+      ) : null}
     </Modal>
   );
 }

@@ -403,8 +403,16 @@ function ExportMenu({ columns, rows, title }) {
 // but every page works without it (falls back to "export"), so adding
 // sorting and download buttons here reaches every list in the app without
 // having to touch each page's own columns.
-export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
+// Every table pages itself past this many rows. Lists the server already
+// pages come in 20–25 at a time, so they never reach it and keep only their
+// own <Pagination>; this covers the ones fetched whole (low stock, report
+// rows, a customer's orders…).
+const TABLE_PAGE_SIZE = 25;
+
+// `pageSize` sets a smaller page for a short list that should still page.
+export function Table({ columns, rows, empty, onRowClick, keyOf, title, pageSize = TABLE_PAGE_SIZE }) {
   const [sort, setSort] = useState({ key: null, dir: 1 });
+  const [page, setPage] = useState(1);
 
   const sortedRows = useMemo(() => {
     if (!sort.key) return rows;
@@ -419,53 +427,63 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
 
   if (!rows.length) return empty || <Empty title="Nothing here yet" />;
 
+  // Clamped rather than reset, so deleting the last row of a page lands on
+  // the one before instead of back at page 1.
+  const pages = Math.ceil(sortedRows.length / pageSize);
+  const current = Math.min(page, pages);
+  const pageRows = pages > 1 ? sortedRows.slice((current - 1) * pageSize, current * pageSize) : sortedRows;
+
   return (
-    <div className="table-wrap">
-      <table className="data">
-        <thead>
-          <tr>
-            {columns.map((col, i) => {
-              const sortable = col.sortable !== false;
-              const last = i === columns.length - 1;
-              return (
-                <th
-                  key={col.key}
-                  className={[col.align === "right" ? "num" : "", sortable ? "sortable" : "", last ? "export-th" : ""].filter(Boolean).join(" ")}
-                  style={col.width ? { width: col.width } : undefined}
-                  onClick={sortable ? () => toggleSort(col.key) : undefined}
-                >
-                  {col.label}
-                  {sortable && sort.key === col.key ? (
-                    <span className="sort-arrow">{sort.dir === 1 ? " ▲" : " ▼"}</span>
-                  ) : null}
-                  {last ? <ExportMenu columns={columns} rows={sortedRows} title={title} /> : null}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {sortedRows.map((row, index) => (
-            <tr
-              key={keyOf ? keyOf(row) : row.id || index}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-              style={onRowClick ? { cursor: "pointer" } : undefined}
-            >
-              {columns.map((col) => (
-                <td key={col.key} className={col.align === "right" ? "num" : ""}>
-                  {col.render ? col.render(row) : row[col.key]}
-                </td>
-              ))}
+    <>
+      <div className="table-wrap">
+        <table className="data">
+          <thead>
+            <tr>
+              {columns.map((col, i) => {
+                const sortable = col.sortable !== false;
+                const last = i === columns.length - 1;
+                return (
+                  <th
+                    key={col.key}
+                    className={[col.align === "right" ? "num" : "", sortable ? "sortable" : "", last ? "export-th" : ""].filter(Boolean).join(" ")}
+                    style={col.width ? { width: col.width } : undefined}
+                    onClick={sortable ? () => toggleSort(col.key) : undefined}
+                  >
+                    {col.label}
+                    {sortable && sort.key === col.key ? (
+                      <span className="sort-arrow">{sort.dir === 1 ? " ▲" : " ▼"}</span>
+                    ) : null}
+                    {last ? <ExportMenu columns={columns} rows={sortedRows} title={title} /> : null}
+                  </th>
+                );
+              })}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {pageRows.map((row, index) => (
+              <tr
+                key={keyOf ? keyOf(row) : row.id || index}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                style={onRowClick ? { cursor: "pointer" } : undefined}
+              >
+                {columns.map((col) => (
+                  <td key={col.key} className={col.align === "right" ? "num" : ""}>
+                    {col.render ? col.render(row) : row[col.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Pagination meta={{ page: current, pages, total: sortedRows.length }} onPage={setPage} />
+    </>
   );
 }
 
 export function Pagination({ meta, onPage }) {
-  if (!meta || meta.pages <= 1) return null;
+  // Some lists send meta without pages (unpaged reports) — nothing to page.
+  if (!(meta?.pages > 1)) return null;
   return (
     <div className="inline" style={{ justifyContent: "flex-end", padding: "12px 16px", gap: 10 }}>
       <span className="faint" style={{ fontSize: 12 }}>
@@ -521,24 +539,48 @@ export function Tabs({ tabs, active, onChange }) {
   );
 }
 
+const DATE_PRESETS = [
+  { days: 1, label: "Today" },
+  { days: 7, label: "7 days" },
+  { days: 30, label: "30 days" },
+];
+
 // From/to pickers with the presets people actually use, so nobody types dates
-// to answer "how did we do this week?".
-export function DateRange({ value, onChange }) {
-  const preset = (days) => {
+// to answer "how did we do this week?". `dropdown` shows the presets as one
+// select instead of three buttons.
+export function DateRange({ value, onChange, dropdown = false }) {
+  const span = (days) => {
     const to = new Date();
     const from = new Date();
     from.setDate(from.getDate() - (days - 1));
-    onChange({
-      from: from.toISOString().slice(0, 10),
-      to: to.toISOString().slice(0, 10),
-    });
+    return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
   };
+  const preset = (days) => onChange(span(days));
+  // The select shows a preset only while the dates still match it exactly.
+  const current = DATE_PRESETS.find(({ days }) => {
+    const s = span(days);
+    return s.from === value.from && s.to === value.to;
+  });
 
   return (
     <div className="inline" style={{ gap: 6 }}>
-      <button className="btn sm" onClick={() => preset(1)}>Today</button>
-      <button className="btn sm" onClick={() => preset(7)}>7 days</button>
-      <button className="btn sm" onClick={() => preset(30)}>30 days</button>
+      {dropdown ? (
+        <select
+          aria-label="Date range"
+          value={current ? current.days : ""}
+          onChange={(e) => (e.target.value ? preset(Number(e.target.value)) : onChange({ from: "", to: "" }))}
+          style={{ width: "auto", minWidth: 0 }}
+        >
+          <option value="">{value.from || value.to ? "Custom dates" : "All dates"}</option>
+          {DATE_PRESETS.map(({ days, label }) => (
+            <option key={days} value={days}>{label}</option>
+          ))}
+        </select>
+      ) : (
+        DATE_PRESETS.map(({ days, label }) => (
+          <button key={days} className="btn sm" onClick={() => preset(days)}>{label}</button>
+        ))
+      )}
       <input
         type="date"
         value={value.from || ""}

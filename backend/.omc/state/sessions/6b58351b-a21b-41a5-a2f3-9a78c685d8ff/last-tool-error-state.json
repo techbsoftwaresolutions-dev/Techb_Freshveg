@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__javascript_tool",
+  "tool_input_preview": "{\"action\":\"javascript_exec\",\"text\":\"const src = await fetch(\\\"/src/components/SelectMenu.jsx\\\").then(r => r.text());\\nconst reactUrl = src.match(/from\\\\s+\\\"(\\\\/node_modules\\\\/\\\\.vite\\\\/deps\\\\/react\\\\....",
+  "error": "javascript_tool failed: TypeError: createRoot is not a function\n    at <anonymous>:15:17",
+  "timestamp": "2026-10-24T11:21:09.780Z",
+  "retry_count": 1
+}

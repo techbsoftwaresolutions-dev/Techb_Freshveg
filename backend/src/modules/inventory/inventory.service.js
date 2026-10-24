@@ -138,7 +138,8 @@ async function availability(storeId, variantId) {
 // onHand. Produce arrives as a batch with a harvest date; a carton of soap
 // arrives as a plain quantity.
 async function receive(storeId, variantId, quantity, options = {}, session = null) {
-  if (quantity <= 0) throw ApiError.badRequest("Receive quantity must be positive");
+  // Also catches NaN from a non-numeric body ("abc" <= 0 is false).
+  if (!Number.isFinite(quantity) || quantity <= 0) throw ApiError.badRequest("Receive quantity must be positive");
 
   const row = await getOrCreateRow(storeId, variantId, session);
   const before = { onHand: row.onHand, reserved: row.reserved };

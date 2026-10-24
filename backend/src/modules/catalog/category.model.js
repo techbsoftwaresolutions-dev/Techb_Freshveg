@@ -41,6 +41,10 @@ const categorySchema = new mongoose.Schema(
 
     seq: { type: Number, default: 0 },
     status: { type: String, enum: ["active", "hidden", "archived"], default: "active", index: true },
+    // Set when this category was hidden because an ancestor was disabled
+    // (Admin → Categories → Disable), so activating that ancestor brings back
+    // exactly what it hid. null when its status was set on it directly.
+    hiddenBy: objectId("Category", { default: null, index: true }),
     showInNav: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
 

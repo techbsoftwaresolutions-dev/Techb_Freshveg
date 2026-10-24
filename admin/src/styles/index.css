@@ -565,7 +565,9 @@ table.data th.sortable:hover { color: var(--text); }
 /* The export icon rides in the last header cell, out of flow, so the table
    keeps its columns and no extra row is spent on it. */
 table.data th.export-th { position: relative; padding-right: 44px; }
-.export-menu { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); text-transform: none; letter-spacing: 0; }
+/* Centred with flex, not transform: a transformed ancestor becomes the
+   containing block for the position:fixed popover and throws it off-screen. */
+.export-menu { position: absolute; right: 8px; top: 0; bottom: 0; display: flex; align-items: center; text-transform: none; letter-spacing: 0; }
 .export-menu .icon-btn { width: 30px; height: 30px; padding: 0; justify-content: center; }
 .export-menu .icon-btn svg { flex: 0 0 auto; }
 .export-menu-pop {
@@ -769,6 +771,9 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   border-color: var(--danger);
 }
 textarea { min-height: 76px; resize: vertical; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+/* A colour picker's swatch (ColorField). */
+input[type="color"] { flex: 0 0 auto; width: 44px; height: 32px; padding: 2px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); cursor: pointer; }
 
 .checkbox { display: flex; align-items: center; gap: 8px; font-weight: 450; cursor: pointer; }
 .checkbox input { width: 15px; height: 15px; accent-color: var(--accent); }
@@ -1055,9 +1060,13 @@ textarea { min-height: 76px; resize: vertical; }
 .select-menu-option.heading { font-weight: 600; margin-top: 4px; }
 .select-menu-option.heading:first-child { margin-top: 0; }
 .select-menu-option.empty { color: var(--text-muted); }
+.select-menu-option.disabled { opacity: 0.45; cursor: not-allowed; }
 .select-menu-option.active { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
 .select-menu-option.selected { background: var(--accent-soft); color: var(--accent); font-weight: 600; box-shadow: none; }
 .select-menu-label { flex: 1; min-width: 0; }
+/* An option's emoji icon (categories), in the list and on the closed button. */
+.select-menu-icon { flex: 0 0 auto; width: 20px; font-size: 15px; line-height: 1; text-align: center; }
+.select-menu-value .select-menu-icon { display: inline-block; margin-right: 6px; }
 .select-menu-hint { font-size: 12px; color: var(--text-faint); }
 .select-menu-option svg { flex: 0 0 auto; color: var(--accent); }
 .select-menu-none { padding: 14px 12px; font-size: 13px; color: var(--text-faint); text-align: center; }
@@ -1701,3 +1710,74 @@ textarea { min-height: 76px; resize: vertical; }
 
 /* Which app a build-time icon belongs to, so it is never uploaded to the wrong one. */
 .brand-app { display: inline-block; margin-bottom: 8px; font-weight: 600; }
+
+/* Banner form preview — Banner 1 (farms story) and Banner 2 (promo strip)
+   rebuilt with the storefront's own desktop rules (website/app/globals.css:
+   .story, .hero-eyebrow, .hero-features, .promo-*) at the site's full content
+   width, 1200px, then scaled down to fit the form (BannerPreview). Same
+   fonts, sizes and wash, so what is set here is what the site shows. Keep in
+   step with globals.css when the site's banner styles change. */
+.sb-frame { position: relative; overflow: hidden; margin-bottom: 18px; }
+.sb-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1200px;
+  transform-origin: 0 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #12261b;
+  -webkit-font-smoothing: antialiased;
+}
+.sb-stage h2 { margin: 0; letter-spacing: -0.01em; }
+.sb-photo { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: none; }
+
+.sb-story {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  min-height: var(--banner-h, 210px);
+  border: 1px solid #dbeee1;
+  border-radius: 20px;
+  background: var(--banner-bg, #f2f9f3);
+}
+.sb-story::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, var(--fade-color, #f2f9f3) 0%, var(--fade-color, #f2f9f3) var(--fade-to, 45%), transparent calc(var(--fade-to, 45%) + 25%));
+  opacity: var(--fade-opacity, 1);
+}
+.sb-story-copy { position: relative; z-index: 2; padding: 30px 40px; }
+.sb-eyebrow { display: block; margin-bottom: 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: #1b7a3a; }
+.sb-story-title { font-family: "DM Serif Display", Georgia, "Times New Roman", serif; font-size: 38px; font-weight: 400; line-height: 1.1; letter-spacing: 0; color: #0f4a23; }
+.sb-features { display: flex; flex-wrap: wrap; margin: 20px 0 0; padding: 0; list-style: none; }
+.sb-features li { display: flex; align-items: center; gap: 12px; padding-right: 26px; font-size: 13px; font-weight: 500; line-height: 1.35; white-space: pre-line; color: #12261b; }
+.sb-features li + li { padding-left: 26px; border-left: 1px solid #cfe3d5; }
+.sb-features svg { flex: 0 0 auto; width: 44px; height: 44px; padding: 10px; border: 1.5px solid #1b7a3a; border-radius: 50%; background: rgba(255, 255, 255, 0.75); color: #1b7a3a; }
+
+.sb-strip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--banner-h, 320px);
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 24px;
+  background: var(--banner-bg, #0f4a23);
+  color: #fff;
+}
+.sb-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--fade-color, #0f4a23) 0%, var(--fade-color, #0f4a23) var(--fade-to, 45%), transparent calc(var(--fade-to, 45%) + 25%));
+  opacity: var(--fade-opacity, 1);
+}
+.sb-strip-copy { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; max-width: min(560px, 58%); padding: 0 0 18px 56px; }
+.sb-strip-title { margin: 0 0 10px; font-family: "DM Serif Display", Georgia, "Times New Roman", serif; font-size: 46px; font-weight: 400; line-height: 1.06; letter-spacing: 0; color: #fff; text-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); }
+.sb-strip-title span { display: block; color: #b8ec8a; }
+.sb-strip-copy p { margin: 0 0 18px; font-size: 17px; line-height: 1.45; color: rgba(255, 255, 255, 0.92); }
+.sb-cue { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 24px; border-radius: 999px; background: #fff; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14); color: #135c2b; font-size: 16px; font-weight: 700; }

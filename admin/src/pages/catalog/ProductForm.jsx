@@ -844,11 +844,21 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                         disabled={!editable}
                       >
                         <option value="">—</option>
-                        {axis.options.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
+                        {/* A disabled option (General settings → Units) is
+                            offered only to the pack that already has it. */}
+                        {axis.options
+                          .filter(
+                            (option) =>
+                              option.active !== false ||
+                              option.value ===
+                                (variant.axis?.[axis.code] ??
+                                  variant.axisValues?.find((a) => a.code === axis.code)?.value)
+                          )
+                          .map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.active === false ? `${option.label} (disabled)` : option.label}
+                            </option>
+                          ))}
                       </select>
                     ) : (
                       <input

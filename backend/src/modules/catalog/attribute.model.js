@@ -15,6 +15,9 @@ const optionSchema = new mongoose.Schema(
     hex: { type: String, default: "" },
     image: { type: String, default: "" },
     seq: { type: Number, default: 0 },
+    // A disabled option is no longer offered for new choices; what already
+    // uses it keeps it (and still validates).
+    active: { type: Boolean, default: true },
   },
   { _id: false }
 );

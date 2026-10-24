@@ -122,9 +122,7 @@ export default function Products() {
             {root.name}
           </button>
         ))}
-      </div>
-
-      <div className="toolbar">
+        <span className="spacer" />
         <input
           type="search"
           placeholder="Search products…"

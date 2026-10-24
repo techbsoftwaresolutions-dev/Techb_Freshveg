@@ -3,6 +3,7 @@ import { api, toast } from "../../api/client";
 import { Banner, Card, Field, Loading, Pill, Tabs } from "../../components/ui";
 import { refreshBranding } from "../../api/branding";
 import VideoHeroConfig from "./VideoHeroConfig";
+import PackSizes from "./PackSizes";
 
 
 // A save's confirmation, as a toast (components/Toaster.jsx).
@@ -19,6 +20,7 @@ const SECTIONS = [
   { key: "app", label: "Apps" },
   { key: "website", label: "Website" },
   { key: "branding", label: "Branding" },
+  { key: "units", label: "Units" },
 ];
 
 // The homepage layouts the storefront can render (settings.website.homeTemplate).
@@ -601,10 +603,18 @@ export default function General() {
           </>
         ) : null}
 
-        <div className="divider" />
-        <button className="btn primary" disabled={saving} onClick={save}>
-          {saving ? "Saving…" : `Save ${SECTIONS.find((s) => s.key === section)?.label.toLowerCase()} settings`}
-        </button>
+        {/* Units are pack sizes, not a settings section: each change there
+            saves on its own, so that tab has no Save button. */}
+        {section === "units" ? (
+          <PackSizes />
+        ) : (
+          <>
+            <div className="divider" />
+            <button className="btn primary" disabled={saving} onClick={save}>
+              {saving ? "Saving…" : `Save ${SECTIONS.find((s) => s.key === section)?.label.toLowerCase()} settings`}
+            </button>
+          </>
+        )}
       </Card>
     </div>
   );

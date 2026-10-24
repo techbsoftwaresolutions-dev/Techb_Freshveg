@@ -144,21 +144,27 @@
   },
   "hotPaths": [
     {
+      "path": "src/modules/settings/settings.routes.js",
+      "accessCount": 9,
+      "lastAccessed": 1792842666220,
+      "type": "file"
+    },
+    {
       "path": "src/modules/storage/providers.js",
       "accessCount": 4,
       "lastAccessed": 1792236801312,
       "type": "file"
     },
     {
-      "path": "src/modules/settings/settings.routes.js",
-      "accessCount": 3,
-      "lastAccessed": 1791981149690,
+      "path": "src/modules/settings/settings.model.js",
+      "accessCount": 4,
+      "lastAccessed": 1792842646348,
       "type": "file"
     },
     {
-      "path": "src/modules/settings/settings.model.js",
-      "accessCount": 2,
-      "lastAccessed": 1792058745806,
+      "path": "src/modules/inventory/inventory.routes.js",
+      "accessCount": 3,
+      "lastAccessed": 1792827130079,
       "type": "file"
     },
     {
@@ -171,6 +177,30 @@
       "path": "test/productPhoto.test.js",
       "accessCount": 2,
       "lastAccessed": 1792236952777,
+      "type": "file"
+    },
+    {
+      "path": "test/inventoryReceive.test.js",
+      "accessCount": 2,
+      "lastAccessed": 1792827166400,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/catalog/product.model.js",
+      "accessCount": 2,
+      "lastAccessed": 1792840392824,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/catalog/category.service.js",
+      "accessCount": 2,
+      "lastAccessed": 1792840412809,
+      "type": "file"
+    },
+    {
+      "path": "test/categoryDisable.test.js",
+      "accessCount": 2,
+      "lastAccessed": 1792840678158,
       "type": "file"
     },
     {
@@ -273,6 +303,60 @@
       "path": "src/modules/orders/order.model.js",
       "accessCount": 1,
       "lastAccessed": 1792236809190,
+      "type": "file"
+    },
+    {
+      "path": "test/helpers.js",
+      "accessCount": 1,
+      "lastAccessed": 1792826496372,
+      "type": "file"
+    },
+    {
+      "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/33806b56-7627-4c01-a544-e5c9d1d85eed/tasks/b9vjb0m82.output",
+      "accessCount": 1,
+      "lastAccessed": 1792826927504,
+      "type": "file"
+    },
+    {
+      "path": "test/banners.test.js",
+      "accessCount": 1,
+      "lastAccessed": 1792836955025,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/marketing/banner.model.js",
+      "accessCount": 1,
+      "lastAccessed": 1792837139306,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/catalog/category.model.js",
+      "accessCount": 1,
+      "lastAccessed": 1792840389840,
+      "type": "file"
+    },
+    {
+      "path": "test/units.test.js",
+      "accessCount": 1,
+      "lastAccessed": 1792842667317,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/catalog/attribute.model.js",
+      "accessCount": 1,
+      "lastAccessed": 1792844285028,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/catalog/catalog.routes.js",
+      "accessCount": 1,
+      "lastAccessed": 1792844286335,
+      "type": "file"
+    },
+    {
+      "path": "test/packSizes.test.js",
+      "accessCount": 1,
+      "lastAccessed": 1792844306929,
       "type": "file"
     }
   ],

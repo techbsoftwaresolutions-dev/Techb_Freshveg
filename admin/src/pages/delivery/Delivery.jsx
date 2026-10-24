@@ -94,7 +94,7 @@ function Report() {
           <option value="CANCELLED,REJECTED">Cancelled</option>
         </select>
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateRange value={range} onChange={setRange} dropdown />
       </div>
 
       <Card tight>
@@ -189,7 +189,7 @@ function Partners() {
     <>
       <div className="toolbar">
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateRange value={range} onChange={setRange} dropdown />
       </div>
 
       <Card tight>

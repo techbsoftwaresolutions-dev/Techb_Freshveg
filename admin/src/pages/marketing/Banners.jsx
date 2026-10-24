@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
@@ -9,11 +9,17 @@ import {
 
 const PLACEMENT_LABEL = {
   home_hero: "Home — hero",
-  home_strip: "Home — strip",
+  home_story: "Home — Banner 1 (from our farms)",
+  home_strip: "Home — Banner 2 (promo)",
   category_top: "Category — top",
   cart: "Cart",
   app_launch: "App launch",
 };
+
+// What the banner form offers: the home page's Banner 1 and Banner 2. The
+// hero is set up in its own section; a banner already in another slot keeps
+// that slot when edited, it just can't be moved into one.
+const FORM_PLACEMENTS = ["home_story", "home_strip"];
 
 export default function Banners() {
   const { can } = useAuth();
@@ -224,8 +230,8 @@ export default function Banners() {
 }
 
 // /marketing/banners/new and /marketing/banners/:id — the banner form as its
-// own page. There is no single-banner endpoint, so the list (which also
-// carries the placement options) is read and the one banner picked out.
+// own page. There is no single-banner endpoint, so the list is read and the
+// one banner picked out.
 export function BannerFormPage() {
   return (
     <FormRoute
@@ -234,24 +240,29 @@ export function BannerFormPage() {
       load={async (id) => {
         const data = await api.get("/banners", { limit: 100 });
         const banner = id ? data.items.find((b) => b.id === id) : {};
-        return banner ? { banner, placements: data.placements } : null;
+        return banner ? { banner } : null;
       }}
-      render={({ banner, placements }, back) => (
-        <BannerModal banner={banner} placements={placements} onClose={back} onSaved={back} />
-      )}
+      render={({ banner }, back) => <BannerModal banner={banner} onClose={back} onSaved={back} />}
     />
   );
 }
 
-function BannerModal({ banner, placements, onClose, onSaved }) {
+function BannerModal({ banner, onClose, onSaved }) {
   const [form, setForm] = useState({
     title: banner.title || "",
     subtitle: banner.subtitle || "",
     image: banner.image || "",
-    focalX: banner.focalX ?? 50,
+    // A new banner's photo starts on the right, clear of the words.
+    focalX: banner.focalX ?? 100,
     focalY: banner.focalY ?? 50,
+    imageScale: banner.imageScale ?? 100,
+    fade: banner.fade ?? 45,
+    fadeOpacity: banner.fadeOpacity ?? 100,
+    height: banner.height ?? null,
     backgroundColor: banner.backgroundColor || "",
-    placement: banner.placement || "home_hero",
+    fadeColor: banner.fadeColor || "",
+    points: [0, 1, 2].map((i) => banner.points?.[i] || ""),
+    placement: banner.placement || "home_story",
     target: banner.target || { kind: "none", value: "" },
     status: banner.status || "draft",
     seq: banner.seq || 0,
@@ -260,6 +271,9 @@ function BannerModal({ banner, placements, onClose, onSaved }) {
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+
+  const isStory = form.placement === "home_story";
+  const isHomeBanner = isStory || form.placement === "home_strip";
 
   const FOCAL_POINTS = [
     [0, 0], [50, 0], [100, 0],
@@ -271,8 +285,9 @@ function BannerModal({ banner, placements, onClose, onSaved }) {
     setBusy(true);
     setError("");
     try {
-      if (banner.id) await api.patch(`/banners/${banner.id}`, form);
-      else await api.post("/banners", form);
+      const body = { ...form, points: form.points.map((p) => p.trim()).filter(Boolean) };
+      if (banner.id) await api.patch(`/banners/${banner.id}`, body);
+      else await api.post("/banners", body);
       onSaved();
     } catch (err) {
       setError(err.message);
@@ -296,18 +311,32 @@ function BannerModal({ banner, placements, onClose, onSaved }) {
       }
     >
       <Notice tone="error">{error}</Notice>
+      {isHomeBanner && !form.image ? (
+        <Notice tone="info">This banner only shows on the home page once it has both a title and an image.</Notice>
+      ) : null}
+
+      {isHomeBanner ? (
+        <>
+          <div className="section-label" style={{ marginTop: 0 }}>
+            Preview <span className="faint">— how it looks on the home page</span>
+          </div>
+          <BannerPreview form={form} />
+        </>
+      ) : null}
 
       <div className="grid cols-2">
         <Field label="Title"><input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field>
-        <Field label="Subtitle"><input type="text" value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} /></Field>
+        <Field label={isStory ? "Eyebrow (small text above the title)" : "Subtitle"}><input type="text" value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} /></Field>
       </div>
 
       <div className="grid cols-2">
-        <Field
-          label="Image"
-          help="Upload a photo, or paste an image URL directly. Hover the preview to set which part of it stays visible when the slot crops it (the hero banner in particular stretches this very wide)."
-        >
-          {form.image ? (
+        {/* Left: the photo and how it's framed. Right: the wash, the height
+            and the background colour. */}
+        <div className="stack">
+        <Field label="Image">
+          {/* Banner 1 / 2 are framed with the sliders and seen in the
+              preview above; the crop grid is for the other slots. */}
+          {form.image && !isHomeBanner ? (
             <div className="media-thumb wide" style={{ marginBottom: 10 }}>
               <img
                 src={form.image}
@@ -330,7 +359,7 @@ function BannerModal({ banner, placements, onClose, onSaved }) {
           ) : null}
           <div className="inline" style={{ gap: 10, alignItems: "center" }}>
             <label className="btn sm" style={{ cursor: uploading ? "default" : "pointer", opacity: uploading ? 0.6 : 1 }}>
-              {uploading ? "Uploading…" : "Upload photo"}
+              {uploading ? "Uploading…" : form.image ? "Replace photo" : "Upload photo"}
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
@@ -355,27 +384,120 @@ function BannerModal({ banner, placements, onClose, onSaved }) {
             </label>
           </div>
           {uploadError ? <span className="field-error" style={{ color: "var(--danger)", fontSize: 12 }}>{uploadError}</span> : null}
-          <input
-            type="text"
-            value={form.image}
-            onChange={(e) => setForm({ ...form, image: e.target.value })}
-            placeholder="Or paste an image URL"
-            style={{ marginTop: 8 }}
-          />
         </Field>
-        <Field label="Background colour">
-          <input type="text" value={form.backgroundColor} onChange={(e) => setForm({ ...form, backgroundColor: e.target.value })} placeholder="#E8F6ED" />
-        </Field>
+          {isHomeBanner ? (
+            <>
+              <Field
+                label={`Zoom — ${form.imageScale}%${form.imageScale === 100 ? " (whole photo)" : ""}`}
+                help="100% shows the whole photo, nothing cut off. Zoom in, then use the two sliders below to pick which part stays in view."
+              >
+                <input
+                  type="range"
+                  min="100"
+                  max="300"
+                  step="5"
+                  value={form.imageScale}
+                  onChange={(e) => setForm({ ...form, imageScale: Number(e.target.value) })}
+                />
+              </Field>
+              <Field label={`Left ↔ right — ${form.focalX}%`}>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={form.focalX}
+                  aria-label="Photo position, left to right"
+                  onChange={(e) => setForm({ ...form, focalX: Number(e.target.value) })}
+                />
+              </Field>
+              <Field label={`Top ↕ bottom — ${form.focalY}%`}>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={form.focalY}
+                  aria-label="Photo position, top to bottom"
+                  onChange={(e) => setForm({ ...form, focalY: Number(e.target.value) })}
+                />
+              </Field>
+            </>
+          ) : null}
+        </div>
+        <div className="stack">
+          {isHomeBanner ? (
+            <>
+              <Field
+                label={`Fade — covers ${form.fade}% of the banner`}
+                help="How far across, from the left, the colour wash covers the photo. 100% covers all of it; 50% the left half, then softens out."
+              >
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={form.fade}
+                  onChange={(e) => setForm({ ...form, fade: Number(e.target.value) })}
+                />
+              </Field>
+              <Field label={`Fade opacity — ${form.fadeOpacity}%`} help="How strong the wash is: 100% solid, 0% none.">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={form.fadeOpacity}
+                  onChange={(e) => setForm({ ...form, fadeOpacity: Number(e.target.value) })}
+                />
+              </Field>
+              <ColorField
+                label="Fade colour"
+                value={form.fadeColor}
+                fallback={SITE_COLORS[form.placement].fade}
+                onChange={(fadeColor) => setForm({ ...form, fadeColor })}
+              />
+              <Field
+                label={`Banner height — ${form.height ?? SITE_HEIGHT[form.placement]}px${form.height ? "" : " (site default)"}`}
+                help="How tall the banner is on computers and tablets. Phones keep their own size."
+              >
+                <div className="inline" style={{ gap: 8, flexWrap: "nowrap" }}>
+                  <input
+                    type="range"
+                    min="120"
+                    max="600"
+                    step="10"
+                    value={form.height ?? SITE_HEIGHT[form.placement]}
+                    onChange={(e) => setForm({ ...form, height: Number(e.target.value) })}
+                  />
+                  {form.height ? (
+                    <button type="button" className="btn ghost sm" onClick={() => setForm({ ...form, height: null })}>
+                      Reset
+                    </button>
+                  ) : null}
+                </div>
+              </Field>
+            </>
+          ) : null}
+        <ColorField
+          label="Background colour"
+          value={form.backgroundColor}
+          fallback={SITE_COLORS[form.placement]?.background || "#e8f6ed"}
+          onChange={(backgroundColor) => setForm({ ...form, backgroundColor })}
+        />
+        </div>
       </div>
 
       <div className="grid cols-3">
         <Field label="Placement">
           <select value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })}>
-            {(placements || Object.keys(PLACEMENT_LABEL)).map((key) => (
+            {(banner.placement && !FORM_PLACEMENTS.includes(banner.placement)
+              ? [...FORM_PLACEMENTS, banner.placement]
+              : FORM_PLACEMENTS
+            ).map((key) => (
               <option key={key} value={key}>{PLACEMENT_LABEL[key] || key}</option>
             ))}
           </select>
         </Field>
+        {isStory ? null : (<>
         <Field label="Tapping it opens">
           <select
             value={form.target.kind}
@@ -397,7 +519,22 @@ function BannerModal({ banner, placements, onClose, onSaved }) {
             disabled={form.target.kind === "none"}
           />
         </Field>
+        </>)}
       </div>
+
+      {isStory ? (
+        <div className="grid cols-3">
+          {form.points.map((point, i) => (
+            <Field key={i} label={`Point ${i + 1}`} help={i === 0 ? "Line breaks are kept. Leave empty to drop it." : undefined}>
+              <textarea
+                rows={2}
+                value={point}
+                onChange={(e) => setForm({ ...form, points: form.points.map((p, j) => (j === i ? e.target.value : p)) })}
+              />
+            </Field>
+          ))}
+        </div>
+      ) : null}
 
       <div className="grid cols-2">
         <Field label="Status">
@@ -414,3 +551,151 @@ function BannerModal({ banner, placements, onClose, onSaved }) {
     </Modal>
   );
 }
+
+// The storefront's full content width (website: --max 1240px less the 20px
+// gutters) — the preview is built at this size, then scaled to fit the form.
+const SITE_WIDTH = 1200;
+// Each banner's height on the site when none is set (globals.css: .story
+// min-height, .promo-carousel at full desktop width).
+const SITE_HEIGHT = { home_story: 210, home_strip: 320 };
+// And their colours when none is set (globals.css: --brand-mist / --brand-deep).
+const SITE_COLORS = {
+  home_story: { background: "#f2f9f3", fade: "#f2f9f3" },
+  home_strip: { background: "#0f4a23", fade: "#0f4a23" },
+};
+
+// A colour picker plus its hex code. Empty means the site's own colour
+// (`fallback`, shown in the picker); Reset goes back to it.
+function ColorField({ label, value, fallback, onChange }) {
+  const shown = value || fallback;
+  return (
+    <Field label={label}>
+      <div className="inline" style={{ gap: 8, flexWrap: "nowrap", alignItems: "center" }}>
+        <input type="color" value={shown} aria-label={label} onChange={(e) => onChange(e.target.value)} />
+        <code style={{ fontSize: 12.5 }}>{shown.toUpperCase()}</code>
+        {value ? (
+          <button type="button" className="btn ghost sm" onClick={() => onChange("")}>
+            Reset
+          </button>
+        ) : (
+          <span className="faint" style={{ fontSize: 12 }}>site default</span>
+        )}
+      </div>
+    </Field>
+  );
+}
+
+// Banner 1 and Banner 2 with the storefront's own markup and desktop styles
+// (website/app/page.jsx, components/BannerCarousel.jsx, lib/format.js), so
+// zoom, position, fade and height look here exactly as they will there.
+function BannerPreview({ form }) {
+  const focus = `${form.focalX}% ${form.focalY}%`;
+  const vars = {
+    "--fade-to": `${form.fade}%`,
+    "--fade-opacity": form.fadeOpacity / 100,
+    ...(form.backgroundColor ? { "--banner-bg": form.backgroundColor } : {}),
+    ...(form.fadeColor ? { "--fade-color": form.fadeColor } : {}),
+    ...(form.height ? { "--banner-h": `${form.height}px` } : {}),
+  };
+  const photo = form.image ? (
+    <img
+      className="sb-photo"
+      src={form.image}
+      alt=""
+      style={{ objectFit: "contain", objectPosition: focus, transformOrigin: focus, scale: String(form.imageScale / 100) }}
+    />
+  ) : null;
+
+  if (form.placement === "home_story") {
+    const points = form.points.map((p) => p.trim()).filter(Boolean);
+    return (
+      <ScaledToFit>
+        <section className="sb-story" style={vars}>
+          {photo}
+          <div className="sb-story-copy">
+            {form.subtitle ? <span className="sb-eyebrow">{form.subtitle}</span> : null}
+            <h2 className="sb-story-title">{form.title || "Banner title"}</h2>
+            {points.length ? (
+              <ul className="sb-features">
+                {points.slice(0, 3).map((point, i) => (
+                  <li key={i}>
+                    {STORY_ICONS[i]}
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </section>
+      </ScaledToFit>
+    );
+  }
+
+  // Same split as the storefront: after the first comma (or ?!:) the rest of
+  // the title takes the light-green accent.
+  const title = form.title || "Banner title";
+  const match = title.match(/^(.+?[,?!:])\s+(.+)$/);
+  const [lead, accent] = match ? [match[1], match[2]] : [title, ""];
+  return (
+    <ScaledToFit>
+      <div className="sb-strip" style={vars}>
+        {photo}
+        <span className="sb-shade" aria-hidden="true" />
+        <div className="sb-strip-copy">
+          <h2 className="sb-strip-title">
+            {lead}
+            {accent ? <span>{accent}</span> : null}
+          </h2>
+          {form.subtitle ? <p>{form.subtitle}</p> : null}
+          {form.target.kind !== "none" ? (
+            <span className="sb-cue">
+              Shop Now
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </ScaledToFit>
+  );
+}
+
+// Draws its child at SITE_WIDTH and scales it down to the available width,
+// so every size inside stays in the site's proportions.
+function ScaledToFit({ children }) {
+  const frame = useRef(null);
+  const stage = useRef(null);
+  const [fit, setFit] = useState({ scale: 1, height: 0 });
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const scale = frame.current.clientWidth / SITE_WIDTH;
+      setFit({ scale, height: stage.current.offsetHeight * scale });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame.current);
+    observer.observe(stage.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="sb-frame" ref={frame} style={{ height: fit.height }}>
+      <div className="sb-stage" ref={stage} style={{ transform: `scale(${fit.scale})` }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Banner 1's point icons, as on the storefront (website/app/page.jsx).
+const iconProps = {
+  viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8,
+  strokeLinecap: "round", strokeLinejoin: "round", width: 24, height: 24, "aria-hidden": true,
+};
+const STORY_ICONS = [
+  <svg key="leaf" {...iconProps}><path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15" /><path d="M5 19c3-4 6-7 10-9" /></svg>,
+  <svg key="award" {...iconProps}><circle cx="12" cy="9" r="5.5" /><path d="m9.5 13.8-1.5 6.7 4-2.2 4 2.2-1.5-6.7" /></svg>,
+  <svg key="box" {...iconProps}><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path d="m4 7.5 8 4.5 8-4.5M12 12v9" /></svg>,
+];

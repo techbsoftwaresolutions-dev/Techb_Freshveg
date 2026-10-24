@@ -90,6 +90,131 @@ router.delete(
   })
 );
 
+// ---------------------------------------------------------------- pack sizes
+// Admin → General settings → Units: the options of the Pack Size attribute —
+// "100 ml", "5 KG", "1 Piece", "2 Pack" — which are exactly what the product
+// form's Pack Size dropdown offers. A pack size is keyed by its code (what a
+// variant stores), so the code never changes once made; the label can.
+
+const PACK_SIZE = "pack_size";
+
+async function packSizeAttribute() {
+  const attribute = await Attribute.findOne({ code: PACK_SIZE });
+  if (!attribute) throw ApiError.notFound("There is no Pack Size attribute to hold pack sizes");
+  return attribute;
+}
+
+// "500 ml" -> "500ml", "1 Piece" -> "1piece": the code a variant stores.
+const packSizeCode = (label) => label.toLowerCase().replace(/[^a-z0-9.]+/g, "");
+
+function cleanLabel(raw) {
+  const label = String(raw ?? "").trim().replace(/\s+/g, " ");
+  if (!label) throw ApiError.badRequest("Enter a pack size, e.g. 100 ml");
+  if (label.length > 30) throw ApiError.badRequest("Keep a pack size to 30 characters");
+  if (!packSizeCode(label)) throw ApiError.badRequest("A pack size needs at least a number or a letter");
+  return label;
+}
+
+const usedBy = (value) =>
+  Variant.countDocuments({ status: { $ne: "archived" }, axisValues: { $elemMatch: { code: PACK_SIZE, value } } });
+
+router.get(
+  "/pack-sizes",
+  canView,
+  asyncHandler(async (_req, res) => {
+    const attribute = await packSizeAttribute();
+    const usage = await Variant.aggregate([
+      { $match: { status: { $ne: "archived" } } },
+      { $unwind: "$axisValues" },
+      { $match: { "axisValues.code": PACK_SIZE } },
+      { $group: { _id: "$axisValues.value", count: { $sum: 1 } } },
+    ]);
+    const counts = new Map(usage.map((u) => [u._id, u.count]));
+    const items = [...attribute.options]
+      .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
+      .map((o) => ({ value: o.value, label: o.label, active: o.active !== false, seq: o.seq, packs: counts.get(o.value) || 0 }));
+    res.json({ success: true, items });
+  })
+);
+
+router.post(
+  "/pack-sizes",
+  canManage,
+  asyncHandler(async (req, res) => {
+    const attribute = await packSizeAttribute();
+    const label = cleanLabel(req.body.label);
+    const value = packSizeCode(label);
+    const clash = attribute.options.find((o) => o.value === value || o.label.toLowerCase() === label.toLowerCase());
+    if (clash) throw ApiError.conflict(`"${clash.label}" is already a pack size`);
+
+    const seq = Math.max(0, ...attribute.options.map((o) => o.seq ?? 0)) + 1;
+    attribute.options.push({ value, label, seq, active: true });
+    await attribute.save();
+    await audit.record({ req, action: "create", entity: "PackSize", entityId: attribute._id, label });
+    res.status(201).json({ success: true, item: { value, label, active: true, seq, packs: 0 } });
+  })
+);
+
+router.patch(
+  "/pack-sizes/:value",
+  canManage,
+  asyncHandler(async (req, res) => {
+    const attribute = await packSizeAttribute();
+    const option = attribute.options.find((o) => o.value === req.params.value);
+    if (!option) throw ApiError.notFound("Pack size not found");
+    const before = { label: option.label, active: option.active !== false };
+
+    if (req.body.label !== undefined) {
+      const label = cleanLabel(req.body.label);
+      const clash = attribute.options.find((o) => o !== option && o.label.toLowerCase() === label.toLowerCase());
+      if (clash) throw ApiError.conflict(`"${clash.label}" is already a pack size`);
+      option.label = label;
+    }
+    if (req.body.active !== undefined) option.active = Boolean(req.body.active);
+    await attribute.save();
+
+    // Packs carry the label they show; a rename reaches them too.
+    if (option.label !== before.label) {
+      await Variant.updateMany(
+        { axisValues: { $elemMatch: { code: PACK_SIZE, value: option.value } } },
+        { $set: { "axisValues.$[a].label": option.label } },
+        { arrayFilters: [{ "a.code": PACK_SIZE, "a.value": option.value }] }
+      );
+    }
+    await audit.record({
+      req, action: "update", entity: "PackSize", entityId: attribute._id, label: option.label,
+      before, after: { label: option.label, active: option.active !== false },
+    });
+    res.json({
+      success: true,
+      item: { value: option.value, label: option.label, active: option.active !== false, seq: option.seq, packs: await usedBy(option.value) },
+    });
+  })
+);
+
+// Only a pack size no pack uses can go — otherwise those products would point
+// at a size that no longer exists. Disabling is the way to retire one in use.
+router.delete(
+  "/pack-sizes/:value",
+  canManage,
+  asyncHandler(async (req, res) => {
+    const attribute = await packSizeAttribute();
+    const option = attribute.options.find((o) => o.value === req.params.value);
+    if (!option) throw ApiError.notFound("Pack size not found");
+    const packs = await usedBy(option.value);
+    if (packs) {
+      throw ApiError.conflict(
+        `"${option.label}" is used by ${packs} pack${packs === 1 ? "" : "s"} — disable it instead, so it isn't offered for new ones`
+      );
+    }
+    if (attribute.options.length === 1) throw ApiError.badRequest("Keep at least one pack size");
+    attribute.options = attribute.options.filter((o) => o !== option);
+    await attribute.save();
+    await audit.record({ req, action: "delete", entity: "PackSize", entityId: attribute._id, label: option.label });
+    res.json({ success: true });
+  })
+);
+
 // ---------------------------------------------------------------- categories
 
 router.get(

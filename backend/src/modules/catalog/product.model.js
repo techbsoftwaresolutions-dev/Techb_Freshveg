@@ -85,6 +85,9 @@ const productSchema = new mongoose.Schema(
       index: true,
     },
     publishedAt: Date,
+    // The disabled category that hid this product (see the pre-save hook and
+    // category.service setStatusCascade). null when nothing did.
+    hiddenBy: objectId("Category", { default: null, index: true }),
     isFeatured: { type: Boolean, default: false, index: true },
 
     rating: {
@@ -122,6 +125,26 @@ const productSchema = new mongoose.Schema(
 );
 
 // Storefront listing: "active products in this category, cheapest first".
+// A product can't be live inside a disabled category: every save (create,
+// edit, the Products list's quick switch) checks the chain, and one under a
+// category that isn't active is kept hidden, remembered as hidden by the
+// category that was switched off, so activating it brings the product back.
+// A status the admin sets by hand replaces whatever a category had decided.
+productSchema.pre("save", async function keepHiddenUnderDisabledCategory() {
+  if (this.isModified("status")) this.hiddenBy = null;
+  if (this.status !== "active" || !this.categoryPath?.length) return;
+
+  const off = await mongoose
+    .model("Category")
+    .findOne({ _id: { $in: this.categoryPath }, status: { $ne: "active" } })
+    .sort({ level: 1 })
+    .select("hiddenBy");
+  if (off) {
+    this.status = "hidden";
+    this.hiddenBy = off.hiddenBy || off._id;
+  }
+});
+
 productSchema.index({ categoryPath: 1, status: 1, priceFrom: 1 });
 productSchema.index({ status: 1, isFeatured: 1, createdAt: -1 });
 productSchema.index({ brand: 1, status: 1 });

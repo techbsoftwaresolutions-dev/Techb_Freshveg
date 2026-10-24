@@ -47,7 +47,7 @@ function TreeNode({ node, selectedId, onSelect, depth = 0 }) {
           {hasChildren ? (open ? "▾" : "▸") : ""}
         </span>
         <span>{node.name}</span>
-        {node.status !== "active" && <Pill tone="warn">{node.status}</Pill>}
+        {node.status !== "active" && <Pill tone="warn">{node.status === "hidden" ? "disabled" : node.status}</Pill>}
         <span className="count">{node.productCount || 0}</span>
       </div>
       {open && hasChildren && (
@@ -70,7 +70,7 @@ function TreeNode({ node, selectedId, onSelect, depth = 0 }) {
 // Phone view of the same tree: one scrolling list, rows that expand in place,
 // and a bottom sheet for the less common actions so a row never carries a row
 // of buttons (or a Delete next to Edit).
-function MobileCategoryList({ tree, editable, saving, onOpen, onAddChild, onDelete }) {
+function MobileCategoryList({ tree, editable, saving, onOpen, onAddChild, onToggleStatus, onDelete }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(() => new Set());
   const [menu, setMenu] = useState(null);
@@ -120,7 +120,7 @@ function MobileCategoryList({ tree, editable, saving, onOpen, onAddChild, onDele
               <span className="cat-m-meta">
                 {kids.length ? `${kids.length} sub · ` : ""}
                 {node.productCount || 0} {node.productCount === 1 ? "product" : "products"}
-                {node.status !== "active" ? <Pill tone="warn">{node.status}</Pill> : null}
+                {node.status !== "active" ? <Pill tone="warn">{node.status === "hidden" ? "disabled" : node.status}</Pill> : null}
               </span>
             </button>
             <button type="button" className="cat-m-more" aria-label={`Actions for ${node.name}`} onClick={() => setMenu(node)}>
@@ -170,6 +170,9 @@ function MobileCategoryList({ tree, editable, saving, onOpen, onAddChild, onDele
                 <button type="button" role="menuitem" onClick={pick(onAddChild)}>
                   Add subcategory
                 </button>
+                <button type="button" role="menuitem" disabled={saving} onClick={pick(onToggleStatus)}>
+                  {menu.status === "active" ? "Disable…" : "Activate"}
+                </button>
                 <button type="button" role="menuitem" className="danger" disabled={saving} onClick={pick(onDelete)}>
                   Delete…
                 </button>
@@ -200,6 +203,7 @@ export default function Categories() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [blockingProducts, setBlockingProducts] = useState([]);
+  const [confirm, setConfirm] = useState(null); // { kind: "disable" | "delete", target } awaiting the pop-up
   const navigate = useNavigate();
   // Phone only: false shows the list, true shows the editor for selectedId.
   // Desktop ignores it and always shows both side by side.
@@ -299,11 +303,47 @@ export default function Categories() {
     }
   }
 
-  // Mirrors the backend's own safety check (it refuses a category that still
-  // has subcategories or products) so the confirm prompt already reflects
-  // what's about to happen rather than a delete that immediately 409s.
-  async function removeCategory(target) {
-    if (!window.confirm(`Delete "${target.name}"? This can't be undone.`)) return;
+  // Disable hides the category, its sub-categories and all their products
+  // from customers; Activate brings back exactly what it hid
+  // (category.service setStatusCascade). Disabling asks first, in the
+  // Confirm / Cancel pop-up at the end of the page; activating just goes ahead.
+  function toggleStatus(target) {
+    if (target.status === "active") setConfirm({ kind: "disable", target });
+    else applyStatus(target);
+  }
+
+  async function applyStatus(target) {
+    const disabling = target.status === "active";
+    setConfirm(null);
+    setSaving(true);
+    setError("");
+    try {
+      const { category } = await api.patch(`/catalog/categories/${target.id}`, { status: disabling ? "hidden" : "active" });
+      if (target.id === selectedId) setDetail(category);
+      await loadTree();
+      notifySaved(
+        disabling
+          ? `"${target.name}" disabled — hidden from customers along with its products.`
+          : `"${target.name}" is live again, with its products.`
+      );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Delete asks first too, in the same pop-up.
+  function removeCategory(target) {
+    setConfirm({ kind: "delete", target });
+  }
+
+  // The backend refuses a category that still has sub-categories or
+  // products; when it does, the products it names are listed so the admin
+  // can jump straight to them instead of hunting through a tree that makes
+  // the category look empty.
+  async function deleteCategory(target) {
+    setConfirm(null);
     setSaving(true);
     setError("");
     setBlockingProducts([]);
@@ -322,9 +362,6 @@ export default function Categories() {
       notifySaved(`"${target.name}" deleted.`);
     } catch (err) {
       setError(err.message);
-      // The backend names a few of the actual blocking products when that's
-      // why the delete failed, so the admin can jump straight to them
-      // instead of hunting for something the tree makes look empty.
       setBlockingProducts(err.details?.products || []);
     } finally {
       setSaving(false);
@@ -363,6 +400,7 @@ export default function Categories() {
           window.scrollTo(0, 0);
         }}
         onAddChild={(node) => navigate(`/catalog/categories/new?parent=${node.id}`)}
+        onToggleStatus={toggleStatus}
         onDelete={removeCategory}
       />
 
@@ -396,6 +434,18 @@ export default function Categories() {
                     <div className="inline" style={{ gap: 8 }}>
                       <button className="btn sm" onClick={() => navigate(`/catalog/categories/new?parent=${detail.id}`)}>
                         + Subcategory
+                      </button>
+                      <button
+                        className={`btn sm${detail.status === "active" ? "" : " primary"}`}
+                        disabled={saving}
+                        onClick={() => toggleStatus(detail)}
+                        title={
+                          detail.status === "active"
+                            ? "Hide this category and all its products from customers"
+                            : "Show this category and its products to customers again"
+                        }
+                      >
+                        {detail.status === "active" ? "Disable" : "Activate"}
                       </button>
                       <button className="btn sm danger" disabled={saving} onClick={() => removeCategory(detail)}>
                         Delete
@@ -472,6 +522,48 @@ export default function Categories() {
         </Card>
       </div>
 
+      {confirm ? (
+        <Modal
+          title={`${confirm.kind === "delete" ? "Delete" : "Disable"} "${confirm.target.name}"?`}
+          onClose={() => setConfirm(null)}
+          footer={
+            <>
+              <button className="btn" onClick={() => setConfirm(null)} autoFocus>
+                Cancel
+              </button>
+              <button
+                className={`btn ${confirm.kind === "delete" ? "danger" : "primary"}`}
+                disabled={saving}
+                onClick={() => (confirm.kind === "delete" ? deleteCategory(confirm.target) : applyStatus(confirm.target))}
+              >
+                Confirm
+              </button>
+            </>
+          }
+        >
+          {confirm.kind === "delete" ? (
+            <>
+              <p style={{ margin: 0 }}>
+                <strong>{confirm.target.name}</strong> will be deleted permanently. This can't be undone.
+              </p>
+              <p className="muted" style={{ margin: "10px 0 0", fontSize: 13 }}>
+                A category that still has sub-categories or products can't be deleted — move or remove those first,
+                or choose Disable to just hide it from customers.
+              </p>
+            </>
+          ) : (
+            <>
+              <p style={{ margin: 0 }}>
+                <strong>{confirm.target.name}</strong>, its sub-categories and all their products will be hidden from
+                customers on the website and the app.
+              </p>
+              <p className="muted" style={{ margin: "10px 0 0", fontSize: 13 }}>
+                Nothing is deleted — choose Activate later to bring them all back.
+              </p>
+            </>
+          )}
+        </Modal>
+      ) : null}
     </div>
   );
 }
@@ -578,7 +670,14 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
     };
     const self = findSelf(tree);
     if (self) collect(self);
-    return flatten(tree).filter((option) => !excluded.has(option.id));
+    // A category can't move inside itself, but those rows stay listed —
+    // greyed out with the reason — rather than vanishing, which read as
+    // missing categories.
+    return parentPickerOptions(flatten(tree)).map((option) =>
+      excluded.has(option.value)
+        ? { ...option, disabled: true, hint: option.value === detail.id ? "this category" : "inside this category" }
+        : option
+    );
   })();
 
   return (
@@ -588,14 +687,14 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
           <input type="text" value={form.name} onChange={set("name")} disabled={!editable} />
         </Field>
         <Field label="Parent category" >
-          <select value={form.parent} onChange={set("parent")} disabled={!editable}>
-            <option value="">— Top level —</option>
-            {parentOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ))}
-          </select>
+          <SelectMenu
+            value={form.parent}
+            onChange={(parent) => setForm((f) => ({ ...f, parent }))}
+            emptyLabel="Top level (a main category)"
+            searchable={false}
+            disabled={!editable}
+            options={parentOptions}
+          />
         </Field>
       </div>
       <div className="grid cols-2">
@@ -920,11 +1019,32 @@ function DefaultsTab({ detail, resolved, onSave, saving, editable }) {
 
 function flatten(nodes, depth = 0, out = []) {
   for (const node of nodes) {
-    out.push({ id: node.id, name: `${"— ".repeat(depth)}${node.name}`, rawName: node.name, depth });
+    out.push({
+      id: node.id,
+      name: `${"— ".repeat(depth)}${node.name}`,
+      rawName: node.name,
+      depth,
+      icon: node.icon,
+      status: node.status,
+    });
     if (node.children?.length) flatten(node.children, depth + 1, out);
   }
   return out;
 }
+
+// A parent picker's options (SelectMenu): every category with its own icon,
+// main categories as headings marked "Main category", sub-categories
+// indented beneath them. A category with no icon of its own gets a plain
+// folder (main) or dot (sub) so the column still lines up.
+const parentPickerOptions = (list) =>
+  list.map((c) => ({
+    value: c.id,
+    label: c.rawName,
+    depth: c.depth,
+    icon: c.icon || (c.depth === 0 ? "📁" : "•"),
+    heading: c.depth === 0,
+    hint: [c.depth === 0 ? "Main category" : "", c.status !== "active" ? "disabled" : ""].filter(Boolean).join(" · ") || undefined,
+  }));
 
 function NewCategoryModal({ parentId, tree, saving, onClose, onCreate }) {
   const [form, setForm] = useState({ name: "", icon: "", parent: parentId || "", status: "active" });
@@ -964,8 +1084,8 @@ function NewCategoryModal({ parentId, tree, saving, onClose, onCreate }) {
             value={form.parent}
             onChange={(parent) => setForm({ ...form, parent })}
             emptyLabel="Top level (a new department)"
-            searchable
-            options={options.map((option) => ({ value: option.id, label: option.rawName, depth: option.depth }))}
+            searchable={false}
+            options={parentPickerOptions(options)}
           />
         </Field>
         <Field label="Icon">
