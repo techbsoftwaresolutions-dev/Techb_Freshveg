@@ -1,4 +1,5 @@
 const express = require("express");
+const { dateBounds } = require("../../core/dateRange");
 const QRCode = require("qrcode");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
@@ -164,11 +165,8 @@ router.get(
     if (req.query.store) filter.store = req.query.store;
     if (req.query.partner) filter["delivery.partner"] = req.query.partner;
     if (req.query.paymentStatus) filter["payment.status"] = req.query.paymentStatus;
-    if (req.query.from || req.query.to) {
-      filter.placedAt = {};
-      if (req.query.from) filter.placedAt.$gte = new Date(req.query.from);
-      if (req.query.to) filter.placedAt.$lte = new Date(req.query.to);
-    }
+    const placed = dateBounds(req.query.from, req.query.to);
+    if (placed) filter.placedAt = placed;
 
     const result = await paginate(Order, filter, req.query, { defaultSort: { placedAt: -1 } });
     res.json({ success: true, ...result });

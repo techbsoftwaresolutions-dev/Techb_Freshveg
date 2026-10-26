@@ -595,6 +595,16 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gi
 function MediaUploader({ media, name, editable, onChange }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  // Index of the photo whose options popup is open, or null.
+  const [picked, setPicked] = useState(null);
+  const pickedItem = picked !== null ? media[picked] : null;
+
+  useEffect(() => {
+    if (picked === null) return undefined;
+    const onKey = (e) => e.key === "Escape" && setPicked(null);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [picked]);
 
   async function handleFiles(fileList) {
     const files = Array.from(fileList || []);
@@ -667,50 +677,91 @@ function MediaUploader({ media, name, editable, onChange }) {
     >
       <Banner tone="error">{error}</Banner>
 
+      {pickedItem ? (
+        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setPicked(null)}>
+          <div className="modal photo-options" role="dialog" aria-modal="true" aria-label="Photo options">
+            <header className="modal-head">
+              <h2>Photo {picked + 1}{picked === 0 ? " · Primary" : ""}</h2>
+              <button type="button" className="btn ghost sm" onClick={() => setPicked(null)} aria-label="Close">
+                ✕
+              </button>
+            </header>
+            <div className="modal-body">
+              <div className="media-thumb photo-options-thumb">
+                <img
+                  src={pickedItem.url}
+                  alt={pickedItem.alt || ""}
+                  style={{ objectPosition: `${pickedItem.focalX ?? 50}% ${pickedItem.focalY ?? 50}%` }}
+                />
+                {/* Where the storefront card crops this photo from — only
+                    matters once it's cropped to a square. */}
+                <div className="media-focal-grid">
+                  {FOCAL_POINTS.map(([fx, fy]) => (
+                    <button
+                      key={`${fx}-${fy}`}
+                      type="button"
+                      className={(pickedItem.focalX ?? 50) === fx && (pickedItem.focalY ?? 50) === fy ? "active" : ""}
+                      aria-label={`Crop focus: ${fy === 0 ? "top" : fy === 100 ? "bottom" : "middle"} ${fx === 0 ? "left" : fx === 100 ? "right" : "center"}`}
+                      onClick={() => setFocal(picked, fx, fy)}
+                    />
+                  ))}
+                </div>
+              </div>
+              <p className="faint" style={{ fontSize: 12, margin: "10px 0 0", textAlign: "center" }}>
+                Tap a dot to choose which part of the photo stays in view when it is cropped.
+              </p>
+            </div>
+            <footer className="modal-foot">
+              {picked !== 0 ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    makePrimary(picked);
+                    setPicked(null);
+                  }}
+                >
+                  Make primary
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn danger"
+                onClick={() => {
+                  remove(picked);
+                  setPicked(null);
+                }}
+              >
+                Remove
+              </button>
+              <button type="button" className="btn primary" onClick={() => setPicked(null)}>
+                Done
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+
       {media.length ? (
         <div className="media-grid">
           {media.map((item, index) => (
             <div key={`${item.url}-${index}`} className="media-item">
-              <div className="media-thumb">
+              {/* Click a photo to open its options: make it the main photo,
+                  remove it, or choose where its crop is centred. */}
+              <button
+                type="button"
+                className={`media-thumb media-thumb-btn${editable ? "" : " readonly"}`}
+                onClick={() => editable && setPicked(index)}
+                aria-label={editable ? `Photo ${index + 1} options` : `Photo ${index + 1}`}
+                disabled={!editable}
+              >
                 <img
                   src={item.url}
                   alt={item.alt || ""}
                   style={{ objectPosition: `${item.focalX ?? 50}% ${item.focalY ?? 50}%` }}
                 />
                 {index === 0 ? <span className="media-primary">Primary</span> : null}
-                {editable ? (
-                  <>
-                    {/* Where the storefront card crops this photo from — only
-                        matters once it's cropped to a square, which is why
-                        this lives right on the thumbnail instead of a
-                        separate settings panel. */}
-                    <span className="media-focal-hint">Crop focus</span>
-                    <div className="media-focal-grid">
-                      {FOCAL_POINTS.map(([fx, fy]) => (
-                        <button
-                          key={`${fx}-${fy}`}
-                          type="button"
-                          className={(item.focalX ?? 50) === fx && (item.focalY ?? 50) === fy ? "active" : ""}
-                          aria-label={`Crop focus: ${fy === 0 ? "top" : fy === 100 ? "bottom" : "middle"} ${fx === 0 ? "left" : fx === 100 ? "right" : "center"}`}
-                          onClick={() => setFocal(index, fx, fy)}
-                        />
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-                {editable ? (
-                  <div className="media-thumb-actions">
-                    {index !== 0 ? (
-                      <button type="button" className="btn ghost sm" onClick={() => makePrimary(index)}>
-                        Make primary
-                      </button>
-                    ) : null}
-                    <button type="button" className="btn ghost sm danger" onClick={() => remove(index)}>
-                      Remove
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+              </button>
             </div>
           ))}
         </div>

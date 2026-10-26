@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Loading, Modal, Pill, rupees, when } from "../../components/ui";
+import { Banner, Card, Loading, Modal, Pill, rupees, useConfirm, when } from "../../components/ui";
 import { statusTone } from "./Orders";
 
 export default function OrderDetail() {
+  const [confirm, confirmDialog] = useConfirm();
   const { id } = useParams();
   const navigate = useNavigate();
   const { can } = useAuth();
@@ -95,6 +96,7 @@ export default function OrderDetail() {
 
   return (
     <div className="page">
+      {confirmDialog}
       <div className="page-head">
         <div>
           <h1 className="mono">{order.code}</h1>
@@ -144,8 +146,14 @@ export default function OrderDetail() {
                 key={action.status}
                 className="btn danger"
                 disabled={busy}
-                onClick={() => {
-                  if (window.confirm(`${action.label} ${order.code}? The customer will be told.`)) advance(action.status);
+                onClick={async () => {
+                  const yes = await confirm({
+                    title: `${action.label}?`,
+                    message: `${action.label} ${order.code}? The customer will be told.`,
+                    confirmLabel: `Yes, ${action.label.toLowerCase()}`,
+                    cancelLabel: "No, keep it",
+                  });
+                  if (yes) advance(action.status);
                 }}
               >
                 {action.label}

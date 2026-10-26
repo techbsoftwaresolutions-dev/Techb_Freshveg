@@ -5,8 +5,9 @@ import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import {
-  Banner, Card, DateRange, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
+  Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
+import DateFilter from "../../components/DateFilter";
 
 export default function Delivery() {
   // The tab lives in the URL, so coming back from a zone or slot page lands
@@ -95,7 +96,7 @@ function Report() {
           <option value="CANCELLED,REJECTED">Cancelled</option>
         </Select>
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={setRange} />
       </div>
 
       <Card tight>
@@ -190,7 +191,7 @@ function Partners() {
     <>
       <div className="toolbar">
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={setRange} />
       </div>
 
       <Card tight>

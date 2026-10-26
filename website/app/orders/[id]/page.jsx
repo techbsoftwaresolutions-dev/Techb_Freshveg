@@ -8,6 +8,7 @@ import { api } from "@/lib/client-api";
 import { rupees, when } from "@/lib/format";
 import { payWithRazorpay } from "@/lib/razorpay";
 import EmptyState from "@/components/EmptyState";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 // The customer's order QR is switched off: the delivery partner only needs the OTP.
 const SHOW_QR = false;
@@ -57,6 +58,7 @@ function OrderDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payMessage, setPayMessage] = useState(params.get("payerror") || "");
   const poller = useRef(null);
@@ -103,7 +105,6 @@ function OrderDetail() {
   }, [tracking?.status]);
 
   async function cancel() {
-    if (!confirm("Cancel this order? This cannot be undone.")) return;
     setCancelling(true);
     try {
       await api.post(`/orders/${id}/cancel`, { reason: "Cancelled from the website" });
@@ -112,6 +113,7 @@ function OrderDetail() {
       setError(err.message);
     } finally {
       setCancelling(false);
+      setCancelOpen(false);
     }
   }
 
@@ -156,6 +158,17 @@ function OrderDetail() {
   return (
     <div className="wrap orders-page">
       <MobileHead />
+      <ConfirmDialog
+        open={cancelOpen}
+        title="Cancel this order?"
+        message="Your order will be cancelled and this can't be undone."
+        confirmLabel="Yes, cancel order"
+        cancelLabel="Keep order"
+        busy={cancelling}
+        busyLabel="Cancelling…"
+        onConfirm={cancel}
+        onCancel={() => setCancelOpen(false)}
+      />
       {tracking.status === "PAYMENT_PENDING" && order?.payment?.method === "upi" ? (
         <div className="notice warn" role="status" style={{ marginBottom: 14 }}>
           <strong>Payment pending.</strong> Your order is saved but not confirmed until it is paid.
@@ -335,7 +348,7 @@ function OrderDetail() {
                 <button
                   className="btn block danger-outline"
                   style={{ marginTop: 14 }}
-                  onClick={cancel}
+                  onClick={() => setCancelOpen(true)}
                   disabled={cancelling}
                 >
                   {cancelling ? "Cancelling…" : "Cancel order"}

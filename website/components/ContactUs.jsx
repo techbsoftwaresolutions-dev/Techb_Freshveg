@@ -60,7 +60,7 @@ export default function ContactUs({ className = "footer-link-btn", children = "C
               </li>
               <li>
                 <span>Address</span>
-                <strong>Hosur, Tamil Nadu</strong>
+                <strong>#74/22, GKD Nagar, Avalapalli Road, Hosur 635109</strong>
               </li>
             </ul>
 

@@ -5126,3 +5126,5 @@ body:has(.help-page) .search-form { display: none; }
 .footer-link-btn:hover { color: #fff; }
 .footer-base { color: rgba(255, 255, 255, 0.85); border-top-color: rgba(255, 255, 255, 0.22); }
 .footer-logo-tag { color: rgba(255, 255, 255, 0.85); }
+
+.footer-contact address { font-style: normal; }

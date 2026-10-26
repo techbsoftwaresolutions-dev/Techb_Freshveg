@@ -306,10 +306,7 @@ function BannerModal({ banner, placements, onClose, onSaved }) {
       </div>
 
       <div className="grid cols-2">
-        <Field
-          label="Image"
-          help="Upload a photo, or paste an image URL directly. Hover the preview to set which part of it stays visible when the slot crops it (the hero banner in particular stretches this very wide)."
-        >
+        <Field label="Image">
           {form.image ? (
             <div className="media-thumb wide" style={{ marginBottom: 10 }}>
               <img
@@ -358,13 +355,6 @@ function BannerModal({ banner, placements, onClose, onSaved }) {
             </label>
           </div>
           {uploadError ? <span className="field-error" style={{ color: "var(--danger)", fontSize: 12 }}>{uploadError}</span> : null}
-          <input
-            type="text"
-            value={form.image}
-            onChange={(e) => setForm({ ...form, image: e.target.value })}
-            placeholder="Or paste an image URL"
-            style={{ marginTop: 8 }}
-          />
         </Field>
         <Field label="Background colour">
           <input type="text" value={form.backgroundColor} onChange={(e) => setForm({ ...form, backgroundColor: e.target.value })} placeholder="#E8F6ED" />

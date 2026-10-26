@@ -60,7 +60,9 @@ export default function Footer({ categories = [] }) {
               <li>
                 <a href="https://hosurbasket.com">hosurbasket.com</a>
               </li>
-              <li>Hosur, Tamil Nadu</li>
+              <li>
+                <address>#74/22, GKD Nagar, Avalapalli Road, Hosur 635109</address>
+              </li>
             </ul>
             {/* Display only for now — no links until the pages exist. */}
             <div className="footer-social" role="group" aria-label="Social media">

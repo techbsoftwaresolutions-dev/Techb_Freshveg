@@ -2,8 +2,9 @@ import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import {
-  Banner, Card, DateRange, Empty, Loading, Modal, Pagination, Pill, Table, when,
+  Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, when,
 } from "../../components/ui";
+import DateFilter from "../../components/DateFilter";
 
 const ACTION_TONE = {
   create: "ok",
@@ -81,7 +82,7 @@ export default function AuditLog() {
           <option value="adjust">Adjusted</option>
         </Select>
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={setRange} />
       </div>
 
       <Card tight>
