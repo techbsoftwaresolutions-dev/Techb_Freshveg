@@ -16,9 +16,13 @@ export default function ProductCard({ product }) {
   const focalX = primaryMedia?.focalX ?? 50;
   const focalY = primaryMedia?.focalY ?? 50;
   const outOfStock = product.inStock === false;
-  // Quality flags the admin already tags products with — shown as chips on
-  // the photo. Other tags are search keywords, not badges.
-  const flags = (product.tags || []).filter((tag) => /^(fresh|organic|export quality)$/i.test(tag)).slice(0, 2);
+  // Chips on the photo: the product's Best Seller / Trending sections first
+  // (`badges`, from the API), then the quality flags the admin tags products
+  // with. Other tags are search keywords, not badges.
+  const flags = [
+    ...(product.badges || []),
+    ...(product.tags || []).filter((tag) => /^(fresh|organic|export quality)$/i.test(tag)),
+  ].slice(0, 2);
 
   const multi = product.variantCount > 1;
   // What the price actually buys. A figure with no size beside it cannot be

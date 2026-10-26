@@ -3212,7 +3212,7 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 }
 
 /* ------------------------------------------------------------ confirm dialog */
-/* A native <dialog> opened with showModal() (the cart's "Clear cart"). The
+/* A native <dialog> opened with showModal() (components/ConfirmDialog.jsx). The
    dialog element is the full-screen backdrop; the box inside is the card. */
 .confirm-dialog {
   position: fixed;

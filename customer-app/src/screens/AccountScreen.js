@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, Share, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Text } from "../components/Text";
@@ -7,7 +7,7 @@ import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useStore } from "../context/StoreContext";
 import { colors, radius, rupees, shadow, spacing, type } from "../theme";
-import { Button, Card, Divider, EmptyState, IconTile } from "../components/ui";
+import { Button, Card, ConfirmModal, Divider, EmptyState, IconTile } from "../components/ui";
 import { statusLook } from "./OrdersScreen";
 import { useTabBarScroll, useTabBarSpace } from "../navigation/tabBarScroll";
 
@@ -19,6 +19,7 @@ export default function AccountScreen({ navigation }) {
   const { user, signedIn, signOut } = useAuth();
   const { store, pincode } = useStore();
   const [recent, setRecent] = useState(null);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -51,12 +52,6 @@ export default function AccountScreen({ navigation }) {
   const initial = (user.name || "?").trim().charAt(0).toUpperCase() || "?";
   const addresses = user.addresses || [];
 
-  const confirmSignOut = () =>
-    Alert.alert("Sign out?", "Your cart stays saved to this device.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign out", style: "destructive", onPress: signOut },
-    ]);
-
   const shareCode = () =>
     Share.share({ message: `Join me on The Farmers Basket — sign up with my referral code ${user.referralCode}.` }).catch(() => {});
 
@@ -76,7 +71,7 @@ export default function AccountScreen({ navigation }) {
             <Text style={styles.heroEdit}>Edit profile</Text>
           </Pressable>
         </View>
-        <Pressable onPress={confirmSignOut} style={styles.signOut} accessibilityRole="button">
+        <Pressable onPress={() => setConfirmSignOut(true)} style={styles.signOut} accessibilityRole="button">
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
       </View>
@@ -194,6 +189,18 @@ export default function AccountScreen({ navigation }) {
       </Card>
 
       <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.sm }]}>The Farmers Basket · thefarmersbasket.in</Text>
+
+      <ConfirmModal
+        visible={confirmSignOut}
+        title="Sign out?"
+        message="Your cart stays saved to this device."
+        confirmText="Sign out"
+        onConfirm={() => {
+          setConfirmSignOut(false);
+          signOut();
+        }}
+        onCancel={() => setConfirmSignOut(false)}
+      />
     </ScrollView>
   );
 }

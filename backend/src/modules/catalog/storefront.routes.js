@@ -14,6 +14,9 @@ const Offer = require("../pricing/offer.model");
 const inventoryService = require("../inventory/inventory.service");
 
 const categoryService = require("./category.service");
+const sections = require("./sections.service");
+const landing = require("../marketing/landing.service");
+const LandingSection = require("../marketing/landingSection.model");
 const { resolveCategorySchema } = require("./schema.service");
 
 const router = express.Router();
@@ -22,7 +25,7 @@ router.use(optionalAuth);
 // What a customer app or the website reads. Draft products, cost prices and
 // internal notes never leave through here.
 const PRODUCT_CARD_FIELDS =
-  "name slug shortDescription media category categoryPath brand unit priceFrom priceTo mrpFrom maxDiscountPct rating inStock variantCount defaultVariant tags isFeatured";
+  "name slug shortDescription media category categoryPath brand unit priceFrom priceTo mrpFrom maxDiscountPct rating inStock variantCount defaultVariant tags isFeatured sections";
 
 /** 1 -> "1", 1.5 -> "1.5". Trailing zeroes on a shelf label read as noise. */
 function trimNumber(value) {
@@ -95,6 +98,8 @@ async function withCardDetails(cards, store) {
       inStock: stock ? buyable.length > 0 : card.inStock,
       defaultVariant: pick ? String(pick._id) : card.defaultVariant,
       packLabel: packLabel(pick?.packSize, card.unit),
+      // "Best Seller" / "Trending" tags, from the product's saved sections.
+      badges: sections.badgesOf(card),
     };
   });
 }
@@ -363,23 +368,73 @@ router.get(
       Category.find({ status: "active", level: 0, showInNav: true }).sort({ seq: 1 }).limit(6),
     ]);
 
+    // One order key's products, in the order the admin saved for it — the
+    // same order key and query for the rails, the landing sections and the
+    // listing's ?section=, so the website and the app can't disagree.
+    const inOrder = async (key, limit) => {
+      await sections.ensureArranged(key);
+      const rows = await Product.find(sections.storefrontFilter(key))
+        .select(PRODUCT_CARD_FIELDS)
+        .sort(sections.sortFor(key))
+        .limit(limit)
+        .lean();
+      return withCardDetails(rows.map(leanToApi), store);
+    };
+
     // One rail per top-level department, so the home screen grows by itself
     // when a new department is added.
     const rails = await Promise.all(
       topCategories.map(async (category) => ({
         category: { id: category.id, name: category.name, slug: category.slug, icon: category.icon },
-        products: await withCardDetails(
-          (
-            await Product.find({ categoryPath: category._id, status: "active" })
-              .select(PRODUCT_CARD_FIELDS)
-              .sort({ isFeatured: -1, "rating.average": -1 })
-              .limit(10)
-              .lean()
-          ).map(leanToApi),
-          store
-        ),
+        products: await inOrder(sections.categoryKey(category._id), 10),
       }))
     );
+    // The landing page as configured in Admin → Landing Page → Sections, for
+    // the platform asking (?platform=web for the website, anything else is
+    // the app): active sections switched on for it, in their saved order,
+    // each with its products in their own saved order. A section with nothing
+    // to show is left out rather than sent as an empty row. `rails` and
+    // `featured` stay for app builds released before this existed.
+    await landing.ensureDefaults();
+    const shownOn = req.query.platform === "web" ? "showOnWebsite" : "showOnApp";
+    const configured = await LandingSection.find({ status: "active", [shownOn]: true })
+      .sort({ seq: 1, _id: 1 })
+      .populate("source.category", "name slug icon status");
+    const landingSections = (
+      await Promise.all(
+        configured.map(async (section) => {
+          let products;
+          if (section.type === "curated") {
+            const ids = section.source.products.map(String);
+            const rows = await Product.find({ _id: { $in: ids }, status: "active" }).select(PRODUCT_CARD_FIELDS).lean();
+            const rank = new Map(ids.map((id, i) => [id, i]));
+            products = await withCardDetails(
+              rows.sort((a, b) => rank.get(String(a._id)) - rank.get(String(b._id))).slice(0, 12).map(leanToApi),
+              store
+            );
+          } else {
+            const category = section.source.category;
+            if (section.type === "category" && category?.status !== "active") return null;
+            products = await inOrder(section.type === "category" ? sections.categoryKey(category._id) : section.source.classification, 12);
+          }
+          if (!products.length) return null;
+          return {
+            id: section.id,
+            slug: section.slug,
+            name: section.name,
+            description: section.description,
+            type: section.type,
+            category: section.type === "category"
+              ? { id: section.source.category.id, name: section.source.category.name, slug: section.source.category.slug, icon: section.source.category.icon }
+              : null,
+            classification: section.type === "classification" ? section.source.classification : null,
+            // Saved order, except that what can't be bought here sinks to the
+            // end — a row that opens on "Sold out" reads as an empty shelf.
+            products: [...products].sort((a, b) => Number(a.inStock === false) - Number(b.inStock === false)),
+          };
+        })
+      )
+    ).filter(Boolean);
 
     // A "Flash Deal" countdown is only ever as real as its deadline — so
     // this looks for an offer someone actually gave a schedule.endsAt in the
@@ -470,6 +525,7 @@ router.get(
       }),
       featured,
       rails: rails.filter((r) => r.products.length),
+      landing: landingSections,
       flashDeal,
     });
   })
@@ -573,6 +629,13 @@ router.get(
     }
     if (req.query.tag) filter.tags = req.query.tag;
     if (req.query.featured === "true") filter.isFeatured = true;
+    // ?section=trending — that section's "See all", in its saved order
+    // unless the shopper picks a sort.
+    const section = sections.SECTION_KEYS.includes(req.query.section) ? req.query.section : null;
+    if (section) {
+      Object.assign(filter, sections.storefrontFilter(section));
+      await sections.ensureArranged(section);
+    }
     const buyable = await buyableAt(await storeFor);
     if (req.query.inStock === "true") filter.$and = [...(filter.$and || []), buyable];
     // The phone's "Offers" chip: only products with a discount on them.
@@ -627,7 +690,11 @@ router.get(
       // `_id` last: products tie on rating and price all the time, and
       // without a final unique key Mongo may order the ties differently on
       // every page request — so a product can show on two pages or on none.
-      sort: { ...(sortMap[req.query.sort] || { isFeatured: -1, "rating.average": -1 }), _id: 1 },
+      sort: {
+        ...(sortMap[req.query.sort] ||
+          (section ? sections.sortFor(section) : { isFeatured: -1, "rating.average": -1 })),
+        _id: 1,
+      },
       first: buyable,
       select: PRODUCT_CARD_FIELDS,
       populate: { path: "brand", select: "name slug" },

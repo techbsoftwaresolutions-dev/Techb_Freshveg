@@ -115,6 +115,16 @@ export function toast(type, text) {
   window.dispatchEvent(new CustomEvent("admin-toast", { detail: { type, text } }));
 }
 
+// The admin's window.confirm / window.prompt (components/Confirmer.jsx).
+// Resolves false when cancelled; otherwise true, or the typed text when
+// `input` is given. Options: title, message, confirmText, cancelText, danger,
+// input { label, placeholder, required }, typeToConfirm ("DELETE").
+export function confirmDialog(options) {
+  return new Promise((resolve) => {
+    window.dispatchEvent(new CustomEvent("admin-confirm", { detail: { ...options, resolve } }));
+  });
+}
+
 // Every API reply is a JSON envelope. Anything else — an HTML page from a
 // misrouted request, a proxy's error page — is a failure, never data: treating
 // it as success is how a wrong password could look like a sign-in.
@@ -224,6 +234,7 @@ export const api = {
   get: (path, query) => call("GET", path, { query }),
   post: (path, body) => call("POST", path, { body }),
   patch: (path, body) => call("PATCH", path, { body }),
+  put: (path, body) => call("PUT", path, { body }),
   delete: (path, body) => call("DELETE", path, { body }),
   upload: uploadImage,
   uploadVideo,

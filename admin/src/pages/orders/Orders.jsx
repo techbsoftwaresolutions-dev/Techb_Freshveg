@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api, toast } from "../../api/client";
+import { api, confirmDialog, toast } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Loading, Pagination, Pill, Table, rupees, when } from "../../components/ui";
 
@@ -73,8 +73,14 @@ function DeliveryCell({ order, partners, canAssign, statuses, onSaved }) {
     run("save", () => api.post(`/orders/${order.id}/assign`, { partner: selected }));
   };
 
-  const remove = () => {
-    if (!window.confirm(`Remove ${name} from ${order.code}? It goes back to Ready for pickup and leaves their app.`)) return;
+  const remove = async () => {
+    const ok = await confirmDialog({
+      title: "Remove delivery person?",
+      message: `Remove ${name} from ${order.code}? It goes back to Ready for pickup and leaves their app.`,
+      confirmText: "Remove",
+      danger: true,
+    });
+    if (!ok) return;
     run("remove", () => api.delete(`/orders/${order.id}/assign`));
   };
 

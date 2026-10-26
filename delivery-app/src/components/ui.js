@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Image, Linking, Platform, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Modal, Image, Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import Icon, { ICONS } from "./Icon";
@@ -218,6 +218,29 @@ export const callNumber = (phone) => {
   if (phone) Linking.openURL(`tel:${phone}`).catch(() => {});
 };
 
+// The apps' window.confirm. Alert.alert does nothing on Expo web, so every
+// confirmation is this in-app modal instead. The back button (Android) and a
+// tap on the dimmed backdrop cancel; neither does while `busy`.
+export function ConfirmModal({ visible, title, message, confirmText = "Confirm", cancelText = "Cancel", danger = true, busy, onConfirm, onCancel }) {
+  const cancel = busy ? undefined : onCancel;
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => cancel?.()}>
+      <Pressable style={styles.confirmBackdrop} onPress={cancel} accessibilityLabel={cancelText}>
+        <Pressable style={styles.confirmBox} onPress={() => {}} accessibilityViewIsModal>
+          <Text style={styles.confirmTitle} accessibilityRole="header">
+            {title}
+          </Text>
+          {message ? <Text style={styles.confirmText}>{message}</Text> : null}
+          <View style={styles.confirmActions}>
+            <Button title={cancelText} variant="outline" onPress={cancel} disabled={busy} style={{ flex: 1 }} />
+            <Button title={confirmText} variant={danger ? "danger" : "primary"} onPress={onConfirm} loading={busy} style={{ flex: 1 }} />
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   // 52pt, a little over the customer app's 48: this is tapped with a thumb
   // while holding a bag.
@@ -289,4 +312,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   thumbImage: { width: "100%", height: "100%" },
+
+  confirmBackdrop: { flex: 1, justifyContent: "center", padding: spacing.lg, backgroundColor: "rgba(10, 30, 20, 0.45)" },
+  confirmBox: { width: "100%", maxWidth: 400, alignSelf: "center", padding: 22, borderRadius: 16, backgroundColor: colors.surface, ...shadow.card },
+  confirmTitle: { fontSize: 19, fontWeight: "700", color: colors.text, marginBottom: 6 },
+  confirmText: { fontSize: 14, color: colors.textMuted, marginBottom: 20 },
+  confirmActions: { flexDirection: "row", gap: 10 },
 });

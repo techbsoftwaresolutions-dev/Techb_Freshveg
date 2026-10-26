@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "../components/Text";
 import { api } from "../api/client";
 import { onlinePaymentSupported, payOnline } from "../api/razorpay";
 import { useCart } from "../context/CartContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
-import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
+import { Button, Card, ConfirmModal, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
 import { checkReviews } from "../components/ReviewPrompt";
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
@@ -34,6 +34,7 @@ export default function OrderTrackScreen({ route, navigation }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [paying, setPaying] = useState(false);
   const [notice, setNotice] = useState(paymentNotice(route.params.payment));
   const [error, setError] = useState("");
@@ -104,6 +105,7 @@ export default function OrderTrackScreen({ route, navigation }) {
       setError(err.message);
     } finally {
       setCancelling(false);
+      setConfirmCancel(false);
     }
   }
 
@@ -321,14 +323,20 @@ export default function OrderTrackScreen({ route, navigation }) {
           title="Cancel order"
           variant="ghost"
           loading={cancelling}
-          onPress={() =>
-            Alert.alert("Cancel this order?", "This cannot be undone.", [
-              { text: "Keep it", style: "cancel" },
-              { text: "Cancel order", style: "destructive", onPress: cancel },
-            ])
-          }
+          onPress={() => setConfirmCancel(true)}
         />
       ) : null}
+
+      <ConfirmModal
+        visible={confirmCancel}
+        title="Cancel this order?"
+        message="This cannot be undone."
+        confirmText="Cancel order"
+        cancelText="Keep it"
+        busy={cancelling}
+        onConfirm={cancel}
+        onCancel={() => setConfirmCancel(false)}
+      />
     </ScrollView>
   );
 }

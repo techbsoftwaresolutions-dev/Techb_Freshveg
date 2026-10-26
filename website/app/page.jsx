@@ -33,11 +33,6 @@ const filled = (data) => (data?.banners || []).filter((banner) => banner.title &
 // Banner 1's points take these icons in order.
 const POINT_ICONS = [IconLeafBadge, IconAward, IconBox];
 
-// Sold-out products sink to the end of a row rather than leading it — a shelf
-// that opens on "Sold out" reads as an empty store.
-const inStockFirst = (products) =>
-  [...products].sort((a, b) => Number(a.inStock === false) - Number(b.inStock === false));
-
 // Server-rendered, so the whole shelf is in the HTML a crawler receives — no
 // spinner, no client fetch waterfall.
 export default async function HomePage() {
@@ -67,7 +62,7 @@ export default async function HomePage() {
     return <FreshHome home={home} categoryTree={categoryTree?.categories || []} />;
   }
 
-  const { offers = [], featured = [], rails = [], store, categories = [], flashDeal = null } = home;
+  const { offers = [], landing = [], store, categories = [], flashDeal = null } = home;
   const banners = filled(bannerData);
   const story = filled(storyData)[0];
   // The admin's own empty-state hint is the spec here: "falls back to its
@@ -87,12 +82,11 @@ export default async function HomePage() {
   const shelves = (categoryTree?.categories || departments).flatMap((department) =>
     department.children?.length ? department.children : [department]
   );
-  // Below this many products, a row reads as empty rather than curated.
-  const MIN_ROW_ITEMS = 4;
-  // Best sellers are things you can buy right now — a sold-out item has no
-  // place in the row that sells hardest.
-  const bestSellers = featured.filter((product) => product.inStock !== false).slice(0, 10);
-  const trending = inStockFirst(featured.slice(10));
+  // The product rows are Admin → Landing Page → Sections: which ones, their
+  // order and their products all come from the API, already filtered to what
+  // is switched on for the website. The first sits above the promo strip,
+  // where Best Sellers always was; the rest follow it.
+  const [leadSection, ...moreSections] = landing;
 
   return (
     <div className="wrap">
@@ -239,16 +233,7 @@ export default async function HomePage() {
             </div>
           ) : null}
 
-          {bestSellers.length ? (
-            <section className="section">
-              <SectionHead title="Best Sellers" href="/c" linkLabel="View All" accent />
-              <Carousel label="Best Sellers">
-                {bestSellers.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </Carousel>
-            </section>
-          ) : null}
+          {leadSection ? <LandingRow section={leadSection} /> : null}
 
           {/* Merchandising strip. Its contents are banners created in the
               admin, so the shop changes what is promoted here without a
@@ -257,34 +242,9 @@ export default async function HomePage() {
 
           {flashDeal ? <FlashDeal deal={flashDeal} /> : null}
 
-          {trending.length >= MIN_ROW_ITEMS ? (
-            <section className="section">
-              <SectionHead title="Trending Now" accent />
-              <Carousel label="Trending Now">
-                {trending.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </Carousel>
-            </section>
-          ) : null}
-
-          {rails
-            .filter((rail) => rail.products.length >= MIN_ROW_ITEMS)
-            .map((rail) => (
-              <section key={rail.category.id} className="section">
-                <SectionHead
-                  title={rail.category.name}
-                  href={`/c/${rail.category.slug}`}
-                  linkLabel="View All"
-                  accent
-                />
-                <Carousel label={rail.category.name}>
-                  {inStockFirst(rail.products).map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </Carousel>
-              </section>
-            ))}
+          {moreSections.map((section) => (
+            <LandingRow key={section.id} section={section} />
+          ))}
 
           {departments.length ? (
             <section className="section">
@@ -322,10 +282,38 @@ export default async function HomePage() {
   );
 }
 
-function SectionHead({ title, href, linkLabel, accent = false }) {
+// One configured landing section as a product row. A category section links
+// to its aisle; the API sends products already in the admin's order.
+function LandingRow({ section }) {
+  return (
+    <section className="section">
+      <SectionHead
+        title={section.name}
+        note={section.description}
+        href={section.category ? `/c/${section.category.slug}` : undefined}
+        linkLabel="View All"
+        accent
+      />
+      <Carousel label={section.name}>
+        {section.products.map((product) => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </Carousel>
+    </section>
+  );
+}
+
+function SectionHead({ title, note, href, linkLabel, accent = false }) {
   return (
     <div className="section-head">
-      <h2 className={accent ? "accent" : undefined}>{title}</h2>
+      {note ? (
+        <div>
+          <h2 className={accent ? "accent" : undefined}>{title}</h2>
+          <p>{note}</p>
+        </div>
+      ) : (
+        <h2 className={accent ? "accent" : undefined}>{title}</h2>
+      )}
       {href ? (
         <Link href={href} className="section-link">
           {linkLabel}

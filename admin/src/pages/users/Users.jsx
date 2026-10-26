@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, confirmDialog, toast } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, when } from "../../components/ui";
 
@@ -27,16 +27,18 @@ const StatusPill = ({ status }) => (
 // they delivered keep only their name. The API refuses while they hold a run
 // or unsettled cash, and says which.
 async function eraseAccount(user, note) {
-  const reason = note ?? window.prompt(
-    `Erase ${user.name}'s account? Their phone number and details are removed for good and they can no longer sign in. Delivered orders keep their name for the store's records.
-
-Note for the record (optional):`
-  );
-  if (reason === null) return false;
-  if (window.prompt("Type DELETE to confirm") !== "DELETE") return false;
+  const reason = await confirmDialog({
+    title: "Erase account?",
+    message: `Erase ${user.name}'s account? Their phone number and details are removed for good and they can no longer sign in. Delivered orders keep their name for the store's records.`,
+    input: note === undefined ? { label: "Note for the record (optional)" } : undefined,
+    typeToConfirm: "DELETE",
+    confirmText: "Erase account",
+    danger: true,
+  });
+  if (reason === false) return false;
   try {
-    const result = await api.post(`/users/${user.id}/erase`, { confirm: "DELETE", note: reason });
-    window.alert(result.message);
+    const result = await api.post(`/users/${user.id}/erase`, { confirm: "DELETE", note: note ?? reason });
+    toast("success", result.message);
     return true;
   } catch {
     return false; // the API client has already shown the reason as a toast
@@ -54,8 +56,12 @@ function DeletionRequests({ onChanged }) {
   if (!rows?.length) return null;
 
   async function decline(row) {
-    const note = window.prompt("Why is the request declined? The employee sees this in the app.");
-    if (!note?.trim()) return;
+    const note = await confirmDialog({
+      title: "Decline deletion request?",
+      input: { label: "Why is the request declined? The employee sees this in the app.", required: true },
+      confirmText: "Decline request",
+    });
+    if (!note) return;
     try {
       await api.post(`/users/deletion-requests/${row.id}/reject`, { note });
       load();
@@ -147,7 +153,15 @@ function StaffList({ title, role, addLabel }) {
 
   async function toggleStatus(user) {
     const activating = user.status !== "active";
-    if (!activating && !window.confirm(`Deactivate ${user.name}? They will be signed out and cannot sign in until reactivated.`)) return;
+    if (!activating) {
+      const ok = await confirmDialog({
+        title: "Deactivate user?",
+        message: `Deactivate ${user.name}? They will be signed out and cannot sign in until reactivated.`,
+        confirmText: "Deactivate",
+        danger: true,
+      });
+      if (!ok) return;
+    }
     setBusyId(user.id);
     try {
       await api.patch(`/users/${user.id}`, { status: activating ? "active" : "blocked" });

@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Text, TextInput } from "../components/Text";
 import { api } from "../api/client";
 import { colors, radius, spacing, type } from "../theme";
-import { Button, Card, Divider, IconTile, Notice, Pill } from "../components/ui";
+import { Button, Card, ConfirmModal, Divider, IconTile, Notice, Pill } from "../components/ui";
 
 // Legal notices for the delivery app, and the employee's account-deletion
 // request. Delivery staff are store employees: the store's admin completes or
@@ -30,6 +30,7 @@ export default function AboutScreen() {
   const [state, setState] = useState(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
@@ -37,30 +38,18 @@ export default function AboutScreen() {
   }, []);
   useFocusEffect(load);
 
-  function request() {
-    Alert.alert(
-      "Ask your store to delete your account?",
-      "Your account stays active until an admin completes the request. Records the store must keep (deliveries you made and cash you handled) are kept without your phone number.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Send request",
-          style: "destructive",
-          onPress: async () => {
-            setBusy(true);
-            setError("");
-            try {
-              await api.post("/auth/me/deletion", { confirm: "DELETE", reason });
-              load();
-            } catch (err) {
-              setError(err.message);
-            } finally {
-              setBusy(false);
-            }
-          },
-        },
-      ]
-    );
+  async function request() {
+    setBusy(true);
+    setError("");
+    try {
+      await api.post("/auth/me/deletion", { confirm: "DELETE", reason });
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+      setConfirming(false);
+    }
   }
 
   const latest = state?.request;
@@ -110,7 +99,7 @@ export default function AboutScreen() {
               maxLength={500}
               style={styles.input}
             />
-            <Button title="Request account deletion" variant="danger" icon="trash-outline" loading={busy} onPress={request} />
+            <Button title="Request account deletion" variant="danger" icon="trash-outline" loading={busy} onPress={() => setConfirming(true)} />
           </>
         ) : null}
         <Notice tone="error">{error}</Notice>
@@ -119,6 +108,16 @@ export default function AboutScreen() {
       <Text style={[type.tiny, { textAlign: "center" }]}>
         {Constants.expoConfig?.name || "Delivery app"} · v{Constants.expoConfig?.version || "—"}
       </Text>
+
+      <ConfirmModal
+        visible={confirming}
+        title="Ask your store to delete your account?"
+        message="Your account stays active until an admin completes the request. Records the store must keep (deliveries you made and cash you handled) are kept without your phone number."
+        confirmText="Send request"
+        busy={busy}
+        onConfirm={request}
+        onCancel={() => setConfirming(false)}
+      />
     </ScrollView>
   );
 }

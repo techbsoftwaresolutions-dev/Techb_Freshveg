@@ -1,0 +1,199 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1793012610276,
+  "projectRoot": "D:\\TechB\\fresh market\\Techb_Freshveg\\website",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "JavaScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "jsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "next",
+        "version": "15.1.6",
+        "category": "fullstack"
+      },
+      {
+        "name": "react",
+        "version": "19.0.0",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "19.0.0",
+        "category": "frontend"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": null,
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "next dev -p 3100",
+      "build": "next build",
+      "start": "next start -p 3100",
+      "lint": "next lint"
+    }
+  },
+  "conventions": {
+    "namingStyle": "camelCase/PascalCase",
+    "importStyle": "ES modules",
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "app",
+      "assets",
+      "components",
+      "lib",
+      "public"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "app": {
+      "path": "app",
+      "purpose": "Application code",
+      "fileCount": 8,
+      "lastAccessed": 1793012610195,
+      "keyFiles": [
+        "globals.css",
+        "layout.jsx",
+        "loading.jsx",
+        "manifest.js",
+        "not-found.jsx"
+      ]
+    },
+    "assets": {
+      "path": "assets",
+      "purpose": "Static assets",
+      "fileCount": 10,
+      "lastAccessed": 1793012610196,
+      "keyFiles": [
+        "Farmers Basket Fresh Produce Logo.webp",
+        "Fresh Fruit Basket in Sunlit Greenery.webp",
+        "Fresh Harvest Basket in Sunlit Fields.webp",
+        "Fresh Harvest in a Sunlit Crate.webp",
+        "Fresh Produce Splash Banner.webp"
+      ]
+    },
+    "components": {
+      "path": "components",
+      "purpose": "UI components",
+      "fileCount": 42,
+      "lastAccessed": 1793012610208,
+      "keyFiles": [
+        "AccountDeletionPanel.jsx",
+        "AccountIcons.jsx",
+        "AccountMobile.jsx",
+        "AddToCart.jsx",
+        "BackLink.jsx"
+      ]
+    },
+    "content": {
+      "path": "content",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1793012610210,
+      "keyFiles": []
+    },
+    "lib": {
+      "path": "lib",
+      "purpose": "Library code",
+      "fileCount": 9,
+      "lastAccessed": 1793012610211,
+      "keyFiles": [
+        "api.js",
+        "brand.js",
+        "client-api.js",
+        "format.js",
+        "install-prompt.js"
+      ]
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 4,
+      "lastAccessed": 1793012610211,
+      "keyFiles": [
+        "apple-icon.png",
+        "icon.png",
+        "og-image.jpg",
+        "sw.js"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "app/page.jsx",
+      "accessCount": 8,
+      "lastAccessed": 1793018509562,
+      "type": "file"
+    },
+    {
+      "path": "app/orders/[id]/page.jsx",
+      "accessCount": 5,
+      "lastAccessed": 1793012834982,
+      "type": "file"
+    },
+    {
+      "path": "components/FreshHome.jsx",
+      "accessCount": 5,
+      "lastAccessed": 1793018516653,
+      "type": "file"
+    },
+    {
+      "path": "components/ConfirmDialog.jsx",
+      "accessCount": 2,
+      "lastAccessed": 1793013142365,
+      "type": "file"
+    },
+    {
+      "path": "app/globals.css",
+      "accessCount": 1,
+      "lastAccessed": 1793012832326,
+      "type": "file"
+    },
+    {
+      "path": ".claude/launch.json",
+      "accessCount": 1,
+      "lastAccessed": 1793013027226,
+      "type": "file"
+    },
+    {
+      "path": "app/cart/page.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1793013143584,
+      "type": "file"
+    },
+    {
+      "path": "lib/api.js",
+      "accessCount": 1,
+      "lastAccessed": 1793018456237,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

@@ -90,6 +90,20 @@ const productSchema = new mongoose.Schema(
     hiddenBy: objectId("Category", { default: null, index: true }),
     isFeatured: { type: Boolean, default: false, index: true },
 
+    // Curated storefront sections the product is placed on, on top of its
+    // category — see sections.service for the keys. Written only through the
+    // Products list's Sections control, never by the product form.
+    sections: {
+      type: [{ type: String, enum: ["best_seller", "trending", "on_discount"] }],
+      default: [],
+      index: true,
+    },
+    // Where the product sits in each section and in its top-level category's
+    // rail, keyed the same way ("trending", "category:<id>"): one entry per
+    // order, so its place in one never moves its place in another. Kept dense
+    // by sections.service.arrange.
+    positions: { type: Map, of: Number, default: {} },
+
     rating: {
       average: { type: Number, default: 0, min: 0, max: 5 },
       count: { type: Number, default: 0, min: 0 },

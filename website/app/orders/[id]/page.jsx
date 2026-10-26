@@ -7,6 +7,7 @@ import { useAuth, useCart } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees, when } from "@/lib/format";
 import { payOnline } from "@/lib/razorpay";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
@@ -93,6 +94,7 @@ function OrderDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [paying, setPaying] = useState("");
   const [paymentNotice, setPaymentNotice] = useState(PAYMENT_NOTICES[params.get("payment")] || null);
   const poller = useRef(null);
@@ -166,7 +168,6 @@ function OrderDetail() {
   }, [tracking?.status]);
 
   async function cancel() {
-    if (!confirm("Cancel this order? This cannot be undone.")) return;
     setCancelling(true);
     try {
       await api.post(`/orders/${id}/cancel`, { reason: "Cancelled from the website" });
@@ -176,6 +177,7 @@ function OrderDetail() {
       setError(err.message);
     } finally {
       setCancelling(false);
+      setConfirmCancel(false);
     }
   }
 
@@ -404,12 +406,22 @@ function OrderDetail() {
                 <button
                   className="btn block danger-outline"
                   style={{ marginTop: 14 }}
-                  onClick={cancel}
+                  onClick={() => setConfirmCancel(true)}
                   disabled={cancelling}
                 >
                   {cancelling ? "Cancelling…" : "Cancel order"}
                 </button>
               ) : null}
+              <ConfirmDialog
+                open={confirmCancel}
+                title="Cancel this order?"
+                message="This cannot be undone."
+                confirmText="Cancel order"
+                cancelText="Keep order"
+                busy={cancelling}
+                onConfirm={cancel}
+                onCancel={() => setConfirmCancel(false)}
+              />
             </div>
           </div>
         ) : null}

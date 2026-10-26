@@ -5,6 +5,12 @@ const Category = require("./category.model");
 const ApiError = require("../../core/ApiError");
 const { uniqueSlug, slugify } = require("../../core/slugify");
 const { resolveCategorySchema, validateAgainstSchema } = require("./schema.service");
+const sections = require("./sections.service");
+
+// Section membership and order have their own endpoints (the Products list),
+// so a full-form save — or a stale copy of the product sent back — can never
+// overwrite them.
+const stripOrdering = ({ sections: _s, positions: _p, ...rest }) => rest;
 
 // Products are written *through* their category's resolved schema. Nothing here
 // knows what a vegetable or a hair clip is — it asks the category what fields
@@ -51,6 +57,7 @@ function buildSku(product, axisValues, sequence) {
 }
 
 async function createProduct(payload, actor = null) {
+  payload = stripOrdering(payload);
   const category = await Category.findById(payload.category);
   if (!category) throw ApiError.badRequest("Category not found");
 
@@ -88,13 +95,16 @@ async function createProduct(payload, actor = null) {
 
   await replaceVariants(product, variantPayloads, schema);
   await refreshRollup(product._id);
+  await sections.syncProduct(product);
 
   return Product.findById(product._id);
 }
 
 async function updateProduct(id, payload, actor = null) {
+  payload = stripOrdering(payload);
   const product = await Product.findById(id);
   if (!product) throw ApiError.notFound("Product not found");
+  const ordering = { status: product.status, keys: sections.orderKeysOf(product) };
 
   const categoryId = payload.category || product.category;
   const schema = await resolveCategorySchema(categoryId);
@@ -132,6 +142,8 @@ async function updateProduct(id, payload, actor = null) {
   }
 
   await refreshRollup(product._id);
+  const moved = String(ordering.keys) !== String(sections.orderKeysOf(product));
+  if (moved || ordering.status !== product.status) await sections.syncProduct(product, ordering.keys);
   return Product.findById(product._id);
 }
 

@@ -1,16 +1,17 @@
 import React, { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "../components/Text";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { colors, spacing, type } from "../theme";
-import { Button, Card, Notice, Pill } from "../components/ui";
+import { Button, Card, ConfirmModal, Notice, Pill } from "../components/ui";
 import AddressForm from "../components/AddressForm";
 
 export default function AddressesScreen() {
   const { user, refreshUser } = useAuth();
   const [editing, setEditing] = useState(null); // an address id, "new", or null
   const [removing, setRemoving] = useState(null);
+  const [confirming, setConfirming] = useState(null); // the address awaiting "Remove?"
   const [error, setError] = useState("");
 
   const addresses = user?.addresses || [];
@@ -20,26 +21,18 @@ export default function AddressesScreen() {
     await refreshUser();
   }
 
-  function remove(address) {
-    Alert.alert("Remove this address?", [address.line1, address.city].filter(Boolean).join(", "), [
-      { text: "Keep it", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: async () => {
-          setRemoving(address.id);
-          setError("");
-          try {
-            await api.del(`/auth/me/addresses/${address.id}`);
-            await refreshUser();
-          } catch (err) {
-            setError(err.message);
-          } finally {
-            setRemoving(null);
-          }
-        },
-      },
-    ]);
+  async function remove(address) {
+    setRemoving(address.id);
+    setError("");
+    try {
+      await api.del(`/auth/me/addresses/${address.id}`);
+      await refreshUser();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRemoving(null);
+      setConfirming(null);
+    }
   }
 
   return (
@@ -73,7 +66,7 @@ export default function AddressesScreen() {
                     size="sm"
                     variant="ghost"
                     loading={removing === address.id}
-                    onPress={() => remove(address)}
+                    onPress={() => setConfirming(address)}
                   />
                 </View>
               </>
@@ -98,6 +91,17 @@ export default function AddressesScreen() {
           </Pressable>
         )}
       </ScrollView>
+
+      <ConfirmModal
+        visible={Boolean(confirming)}
+        title="Remove this address?"
+        message={confirming ? [confirming.line1, confirming.city].filter(Boolean).join(", ") : ""}
+        confirmText="Remove"
+        cancelText="Keep it"
+        busy={Boolean(removing)}
+        onConfirm={() => remove(confirming)}
+        onCancel={() => setConfirming(null)}
+      />
     </KeyboardAvoidingView>
   );
 }

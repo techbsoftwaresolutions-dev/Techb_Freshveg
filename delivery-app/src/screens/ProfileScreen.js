@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "../components/Text";
 import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
-import { Button, Card, Divider, IconTile, Loading, Notice, Pill } from "../components/ui";
+import { Button, Card, ConfirmModal, Divider, IconTile, Loading, Notice, Pill } from "../components/ui";
 
 export default function ProfileScreen({ navigation }) {
   const { user, signOut } = useAuth();
@@ -13,6 +13,7 @@ export default function ProfileScreen({ navigation }) {
   const [week, setWeek] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -117,12 +118,19 @@ export default function ProfileScreen({ navigation }) {
         title="Sign out"
         icon="log-out-outline"
         variant="danger"
-        onPress={() =>
-          Alert.alert("Sign out?", "You'll need your OTP to sign back in.", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Sign out", style: "destructive", onPress: signOut },
-          ])
-        }
+        onPress={() => setConfirmSignOut(true)}
+      />
+
+      <ConfirmModal
+        visible={confirmSignOut}
+        title="Sign out?"
+        message="You'll need your OTP to sign back in."
+        confirmText="Sign out"
+        onConfirm={() => {
+          setConfirmSignOut(false);
+          signOut();
+        }}
+        onCancel={() => setConfirmSignOut(false)}
       />
 
       <Text style={[type.tiny, { textAlign: "center", marginTop: spacing.sm }]}>

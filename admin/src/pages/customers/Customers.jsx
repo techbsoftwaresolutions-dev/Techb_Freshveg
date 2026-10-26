@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, confirmDialog, toast } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -163,16 +163,18 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
   // For a deletion request that came by email or phone. The API refuses while
   // an order, refund or support request is open, and says which.
   async function erase() {
-    const note = window.prompt(
-      `Delete ${customer.name || customer.phone}'s account? Personal data is erased for good; orders and payments are kept anonymised.
-
-How did they ask, and how did you check it was them?`
-    );
-    if (!note?.trim()) return;
-    if (window.prompt("Type DELETE to confirm") !== "DELETE") return;
+    const note = await confirmDialog({
+      title: "Delete customer account?",
+      message: `Delete ${customer.name || customer.phone}'s account? Personal data is erased for good; orders and payments are kept anonymised.`,
+      input: { label: "How did they ask, and how did you check it was them?", required: true },
+      typeToConfirm: "DELETE",
+      confirmText: "Delete account",
+      danger: true,
+    });
+    if (!note) return;
     try {
       const result = await api.post(`/customers/${id}/erase`, { confirm: "DELETE", note, acknowledge: true });
-      window.alert(result.message);
+      toast("success", result.message);
       onChanged?.();
       onClose();
     } catch (err) {

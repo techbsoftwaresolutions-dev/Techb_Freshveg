@@ -24,6 +24,7 @@ import {
   IconOffers,
   IconBanners,
   IconBell,
+  IconSections,
   IconReports,
   IconStores,
   IconSettings,
@@ -164,8 +165,16 @@ const NAV = [
     ],
   },
   {
-    group: "Growth",
+    // Was "Growth": the same marketing tools, now under the landing page they
+    // shape. Their routes are unchanged, so old bookmarks still open.
+    group: "Landing Page",
     items: [
+      {
+        to: "/landing-page/sections",
+        label: "Sections",
+        permission: "marketing.view",
+        icon: IconSections,
+      },
       {
         to: "/marketing/offers",
         label: "Offers & Coupons",
@@ -537,6 +546,7 @@ function titleFor(pathname) {
     "/customers": "Customers",
     "/users": "Users",
     "/delivery-boys": "Delivery Boys",
+    "/landing-page/sections": "Landing Page · Sections",
     "/marketing/offers": "Offers & Coupons",
     "/marketing/banners": "Banners",
     "/marketing/notifications": "Notifications",

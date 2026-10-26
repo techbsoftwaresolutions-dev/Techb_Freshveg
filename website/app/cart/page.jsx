@@ -9,6 +9,7 @@ import { useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import AddToCart from "@/components/AddToCart";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
 import { rupees } from "@/lib/format";
 
@@ -18,7 +19,7 @@ export default function CartPage() {
   const router = useRouter();
   const { store } = useStore();
   const billRef = useRef(null);
-  const confirmRef = useRef(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   // Phone only: the coupon box starts folded to one line.
   const [offersOpen, setOffersOpen] = useState(false);
@@ -55,7 +56,7 @@ export default function CartPage() {
 
   // Empties the cart through the API's own "clear" and re-reads it.
   async function clearCart() {
-    confirmRef.current?.close();
+    setConfirmClear(false);
     try {
       await api.del("/cart", { store: store?.id });
     } catch {
@@ -92,7 +93,7 @@ export default function CartPage() {
             {itemCount} item{itemCount === 1 ? "" : "s"}
           </p>
         </div>
-        <button type="button" className="cart-clear" onClick={() => confirmRef.current?.showModal()}>
+        <button type="button" className="cart-clear" onClick={() => setConfirmClear(true)}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5" />
           </svg>
@@ -268,31 +269,14 @@ export default function CartPage() {
         </div>
       </div>
 
-      {/* Native <dialog>: showModal() gives focus trapping, Esc-to-cancel and
-          the top layer for free; a click on the backdrop lands on the dialog
-          itself, outside the inner box, and cancels too. */}
-      <dialog
-        ref={confirmRef}
-        className="confirm-dialog"
-        aria-labelledby="clear-cart-title"
-        aria-describedby="clear-cart-desc"
-        onClick={(e) => e.target === e.currentTarget && e.currentTarget.close()}
-      >
-        <div className="confirm-dialog-box">
-          <h2 id="clear-cart-title">Clear your cart?</h2>
-          <p id="clear-cart-desc">
-            {itemCount === 1 ? "The item" : `All ${itemCount} items`} will be removed from your cart.
-          </p>
-          <div className="confirm-dialog-actions">
-            <button type="button" className="btn" onClick={() => confirmRef.current?.close()} autoFocus>
-              Cancel
-            </button>
-            <button type="button" className="btn danger" onClick={clearCart}>
-              Clear cart
-            </button>
-          </div>
-        </div>
-      </dialog>
+      <ConfirmDialog
+        open={confirmClear}
+        title="Clear your cart?"
+        message={`${itemCount === 1 ? "The item" : `All ${itemCount} items`} will be removed from your cart.`}
+        confirmText="Clear cart"
+        onConfirm={clearCart}
+        onCancel={() => setConfirmClear(false)}
+      />
 
       {/* Phone: the total and the way forward stay in reach at the bottom. */}
       <div className="cart-bar">

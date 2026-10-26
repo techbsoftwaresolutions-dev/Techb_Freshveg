@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { Animated, Image, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Animated, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, TextInput } from "../components/Text";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { colors, radius, rupees, shadow, spacing, type, unitSuffix } from "../theme";
-import { Button, Card, Divider, EmptyState, IconTile, Loading, Notice, Pill } from "../components/ui";
+import { Button, Card, ConfirmModal, Divider, EmptyState, IconTile, Loading, Notice, Pill } from "../components/ui";
 import QtyStepper from "../components/QtyStepper";
 import CouponPicker from "../components/CouponPicker";
 import FreeDeliveryProgress from "../components/FreeDeliveryProgress";
@@ -54,7 +54,6 @@ export default function CartScreen({ navigation }) {
     }
   }
 
-  // An in-app modal rather than Alert.alert, which does nothing on Expo web.
   const clearCart = () => {
     setConfirmClear(false);
     cart.clear().catch(() => {});
@@ -235,23 +234,14 @@ export default function CartScreen({ navigation }) {
         />
       </Animated.View>
 
-      {/* Back button (Android) and a tap on the dimmed backdrop both cancel. */}
-      <Modal visible={confirmClear} transparent animationType="fade" onRequestClose={() => setConfirmClear(false)}>
-        <Pressable style={styles.confirmBackdrop} onPress={() => setConfirmClear(false)} accessibilityLabel="Cancel">
-          <Pressable style={styles.confirmBox} onPress={() => {}} accessibilityViewIsModal>
-            <Text style={styles.confirmTitle} accessibilityRole="header">
-              Clear your cart?
-            </Text>
-            <Text style={styles.confirmText}>
-              {itemCount === 1 ? "The item" : `All ${itemCount} items`} will be removed from your cart.
-            </Text>
-            <View style={styles.confirmActions}>
-              <Button title="Cancel" variant="outline" onPress={() => setConfirmClear(false)} style={{ flex: 1 }} />
-              <Button title="Clear cart" variant="danger" onPress={clearCart} style={{ flex: 1 }} />
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <ConfirmModal
+        visible={confirmClear}
+        title="Clear your cart?"
+        message={`${itemCount === 1 ? "The item" : `All ${itemCount} items`} will be removed from your cart.`}
+        confirmText="Clear cart"
+        onConfirm={clearCart}
+        onCancel={() => setConfirmClear(false)}
+      />
     </View>
   );
 }
@@ -270,11 +260,6 @@ function Row({ label, value, tone, bold }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
 
-  confirmBackdrop: { flex: 1, justifyContent: "center", padding: spacing.lg, backgroundColor: "rgba(10, 30, 20, 0.45)" },
-  confirmBox: { width: "100%", maxWidth: 400, alignSelf: "center", padding: 22, borderRadius: 16, backgroundColor: colors.surface, ...shadow.card },
-  confirmTitle: { fontSize: 19, fontWeight: "700", color: colors.text, marginBottom: 6 },
-  confirmText: { fontSize: 14, color: colors.textMuted, marginBottom: 20 },
-  confirmActions: { flexDirection: "row", gap: 10 },
 
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   clear: { flexDirection: "row", alignItems: "center", gap: 4 },

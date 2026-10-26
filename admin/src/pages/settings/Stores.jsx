@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, confirmDialog } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Switch, Table, rupees } from "../../components/ui";
@@ -36,7 +36,13 @@ export default function Stores() {
   // on record, the default store, staff or offers tied to it alone) and says
   // why; that reason is shown as it comes.
   async function removeStore(store) {
-    if (!window.confirm(`Delete "${store.name}"? Its stock, delivery zones and slots go with it. This can't be undone.`)) return;
+    const ok = await confirmDialog({
+      title: "Delete store?",
+      message: `Delete "${store.name}"? Its stock, delivery zones and slots go with it. This can't be undone.`,
+      confirmText: "Delete store",
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(store.id);
     setError("");
     setDeleted("");

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, confirmDialog } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Loading, Modal, Pill, rupees, when } from "../../components/ui";
 import { statusTone } from "./Orders";
@@ -140,8 +140,15 @@ export default function OrderDetail() {
                 key={action.status}
                 className="btn danger"
                 disabled={busy}
-                onClick={() => {
-                  if (window.confirm(`${action.label} ${order.code}? The customer will be told.`)) advance(action.status);
+                onClick={async () => {
+                  const ok = await confirmDialog({
+                    title: `${action.label}?`,
+                    message: `${action.label} ${order.code}? The customer will be told.`,
+                    confirmText: action.label,
+                    cancelText: "Go back",
+                    danger: true,
+                  });
+                  if (ok) advance(action.status);
                 }}
               >
                 {action.label}

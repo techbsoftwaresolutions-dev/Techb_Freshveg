@@ -12,6 +12,8 @@ const Variant = require("./variant.model");
 
 const categoryService = require("./category.service");
 const productService = require("./product.service");
+const sections = require("./sections.service");
+const landing = require("../marketing/landing.service");
 const audit = require("../audit/audit.service");
 const { resolveCategorySchema } = require("./schema.service");
 const { FEATURES } = require("./featureRegistry");
@@ -428,14 +430,38 @@ router.get(
     if (req.query.inStock !== undefined) filter.inStock = req.query.inStock === "true";
     if (req.query.search) filter.name = new RegExp(escapeRegex(req.query.search), "i");
 
+    // Each tab's count is taken over the same search, category and status,
+    // so the numbers on the tabs always match what opening one shows.
+    const [all, ...inSections] = await Promise.all([
+      Product.countDocuments(filter),
+      ...sections.SECTION_KEYS.map((key) => Product.countDocuments({ ...filter, sections: key })),
+    ]);
+    const counts = { all, ...Object.fromEntries(sections.SECTION_KEYS.map((key, i) => [key, inSections[i]])) };
+
+    // Which saved order the list is in, if any: a section tab is in that
+    // section's order; a category filter, in that category's own order.
+    // Search and filters only narrow the list — they never change a
+    // position, and S.No always shows the product's place in the full order.
+    const { section } = req.query;
+    let order = null;
+    if (section) {
+      if (!sections.SECTION_KEYS.includes(section)) throw ApiError.badRequest(`Unknown section "${section}"`);
+      filter.sections = section;
+      order = sections.SECTIONS.find((s) => s.key === section);
+    } else if (/^[0-9a-fA-F]{24}$/.test(req.query.category || "")) {
+      const category = await Category.findById(req.query.category).select("name");
+      if (category) order = { key: sections.categoryKey(category._id), label: category.name };
+    }
+    if (order) await sections.ensureArranged(order.key);
+
     const result = await paginate(Product, filter, req.query, {
-      defaultSort: { createdAt: -1 },
+      ...(order ? { sort: sections.sortFor(order.key) } : { defaultSort: { createdAt: -1 } }),
       populate: [
         { path: "category", select: "name slug path" },
         { path: "brand", select: "name slug" },
       ],
     });
-    res.json({ success: true, ...result });
+    res.json({ success: true, ...result, sections: sections.SECTIONS, counts, order });
   })
 );
 
@@ -515,6 +541,103 @@ router.patch(
   })
 );
 
+// The Products list's Sections control: one section switched on or off per
+// request, applied atomically, so two quick ticks on the same row (or two
+// admins at once) each land instead of the second overwriting the first.
+router.patch(
+  "/products/:id/sections",
+  canManage,
+  asyncHandler(async (req, res) => {
+    const { section, enabled } = req.body;
+    const label = sections.SECTIONS.find((s) => s.key === section)?.label;
+    if (!label || typeof enabled !== "boolean") throw ApiError.badRequest("Pick a section, and whether the product is in it");
+
+    const product = await Product.findById(req.params.id).select("name status maxDiscountPct");
+    if (!product || product.status === "archived") throw ApiError.notFound("Product not found");
+    // Being placed on the shelf doesn't discount anything — the price does.
+    if (enabled && section === "on_discount" && !(product.maxDiscountPct > 0)) {
+      throw ApiError.unprocessable(
+        `${product.name} has no discount yet — give one of its packs an MRP above its selling price first`
+      );
+    }
+
+    const { modifiedCount } = await Product.updateOne(
+      { _id: product._id },
+      enabled ? { $addToSet: { sections: section } } : { $pull: { sections: section } }
+    );
+    // Joining goes to the end of the section; leaving closes the gap.
+    if (modifiedCount) {
+      await sections.arrange(section, product._id);
+      await audit.record({
+        req, action: "update", entity: "Product", entityId: product._id, label: product.name,
+        after: { section, enabled },
+      });
+    }
+
+    const fresh = await Product.findById(product._id).select("sections positions");
+    res.json({
+      success: true,
+      product: fresh,
+      message: `${product.name} ${enabled ? "added to" : "removed from"} ${label}`,
+    });
+  })
+);
+
+// Moves a product to a position within one order — a section, or its own
+// top-level category ("category") — and closes up the rest of that order
+// around it. Other orders are untouched.
+router.patch(
+  "/products/:id/position",
+  canManage,
+  asyncHandler(async (req, res) => {
+    const product = await Product.findById(req.params.id).select("name status sections categoryPath");
+    if (!product || product.status === "archived") throw ApiError.notFound("Product not found");
+
+    const key = req.body.key === "category" ? sections.categoryKeyOf(product) : req.body.key;
+    if (!sections.orderKeysOf(product).includes(key)) throw ApiError.badRequest(`${product.name} isn't in that section`);
+    const position = Number(req.body.position);
+    if (!Number.isInteger(position) || position < 1) throw ApiError.badRequest("Enter a position of 1 or more");
+
+    const ordered = await sections.arrange(key, product._id, position);
+    const at = ordered.indexOf(String(product._id)) + 1;
+    await audit.record({
+      req, action: "update", entity: "Product", entityId: product._id, label: product.name,
+      after: { order: key, position: at },
+    });
+    res.json({ success: true, key, position: at, total: ordered.length, message: `${product.name} moved to position ${at}` });
+  })
+);
+
+// The Reorder view: one complete order — a classification ("trending"), a
+// category ("category:<id>") or a curated landing section ("curated:<id>") —
+// read whole and saved whole. Curated sections belong to Landing Page, so
+// they take the marketing permissions; the rest take the catalog ones.
+const byOrderKind = (catalogGuard, marketingGuard) => (req, res, next) =>
+  (String(req.params.key).startsWith("curated:") ? marketingGuard : catalogGuard)(req, res, next);
+
+router.get(
+  "/orders/:key",
+  byOrderKind(canView, requirePermission("marketing.view")),
+  asyncHandler(async (req, res) => {
+    res.json({ success: true, ...(await landing.readAnyOrder(req.params.key)) });
+  })
+);
+
+// Body: { ids: [every member, in the new order], version } — `version` from
+// the read. Anything else in the body is ignored: a reorder can only move
+// products, never change one.
+router.put(
+  "/orders/:key",
+  byOrderKind(canManage, requirePermission("marketing.manage")),
+  asyncHandler(async (req, res) => {
+    const { key } = req.params;
+    await landing.saveAnyOrder(key, req.body.ids, req.body.version);
+    const saved = await landing.readAnyOrder(key);
+    await audit.record({ req, action: "update", entity: "ProductOrder", entityId: null, label: key, after: { count: saved.items.length } });
+    res.json({ success: true, ...saved, message: "Product order saved" });
+  })
+);
+
 router.post(
   "/products/:id/publish",
   requirePermission("catalog.publish"),
@@ -538,8 +661,10 @@ router.delete(
   canManage,
   asyncHandler(async (req, res) => {
     // Archived, never deleted — order history points at these documents.
-    await Product.findByIdAndUpdate(req.params.id, { status: "archived" });
+    const product = await Product.findByIdAndUpdate(req.params.id, { status: "archived" }, { new: true });
     await Variant.updateMany({ product: req.params.id }, { status: "archived" });
+    // Out of every section and rail order, with the rest closing up.
+    if (product) await sections.syncProduct(product);
     res.json({ success: true });
   })
 );

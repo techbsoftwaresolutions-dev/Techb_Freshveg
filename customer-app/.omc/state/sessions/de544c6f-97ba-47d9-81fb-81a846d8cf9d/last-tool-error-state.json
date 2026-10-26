@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"computer\",\"input\":{\"action\":\"wait\",\"duration\":2,\"tabId\":\"tab-1\"}},{\"name\":\"navigate\",\"input\":{\"url\":\"http://localhost:5181/landing-page/sections\",\"tabId\":\"tab-1\"}},{\"name\":\"comput...",
+  "error": "[computer:wait] waited 2s\n\n\nTab Context:\n- Executed on tabId: tab-1\n- Available tabs:\n  • tabId tab-1: \"The Farmers Basket Admin\" (\"http://localhost:5181/\")\n[navigate] navigated to http://localhost:5181/landing-page/sections\n\n\nTab Context:\n- Executed on tabId: tab-1\n- Available tabs:\n  • tabId tab-1: \"The Farmers Basket Admin\" (\"http://localhost:5181/landing-page/sections\")\n[computer:wait] waited 2s\n\n\nTab Context:\n- Executed on tabId: tab-1\n- Available tabs:\n  • tabId tab-1: \"The Farmers Basket ...",
+  "timestamp": "2026-10-26T12:43:30.939Z",
+  "retry_count": 2
+}

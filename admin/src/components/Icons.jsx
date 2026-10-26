@@ -352,3 +352,25 @@ export function IconDownload(props) {
     </Svg>
   );
 }
+
+// Stacked page blocks — the landing page's sections.
+export function IconSections(props) {
+  return (
+    <Svg {...props}>
+      <rect x="3.5" y="3.5" width="17" height="5" rx="1.5" />
+      <rect x="3.5" y="10.5" width="17" height="4" rx="1.5" />
+      <rect x="3.5" y="16.5" width="10" height="4" rx="1.5" />
+    </Svg>
+  );
+}
+
+export function IconTrash(props) {
+  return (
+    <Svg {...props}>
+      <path d="M4 7h16" />
+      <path d="M9.5 7V4.8c0-.7.6-1.3 1.3-1.3h2.4c.7 0 1.3.6 1.3 1.3V7" />
+      <path d="M6.2 7l.9 12.1c.1 1 .9 1.9 2 1.9h5.8c1.1 0 1.9-.8 2-1.9L17.8 7" />
+      <path d="M10.3 11v6M13.7 11v6" />
+    </Svg>
+  );
+}

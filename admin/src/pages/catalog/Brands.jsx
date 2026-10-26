@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, confirmDialog } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import FormRoute from "../../components/FormRoute";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table } from "../../components/ui";
@@ -39,7 +39,13 @@ export default function Brands() {
   // live product is still filed under it, and that refusal's message is
   // what ends up in the banner below.
   async function removeBrand(brand) {
-    if (!window.confirm(`Delete "${brand.name}"? This can't be undone.`)) return;
+    const ok = await confirmDialog({
+      title: "Delete brand?",
+      message: `Are you sure you want to delete "${brand.name}"? This action cannot be undone.`,
+      confirmText: "Delete brand",
+      danger: true,
+    });
+    if (!ok) return;
     setRemovingId(brand.id);
     setError("");
     try {

@@ -29,8 +29,12 @@ function ProductCard({ product, variant, quantity, busy, onPress, onAdd, onChang
   const packLabel =
     variantPack || product.packLabel || (product.variantCount > 1 ? `${product.variantCount} sizes` : product.unit);
   const outOfStock = variant ? variant.availability?.available <= 0 : product.inStock === false;
-  // Quality flags the admin tags products with — the same filter the website uses.
-  const flags = (product.tags || []).filter((tag) => /^(fresh|organic|export quality)$/i.test(tag)).slice(0, 2);
+  // Best Seller / Trending (`badges`, from the API) first, then the quality
+  // flags the admin tags products with — the same chips the website shows.
+  const flags = [
+    ...(product.badges || []),
+    ...(product.tags || []).filter((tag) => /^(fresh|organic|export quality)$/i.test(tag)),
+  ].slice(0, 2);
   const saved = isSaved(product.id);
 
   return (

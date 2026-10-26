@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, confirmDialog } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, when } from "../../components/ui";
 
@@ -46,16 +46,28 @@ export default function DeliveryAreas() {
     }
   }
 
-  const toggle = (area) => {
+  const toggle = async (area) => {
     if (area.active) {
       const open = area.openOrders ? ` Its ${area.openOrders} open order${area.openOrders === 1 ? "" : "s"} will still be delivered.` : "";
-      if (!window.confirm(`Stop delivering to ${area.name}? Customers will no longer be able to choose it.${open}`)) return;
+      const ok = await confirmDialog({
+        title: "Stop delivering here?",
+        message: `Stop delivering to ${area.name}? Customers will no longer be able to choose it.${open}`,
+        confirmText: "Stop delivering",
+        danger: true,
+      });
+      if (!ok) return;
     }
     run(area, () => api.patch(`/delivery-areas/${area.id}`, { active: !area.active }));
   };
 
-  const remove = (area) => {
-    if (!window.confirm(`Delete ${area.name}? This can't be undone.`)) return;
+  const remove = async (area) => {
+    const ok = await confirmDialog({
+      title: "Delete delivery area?",
+      message: `Delete ${area.name}? This can't be undone.`,
+      confirmText: "Delete area",
+      danger: true,
+    });
+    if (!ok) return;
     run(area, () => api.delete(`/delivery-areas/${area.id}`));
   };
 

@@ -16,11 +16,11 @@ import organicPhoto from "@/assets/Fresh Produce Splash Banner.webp";
 const TINTS = ["peach", "mint", "leaf", "lilac", "sun", "sage", "sky"];
 
 export default function FreshHome({ home, categoryTree = [] }) {
-  const { featured = [], rails = [] } = home;
-  const railFor = (slug) => rails.find((rail) => rail.category.slug === slug)?.products || [];
-  const vegetables = railFor("fresh-vegetables");
-  const fruits = railFor("fresh-fruits");
-  const dairy = railFor("milk-dairy");
+  // The product rows are Admin → Landing Page → Sections, in their saved
+  // order and already filtered to the website. The first sits above the
+  // organic banner (where Best Sellers was); the rest follow it.
+  const { featured = [], landing = [] } = home;
+  const [leadSection, ...moreSections] = landing;
 
   // Fruits and every vegetable shelf, then milk: the tiles a shopper scans first.
   const shelves = [];
@@ -33,8 +33,6 @@ export default function FreshHome({ home, categoryTree = [] }) {
     ...shelves.filter((c) => c.slug !== "fresh-fruits" && c.slug !== "milk-dairy"),
     ...shelves.filter((c) => c.slug === "milk-dairy"),
   ];
-
-  const bestSellers = fruits.length ? fruits : featured.slice(0, 4);
 
   return (
     <div className="fh">
@@ -104,17 +102,8 @@ export default function FreshHome({ home, categoryTree = [] }) {
           </section>
         ) : null}
 
-        {/* ------------------------------------------------ best sellers */}
-        {bestSellers.length ? (
-          <section className="fh-section">
-            <Head title="Best Sellers" href="/c/fresh-fruits" link="View All" />
-            <div className="fh-wide-row">
-              {bestSellers.slice(0, 4).map((product) => (
-                <WideCard key={product.id} product={product} />
-              ))}
-            </div>
-          </section>
-        ) : null}
+        {/* --------------------------------------------- landing sections */}
+        {leadSection ? <LandingRow section={leadSection} /> : null}
 
         {/* --------------------------------------------- organic banner */}
         <section className="fh-organic">
@@ -133,39 +122,11 @@ export default function FreshHome({ home, categoryTree = [] }) {
           </span>
         </section>
 
-        {/* ------------------------------------- vegetables / fruits rows */}
-        {vegetables.length ? (
-          <section className="fh-section">
-            <Head title="Fresh Vegetables" href="/c/fresh-vegetables" link="View All" inline />
-            <div className="fh-grid">
-              {vegetables.slice(0, 6).map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {fruits.length ? (
-          <section className="fh-section">
-            <Head title="Fresh Fruits" href="/c/fresh-fruits" link="View All" />
-            <div className="fh-wide-row">
-              {fruits.slice(0, 4).map((product) => (
-                <WideCard key={product.id} product={product} />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {dairy.length ? (
-          <section className="fh-section">
-            <Head title="Milk & Dairy" href="/c/milk-dairy" link="View All" />
-            <div className="fh-wide-row">
-              {dairy.slice(0, 4).map((product) => (
-                <WideCard key={product.id} product={product} />
-              ))}
-            </div>
-          </section>
-        ) : null}
+        {/* The first row after the banner is a grid, the rest wide rows —
+            the rhythm this design had with Vegetables, Fruits and Dairy. */}
+        {moreSections.map((section, index) => (
+          <LandingRow key={section.id} section={section} grid={index === 0} />
+        ))}
 
         {/* ------------------------------------------------ why shop */}
         <section className="fh-why">
@@ -222,7 +183,31 @@ function Head({ title, note, href, link, inline = false }) {
   );
 }
 
-// Image on the left, details on the right: the "Best Sellers" / fruit rows.
+// One configured landing section: six cards in a grid, or four wide rows. A
+// category section links to its aisle.
+function LandingRow({ section, grid = false }) {
+  const href = section.category ? `/c/${section.category.slug}` : undefined;
+  return (
+    <section className="fh-section">
+      <Head title={section.name} note={section.description} href={href} link="View All" inline={grid} />
+      {grid ? (
+        <div className="fh-grid">
+          {section.products.slice(0, 6).map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      ) : (
+        <div className="fh-wide-row">
+          {section.products.slice(0, 4).map((product) => (
+            <WideCard key={product.id} product={product} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Image on the left, details on the right: the wide landing-section rows.
 function WideCard({ product }) {
   const image = product.media?.[0]?.url;
   const off = discountPct(product.mrpFrom, product.priceFrom);

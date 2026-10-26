@@ -144,9 +144,33 @@
   },
   "hotPaths": [
     {
+      "path": "src/modules/catalog/sections.service.js",
+      "accessCount": 11,
+      "lastAccessed": 1793018963235,
+      "type": "file"
+    },
+    {
       "path": "src/modules/settings/settings.routes.js",
       "accessCount": 9,
       "lastAccessed": 1792842666220,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/catalog/storefront.routes.js",
+      "accessCount": 6,
+      "lastAccessed": 1793019004588,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/catalog/product.service.js",
+      "accessCount": 5,
+      "lastAccessed": 1793017042806,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/marketing/landing.service.js",
+      "accessCount": 5,
+      "lastAccessed": 1793018980742,
       "type": "file"
     },
     {
@@ -162,12 +186,6 @@
       "type": "file"
     },
     {
-      "path": "src/modules/catalog/product.service.js",
-      "accessCount": 4,
-      "lastAccessed": 1793006838605,
-      "type": "file"
-    },
-    {
       "path": "src/modules/inventory/inventory.routes.js",
       "accessCount": 3,
       "lastAccessed": 1792827130079,
@@ -180,6 +198,30 @@
       "type": "file"
     },
     {
+      "path": "src/modules/catalog/product.model.js",
+      "accessCount": 3,
+      "lastAccessed": 1793017030275,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/marketing/landing.routes.js",
+      "accessCount": 3,
+      "lastAccessed": 1793018995852,
+      "type": "file"
+    },
+    {
+      "path": "src/modules/catalog/catalog.routes.js",
+      "accessCount": 3,
+      "lastAccessed": 1793018998218,
+      "type": "file"
+    },
+    {
+      "path": "test/productOrder.test.js",
+      "accessCount": 3,
+      "lastAccessed": 1793019098578,
+      "type": "file"
+    },
+    {
       "path": "test/productPhoto.test.js",
       "accessCount": 2,
       "lastAccessed": 1792236952777,
@@ -189,12 +231,6 @@
       "path": "test/inventoryReceive.test.js",
       "accessCount": 2,
       "lastAccessed": 1792827166400,
-      "type": "file"
-    },
-    {
-      "path": "src/modules/catalog/product.model.js",
-      "accessCount": 2,
-      "lastAccessed": 1792840392824,
       "type": "file"
     },
     {
@@ -213,6 +249,12 @@
       "path": "src/modules/orders/order.model.js",
       "accessCount": 2,
       "lastAccessed": 1793006873111,
+      "type": "file"
+    },
+    {
+      "path": "test/productSections.test.js",
+      "accessCount": 2,
+      "lastAccessed": 1793018240186,
       "type": "file"
     },
     {
@@ -354,12 +396,6 @@
       "type": "file"
     },
     {
-      "path": "src/modules/catalog/catalog.routes.js",
-      "accessCount": 1,
-      "lastAccessed": 1792844286335,
-      "type": "file"
-    },
-    {
       "path": "test/packSizes.test.js",
       "accessCount": 1,
       "lastAccessed": 1792844306929,
@@ -375,6 +411,24 @@
       "path": "src/modules/cart/cart.service.js",
       "accessCount": 1,
       "lastAccessed": 1793006870551,
+      "type": "file"
+    },
+    {
+      "path": "src/routes/index.js",
+      "accessCount": 1,
+      "lastAccessed": 1793018174987,
+      "type": "file"
+    },
+    {
+      "path": "src/seed/syncIndexes.js",
+      "accessCount": 1,
+      "lastAccessed": 1793018179365,
+      "type": "file"
+    },
+    {
+      "path": "test/landingSections.test.js",
+      "accessCount": 1,
+      "lastAccessed": 1793018241544,
       "type": "file"
     }
   ],

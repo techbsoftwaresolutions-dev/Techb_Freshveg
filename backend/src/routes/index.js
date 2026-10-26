@@ -33,6 +33,7 @@ router.use("/delivery", require("../modules/delivery/delivery.routes"));
 router.use("/customers", require("../modules/customers/customer.routes"));
 router.use("/users", require("../modules/users/user.routes"));
 router.use("/marketing/offers", require("../modules/pricing/offer.routes"));
+router.use("/marketing/landing-sections", require("../modules/marketing/landing.routes"));
 router.use("/maintenance", require("../modules/maintenance/maintenance.routes"));
 
 // --- Oversight ------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, confirmDialog } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import {
   Banner, Card, DateRange, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Switch, Table, Tabs, rupees, when,
@@ -318,7 +318,15 @@ function ReferralDetail({ id, canManage, onClose, onChanged }) {
               <button
                 className="btn danger"
                 disabled={busy || !voidReason.trim()}
-                onClick={() => window.confirm("Void this referral? Nothing more will be counted or earned.") && act("void", { reason: voidReason })}
+                onClick={async () => {
+                  const ok = await confirmDialog({
+                    title: "Void referral?",
+                    message: "Void this referral? Nothing more will be counted or earned.",
+                    confirmText: "Void referral",
+                    danger: true,
+                  });
+                  if (ok) act("void", { reason: voidReason });
+                }}
               >
                 Void referral
               </button>
@@ -350,10 +358,16 @@ function CouponList({ canManage }) {
   useEffect(load, [load]);
 
   async function revoke(coupon) {
-    const reason = window.prompt(`Revoke ${coupon.code} (${rupees(coupon.amount)})? Give a reason:`);
-    if (!reason?.trim()) return;
+    const reason = await confirmDialog({
+      title: "Revoke coupon?",
+      message: `Revoke ${coupon.code} (${rupees(coupon.amount)})?`,
+      input: { label: "Reason", required: true },
+      confirmText: "Revoke coupon",
+      danger: true,
+    });
+    if (!reason) return;
     try {
-      await api.post(`/referrals/coupons/${coupon.id}/revoke`, { reason: reason.trim() });
+      await api.post(`/referrals/coupons/${coupon.id}/revoke`, { reason });
       load();
     } catch (err) {
       setError(err.message);

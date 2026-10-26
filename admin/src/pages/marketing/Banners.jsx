@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, confirmDialog } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -51,7 +51,13 @@ export default function Banners() {
   }
 
   async function removeBanner(banner) {
-    if (!window.confirm(`Delete the banner "${banner.title}"? This can't be undone — pause it instead to just take it off the site.`)) return;
+    const ok = await confirmDialog({
+      title: "Delete banner?",
+      message: `Delete the banner "${banner.title}"? This can't be undone — pause it instead to just take it off the site.`,
+      confirmText: "Delete banner",
+      danger: true,
+    });
+    if (!ok) return;
     setBusyId(banner.id);
     setError("");
     try {

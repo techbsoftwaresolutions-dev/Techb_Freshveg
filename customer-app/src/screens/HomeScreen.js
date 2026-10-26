@@ -45,7 +45,8 @@ export default function HomeScreen({ navigation }) {
       // plays the website's Video Hero playlist; with no playable list, or no
       // settings at all, the classic banners show.
       const [home, live, settings] = await Promise.all([
-        api.get("/storefront/home", { store: storeId || undefined }),
+        // platform=app: only the landing sections switched on for the app.
+        api.get("/storefront/home", { store: storeId || undefined, platform: "app" }),
         api.get("/banners/live", { placement: "home_hero" }).catch(() => ({ banners: [] })),
         api.get("/settings/public").catch(() => null),
       ]);
@@ -220,23 +221,21 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       ) : null}
 
-      {data?.featured?.length ? (
-        <Rail title="Best Sellers" products={data.featured} cart={cart} navigation={navigation} onSeeAll={() => navigation.navigate("CategoriesTab")} />
-      ) : null}
-
-      {/* One rail per department, so the home screen grows by itself. */}
-      {(data?.rails || []).map((rail) => (
+      {/* Admin → Landing Page → Sections: which rails, in what order, with
+          their products in the admin's order — all decided by the API, so a
+          change there needs no app release. A category rail opens its aisle. */}
+      {(data?.landing || []).map((section) => (
         <Rail
-          key={rail.category.id}
-          title={rail.category.name}
-          products={rail.products}
+          key={section.id}
+          title={section.name}
+          products={section.products}
           cart={cart}
           navigation={navigation}
-          onSeeAll={() => openCategory(rail.category)}
+          onSeeAll={section.category ? () => openCategory(section.category) : undefined}
         />
       ))}
 
-      {!data?.rails?.length && !data?.featured?.length ? (
+      {!data?.landing?.length ? (
         <EmptyState icon="basket-outline" title="Nothing stocked yet" hint="Once products are published in the admin they will show up here." />
       ) : null}
     </ScrollView>

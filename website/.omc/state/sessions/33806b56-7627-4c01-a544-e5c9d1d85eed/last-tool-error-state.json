@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"D:/TechB/fresh market/Techb_Freshveg/website\\\" && python - <<'EOF'\\np = \\\"app/cart/page.jsx\\\"\\ns = open(p, encoding=\\\"utf-8\\\").read()\\ns = s.replace('import EmptyState from \\\"@/compon...",
+  "error": "Exit code 1\n8:import { useRef, useState } from \"react\";\n21:  const billRef = useRef(null);\nX [ERROR] Must use \"outdir\" when there are multiple input files\n\nnode:child_process:964\r\n    throw err;\r\n    ^\r\n\r\nError: Command failed: D:\\TechB\\fresh market\\Techb_Freshveg\\admin\\node_modules\\@esbuild\\win32-x64\\esbuild.exe --loader:.js=jsx --log-level=error app/cart/page.jsx components/ConfirmDialog.jsx app/orders/[id]/page.jsx\r\n    at genericNodeError (node:internal/errors:998:15)\r\n    at wrappedFn (node...",
+  "timestamp": "2026-10-26T11:12:33.919Z",
+  "retry_count": 1
+}

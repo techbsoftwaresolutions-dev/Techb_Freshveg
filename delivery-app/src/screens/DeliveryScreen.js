@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Image, Linking, ScrollView, StyleSheet, View } from "react-native";
+import { Image, Linking, ScrollView, StyleSheet, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,7 +7,7 @@ import { Text, TextInput } from "../components/Text";
 import { api } from "../api/client";
 import { colors, formatAddress, radius, rupees, shadow, spacing, type } from "../theme";
 import {
-  Button, Card, Divider, EmptyState, IconTile, ItemThumb, Loading, Notice, Pill,
+  Button, Card, ConfirmModal, Divider, EmptyState, IconTile, ItemThumb, Loading, Notice, Pill,
   callNumber, openMaps,
 } from "../components/ui";
 
@@ -53,6 +53,7 @@ export default function DeliveryScreen({ route, navigation }) {
   const [error, setError] = useState("");
   const [otp, setOtp] = useState("");
   const [photoRequired, setPhotoRequired] = useState(false);
+  const [reporting, setReporting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -262,18 +263,23 @@ export default function DeliveryScreen({ route, navigation }) {
           title="Report a problem"
           icon="help-circle-outline"
           variant="ghost"
-          onPress={() =>
-            Alert.alert(
-              "Report a problem",
-              "Call the store to sort it out — in-app issue reporting is not built yet.",
-              [
-                { text: "Close", style: "cancel" },
-                { text: "Call store", onPress: () => callNumber(pickup?.phone) },
-              ]
-            )
-          }
+          onPress={() => setReporting(true)}
         />
       </ScrollView>
+
+      <ConfirmModal
+        visible={reporting}
+        title="Report a problem"
+        message="Call the store to sort it out — in-app issue reporting is not built yet."
+        confirmText="Call store"
+        cancelText="Close"
+        danger={false}
+        onConfirm={() => {
+          setReporting(false);
+          callNumber(pickup?.phone);
+        }}
+        onCancel={() => setReporting(false)}
+      />
 
       {/* One primary action, always in the same place under the thumb. */}
       <View style={[styles.actionBar, { paddingBottom: Math.max(bottom, spacing.md) + spacing.sm }]}>

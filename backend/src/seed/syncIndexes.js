@@ -51,6 +51,7 @@ const models = [
   require("../modules/maintenance/maintenanceAsset.model"),
   require("../modules/maintenance/maintenanceRequest.model"),
   require("../modules/marketing/banner.model"),
+  require("../modules/marketing/landingSection.model"),
   require("../modules/customers/customerGroup.model"),
 ];
 

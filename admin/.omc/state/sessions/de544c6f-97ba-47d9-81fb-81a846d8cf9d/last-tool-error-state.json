@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"D:/TechB/fresh market/Techb_Freshveg/admin\\\" && python - <<'EOF'\\np='src/pages/catalog/Products.jsx'\\ns=open(p,encoding='utf-8').read()\\ns=s.replace('''import { useEffect, useState } ...",
+  "error": "Exit code 2\n/usr/bin/bash: -c: line 210: unexpected EOF while looking for matching `''",
+  "timestamp": "2026-10-26T12:20:54.851Z",
+  "retry_count": 1
+}

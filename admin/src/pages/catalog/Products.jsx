@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, confirmDialog } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees } from "../../components/ui";
+import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, Tabs, rupees } from "../../components/ui";
+import ReorderPanel from "../../components/ReorderPanel";
+
+const PAGE_SIZE = 20;
 
 export default function Products() {
   const { can } = useAuth();
@@ -16,8 +20,10 @@ export default function Products() {
   const [tab, setTab] = useState("");
   // A search typed into the admin's topbar lands here as ?search=, so that
   // box is a real shortcut into this page rather than a decoration.
+  // `section` is the Best Seller / Trending / On Discount tab ("" = all).
   const [filters, setFilters] = useState({
     search: searchParams.get("search") || "",
+    section: "",
     category: "",
     status: "",
     page: 1,
@@ -26,6 +32,11 @@ export default function Products() {
   const [error, setError] = useState("");
   const [removingId, setRemovingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  // Rows whose Sections or S.No is being saved — one request per row at a
+  // time, so quick clicks can't race each other.
+  const [savingIds, setSavingIds] = useState(() => new Set());
+  // The order open in Reorder Products ({ key, label }), or null.
+  const [reordering, setReordering] = useState(null);
   const canManage = can("catalog.manage");
 
   useEffect(() => {
@@ -35,19 +46,57 @@ export default function Products() {
       .catch(() => {});
   }, []);
 
+  // Only the newest request may fill the table, so a slow refresh can't land
+  // on top of a tab or filter picked after it.
+  const latest = useRef(0);
+  const load = useCallback(() => {
+    const id = ++latest.current;
+    return api.get("/catalog/products", { ...filters, limit: PAGE_SIZE }).then((next) => {
+      if (id === latest.current) setData(next);
+    });
+  }, [filters]);
+
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(
       () =>
-        api
-          .get("/catalog/products", { ...filters, limit: 20 })
-          .then(setData)
+        load()
           .catch((err) => setError(err.message))
           .finally(() => setLoading(false)),
       filters.search ? 250 : 0
     );
     return () => clearTimeout(timer);
-  }, [filters]);
+  }, [load, filters.search]);
+
+  // A section or position change reshuffles other rows (and the tab counts),
+  // so the page is re-read quietly behind it — no spinner, nothing unmounts.
+  async function saveRow(product, request) {
+    setSavingIds((ids) => new Set(ids).add(product.id));
+    try {
+      await request();
+      await load();
+    } catch {
+      // The API client has already shown the error as a toast.
+    } finally {
+      setSavingIds((ids) => {
+        const next = new Set(ids);
+        next.delete(product.id);
+        return next;
+      });
+    }
+  }
+
+  const toggleSection = (product, section, enabled) =>
+    saveRow(product, async () => {
+      const { product: fresh } = await api.patch(`/catalog/products/${product.id}/sections`, { section, enabled });
+      setData((d) => ({
+        ...d,
+        items: d.items.map((p) => (p.id === product.id ? { ...p, sections: fresh.sections, positions: fresh.positions } : p)),
+      }));
+    });
+
+  const movePosition = (product, position) =>
+    saveRow(product, () => api.patch(`/catalog/products/${product.id}/position`, { key: data.order.key, position }));
 
   const pickTab = (id) => {
     setTab(id);
@@ -81,7 +130,13 @@ export default function Products() {
   // at these documents), so drop it from the visible list here rather than
   // trusting a refetch to hide it again.
   async function removeProduct(product) {
-    if (!window.confirm(`Delete "${product.name}"? This can't be undone.`)) return;
+    const ok = await confirmDialog({
+      title: "Delete product?",
+      message: `Are you sure you want to delete "${product.name}"? This action cannot be undone.`,
+      confirmText: "Delete product",
+      danger: true,
+    });
+    if (!ok) return;
     setRemovingId(product.id);
     setError("");
     try {
@@ -108,6 +163,15 @@ export default function Products() {
       </div>
 
       <Banner tone="error">{error}</Banner>
+
+      <Tabs
+        active={filters.section}
+        onChange={(section) => set("section", section)}
+        tabs={[
+          { key: "", label: "All Products", count: data.counts?.all },
+          ...(data.sections || []).map((s) => ({ key: s.key, label: s.label, count: data.counts?.[s.key] })),
+        ]}
+      />
 
       <div className="toolbar">
         <button className={`btn sm${tab === "" ? " primary" : ""}`} onClick={() => pickTab("")}>
@@ -152,9 +216,52 @@ export default function Products() {
           <Loading />
         ) : (
           <>
+            {/* Says whose order S.No is, so a number is never read as the
+                product's place everywhere. */}
+            <div className="order-note">
+              {data.order ? (
+                <>
+                  <span>
+                    S.No is the position in <strong>{data.order.label}</strong>
+                    {data.order.key.startsWith("category:") ? " (this category's own order)" : ""}
+                    {canManage ? " — type a number to move a product, or arrange the whole section." : "."}
+                  </span>
+                  {canManage ? (
+                    <button className="btn sm" onClick={() => setReordering(data.order)}>
+                      Reorder Products
+                    </button>
+                  ) : null}
+                </>
+              ) : (
+                "S.No is this list's row number. Open a section tab, or pick a category, to see and change saved positions."
+              )}
+            </div>
             <Table
               title="Products"
               columns={[
+                {
+                  key: "sno",
+                  label: "S.No",
+                  align: "right",
+                  sortable: false,
+                  width: 72,
+                  render: (row) => {
+                    if (!data.order) {
+                      const meta = data.meta || { page: 1, limit: PAGE_SIZE };
+                      return (meta.page - 1) * meta.limit + data.items.indexOf(row) + 1;
+                    }
+                    const position = row.positions?.[data.order.key];
+                    return canManage ? (
+                      <PositionInput
+                        value={position}
+                        disabled={savingIds.has(row.id)}
+                        onSave={(next) => movePosition(row, next)}
+                      />
+                    ) : (
+                      position ?? "—"
+                    );
+                  },
+                },
                 {
                   key: "name",
                   label: "Product",
@@ -184,6 +291,20 @@ export default function Products() {
                       </div>
                     );
                   },
+                },
+                {
+                  key: "sections",
+                  label: "Sections",
+                  sortable: false,
+                  render: (row) => (
+                    <SectionsPicker
+                      product={row}
+                      sections={data.sections || []}
+                      saving={savingIds.has(row.id)}
+                      editable={canManage && row.status !== "archived"}
+                      onToggle={(section, enabled) => toggleSection(row, section, enabled)}
+                    />
+                  ),
                 },
                 {
                   key: "price",
@@ -286,7 +407,154 @@ export default function Products() {
           </>
         )}
       </Card>
+
+      {reordering ? (
+        <ReorderPanel
+          orderKey={reordering.key}
+          title={reordering.label}
+          onClose={() => setReordering(null)}
+          onSaved={() => load().catch(() => {})}
+        />
+      ) : null}
     </div>
+  );
+}
+
+// The product's place in the order being viewed. Saved on Enter or when the
+// box loses focus, and only if the number actually changed; Esc puts it back.
+function PositionInput({ value, disabled, onSave }) {
+  const [draft, setDraft] = useState(value ?? "");
+  // Re-synced when a save finishes too (`disabled` flips back): a number past
+  // the end is clamped by the server, and may leave `value` unchanged.
+  useEffect(() => setDraft(value ?? ""), [value, disabled]);
+
+  const commit = () => {
+    const next = Number(draft);
+    if (Number.isInteger(next) && next >= 1 && next !== value) onSave(next);
+    else setDraft(value ?? "");
+  };
+
+  return (
+    <input
+      className="position-input"
+      type="number"
+      min={1}
+      step={1}
+      value={draft}
+      disabled={disabled}
+      aria-label="Position"
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") {
+          setDraft(value ?? "");
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
+// The row's Sections cell: its section tags, and — for someone who can
+// manage the catalog — a checklist to add it to or take it off each one.
+// The list is drawn in a portal at the button's screen position, so the
+// table's scroll container can't clip it. Each tick saves on its own.
+function SectionsPicker({ product, sections, saving, editable, onToggle }) {
+  const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState(null);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+  const chosen = new Set(product.sections || []);
+  const noDiscount = chosen.has("on_discount") && !(product.maxDiscountPct > 0);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const r = buttonRef.current.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom > 170;
+    setPlace({
+      left: Math.max(8, Math.min(r.left, window.innerWidth - 208)),
+      ...(below ? { top: r.bottom + 4 } : { bottom: window.innerHeight - r.top + 4 }),
+    });
+
+    const onDown = (event) => {
+      if (menuRef.current?.contains(event.target) || buttonRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+    const onKey = (event) => event.key === "Escape" && setOpen(false);
+    // A fixed list would drift away from its row on scroll, so it closes.
+    const onMove = () => setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+  }, [open]);
+
+  const tags = sections.filter((s) => chosen.has(s.key));
+  const tagList = (
+    <span className="section-tags">
+      {tags.map((s) => (
+        <span key={s.key} className={`section-tag ${s.key}`}>
+          {s.label}
+        </span>
+      ))}
+      {!tags.length ? <span className="faint">{editable ? "Add to section" : "—"}</span> : null}
+      {noDiscount ? (
+        <span className="section-tag warn" title="No pack is priced below its MRP, so the store won't show it under On Discount">
+          No discount
+        </span>
+      ) : null}
+    </span>
+  );
+
+  if (!editable) return tagList;
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="sections-button"
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }}
+      >
+        {tagList}
+        <span className="sections-caret" aria-hidden="true">▾</span>
+      </button>
+      {open && place
+        ? createPortal(
+            // React bubbles portal events up to the row, which would open the
+            // product — so they stop here.
+            <div ref={menuRef} className="sections-menu" style={place} onClick={(e) => e.stopPropagation()}>
+              {sections.map((s) => (
+                <label key={s.key} className="sections-option">
+                  <input
+                    type="checkbox"
+                    checked={chosen.has(s.key)}
+                    disabled={saving}
+                    onChange={(e) => onToggle(s.key, e.target.checked)}
+                  />
+                  <span className={`section-dot ${s.key}`} aria-hidden="true" />
+                  {s.label}
+                </label>
+              ))}
+              {saving ? <div className="sections-saving">Saving…</div> : null}
+            </div>,
+            document.body
+          )
+        : null}
+    </>
   );
 }
 

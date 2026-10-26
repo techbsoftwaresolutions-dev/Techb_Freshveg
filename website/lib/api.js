@@ -37,7 +37,9 @@ async function get(path, { query, revalidate = 60 } = {}) {
   return payload;
 }
 
-export const getHome = (store) => get("/storefront/home", { query: { store }, revalidate: 60 });
+// platform=web: the landing sections switched on for the website (Admin →
+// Landing Page → Sections). A change there shows within the 60 s revalidate.
+export const getHome = (store) => get("/storefront/home", { query: { store, platform: "web" }, revalidate: 60 });
 
 export const getCategories = () => get("/storefront/categories", { query: { depth: 3 }, revalidate: 300 });
 
