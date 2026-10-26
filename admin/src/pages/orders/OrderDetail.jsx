@@ -88,10 +88,6 @@ export default function OrderDetail() {
   const exits = actions.filter((a) => a.kind === "danger");
 
   const address = order.delivery?.address || {};
-  // weightGrams is per the same reference unit unitPrice is quoted against,
-  // so it multiplies by quantity exactly like unitPrice does. Lines whose
-  // variant never had a weight set contribute 0, same as an unset price would.
-  const totalWeightGrams = order.items.reduce((sum, item) => sum + (item.weightGrams || 0) * item.quantity, 0);
 
   return (
     <div className="page">
@@ -169,14 +165,6 @@ export default function OrderDetail() {
                 <Pill>
                   <IconBoxSm /> {order.items.length} item{order.items.length === 1 ? "" : "s"}
                 </Pill>
-                {/* Only shown when at least one line actually has a weight
-                    recorded on its variant — otherwise this would read as a
-                    real figure ("0 kg") when it's really just unset data. */}
-                {totalWeightGrams > 0 && (
-                  <Pill>
-                    <IconScaleSm /> {(totalWeightGrams / 1000).toFixed(2)} kg
-                  </Pill>
-                )}
                 <Pill tone="accent">
                   <IconRupeeSm /> {rupees(order.pricing.total)}
                 </Pill>
@@ -459,20 +447,6 @@ function IconBoxSm() {
   );
 }
 
-function IconScaleSm() {
-  return (
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" aria-hidden="true">
-      <path d="M12 3v18M7 21h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M5 7h6M13 7h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path
-        d="M5 7l-2.5 5a2.5 2.5 0 0 0 5 0L5 7ZM19 7l-2.5 5a2.5 2.5 0 0 0 5 0L19 7Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function IconRupeeSm() {
   return (

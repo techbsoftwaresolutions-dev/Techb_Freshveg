@@ -1,7 +1,7 @@
 {
-  "tool_name": "mcp__Claude_Browser__computer",
-  "tool_input_preview": "{\"action\":\"screenshot\"}",
-  "error": "There is no page to screenshot, zoom into or click — this tool only acts on a page in the Browser pane (not on files, the desktop or other apps). No preview is open. Use `preview_start` or `navigate` with {\"url\": \"https://…\"} to open a browser tab at a URL, or `preview_start` with {\"name\": \"…\"} to start a dev server from .claude/launch.json.",
-  "timestamp": "2026-10-24T10:04:10.011Z",
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"navigate\",\"input\":{\"url\":\"http://localhost:3100/\",\"tabId\":\"tab-1\"}},{\"name\":\"resize_window\",\"input\":{\"width\":1440,\"height\":900,\"tabId\":\"tab-1\"}},{\"name\":\"javascript_tool\",\"input\":...",
+  "error": "[navigate] {\n  \"serverId\": \"preview-local_c247cd10-80f6-412f-ae07-49f289cb81ec\",\n  \"tabId\": \"seed\",\n  \"reused\": false,\n  \"type\": \"browser\",\n  \"navOk\": true\n}\nBrowser pane opened. Use serverId \"preview-local_c247cd10-80f6-412f-ae07-49f289cb81ec\" with read_page / computer / navigate.\n\nactions[1] (resize_window) failed: Preview tab tab-1 is no longer open. (1 completed, 1 remaining)",
+  "timestamp": "2026-10-26T09:45:10.275Z",
   "retry_count": 1
 }

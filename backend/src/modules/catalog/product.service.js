@@ -149,6 +149,26 @@ function soldLoose(categoryValue, isSplitIntoPacks) {
   return categoryValue < 1 ? 1 : categoryValue;
 }
 
+// A Pack Size label ("500 g", "1 KG", "12 Pieces", "2 Pack", "1 Bunch") read
+// as what one pack physically is — the size the storefront labels and prices
+// against ("₹80 per kg"). Grams and millilitres are kept as kg and litres so a
+// unit price never reads "per g". null when the label holds no size at all.
+const PACK_UNITS = {
+  g: ["kg", 0.001], gm: ["kg", 0.001], gms: ["kg", 0.001], gram: ["kg", 0.001], grams: ["kg", 0.001],
+  kg: ["kg", 1], kgs: ["kg", 1], kilo: ["kg", 1], kilos: ["kg", 1],
+  ml: ["l", 0.001], l: ["l", 1], ltr: ["l", 1], ltrs: ["l", 1], litre: ["l", 1], litres: ["l", 1], liter: ["l", 1], liters: ["l", 1],
+  pc: ["pcs", 1], pcs: ["pcs", 1], piece: ["pcs", 1], pieces: ["pcs", 1], pack: ["pcs", 1], packs: ["pcs", 1], nos: ["pcs", 1],
+  dozen: ["pcs", 12],
+};
+
+function packSizeFromLabel(label) {
+  const match = String(label || "").trim().toLowerCase().match(/^(\d+(?:\.\d+)?)?\s*([a-z]+)?/);
+  if (!match || (!match[1] && !match[2])) return null;
+  const count = match[1] ? Number(match[1]) : 1;
+  const [unit, scale] = PACK_UNITS[match[2] || "pcs"] || [match[2], 1];
+  return { value: Math.round(count * scale * 10000) / 10000, unit };
+}
+
 async function replaceVariants(product, variantPayloads, schema = null) {
   const resolved = schema || (await resolveCategorySchema(product.category));
   const axisFields = resolved.variantAxes;
@@ -188,13 +208,16 @@ async function replaceVariants(product, variantPayloads, schema = null) {
       attributes,
       name: payload.name || "",
       barcode: payload.barcode || "",
-      packSize: payload.packSize || { value: 1, unit: product.unit },
+      // From the chosen Pack Size when there is one, so the two can't disagree.
+      packSize:
+        packSizeFromLabel(axisValues.find((a) => a.code === "pack_size")?.label) ||
+        payload.packSize ||
+        { value: 1, unit: product.unit },
       mrp: payload.mrp ?? 0,
       sellingPrice: payload.sellingPrice ?? 0,
       costPrice: payload.costPrice ?? 0,
       taxRatePct: payload.taxRatePct ?? product.taxRatePct ?? 0,
       taxInclusive: payload.taxInclusive ?? true,
-      weightGrams: payload.weightGrams ?? 0,
       minOrderQty: payload.minOrderQty ?? soldLoose(resolved.defaults.minOrderQty, isSplitIntoPacks),
       maxOrderQty: payload.maxOrderQty ?? resolved.defaults.maxOrderQty ?? 50,
       // The variant model rounds both of these to whole units on save.
@@ -267,4 +290,5 @@ module.exports = {
   refreshRollup,
   applyCategoryDefaults,
   buildSku,
+  packSizeFromLabel,
 };

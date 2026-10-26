@@ -183,7 +183,6 @@ async function placeOrder({ cartId, userId, addressId, deliveryAreaId, paymentMe
         image: line.image,
         unit: line.unit,
         packSize: line.packSize,
-        weightGrams: line.weightGrams || 0,
         quantity: line.quantity,
         unitPrice: line.pricing.unitPrice,
         mrp: line.pricing.mrp,

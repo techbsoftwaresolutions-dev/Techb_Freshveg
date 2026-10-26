@@ -150,10 +150,6 @@ async function hydrate(cart, { includeSaved = false } = {}) {
         image: variant.media?.[0]?.url || product?.media?.[0]?.url || "",
         unit: product?.unit || variant.packSize?.unit || "pcs",
         packSize: variant.packSize,
-        // Per-reference-unit shipping weight, carried onto the order line so
-        // a picked/packed order can report a real total weight later —
-        // multiplies the same way unitPrice does (weightGrams * quantity).
-        weightGrams: variant.weightGrams || 0,
         quantity: item.quantity,
         sellingPrice: variant.sellingPrice,
         mrp: variant.mrp,

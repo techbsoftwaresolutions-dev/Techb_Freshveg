@@ -57,8 +57,6 @@ const variantSchema = new mongoose.Schema(
       default: [],
     },
 
-    weightGrams: { type: Number, default: 0, min: 0 }, // shipping / slot capacity
-
     // Order quantity rules. A cart quantity counts this variant — whole packs
     // or pieces, never a weight — so these are whole numbers; a fractional
     // value (the old 0.25 kg step) is rounded up to a whole unit on save.

@@ -39,17 +39,17 @@ const departmentImages = {
 
 // Pack size code -> how it is stored on the variant.
 const PACKS = {
-  "100g": { packSize: { value: 100, unit: "g" }, weightGrams: 100 },
-  "250g": { packSize: { value: 250, unit: "g" }, weightGrams: 250 },
-  "500g": { packSize: { value: 500, unit: "g" }, weightGrams: 500 },
-  "1kg": { packSize: { value: 1, unit: "kg" }, weightGrams: 1000 },
-  "3kg": { packSize: { value: 3, unit: "kg" }, weightGrams: 3000 },
-  "5kg": { packSize: { value: 5, unit: "kg" }, weightGrams: 5000 },
-  "1pc": { packSize: { value: 1, unit: "pcs" }, weightGrams: 0 },
-  "12pc": { packSize: { value: 12, unit: "pcs" }, weightGrams: 0 },
-  "1bunch": { packSize: { value: 1, unit: "bunch" }, weightGrams: 0 },
-  "500ml": { packSize: { value: 500, unit: "ml" }, weightGrams: 0 },
-  "1l": { packSize: { value: 1, unit: "l" }, weightGrams: 0 },
+  "100g": { packSize: { value: 100, unit: "g" } },
+  "250g": { packSize: { value: 250, unit: "g" } },
+  "500g": { packSize: { value: 500, unit: "g" } },
+  "1kg": { packSize: { value: 1, unit: "kg" } },
+  "3kg": { packSize: { value: 3, unit: "kg" } },
+  "5kg": { packSize: { value: 5, unit: "kg" } },
+  "1pc": { packSize: { value: 1, unit: "pcs" } },
+  "12pc": { packSize: { value: 12, unit: "pcs" } },
+  "1bunch": { packSize: { value: 1, unit: "bunch" } },
+  "500ml": { packSize: { value: 500, unit: "ml" } },
+  "1l": { packSize: { value: 1, unit: "l" } },
 };
 
 // [pack, mrp ₹, price ₹] — converted to paise below.

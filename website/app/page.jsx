@@ -157,22 +157,24 @@ export default async function HomePage() {
           {shelves.length ? (
             <section className="section">
               <SectionHead title="Shop by Category" href="/c" linkLabel="View All" accent />
-              <nav className="shelf-tiles" aria-label="Categories">
-                {shelves.map((shelf) => (
-                  <Link key={shelf.id} href={`/c/${shelf.slug}`} className="shelf-tile">
-                    <span className="shelf-tile-media">
-                      {shelf.image ? (
-                        <img src={img(shelf.image, 320)} alt={`Fresh ${shelf.name} — buy online in Bangalore`} loading="lazy" />
-                      ) : (
-                        <CategoryIcon name={shelf.name} />
-                      )}
-                    </span>
-                    <span className="shelf-tile-name">
-                      <span>{shelf.name}</span>
-                      <IconArrow />
-                    </span>
-                  </Link>
-                ))}
+              <nav aria-label="Categories">
+                <Carousel label="categories" className="shelf-tiles" railClassName="shelf-rail">
+                  {shelves.map((shelf) => (
+                    <Link key={shelf.id} href={`/c/${shelf.slug}`} className="shelf-tile">
+                      <span className="shelf-tile-media">
+                        {shelf.image ? (
+                          <img src={img(shelf.image, 320)} alt={`Fresh ${shelf.name} — buy online in Bangalore`} loading="lazy" />
+                        ) : (
+                          <CategoryIcon name={shelf.name} />
+                        )}
+                      </span>
+                      <span className="shelf-tile-name">
+                        <span>{shelf.name}</span>
+                        <IconArrow />
+                      </span>
+                    </Link>
+                  ))}
+                </Carousel>
               </nav>
             </section>
           ) : null}

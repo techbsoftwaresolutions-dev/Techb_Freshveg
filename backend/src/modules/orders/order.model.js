@@ -22,11 +22,6 @@ const orderItemSchema = new mongoose.Schema(
       value: { type: Number, default: 1 },
       unit: { type: String, default: "pcs" },
     },
-    // Snapshotted from Variant.weightGrams at order time (same multiplier
-    // basis as unitPrice: weightGrams * quantity = this line's shipping
-    // weight), so a real "total weight" figure can be shown without
-    // re-deriving it from a catalogue that may have since changed.
-    weightGrams: { type: Number, default: 0, min: 0 },
 
     quantity: { type: Number, required: true, min: 0 },
     unitPrice: money(0),

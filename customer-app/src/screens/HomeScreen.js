@@ -165,25 +165,29 @@ export default function HomeScreen({ navigation }) {
         <BannerStrip banners={banners} copy={heroCopy} navigation={navigation} />
       )}
 
-      {/* Shop by Category — round photos, three to a row, in a white panel. */}
+      {/* Shop by Category — round photos in one swipeable row, in a white
+          panel. Every tile is the same fixed width however many categories
+          are switched on; more categories only make the row longer. */}
       {categories.length ? (
         <View style={styles.section}>
           <SectionHeader title="Shop by Category" actionLabel="View All" onAction={() => navigation.navigate("CategoriesTab")} />
           <Card style={styles.categoryPanel}>
-            {categories.map((category) => (
-              <Pressable key={category.id} style={styles.categoryTile} onPress={() => openCategory(category)} accessibilityRole="link">
-                <View style={styles.categoryCircle}>
-                  {category.image ? (
-                    <Image source={{ uri: category.image }} style={styles.categoryImage} resizeMode="cover" />
-                  ) : (
-                    <Ionicons name="leaf-outline" size={28} color={colors.primary} />
-                  )}
-                </View>
-                <Text style={styles.categoryName} numberOfLines={2}>
-                  {category.name}
-                </Text>
-              </Pressable>
-            ))}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+              {categories.map((category) => (
+                <Pressable key={category.id} style={styles.categoryTile} onPress={() => openCategory(category)} accessibilityRole="link">
+                  <View style={styles.categoryCircle}>
+                    {category.image ? (
+                      <Image source={{ uri: category.image }} style={styles.categoryImage} resizeMode="cover" />
+                    ) : (
+                      <Ionicons name="leaf-outline" size={28} color={colors.primary} />
+                    )}
+                  </View>
+                  <Text style={styles.categoryName} numberOfLines={2}>
+                    {category.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
           </Card>
         </View>
       ) : null}
@@ -454,13 +458,13 @@ const styles = StyleSheet.create({
 
   categoryPanel: {
     marginHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.sm,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    rowGap: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: 0,
   },
-  categoryTile: { width: "33.33%", alignItems: "center", paddingHorizontal: 4 },
+  // Room above and below for the circles' white ring and shadow, which a
+  // horizontal ScrollView would otherwise clip.
+  categoryRow: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  categoryTile: { width: 92, alignItems: "center", paddingHorizontal: 4 },
   categoryCircle: {
     width: 76,
     height: 76,

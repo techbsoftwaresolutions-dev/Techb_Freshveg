@@ -5,6 +5,7 @@ import ProductCard from "@/components/ProductCard";
 import AddToCart from "@/components/AddToCart";
 import WishlistButton from "@/components/WishlistButton";
 import CategoryIcon from "@/components/CategoryIcon";
+import Carousel from "@/components/Carousel";
 import heroPhoto from "@/assets/Fresh Harvest Basket in Sunlit Fields.webp";
 import organicPhoto from "@/assets/Fresh Produce Splash Banner.webp";
 
@@ -70,21 +71,23 @@ export default function FreshHome({ home, categoryTree = [] }) {
         {tiles.length ? (
           <section className="fh-section">
             <Head title="Shop by Category" href="/c" link="View All" />
-            <nav className="fh-cats" aria-label="Categories">
-              {tiles.map((category, index) => (
-                <Link key={category.id} href={`/c/${category.slug}`} className={`fh-cat tint-${TINTS[index % TINTS.length]}`}>
-                  <span className="fh-cat-media">
-                    {category.image ? (
-                      <img src={img(category.image, 320)} alt={`Fresh ${category.name} — buy online in Bangalore`} loading="lazy" />
-                    ) : (
-                      <CategoryIcon name={category.name} />
-                    )}
-                  </span>
-                  <span className="fh-cat-badge" aria-hidden="true">{category.icon || "🌿"}</span>
-                  <strong>{category.name}</strong>
-                  <span className="fh-cat-note">{shortNote(category)}</span>
-                </Link>
-              ))}
+            <nav aria-label="Categories">
+              <Carousel label="categories" className="fh-cats" railClassName="fh-cat-rail">
+                {tiles.map((category, index) => (
+                  <Link key={category.id} href={`/c/${category.slug}`} className={`fh-cat tint-${TINTS[index % TINTS.length]}`}>
+                    <span className="fh-cat-media">
+                      {category.image ? (
+                        <img src={img(category.image, 320)} alt={`Fresh ${category.name} — buy online in Bangalore`} loading="lazy" />
+                      ) : (
+                        <CategoryIcon name={category.name} />
+                      )}
+                    </span>
+                    <span className="fh-cat-badge" aria-hidden="true">{category.icon || "🌿"}</span>
+                    <strong>{category.name}</strong>
+                    <span className="fh-cat-note">{shortNote(category)}</span>
+                  </Link>
+                ))}
+              </Carousel>
             </nav>
           </section>
         ) : null}

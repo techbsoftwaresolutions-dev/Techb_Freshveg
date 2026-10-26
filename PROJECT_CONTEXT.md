@@ -409,7 +409,7 @@ Brand
 Product ─ category, categoryPath[], brand, productType(simple|variable|weight|combo), unit, taxRatePct, hsnCode, returnWindowDays, media[],
           attributes(Mixed), variantAxes[], status, rating{average,count}, rollups(priceFrom/To, inStock, soldOut, defaultVariant)
 Variant ─ product, sku(unique), axisValues[]/axisKey, packSize, mrp, sellingPrice, costPrice, taxRatePct, taxInclusive,
-          weightGrams, min/max/stepQty, totalStock, inStock
+          min/max/stepQty, totalStock, inStock
 Inventory ─ unique(store,variant): onHand, reserved, damaged, batches[](batchNo, qty, cost, dates, supplier, grade), lowStockThreshold, binLocation
 StockMovement ─ ledger of receive/adjust/reserve/release/dispatch/damage/transfer…
 Cart ─ customer|sessionId, store, items[](variant, product, qty, savedForLater), couponCode, walletRequested, loyaltyPointsRequested,

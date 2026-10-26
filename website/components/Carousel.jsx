@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // The row itself is plain server-rendered HTML that already scrolls — the
 // buttons are an enhancement on top. If this never hydrates, the rail still
 // works by touch, trackpad and keyboard; only the arrows are missing.
-export default function Carousel({ children, label }) {
+export default function Carousel({ children, label, className = "", railClassName = "" }) {
   const ref = useRef(null);
   const reduceMotion = useRef(false);
   const [atStart, setAtStart] = useState(true);
@@ -91,7 +91,7 @@ export default function Carousel({ children, label }) {
   const scrollable = !(atStart && atEnd);
 
   return (
-    <div className="carousel">
+    <div className={`carousel ${className}`.trim()}>
       <button
         type="button"
         className="carousel-btn prev"
@@ -102,7 +102,7 @@ export default function Carousel({ children, label }) {
         ‹
       </button>
 
-      <div className="rail" ref={ref}>
+      <div className={`rail ${railClassName}`.trim()} ref={ref}>
         {children}
       </div>
 

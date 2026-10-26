@@ -354,6 +354,9 @@ a.header-extra { cursor: pointer; }
   gap: 18px;
   overflow-x: auto;
   padding: 4px 2px 8px;
+  /* Snap to the padded edge, not the bare one: otherwise the first card settles
+     2px in, the row never reads as "at the start" and the back arrow stays up. */
+  scroll-padding: 0 2px;
   scroll-snap-type: x proximity;
   /* The carousel has its own controls, so the native bar is redundant. */
   scrollbar-width: none;
@@ -4455,7 +4458,8 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 .fh-head-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--brand); white-space: nowrap; }
 
 /* --- category tiles ----------------------------------------------------- */
-.fh-cats { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 14px; }
+/* Fixed-width cards in one scrolling row (inside a Carousel) — see .shelf-rail. */
+.rail.fh-cat-rail { grid-auto-columns: 158px; gap: 14px; }
 .fh-cat {
   position: relative;
   display: flex;
@@ -4624,7 +4628,6 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 
 /* --- responsive --------------------------------------------------------- */
 @media (max-width: 1180px) {
-  .fh-cats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .fh-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .fh-wide-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fh-why { flex-wrap: wrap; }
@@ -4639,7 +4642,6 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .fh-hero-copy { padding: 22px 0 26px; }
   .fh-hero-script { top: 16px; right: 16px; }
   .fh-hero-points { gap: 14px; }
-  .fh-cats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .fh-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .fh-wide-row { grid-template-columns: minmax(0, 1fr); }
   .fh-organic-copy { padding: 24px 20px; }
@@ -4971,12 +4973,12 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .home-main .story .hero-eyebrow { color: var(--brand); }
   .home-main .story::after { background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--fade-color, #f2f9f3) 85%, transparent) 42%, var(--fade-color, #f2f9f3) 70%); }
 }
-/* "Shop by Category" — one compact tile per shelf (app/page.jsx). */
-.shelf-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: 14px;
-}
+/* "Shop by Category" — one compact tile per shelf, in a single scrolling row
+   (app/page.jsx, inside a Carousel). Tiles have one fixed width set here and
+   never a share of the row: with the old auto-fit/1fr grid, switching
+   categories off in the admin made the rest grow until one tile filled the
+   page. Now it only removes tiles. */
+.rail.shelf-rail { grid-auto-columns: 132px; gap: 14px; }
 .shelf-tile {
   display: flex;
   flex-direction: column;
@@ -5015,8 +5017,6 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 @media (max-width: 720px) {
   /* App style: round photos, four across, in one white card. */
   .home-main .shelf-tiles {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 14px 6px;
     padding: 14px 8px;
     border-radius: 18px;
     background: #fff;
@@ -5035,8 +5035,10 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .home-main .shelf-tile-name { justify-content: center; padding: 0; font-size: 11px; text-align: center; }
   .home-main .shelf-tile-name svg { display: none; }
 }@media (max-width: 720px) {
-  /* Nine shelves: a neat 3 × 3 rather than 4 + 4 + 1. */
-  .home-main .shelf-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 8px; padding: 16px 10px; }
+  /* One row of round photos to swipe through, about four on screen with the
+     next one peeking in, inside the white card. */
+  .home-main .shelf-tiles { padding: 16px 10px; }
+  .home-main .rail.shelf-rail { grid-auto-columns: 84px; gap: 8px; margin: 0; padding: 0; scroll-padding: 0; }
   .home-main .shelf-tile-media { width: 70px; height: 70px; }
   .home-main .shelf-tile-name { font-size: 11.5px; }
 }@media (max-width: 720px) {
@@ -5139,8 +5141,6 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
 
   /* ---- categories: round photos, three across, one white card ---- */
   .fh-cats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px 8px;
     padding: 16px 10px;
     border-radius: 18px;
     background: #fff;
@@ -5210,8 +5210,9 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .fh-hero-copy { width: 100%; box-sizing: border-box; }
 }
 /* Farm Fresh categories: every shelf (nine) in one row on desktop. */
-.fh-cats { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
-@media (max-width: 720px) { .fh-cats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }@media (max-width: 720px) {
+@media (max-width: 720px) {
+  .rail.fh-cat-rail { grid-auto-columns: 96px; gap: 8px; margin: 0; padding: 0; scroll-padding: 0; }
+}@media (max-width: 720px) {
   /* Farm Fresh hero: two equal buttons that always fit side by side. */
   .fh-hero-cta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fh-hero-cta .btn { min-width: 0; padding: 0 8px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; justify-content: center; }

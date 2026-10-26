@@ -199,7 +199,6 @@ export default function ProductForm() {
           mrp: v.mrp ?? 0,
           sellingPrice: v.sellingPrice ?? 0,
           costPrice: v.costPrice ?? 0,
-          weightGrams: v.weightGrams ?? 0,
           axisValues,
           // A variant with no name of its own is unreadable everywhere it's
           // listed alone (Stock panel, Inventory, order lines) — fall back
@@ -608,7 +607,6 @@ function blankVariant(schema) {
     sellingPrice: null,
     mrp: null,
     costPrice: null,
-    packSize: { value: 1, unit: schema?.defaults?.unit || "pcs" },
     stepQty: schema?.defaults?.stepQty ?? 1,
     minOrderQty: schema?.defaults?.minOrderQty ?? 1,
     status: "active",
@@ -819,10 +817,8 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
               <th>Name</th>
               <th className="num">MRP ₹</th>
               <th className="num">Selling ₹</th>
-              <th className="num">Cost ₹</th>
-              <th className="num">Pack</th>
-              <th className="num" title="Shipping weight of one unit — used to total an order's weight">
-                Weight (g)
+              <th className="num" title="What one pack costs the shop to buy in — used only for Reports → Profit">
+                Cost ₹
               </th>
               <th>Default</th>
               <th />
@@ -909,41 +905,6 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                     onChange={money(index, "costPrice")}
                     disabled={!editable}
                     style={{ width: 92 }}
-                  />
-                </td>
-                <td className="num">
-                  <div className="inline" style={{ flexWrap: "nowrap" }}>
-                    <input
-                      type="number"
-                      value={variant.packSize?.value ?? 1}
-                      onChange={(e) =>
-                        set(index, { packSize: { ...variant.packSize, value: Number(e.target.value) } })
-                      }
-                      disabled={!editable}
-                      style={{ width: 66 }}
-                    />
-                    <input
-                      type="text"
-                      value={variant.packSize?.unit ?? "pcs"}
-                      onChange={(e) =>
-                        set(index, { packSize: { ...variant.packSize, unit: e.target.value } })
-                      }
-                      disabled={!editable}
-                      style={{ width: 62 }}
-                    />
-                  </div>
-                </td>
-                <td className="num">
-                  <input
-                    type="number"
-                    min="0"
-                    value={variant.weightGrams ?? ""}
-                    onChange={(e) =>
-                      set(index, { weightGrams: e.target.value === "" ? null : Number(e.target.value) })
-                    }
-                    placeholder="0"
-                    disabled={!editable}
-                    style={{ width: 78 }}
                   />
                 </td>
                 <td>
