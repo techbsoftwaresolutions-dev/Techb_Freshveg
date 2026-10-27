@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Children, Fragment, isValidElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 // A dropdown drawn by the app rather than the browser. A native <select>
 // opens a list the page cannot style — system font, OS highlight colour,
@@ -24,11 +24,20 @@ export default function SelectMenu({
   searchable,
   disabled = false,
   id,
+  label, // optional heading at the top of the open panel
+  ariaLabel,
+  style,
+  className = "",
+  icon, // drawn before the value on the closed button
+  showHint = false, // the chosen option's hint also shows on the button
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  const [above, setAbove] = useState(false);
+  const [alignRight, setAlignRight] = useState(false);
   const rootRef = useRef(null);
+  const popRef = useRef(null);
   const listRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -68,6 +77,12 @@ export default function SelectMenu({
   useEffect(() => {
     if (!open) return undefined;
     setQuery("");
+    // Open upwards when the trigger sits near the bottom of the screen.
+    const box = rootRef.current?.getBoundingClientRect();
+    if (box) {
+      const below = window.innerHeight - box.bottom;
+      setAbove(below < Math.min(360, box.top) && box.top > below);
+    }
     const index = Math.max(0, (emptyLabel ? 1 : 0) + annotated.findIndex((o) => String(o.value) === String(value ?? "")));
     setActive(index);
     const onDown = (event) => {
@@ -78,6 +93,13 @@ export default function SelectMenu({
     requestAnimationFrame(() => (withSearch ? searchRef.current : listRef.current)?.focus());
     return () => document.removeEventListener("mousedown", onDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // A panel wider than its trigger, near the right edge, opens leftwards.
+  useLayoutEffect(() => {
+    if (!open) return setAlignRight(false);
+    const box = popRef.current?.getBoundingClientRect();
+    if (box && box.right > window.innerWidth - 8) setAlignRight(true);
   }, [open]);
 
   // Keep the highlighted row in view while arrowing through a long list.
@@ -112,10 +134,11 @@ export default function SelectMenu({
   };
 
   return (
-    <div className={`select-menu${open ? " open" : ""}`} ref={rootRef}>
+    <div className={`select-menu${open ? " open" : ""} ${className}`} ref={rootRef} style={style}>
       <button
         type="button"
         id={id}
+        aria-label={ariaLabel}
         className="select-menu-button"
         disabled={disabled}
         aria-haspopup="listbox"
@@ -128,12 +151,15 @@ export default function SelectMenu({
           }
         }}
       >
+        {icon ? <span className="select-menu-lead" aria-hidden="true">{icon}</span> : null}
+        <span className="select-menu-text">
         <span className={selected ? "select-menu-value" : "select-menu-placeholder"}>
           {selected ? (
             <>
               {selected.icon ? <span className="select-menu-icon" aria-hidden="true">{selected.icon}</span> : null}
               {selected.section ? <span className="select-menu-path">{selected.section.label} › </span> : null}
               {selected.label}
+              {showHint && selected.hint ? <span className="select-menu-hint">{selected.hint}</span> : null}
             </>
           ) : value === "" && emptyLabel ? (
             emptyLabel
@@ -141,13 +167,29 @@ export default function SelectMenu({
             placeholder
           )}
         </span>
+        {/* Every label, invisible, so a width:auto menu is as wide as its
+            longest option (like a native select) and never jumps on change. */}
+        {options.length <= 50
+          ? options.map((o, i) => (
+              <span key={i} className="select-menu-sizer" aria-hidden="true">
+                {o.section ? "" : o.label}
+                {showHint && o.hint ? <span className="select-menu-hint">{o.hint}</span> : null}
+              </span>
+            ))
+          : null}
+        </span>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="select-menu-chevron">
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
 
       {open ? (
-        <div className="select-menu-pop" onKeyDown={onKeyDown}>
+        <div
+          ref={popRef}
+          className={`select-menu-pop${above ? " above" : ""}${alignRight ? " align-end" : ""}`}
+          onKeyDown={onKeyDown}
+        >
+          {label ? <div className="select-menu-head">{label}</div> : null}
           {withSearch ? (
             <div className="select-menu-search">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -184,7 +226,7 @@ export default function SelectMenu({
                       index === active ? "active" : "",
                       isSelected ? "selected" : "",
                     ].join(" ")}
-                    style={{ paddingLeft: 12 + Math.min(option.depth, 4) * 16 }}
+                    style={{ paddingLeft: 10 + Math.min(option.depth, 4) * 16, "--i": Math.min(index, 12) }}
                     onMouseEnter={() => setActive(index)}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => choose(option)}
@@ -207,8 +249,58 @@ export default function SelectMenu({
               <li className="select-menu-none">Nothing matches “{query}”</li>
             )}
           </ul>
+          <div className="select-menu-foot">
+            <span>
+              Current: <strong>{selected ? selected.label : value === "" && emptyLabel ? emptyLabel : "—"}</strong>
+            </span>
+            <span className="select-menu-keys" aria-hidden="true">
+              <kbd>↑↓</kbd>
+              <kbd>↵</kbd>
+              <kbd>esc</kbd>
+            </span>
+          </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+// What an <option>'s children read as: its text, numbers included.
+const optionText = (children) =>
+  Children.toArray(children)
+    .map((c) => (typeof c === "string" || typeof c === "number" ? c : ""))
+    .join("");
+
+// A drop-in for a native <select>: the same props and <option>/<optgroup>
+// children, drawn as a SelectMenu. onChange gets an event-shaped
+// { target: { name, value } } (value always a string, as a select gives), so
+// existing `(e) => set(key, e.target.value)` handlers work unchanged.
+export function Select({ value, onChange, children, name, id, disabled, style, label, "aria-label": ariaLabel }) {
+  const options = [];
+  const walk = (nodes, depth) =>
+    Children.forEach(nodes, (child) => {
+      if (!isValidElement(child)) return;
+      if (child.type === Fragment) walk(child.props.children, depth);
+      else if (child.type === "optgroup") {
+        options.push({ value: `optgroup:${child.props.label}`, label: child.props.label, heading: true, disabled: true, depth });
+        walk(child.props.children, depth + 1);
+      } else if (child.type === "option") {
+        const text = optionText(child.props.children);
+        options.push({ value: child.props.value ?? text, label: text, disabled: child.props.disabled, depth });
+      }
+    });
+  walk(children, 0);
+
+  return (
+    <SelectMenu
+      id={id}
+      value={value}
+      options={options}
+      disabled={disabled}
+      style={style}
+      label={label}
+      ariaLabel={ariaLabel}
+      onChange={(next) => onChange?.({ target: { name, value: String(next), type: "select-one" } })}
+    />
   );
 }

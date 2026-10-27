@@ -77,7 +77,7 @@ export default function Icon({ name, size = 24, color = ICON_LINE, tint = ICON_T
     inverse: { fill: "none", stroke: inverse },
   };
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false} pointerEvents="none">
+    <Svg width={size} height={size} viewBox="0 0 24 24" aria-hidden pointerEvents="none">
       {ICONS[name].map(({ path, rect, circle, role }, i) => {
         const paint = { ...roles[role], strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
         if (path) return <Path key={i} d={path} {...paint} />;

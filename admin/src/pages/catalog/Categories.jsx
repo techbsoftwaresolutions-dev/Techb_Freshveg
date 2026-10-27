@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, toast } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
-import SelectMenu from "../../components/SelectMenu";
+import SelectMenu, { Select } from "../../components/SelectMenu";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pill } from "../../components/ui";
 import { IconChevronDown, IconSearch } from "../../components/Icons";
@@ -745,11 +745,11 @@ function DetailsTab({ detail, tree, onSave, saving, editable }) {
       </Field>
       <div className="grid cols-3">
         <Field label="Status">
-          <select value={form.status} onChange={set("status")} disabled={!editable}>
+          <Select value={form.status} onChange={set("status")} disabled={!editable}>
             <option value="active">Active</option>
             <option value="hidden">Hidden</option>
             <option value="archived">Archived</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Tile colour">
           <input type="text" value={form.color} onChange={set("color")} placeholder="#DCFCE7" disabled={!editable} />
@@ -831,7 +831,7 @@ function FeaturesTab({ detail, features, resolved, onSave, saving, editable }) {
                   </div>
                 </td>
                 <td>
-                  <select
+                  <Select
                     value={valueFor(feature.key)}
                     onChange={(e) => change(feature.key, e.target.value)}
                     disabled={!editable}
@@ -839,7 +839,7 @@ function FeaturesTab({ detail, features, resolved, onSave, saving, editable }) {
                     <option value="inherit">Inherit</option>
                     <option value="true">On</option>
                     <option value="false">Off</option>
-                  </select>
+                  </Select>
                 </td>
                 <td>
                   <Pill tone={resolved[feature.key] ? "ok" : undefined}>
@@ -874,14 +874,14 @@ function FieldsTab({ schema, attributes, ownBindingIds, onBind, onUnbind, saving
 
       {editable && (
         <div className="toolbar">
-          <select value={adding} onChange={(e) => setAdding(e.target.value)}>
+          <Select value={adding} onChange={(e) => setAdding(e.target.value)}>
             <option value="">— Add a field —</option>
             {unbound.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name} ({a.inputType})
               </option>
             ))}
-          </select>
+          </Select>
           <button
             className="btn"
             disabled={!adding || saving}

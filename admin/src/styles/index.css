@@ -752,7 +752,7 @@ table.data th.export-th { position: relative; padding-right: 44px; }
 }
 
 input[type="text"], input[type="password"], input[type="number"],
-input[type="date"], input[type="search"], select, textarea {
+input[type="date"], input[type="datetime-local"], input[type="search"], select, textarea {
   width: 100%;
   padding: 7px 10px;
   border: 1px solid var(--border-strong);
@@ -786,7 +786,7 @@ input[type="color"] { flex: 0 0 auto; width: 44px; height: 32px; padding: 2px; b
   margin-bottom: 14px;
 }
 .toolbar .spacer { flex: 1; }
-.toolbar input[type="search"], .toolbar select { width: auto; min-width: 150px; }
+.toolbar input[type="search"] { width: auto; min-width: 150px; }
 
 /* Products list: whose order S.No shows, the S.No box, and the Sections
    cell — its tags and the checklist it opens (drawn in a portal). */
@@ -1096,94 +1096,218 @@ input.position-input { width: 60px; min-width: 60px; padding: 4px 6px; text-alig
 .switch-note.muted { color: var(--text-faint); }
 
 /* ---- SelectMenu: the app's own dropdown (components/SelectMenu.jsx) */
+/* Every dropdown in the admin (SelectMenu, and <Select> standing in for a
+   native select): a card-like trigger, a floating panel that springs open,
+   a soft highlight under the row in reach and a check on the chosen one. */
 .select-menu { position: relative; width: 100%; }
 .select-menu-button {
   width: 100%;
-  min-height: 40px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 7px 10px 7px 12px;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 13.5px;
+  font-size: 13px;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 2px rgba(16, 18, 24, 0.05);
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.12s;
 }
-.select-menu-button:hover:not(:disabled) { border-color: var(--accent); }
+.select-menu-button:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border-strong); }
+.select-menu-button:active:not(:disabled) { transform: scale(0.985); }
 .select-menu.open .select-menu-button,
 .select-menu-button:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.select-menu-button:disabled { background: var(--surface-2); color: var(--text-muted); cursor: default; }
-.select-menu-value, .select-menu-placeholder { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.select-menu-placeholder { color: var(--text-faint); }
+.select-menu-button:disabled { background: var(--surface-2); color: var(--text-muted); cursor: default; box-shadow: none; }
+/* The label and the invisible sizers share one grid cell: the widest sizer
+   sets the width, the label shows and truncates if squeezed. */
+.select-menu-text { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
+.select-menu-text > * { grid-area: 1 / 1; }
+.select-menu-sizer { visibility: hidden; height: 0; overflow: hidden; white-space: nowrap; }
+.select-menu-value, .select-menu-placeholder { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-menu-placeholder { color: var(--text-faint); font-weight: 400; }
 .select-menu-path { color: var(--text-faint); }
-.select-menu-chevron { flex: 0 0 auto; color: var(--text-muted); transition: transform 0.15s; }
+.select-menu-chevron { flex: 0 0 auto; color: var(--text-muted); transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1); }
 .select-menu.open .select-menu-chevron { transform: rotate(180deg); }
+.toolbar .select-menu { width: auto; min-width: 150px; }
 
 .select-menu-pop {
   position: absolute;
-  z-index: 40;
-  top: calc(100% + 6px);
+  z-index: 50;
+  top: calc(100% + 8px);
   left: 0;
-  right: 0;
-  min-width: 240px;
+  width: max-content;
+  min-width: max(100%, 220px);
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 6px;
   background: var(--surface);
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 14px 34px rgba(16, 18, 24, 0.16);
-  overflow: hidden;
-  animation: select-pop 0.12s ease-out;
+  box-shadow: 0 20px 25px -5px rgba(16, 18, 24, 0.12), 0 8px 10px -6px rgba(16, 18, 24, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  transform-origin: top center;
+  animation: select-pop 0.3s cubic-bezier(0.34, 1.3, 0.64, 1);
 }
+.select-menu-pop.align-end { left: auto; right: 0; }
+.select-menu-pop.above { top: auto; bottom: calc(100% + 8px); transform-origin: bottom center; animation-name: select-pop-up; }
 @keyframes select-pop {
-  from { opacity: 0; transform: translateY(-4px); }
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
   to { opacity: 1; transform: none; }
 }
+@keyframes select-pop-up {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.select-menu-head { padding: 8px 8px 6px; font-size: 13px; font-weight: 600; }
 .select-menu-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  margin: 0 0 4px;
+  padding: 4px 8px 8px;
   border-bottom: 1px solid var(--border);
   color: var(--text-faint);
 }
 .select-menu-search input {
   flex: 1;
   border: none !important;
+  outline: none !important;
   box-shadow: none !important;
   padding: 4px 0 !important;
   min-height: 0 !important;
   background: transparent;
-  font-size: 13.5px;
+  font-size: 13px;
 }
-.select-menu-list { list-style: none; margin: 0; padding: 6px; max-height: 320px; overflow-y: auto; }
+.select-menu-list { list-style: none; margin: 0; padding: 2px 0; max-height: min(60vh, 300px); overflow-y: auto; }
 .select-menu-list:focus { outline: none; }
 .select-menu-option {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   border-radius: 8px;
-  font-size: 13.5px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text);
   cursor: pointer;
+  transition: background 0.12s;
+  animation: select-row 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(40ms + var(--i, 0) * 25ms);
 }
-.select-menu-option.heading { font-weight: 600; margin-top: 4px; }
+@keyframes select-row {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+.select-menu-option.heading { font-weight: 650; margin-top: 4px; }
 .select-menu-option.heading:first-child { margin-top: 0; }
+/* An <optgroup> label: a small section caption, not a choice. */
+.select-menu-option.heading.disabled {
+  opacity: 1;
+  cursor: default;
+  padding-top: 8px;
+  padding-bottom: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: none;
+}
 .select-menu-option.empty { color: var(--text-muted); }
 .select-menu-option.disabled { opacity: 0.45; cursor: not-allowed; }
-.select-menu-option.active { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
-.select-menu-option.selected { background: var(--accent-soft); color: var(--accent); font-weight: 600; box-shadow: none; }
+.select-menu-option.active { background: var(--accent-soft); }
+.select-menu-option.selected { color: var(--text); font-weight: 600; }
 .select-menu-label { flex: 1; min-width: 0; }
 /* An option's emoji icon (categories), in the list and on the closed button. */
 .select-menu-icon { flex: 0 0 auto; width: 20px; font-size: 15px; line-height: 1; text-align: center; }
 .select-menu-value .select-menu-icon { display: inline-block; margin-right: 6px; }
-.select-menu-hint { font-size: 12px; color: var(--text-faint); }
-.select-menu-option svg { flex: 0 0 auto; color: var(--accent); }
+.select-menu-hint { font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+.select-menu-value .select-menu-hint, .select-menu-sizer .select-menu-hint { margin-left: 8px; font-size: 12px; font-weight: 450; color: var(--text-muted); }
+.select-menu-lead { display: flex; flex: 0 0 auto; color: var(--text-muted); }
+
+/* The date-range filter (DateRange in ui.jsx): a calendar button that says
+   both the window and its dates, and, for Custom, one joined From → To box
+   the same height as the button. */
+.date-range { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+/* Stays on the right of a toolbar even when it wraps onto its own line. */
+.toolbar .date-range { margin-left: auto; }
+.date-range .select-menu { width: auto; min-width: 230px; }
+.date-range .select-menu-option .select-menu-hint { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.date-range .select-menu-option.selected .select-menu-hint { color: var(--accent); }
+.date-range-custom {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(16, 18, 24, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.date-range-custom:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.date-range-custom label { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 10px; cursor: text; }
+.date-range-custom label > span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.date-range-custom input[type="datetime-local"] {
+  width: auto;
+  padding: 7px 4px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-variant-numeric: tabular-nums;
+}
+.date-range-custom input[type="datetime-local"]:focus { outline: none; }
+.date-range-arrow { align-self: stretch; display: flex; align-items: center; padding: 0 8px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); color: var(--text-faint); background: var(--surface-2); }
+@media (max-width: 640px) {
+  .date-range, .date-range .select-menu, .date-range-custom { width: 100%; }
+  .date-range-custom { flex-direction: column; align-items: stretch; }
+  .date-range-custom label { padding-right: 8px; }
+  .date-range-custom label + .date-range-arrow + label { border-top: 1px solid var(--border); }
+  .date-range-custom label > span { width: 34px; }
+  .date-range-custom input[type="datetime-local"] { flex: 1; min-width: 0; }
+  .date-range-arrow { display: none; }
+}
+.select-menu-option svg { flex: 0 0 auto; color: var(--accent); animation: select-check 0.3s cubic-bezier(0.34, 1.6, 0.64, 1); }
+@keyframes select-check {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: none; }
+}
 .select-menu-none { padding: 14px 12px; font-size: 13px; color: var(--text-faint); text-align: center; }
+.select-menu-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 8px 8px 2px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.select-menu-foot > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-menu-foot strong { color: var(--text); font-weight: 600; }
+.select-menu-keys { display: flex; gap: 4px; flex: 0 0 auto; }
+.select-menu-keys kbd {
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+  font: inherit;
+  font-size: 10px;
+}
+@media (max-width: 480px) { .select-menu-keys { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .select-menu-pop, .select-menu-option, .select-menu-option svg { animation: none; }
+  .select-menu-chevron, .select-menu-button { transition: none; }
+}
 
 /* ---- add / edit forms opened as their own page (see <AsPage> in ui.jsx) */
 .form-page { max-width: 980px; }
@@ -1800,7 +1924,8 @@ input.position-input { width: 60px; min-width: 60px; padding: 4px 6px; text-alig
   display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
 }
 .dtp-time-label { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-right: auto; }
-.dtp-time select { width: auto; padding: 5px 8px; font-size: 13px; }
+.dtp-time .select-menu { width: auto; }
+.dtp-time .select-menu-button { padding: 5px 8px; }
 .dtp-ampm { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; margin-left: 4px; }
 .dtp-ampm button { padding: 5px 9px; border: 0; background: var(--surface); font: inherit; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
 .dtp-ampm button.on { background: var(--accent); color: #fff; }
@@ -1815,7 +1940,8 @@ input.position-input { width: 60px; min-width: 60px; padding: 4px 6px; text-alig
    (which scrolls sideways on small screens). */
 .assign-cell { display: flex; flex-direction: column; gap: 4px; min-width: 250px; }
 .assign-controls { display: flex; align-items: center; gap: 6px; }
-.assign-controls select { min-width: 0; flex: 1; max-width: 240px; padding: 4px 6px; font-size: 12.5px; }
+.assign-controls .select-menu { min-width: 0; flex: 1; max-width: 240px; }
+.assign-controls .select-menu-button { padding: 4px 8px; font-size: 12.5px; }
 .assign-warn { color: var(--danger); font-weight: 500; font-size: 12px; }
 
 /* Referral & Rewards: a friend's progress to the next milestone. */

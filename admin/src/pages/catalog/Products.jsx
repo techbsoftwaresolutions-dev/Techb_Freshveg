@@ -5,6 +5,7 @@ import { api, confirmDialog } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, Tabs, rupees } from "../../components/ui";
 import ReorderPanel from "../../components/ReorderPanel";
+import { Select } from "../../components/SelectMenu";
 
 const PAGE_SIZE = 20;
 
@@ -194,21 +195,21 @@ export default function Products() {
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 220 }}
         />
-        <select value={filters.category} onChange={(e) => set("category", e.target.value)}>
+        <Select value={filters.category} onChange={(e) => set("category", e.target.value)}>
           <option value={tab}>{tab ? "All sub-categories" : "All categories"}</option>
           {subcategories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
-        </select>
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+        </Select>
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All statuses</option>
           <option value="active">Active</option>
           <option value="draft">Draft</option>
           <option value="hidden">Hidden</option>
           <option value="archived">Archived</option>
-        </select>
+        </Select>
       </div>
 
       <Card tight>

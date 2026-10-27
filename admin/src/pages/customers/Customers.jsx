@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import {
   Banner, Card, Divider, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 export default function Customers() {
   const { can } = useAuth();
@@ -51,11 +52,11 @@ export default function Customers() {
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 260 }}
         />
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All</option>
           <option value="active">Active</option>
           <option value="blocked">Blocked</option>
-        </select>
+        </Select>
       </div>
 
       <Card tight>

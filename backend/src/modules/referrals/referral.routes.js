@@ -78,7 +78,7 @@ const idsMatching = async (search) => {
 function dateRange(query) {
   const range = {};
   if (query.from) range.$gte = new Date(query.from);
-  if (query.to) range.$lte = new Date(`${query.to}T23:59:59.999Z`);
+  if (query.to) range.$lte = new Date(String(query.to).includes("T") ? query.to : `${query.to}T23:59:59.999Z`);
   return Object.keys(range).length ? range : null;
 }
 

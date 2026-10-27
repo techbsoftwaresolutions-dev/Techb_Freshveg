@@ -3,10 +3,12 @@
   "build": {
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "apk" },
+      "env": { "API_BASE_URL": "https://thefarmersbasket.in" }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": { "API_BASE_URL": "https://thefarmersbasket.in" }
     }
   }
 }

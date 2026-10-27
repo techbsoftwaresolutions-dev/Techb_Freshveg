@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, confirmDialog, toast } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Loading, Pagination, Pill, Table, rupees, when } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 // The filter chips are built from the status table the API returns, so a new
 // stage added to the engine shows up here without a frontend change.
@@ -101,7 +102,7 @@ function DeliveryCell({ order, partners, canAssign, statuses, onSaved }) {
         </span>
       ) : null}
       <div className="assign-controls">
-        <select
+        <Select
           value={currentListed ? selected : selected === current ? "" : selected}
           onChange={(e) => setSelected(e.target.value)}
           disabled={Boolean(busy) || partners.loading || !options.length}
@@ -115,7 +116,7 @@ function DeliveryCell({ order, partners, canAssign, statuses, onSaved }) {
               {p.openNow ? ` · ${p.openNow} open` : ""}
             </option>
           ))}
-        </select>
+        </Select>
         <button
           type="button"
           className="btn sm primary"

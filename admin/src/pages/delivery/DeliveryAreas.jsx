@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api, confirmDialog } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, when } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 // Admin → Delivery Areas: the places the shop delivers to. Customers pick
 // from the active ones in the website's "Deliver to" picker; checkout refuses
@@ -96,11 +97,11 @@ export default function DeliveryAreas() {
           style={{ minWidth: 280 }}
           aria-label="Search delivery areas"
         />
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)} aria-label="Filter by status">
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)} aria-label="Filter by status">
           <option value="">Any status</option>
           <option value="active">Delivering</option>
           <option value="inactive">Not delivering</option>
-        </select>
+        </Select>
       </div>
 
       <Card tight>
@@ -262,18 +263,18 @@ function AreaForm({ area, stores, onDone }) {
         </div>
         <div className="grid cols-2">
           <Field label="Status">
-            <select value={String(form.active)} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === "true" }))}>
+            <Select value={String(form.active)} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === "true" }))}>
               <option value="true">Delivering — customers can choose it</option>
               <option value="false">Not delivering — hidden from customers</option>
-            </select>
+            </Select>
           </Field>
           {stores.length > 1 ? (
             <Field label="Fulfilled by" error={errors.store} help="The store whose stock and riders serve this area.">
-              <select value={form.store} onChange={set("store")}>
+              <Select value={form.store} onChange={set("store")}>
                 {stores.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
-              </select>
+              </Select>
             </Field>
           ) : null}
         </div>

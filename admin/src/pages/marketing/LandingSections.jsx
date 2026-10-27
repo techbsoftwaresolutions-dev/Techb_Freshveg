@@ -114,10 +114,6 @@ export default function LandingSections() {
       <div className="page-head">
         <div>
           <h1>Sections</h1>
-          <p>
-            The blocks on the customer landing page, top to bottom. Product order inside a category or
-            classification section is set on the <Link to="/catalog/products">Products</Link> page.
-          </p>
         </div>
         {canManage && (
           <button className="btn primary" onClick={() => setForm({ section: null })}>
@@ -345,7 +341,7 @@ function SectionForm({ section, total, classifications, onClose, onSaved }) {
     api
       .get("/catalog/categories/tree", { status: "all" })
       .then(({ tree }) => setCategories(flatten(tree)))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const sourceFor = (v) =>

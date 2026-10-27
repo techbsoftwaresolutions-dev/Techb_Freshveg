@@ -4,7 +4,7 @@ import { api, toast } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Field, Loading, Pill } from "../../components/ui";
 import SchemaForm from "../../components/SchemaForm";
-import SelectMenu from "../../components/SelectMenu";
+import SelectMenu, { Select } from "../../components/SelectMenu";
 import SeoCard from "../../components/SeoCard";
 
 // What the website writes when a product's SEO fields are left blank (kept in
@@ -529,13 +529,13 @@ function StockCard({ productId, variants, editable }) {
       title="Stock"
       actions={
         stores.length > 1 ? (
-          <select value={store} onChange={(e) => setStore(e.target.value)} style={{ fontSize: 12 }}>
+          <Select value={store} onChange={(e) => setStore(e.target.value)} style={{ fontSize: 12 }}>
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
             ))}
-          </select>
+          </Select>
         ) : null
       }
     >
@@ -830,7 +830,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                 {axes.map((axis) => (
                   <td key={axis.code}>
                     {axis.options?.length ? (
-                      <select
+                      <Select
                         value={
                           variant.axis?.[axis.code] ??
                           variant.axisValues?.find((a) => a.code === axis.code)?.value ??
@@ -855,7 +855,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                               {option.active === false ? `${option.label} (disabled)` : option.label}
                             </option>
                           ))}
-                      </select>
+                      </Select>
                     ) : (
                       <input
                         type="text"

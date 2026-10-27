@@ -4,6 +4,7 @@ import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 // Attributes are the reusable field definitions categories bind. Creating one
 // here and binding it to a category is the whole "new kind of product without
@@ -238,13 +239,13 @@ function AttributeModal({ value, saving, onClose, onSave }) {
 
       <div className="grid cols-3">
         <Field label="Input type">
-          <select value={form.inputType} onChange={set("inputType")}>
+          <Select value={form.inputType} onChange={set("inputType")}>
             {INPUT_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Group" >
           <input type="text" value={form.group} onChange={set("group")} />

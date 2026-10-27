@@ -4,6 +4,7 @@ import { api, confirmDialog } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Switch, Table, rupees } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 // Commercial rules are per store — a city branch can carry a higher free
 // delivery threshold than a small-town one without any code change.
@@ -257,11 +258,11 @@ function StoreModal({ value, saving, onClose, onSave }) {
           <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </Field>
         <Field label="Status">
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
             <option value="active">Active</option>
             <option value="paused">Paused</option>
             <option value="closed">Closed</option>
-          </select>
+          </Select>
         </Field>
       </div>
 

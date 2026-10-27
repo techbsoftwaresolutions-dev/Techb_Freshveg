@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import {
   Banner, Card, Divider, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 // The return workflow is four states of the order machine, not a separate
 // object — so this screen is a filtered order queue with the right buttons on
@@ -390,11 +391,11 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
                     : "Back to the card or UPI it came from, or into the wallet for an instant refund."
                 }
               >
-                <select value={destination} onChange={(e) => setDestination(e.target.value)}>
+                <Select value={destination} onChange={(e) => setDestination(e.target.value)}>
                   {order.payment?.method !== "cod" ? <option value="source">Original payment method</option> : null}
                   <option value="wallet">Store wallet</option>
                   <option value="cash">Cash handed back</option>
-                </select>
+                </Select>
               </Field>
             </div>
           ) : null}

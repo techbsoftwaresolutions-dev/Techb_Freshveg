@@ -4,6 +4,7 @@ import { Banner, Card, Field, Loading, Pill, Tabs } from "../../components/ui";
 import { refreshBranding } from "../../api/branding";
 import VideoHeroConfig from "./VideoHeroConfig";
 import PackSizes from "./PackSizes";
+import { Select } from "../../components/SelectMenu";
 
 
 // A save's confirmation, as a toast (components/Toaster.jsx).
@@ -261,10 +262,10 @@ export default function General() {
 
             <div className="grid cols-2">
               <Field label="Gateway" help="API keys come from the server's environment, never from here.">
-                <select value={draft.provider || "none"} onChange={set("provider")}>
+                <Select value={draft.provider || "none"} onChange={set("provider")}>
                   <option value="none">None — cash and wallet only</option>
                   <option value="razorpay">Razorpay</option>
-                </select>
+                </Select>
               </Field>
               <Field label="Refunds">
                 <label className="checkbox" style={{ marginTop: 8 }}>

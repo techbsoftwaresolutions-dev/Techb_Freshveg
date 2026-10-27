@@ -4,8 +4,9 @@ import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import {
-  Banner, Card, DateRange, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
+  Banner, Card, DateRange, dateRange, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 export default function Delivery() {
   // The tab lives in the URL, so coming back from a zone or slot page lands
@@ -43,7 +44,7 @@ export default function Delivery() {
 
 function Report() {
   const [data, setData] = useState({ items: [], meta: null, summary: {} });
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(() => dateRange());
   const [filters, setFilters] = useState({ status: "", pincode: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -87,14 +88,14 @@ function Report() {
           onChange={(e) => set("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
           style={{ width: 130 }}
         />
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All runs</option>
           <option value="DELIVERED">Delivered</option>
           <option value="OUT_FOR_DELIVERY,ARRIVED,PICKED_UP">In progress</option>
           <option value="CANCELLED,REJECTED">Cancelled</option>
-        </select>
+        </Select>
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} dropdown />
+        <DateRange value={range} onChange={setRange} />
       </div>
 
       <Card tight>
@@ -173,7 +174,7 @@ function Report() {
 
 function Partners() {
   const [partners, setPartners] = useState([]);
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(() => dateRange());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -189,7 +190,7 @@ function Partners() {
     <>
       <div className="toolbar">
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} dropdown />
+        <DateRange value={range} onChange={setRange} />
       </div>
 
       <Card tight>
@@ -430,9 +431,9 @@ function ZoneModal({ zone, onClose, onSaved }) {
           <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Whitefield, Bangalore" />
         </Field>
         <Field label="Store">
-          <select value={form.store} onChange={(e) => setForm({ ...form, store: e.target.value })}>
+          <Select value={form.store} onChange={(e) => setForm({ ...form, store: e.target.value })}>
             {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
 
@@ -481,10 +482,10 @@ function ZoneModal({ zone, onClose, onSaved }) {
           <input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} />
         </Field>
         <Field label="Status">
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
             <option value="active">Active</option>
             <option value="paused">Paused</option>
-          </select>
+          </Select>
         </Field>
       </div>
 
@@ -535,9 +536,9 @@ function Slots() {
       <Banner tone="error">{error}</Banner>
 
       <div className="toolbar">
-        <select value={store} onChange={(e) => setStore(e.target.value)}>
+        <Select value={store} onChange={(e) => setStore(e.target.value)}>
           {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        </Select>
         <span className="spacer" />
         {canManage ? (
           <button className="btn primary" onClick={() => navigate(`/delivery/slots/new?store=${store}`)}>+ New slot</button>

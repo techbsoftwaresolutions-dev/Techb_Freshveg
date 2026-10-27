@@ -1,7 +1,8 @@
 import { createContext, isValidElement, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Sparkline from "./Sparkline";
-import { IconDownload } from "./Icons";
+import { IconCalendar, IconDownload } from "./Icons";
+import SelectMenu from "./SelectMenu";
 
 // Small shared primitives. Deliberately plain — the interesting code in this
 // app is the schema-driven form, not a component library.
@@ -540,60 +541,92 @@ export function Tabs({ tabs, active, onChange }) {
 }
 
 const DATE_PRESETS = [
-  { days: 1, label: "Today" },
-  { days: 7, label: "7 days" },
-  { days: 30, label: "30 days" },
+  { key: "today", label: "Today", back: 0, days: 1 },
+  { key: "yesterday", label: "Yesterday", back: 1, days: 1 },
+  { key: "7d", label: "Last 7 days", back: 0, days: 7 },
+  { key: "30d", label: "Last 30 days", back: 0, days: 30 },
 ];
 
-// From/to pickers with the presets people actually use, so nobody types dates
-// to answer "how did we do this week?". `dropdown` shows the presets as one
-// select instead of three buttons.
-export function DateRange({ value, onChange, dropdown = false }) {
-  const span = (days) => {
-    const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - (days - 1));
-    return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-  };
-  const preset = (days) => onChange(span(days));
-  // The select shows a preset only while the dates still match it exactly.
-  const current = DATE_PRESETS.find(({ days }) => {
-    const s = span(days);
-    return s.from === value.from && s.to === value.to;
-  });
+// A preset's window, whole days in the admin's own timezone, sent as full
+// timestamps so "Today" means today here rather than today in UTC. Pages start
+// their range with `useState(() => dateRange())` — today.
+export function dateRange(preset = "today") {
+  const p = DATE_PRESETS.find((x) => x.key === preset) || DATE_PRESETS[0];
+  const to = new Date();
+  to.setDate(to.getDate() - p.back);
+  to.setHours(23, 59, 59, 999);
+  const from = new Date(to);
+  from.setDate(from.getDate() - (p.days - 1));
+  from.setHours(0, 0, 0, 0);
+  return { preset: p.key, from: from.toISOString(), to: to.toISOString() };
+}
+
+// ISO ⇄ the local "YYYY-MM-DDTHH:mm" a datetime-local input reads and writes.
+// The input stops at minutes, so an end time runs to the last second of it.
+const toLocalInput = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+const fromLocalInput = (local, end) => (local ? new Date(new Date(local).getTime() + (end ? 59999 : 0)).toISOString() : "");
+
+// "27 Oct" or "21 Oct – 27 Oct": the dates a window covers, for the button
+// and beside each preset, so nobody has to work out what "Last 7 days" means.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const day = (iso) => {
+  const d = new Date(iso);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+};
+const spanText = ({ from, to }) => {
+  if (!from && !to) return "Any time";
+  if (!from) return `Until ${day(to)}`;
+  if (!to) return `From ${day(from)}`;
+  return day(from) === day(to) ? day(from) : `${day(from)} – ${day(to)}`;
+};
+
+// One dropdown of the windows people actually use; "Custom" opens a From → To
+// date-and-time box, starting from whatever window was showing.
+export function DateRange({ value, onChange }) {
+  const preset = value.preset || "custom";
+  const options = [
+    ...DATE_PRESETS.map(({ key, label }) => ({ value: key, label, hint: spanText(dateRange(key)) })),
+    { value: "custom", label: "Custom", hint: preset === "custom" ? spanText(value) : "Pick dates" },
+  ];
 
   return (
-    <div className="inline" style={{ gap: 6 }}>
-      {dropdown ? (
-        <select
-          aria-label="Date range"
-          value={current ? current.days : ""}
-          onChange={(e) => (e.target.value ? preset(Number(e.target.value)) : onChange({ from: "", to: "" }))}
-          style={{ width: "auto", minWidth: 0 }}
-        >
-          <option value="">{value.from || value.to ? "Custom dates" : "All dates"}</option>
-          {DATE_PRESETS.map(({ days, label }) => (
-            <option key={days} value={days}>{label}</option>
-          ))}
-        </select>
-      ) : (
-        DATE_PRESETS.map(({ days, label }) => (
-          <button key={days} className="btn sm" onClick={() => preset(days)}>{label}</button>
-        ))
-      )}
-      <input
-        type="date"
-        value={value.from || ""}
-        onChange={(e) => onChange({ ...value, from: e.target.value })}
-        style={{ width: "auto" }}
+    <div className="date-range">
+      <SelectMenu
+        className="date-range-menu"
+        ariaLabel="Date range"
+        icon={<IconCalendar width={15} height={15} />}
+        showHint
+        value={preset}
+        options={options}
+        onChange={(key) => onChange(key === "custom" ? { ...value, preset: "custom" } : dateRange(key))}
       />
-      <span className="faint">to</span>
-      <input
-        type="date"
-        value={value.to || ""}
-        onChange={(e) => onChange({ ...value, to: e.target.value })}
-        style={{ width: "auto" }}
-      />
+      {preset === "custom" ? (
+        <div className="date-range-custom">
+          <label>
+            <span>From</span>
+            <input
+              type="datetime-local"
+              value={toLocalInput(value.from)}
+              max={toLocalInput(value.to) || undefined}
+              onChange={(e) => onChange({ ...value, from: fromLocalInput(e.target.value) })}
+            />
+          </label>
+          <span className="date-range-arrow" aria-hidden="true">→</span>
+          <label>
+            <span>To</span>
+            <input
+              type="datetime-local"
+              value={toLocalInput(value.to)}
+              min={toLocalInput(value.from) || undefined}
+              onChange={(e) => onChange({ ...value, to: fromLocalInput(e.target.value, true) })}
+            />
+          </label>
+        </div>
+      ) : null}
     </div>
   );
 }

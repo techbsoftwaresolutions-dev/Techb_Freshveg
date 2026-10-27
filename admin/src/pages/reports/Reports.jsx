@@ -4,19 +4,14 @@ import {
 } from "recharts";
 import { api } from "../../api/client";
 import {
-  Banner, Card, DateRange, Empty, Loading, Stat, Table, Tabs, rupees,
+  Banner, Card, DateRange, dateRange, Empty, Loading, Stat, Table, Tabs, rupees,
 } from "../../components/ui";
 
 const CHART_COLOURS = ["#2f6df6", "#0f9d58", "#b7791f", "#5a4cdb", "#d43b3b", "#0e7c5a"];
 
 export default function Reports() {
   const [tab, setTab] = useState("sales");
-  const [range, setRange] = useState(() => {
-    const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - 29);
-    return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-  });
+  const [range, setRange] = useState(() => dateRange());
 
   return (
     <div className="page">

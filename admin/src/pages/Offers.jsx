@@ -5,6 +5,7 @@ import FormRoute from "../components/FormRoute";
 import DateTimePicker from "../components/DateTimePicker";
 import { useAuth } from "../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, rupees } from "../components/ui";
+import { Select } from "../components/SelectMenu";
 
 // One screen covers both auto-applied offers and coupons, because the engine
 // treats them as one thing — the only difference is whether a code is needed.
@@ -312,13 +313,13 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
 
       <div className="grid cols-2">
         <Field label="How it applies">
-          <select
+          <Select
             value={form.requiresCode ? "coupon" : "auto"}
             onChange={(e) => set("requiresCode", e.target.value === "coupon")}
           >
             <option value="auto">Automatically</option>
             <option value="coupon">Customer enters a code</option>
-          </select>
+          </Select>
         </Field>
         {form.requiresCode && (
           <Field label="Coupon code">
@@ -335,13 +336,13 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
       <div className="section-label">Reward</div>
       <div className="grid cols-3">
         <Field label="Type">
-          <select value={form.type} onChange={(e) => set("type", e.target.value)}>
+          <Select value={form.type} onChange={(e) => set("type", e.target.value)}>
             <option value="percentage">Percentage off</option>
             <option value="fixed">Fixed amount off</option>
             <option value="free_delivery">Free delivery</option>
             <option value="bogo">Buy X get Y</option>
             <option value="cashback">Wallet cashback</option>
-          </select>
+          </Select>
         </Field>
 
         {form.type === "percentage" && (
@@ -462,11 +463,11 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
       </Field>
       <div className="grid cols-3">
         <Field label="Status">
-          <select value={form.status} onChange={(e) => set("status", e.target.value)}>
+          <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
             <option value="draft">Draft</option>
             <option value="active">Active</option>
             <option value="paused">Paused</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Priority" help="Higher wins when two offers clash.">
           <input type="number" value={form.priority} onChange={(e) => set("priority", Number(e.target.value))} />

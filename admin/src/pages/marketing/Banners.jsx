@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import {
   Banner as Notice, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table,
 } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 const PLACEMENT_LABEL = {
   home_hero: "Home — hero",
@@ -494,18 +495,18 @@ function BannerModal({ banner, onClose, onSaved }) {
 
       <div className="grid cols-3">
         <Field label="Placement">
-          <select value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })}>
+          <Select value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })}>
             {(banner.placement && !FORM_PLACEMENTS.includes(banner.placement)
               ? [...FORM_PLACEMENTS, banner.placement]
               : FORM_PLACEMENTS
             ).map((key) => (
               <option key={key} value={key}>{PLACEMENT_LABEL[key] || key}</option>
             ))}
-          </select>
+          </Select>
         </Field>
         {isStory ? null : (<>
         <Field label="Tapping it opens">
-          <select
+          <Select
             value={form.target.kind}
             onChange={(e) => setForm({ ...form, target: { ...form.target, kind: e.target.value } })}
           >
@@ -515,7 +516,7 @@ function BannerModal({ banner, onClose, onSaved }) {
             <option value="offer">An offer</option>
             <option value="search">A search</option>
             <option value="url">A URL</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Value" help="A slug, an id, or a search term.">
           <input
@@ -544,11 +545,11 @@ function BannerModal({ banner, onClose, onSaved }) {
 
       <div className="grid cols-2">
         <Field label="Status">
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
             <option value="draft">Draft</option>
             <option value="active">Active</option>
             <option value="paused">Paused</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Order within its slot">
           <input type="number" value={form.seq} onChange={(e) => setForm({ ...form, seq: Number(e.target.value) })} />

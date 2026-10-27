@@ -4,8 +4,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // A rider's phone is never on your dev machine: on a real device API_BASE_URL
 // has to be a host that phone can reach (your LAN IP in development).
 // localhost only works on a simulator or the `expo start --web` build.
+//
+// In development the API runs on the same computer Metro serves the app from,
+// so without API_BASE_URL the app uses that computer's address (Expo Go knows
+// it) — it follows the PC when its Wi-Fi IP changes. Set API_BASE_URL only to
+// point at a different server: a teammate's PC, or production.
+const devHost = __DEV__ ? Constants.expoConfig?.hostUri?.split(":")[0] : null;
 export const API_BASE_URL =
-  Constants.expoConfig?.extra?.apiBaseUrl || "http://localhost:5055";
+  Constants.expoConfig?.extra?.apiBaseUrl || (devHost ? `http://${devHost}:5055` : "http://localhost:5055");
 
 const BASE = `${API_BASE_URL}/api/v1`;
 

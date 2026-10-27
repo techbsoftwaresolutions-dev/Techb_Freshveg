@@ -4,6 +4,7 @@ import { api, confirmDialog } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import FormRoute from "../../components/FormRoute";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 export default function Brands() {
   const { can } = useAuth();
@@ -81,12 +82,12 @@ export default function Brands() {
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 220 }}
         />
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All statuses</option>
           <option value="active">Active</option>
           <option value="hidden">Hidden</option>
           <option value="archived">Archived</option>
-        </select>
+        </Select>
       </div>
 
       <Card tight>
@@ -198,11 +199,11 @@ function BrandForm({ value, saving, onClose, onSave }) {
       </Field>
       <div className="grid cols-2">
         <Field label="Status">
-          <select value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          <Select value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })}>
             <option value="active">Active</option>
             <option value="hidden">Hidden</option>
             <option value="archived">Archived</option>
-          </select>
+          </Select>
         </Field>
         <Field label="Sort order">
           <input

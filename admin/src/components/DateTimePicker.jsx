@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Select } from "./SelectMenu";
 
 // A compact date + time picker, in place of the browser's own
 // <input type="datetime-local"> (which stretches to the field's full width and
@@ -146,17 +147,17 @@ export default function DateTimePicker({ value, onChange, placeholder = "Pick da
 
           <div className="dtp-time">
             <span className="dtp-time-label">Time</span>
-            <select value={hour12} onChange={(e) => setTime(Number(e.target.value), minute, pm)} aria-label="Hour">
+            <Select value={hour12} onChange={(e) => setTime(Number(e.target.value), minute, pm)} aria-label="Hour">
               {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
                 <option key={h} value={h}>{h}</option>
               ))}
-            </select>
+            </Select>
             <span>:</span>
-            <select value={minute} onChange={(e) => setTime(hour12, Number(e.target.value), pm)} aria-label="Minutes">
+            <Select value={minute} onChange={(e) => setTime(hour12, Number(e.target.value), pm)} aria-label="Minutes">
               {MINUTES.map((m) => (
                 <option key={m} value={m}>{pad(m)}</option>
               ))}
-            </select>
+            </Select>
             <div className="dtp-ampm" role="group" aria-label="AM or PM">
               <button type="button" className={!pm ? "on" : ""} onClick={() => setTime(hour12, minute, false)}>AM</button>
               <button type="button" className={pm ? "on" : ""} onClick={() => setTime(hour12, minute, true)}>PM</button>

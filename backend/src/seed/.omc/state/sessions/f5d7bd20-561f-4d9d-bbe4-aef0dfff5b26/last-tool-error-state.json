@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"computer\",\"input\":{\"action\":\"left_click\",\"ref\":\"ref_6\",\"tabId\":\"tab-1\",\"action_summary\":\"Focuses the phone field\"}},{\"name\":\"computer\",\"input\":{\"action\":\"type\",\"text\":\"9000000000\"...",
+  "error": "actions[0] (computer:left_click) failed: left_click failed: Could not get the tab ready for input (it is not on screen and has not drawn yet): Screenshot timed out after 5s: the Browser pane is not displayed, so the page is not compositing frames. Display the pane and retry. (0 completed, 8 remaining)",
+  "timestamp": "2026-10-27T06:52:01.499Z",
+  "retry_count": 1
+}

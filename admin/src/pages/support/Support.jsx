@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import {
   Banner, Card, Divider, Empty, Field, Loading, Modal, Pagination, Pill, Table, Tabs, rupees, when,
 } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 const PRIORITY_TONE = { urgent: "danger", high: "danger", normal: undefined, low: undefined };
 const STATUS_TONE = {
@@ -378,12 +379,12 @@ function ResolveModal({ ticket, busy, onClose, onResolve }) {
       }
     >
       <Field label="How was this resolved?">
-        <select value={type} onChange={(e) => setType(e.target.value)}>
+        <Select value={type} onChange={(e) => setType(e.target.value)}>
           <option value="explained">Explained — no action needed</option>
           <option value="refund">Refunded</option>
           <option value="replacement">Replacement sent</option>
           <option value="goodwill">Goodwill gesture</option>
-        </select>
+        </Select>
       </Field>
 
       {type === "refund" ? (

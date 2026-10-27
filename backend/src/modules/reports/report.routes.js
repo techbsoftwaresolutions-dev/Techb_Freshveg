@@ -20,13 +20,16 @@ router.use(requireAuth, requirePermission("reports.view"));
 const CLOSED_SALE = ["DELIVERED"];
 const LIVE = { $nin: ["CANCELLED", "REJECTED"] };
 
+// A bare date (or none) is widened to whole days; a full timestamp — what the
+// admin's date dropdown sends — is taken as given.
 function range(query) {
+  const bare = (value) => !value || !String(value).includes("T");
   const to = query.to ? new Date(query.to) : new Date();
-  to.setHours(23, 59, 59, 999);
+  if (bare(query.to)) to.setHours(23, 59, 59, 999);
 
   const from = query.from ? new Date(query.from) : new Date(to);
   if (!query.from) from.setDate(from.getDate() - 29);
-  from.setHours(0, 0, 0, 0);
+  if (bare(query.from)) from.setHours(0, 0, 0, 0);
 
   return { from, to };
 }

@@ -278,6 +278,11 @@ router.get(
   asyncHandler(async (req, res) => {
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
+    if (req.query.from || req.query.to) {
+      filter.createdAt = {};
+      if (req.query.from) filter.createdAt.$gte = new Date(req.query.from);
+      if (req.query.to) filter.createdAt.$lte = new Date(req.query.to);
+    }
     const result = await paginate(Refund, filter, req.query, { defaultSort: { createdAt: -1 } });
     res.json({ success: true, ...result });
   })

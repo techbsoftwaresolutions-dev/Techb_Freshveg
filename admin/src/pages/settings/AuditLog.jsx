@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import {
-  Banner, Card, DateRange, Empty, Loading, Modal, Pagination, Pill, Table, when,
+  Banner, Card, DateRange, dateRange, Empty, Loading, Modal, Pagination, Pill, Table, when,
 } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 const ACTION_TONE = {
   create: "ok",
@@ -20,7 +21,7 @@ const ACTION_TONE = {
 export default function AuditLog() {
   const [data, setData] = useState({ items: [], meta: null });
   const [filters, setFilters] = useState({ search: "", entity: "", action: "", page: 1 });
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(() => dateRange());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [detail, setDetail] = useState(null);
@@ -59,7 +60,7 @@ export default function AuditLog() {
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 280 }}
         />
-        <select value={filters.entity} onChange={(e) => set("entity", e.target.value)}>
+        <Select value={filters.entity} onChange={(e) => set("entity", e.target.value)}>
           <option value="">Everything</option>
           <option value="Product">Products</option>
           <option value="Category">Categories</option>
@@ -70,15 +71,15 @@ export default function AuditLog() {
           <option value="Review">Reviews</option>
           <option value="SupportTicket">Support</option>
           <option value="MaintenanceAsset">Maintenance</option>
-        </select>
-        <select value={filters.action} onChange={(e) => set("action", e.target.value)}>
+        </Select>
+        <Select value={filters.action} onChange={(e) => set("action", e.target.value)}>
           <option value="">Any action</option>
           <option value="create">Created</option>
           <option value="update">Updated</option>
           <option value="delete">Deleted</option>
           <option value="refund">Refunded</option>
           <option value="adjust">Adjusted</option>
-        </select>
+        </Select>
         <span className="spacer" />
         <DateRange value={range} onChange={setRange} />
       </div>

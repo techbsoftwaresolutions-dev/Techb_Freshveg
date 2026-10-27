@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__Claude_Browser__browser_batch",
+  "tool_input_preview": "{\"actions\":[{\"name\":\"javascript_tool\",\"input\":{\"action\":\"javascript_exec\",\"text\":\"const b=[...document.querySelectorAll('.toolbar .select-menu-button')]; b[2].click(); await new Promise(r=>setTimeout(...",
+  "error": "[javascript_tool:javascript_exec] {\n  \"cls\": \"select-menu-pop\",\n  \"right\": 472.7000274658203,\n  \"vw\": 1024\n}\n\n\nTab Context:\n- Executed on tabId: seed\n- Available tabs:\n  • tabId seed: \"The Farmers Basket Admin\" (\"http://localhost:5181/settings/audit\")\n\nactions[1] (computer:screenshot) failed: screenshot failed: Screenshot timed out after 5s: the Browser pane is not displayed, so the page is not compositing frames. Display the pane and retry. (1 completed, 0 remaining)",
+  "timestamp": "2026-10-27T07:33:10.343Z",
+  "retry_count": 2
+}

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api, confirmDialog, toast } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, when } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 // Admin → Users and → Delivery Boys: staff accounts (never customers — the API
 // filters them out). Both pages are one list; Delivery Boys is the same list
@@ -255,19 +256,19 @@ function StaffList({ title, role, addLabel }) {
           aria-label="Search users"
         />
         {deliveryOnly ? null : (
-          <select value={filters.role} onChange={(e) => set("role", e.target.value)} aria-label="Filter by role">
+          <Select value={filters.role} onChange={(e) => set("role", e.target.value)} aria-label="Filter by role">
             <option value="">All roles</option>
             <option value="super_admin">Super Admin</option>
             <option value="admin">Admin</option>
             <option value="store_manager">Store Supervisor</option>
             <option value={DELIVERY}>Delivery Boy</option>
-          </select>
+          </Select>
         )}
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)} aria-label="Filter by status">
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)} aria-label="Filter by status">
           <option value="">Any status</option>
           <option value="active">Active</option>
           <option value="blocked">Inactive</option>
-        </select>
+        </Select>
       </div>
 
       <Card tight>
@@ -416,19 +417,19 @@ function UserForm({ user, assignableRoles, fixedRole, onClose, onSaved }) {
         </div>
         <div className="grid cols-2">
           <Field label="Role" error={errors.role} help={!creating && user.self ? "You cannot change your own role." : undefined}>
-            <select value={form.role} onChange={set("role")} disabled={roleLocked}>
+            <Select value={form.role} onChange={set("role")} disabled={roleLocked}>
               {form.role ? null : <option value="">Choose a role</option>}
               {roleOptions.map((r) => (
                 <option key={r.key} value={r.key}>{r.label}</option>
               ))}
-            </select>
+            </Select>
           </Field>
           {creating ? (
             <Field label="Account status">
-              <select value={form.status} onChange={set("status")}>
+              <Select value={form.status} onChange={set("status")}>
                 <option value="active">Active — can sign in now</option>
                 <option value="blocked">Inactive — activate later</option>
-              </select>
+              </Select>
             </Field>
           ) : null}
         </div>

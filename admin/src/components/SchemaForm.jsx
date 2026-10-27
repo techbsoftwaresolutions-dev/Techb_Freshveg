@@ -1,4 +1,5 @@
 import { Field } from "./ui";
+import { Select } from "./SelectMenu";
 
 // Renders a product form from whatever `GET /catalog/categories/:id/schema`
 // returned. There is no per-category code here and there is no list of known
@@ -61,14 +62,14 @@ function Input({ field, value, onChange, error }) {
 
     case "select":
       return (
-        <select {...common} value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
+        <Select {...common} value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
           <option value="">— Select —</option>
           {field.options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
-        </select>
+        </Select>
       );
 
     case "multiselect": {

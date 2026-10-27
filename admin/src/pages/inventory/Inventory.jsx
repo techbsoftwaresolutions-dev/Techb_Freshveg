@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { api, toast } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, when } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 // Three views over the same collection, because they answer three different
 // questions a shop actually asks: what do I have, what is running out, and
@@ -115,7 +116,7 @@ export default function Inventory() {
           </button>
         ))}
         <span className="spacer" />
-        <select
+        <Select
           value={tab}
           aria-label="Inventory view"
           onChange={(e) => {
@@ -128,7 +129,7 @@ export default function Inventory() {
               {t.label}
             </option>
           ))}
-        </select>
+        </Select>
         {searchable ? (
           <input
             type="search"
@@ -138,13 +139,13 @@ export default function Inventory() {
             onChange={(e) => setSearch(e.target.value)}
           />
         ) : null}
-        <select value={store} onChange={(e) => setStore(e.target.value)}>
+        <Select value={store} onChange={(e) => setStore(e.target.value)}>
           {stores.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <Card tight>

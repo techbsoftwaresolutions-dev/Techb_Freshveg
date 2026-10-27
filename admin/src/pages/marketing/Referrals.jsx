@@ -3,8 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import { api, confirmDialog } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import {
-  Banner, Card, DateRange, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Switch, Table, Tabs, rupees, when,
+  Banner, Card, DateRange, dateRange, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Switch, Table, Tabs, rupees, when,
 } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 // Referral & Rewards: what the programme has done (overview), who referred
 // whom (referrals), the coupons it issued, and its rules. The engine does the
@@ -38,13 +39,19 @@ export default function Referrals() {
   ];
 
   return (
-    <>
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1>Referral &amp; Rewards</h1>
+        </div>
+      </div>
+
       <Tabs tabs={tabs} active={tab} onChange={(key) => setParams({ tab: key })} />
       {tab === "overview" ? <Overview /> : null}
       {tab === "referrals" ? <ReferralList canManage={can("marketing.manage")} /> : null}
       {tab === "coupons" ? <CouponList canManage={can("marketing.manage")} /> : null}
       {tab === "rules" && can("settings.manage") ? <Rules /> : null}
-    </>
+    </div>
   );
 }
 
@@ -113,8 +120,7 @@ function Overview() {
 // ---------------------------------------------------------------- referrals
 
 function ReferralList({ canManage }) {
-  const [filters, setFilters] = useState({ search: "", status: "", from: "", to: "", minPurchases: "", page: 1 });
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState(() => ({ search: "", status: "", minPurchases: "", ...dateRange(), page: 1 }));
   const [data, setData] = useState({ items: [], meta: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -128,33 +134,40 @@ function ReferralList({ canManage }) {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [filters]);
-  useEffect(load, [load]);
+  useEffect(() => {
+    const timer = setTimeout(load, filters.search ? 250 : 0);
+    return () => clearTimeout(timer);
+  }, [load]);
+
+  const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));
 
   return (
     <>
       <Banner tone="error">{error}</Banner>
-      <form
-        className="toolbar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setFilters((f) => ({ ...f, search: search.trim(), page: 1 }));
-        }}
-      >
-        <input placeholder="Name, phone or referral code" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value, page: 1 }))}>
+      <div className="toolbar">
+        <input
+          type="search"
+          placeholder="Search by name, phone or referral code…"
+          value={filters.search}
+          onChange={(e) => set("search", e.target.value)}
+          style={{ minWidth: 280 }}
+          aria-label="Search referrals"
+        />
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All statuses</option>
           <option value="pending">Awaiting first purchase</option>
           <option value="active">Purchasing</option>
           <option value="void">Void</option>
-        </select>
-        <select value={filters.minPurchases} onChange={(e) => setFilters((f) => ({ ...f, minPurchases: e.target.value, page: 1 }))}>
+        </Select>
+        <Select value={filters.minPurchases} onChange={(e) => set("minPurchases", e.target.value)}>
           <option value="">Any purchases</option>
           {[1, 3, 5, 10].map((n) => (
             <option key={n} value={n}>{n}+ purchases</option>
           ))}
-        </select>
+        </Select>
+        <span className="spacer" />
         <DateRange value={filters} onChange={(range) => setFilters((f) => ({ ...f, ...range, page: 1 }))} />
-      </form>
+      </div>
 
       <Card tight>
         {loading ? (
@@ -191,7 +204,7 @@ function ReferralList({ canManage }) {
               rows={data.items}
               empty={<Empty title="No referrals" hint="They appear here when a new customer uses someone's code." />}
             />
-            <Pagination meta={data.meta} onPage={(page) => setFilters((f) => ({ ...f, page }))} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
           </>
         )}
       </Card>
@@ -341,8 +354,7 @@ function ReferralDetail({ id, canManage, onClose, onChanged }) {
 // ---------------------------------------------------------------- coupons
 
 function CouponList({ canManage }) {
-  const [filters, setFilters] = useState({ search: "", status: "", source: "", from: "", to: "", page: 1 });
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState(() => ({ search: "", status: "", source: "", ...dateRange(), page: 1 }));
   const [data, setData] = useState({ items: [], meta: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -355,7 +367,12 @@ function CouponList({ canManage }) {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [filters]);
-  useEffect(load, [load]);
+  useEffect(() => {
+    const timer = setTimeout(load, filters.search ? 250 : 0);
+    return () => clearTimeout(timer);
+  }, [load]);
+
+  const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));
 
   async function revoke(coupon) {
     const reason = await confirmDialog({
@@ -377,27 +394,29 @@ function CouponList({ canManage }) {
   return (
     <>
       <Banner tone="error">{error}</Banner>
-      <form
-        className="toolbar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setFilters((f) => ({ ...f, search: search.trim(), page: 1 }));
-        }}
-      >
-        <input placeholder="Coupon code, name or phone" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value, page: 1 }))}>
+      <div className="toolbar">
+        <input
+          type="search"
+          placeholder="Search by coupon code, name or phone…"
+          value={filters.search}
+          onChange={(e) => set("search", e.target.value)}
+          style={{ minWidth: 280 }}
+          aria-label="Search coupons"
+        />
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All statuses</option>
           {["available", "reserved", "redeemed", "expired", "revoked"].map((s) => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>
           ))}
-        </select>
-        <select value={filters.source} onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value, page: 1 }))}>
+        </Select>
+        <Select value={filters.source} onChange={(e) => set("source", e.target.value)}>
           <option value="">All rewards</option>
           <option value="referral">Referrer milestones</option>
           <option value="referral_welcome">Welcome rewards</option>
-        </select>
+        </Select>
+        <span className="spacer" />
         <DateRange value={filters} onChange={(range) => setFilters((f) => ({ ...f, ...range, page: 1 }))} />
-      </form>
+      </div>
 
       <Card tight>
         {loading ? (
@@ -448,7 +467,7 @@ function CouponList({ canManage }) {
               rows={data.items}
               empty={<Empty title="No coupons" hint="Coupons are issued when referred friends reach a milestone." />}
             />
-            <Pagination meta={data.meta} onPage={(page) => setFilters((f) => ({ ...f, page }))} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
           </>
         )}
       </Card>

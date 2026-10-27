@@ -7,8 +7,9 @@ import { useAuth } from "../../context/AuthContext";
 // A save's confirmation, as a toast (components/Toaster.jsx).
 const notifySaved = (message) => message && toast("success", message);
 import {
-  Banner, Card, DateRange, Empty, Loading, Pagination, Pill, Stat, Table, Tabs, rupees, when,
+  Banner, Card, DateRange, dateRange, Empty, Loading, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
+import { Select } from "../../components/SelectMenu";
 
 const STATUS_TONE = {
   captured: "ok",
@@ -50,7 +51,7 @@ export default function Payments() {
 
 function Transactions() {
   const [data, setData] = useState({ items: [], meta: null, totals: null });
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(() => dateRange());
   const [filters, setFilters] = useState({ status: "", method: "", search: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -91,21 +92,21 @@ function Transactions() {
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 200 }}
         />
-        <select value={filters.method} onChange={(e) => set("method", e.target.value)}>
+        <Select value={filters.method} onChange={(e) => set("method", e.target.value)}>
           <option value="">All methods</option>
           <option value="cod">Cash on delivery</option>
           <option value="upi">UPI</option>
           <option value="online">Online (Razorpay)</option>
           <option value="card">Card</option>
           <option value="netbanking">Net banking</option>
-        </select>
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+        </Select>
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All statuses</option>
           <option value="captured">Captured</option>
           <option value="pending">Pending</option>
           <option value="failed">Failed</option>
           <option value="refunded">Refunded</option>
-        </select>
+        </Select>
         <span className="spacer" />
         <DateRange value={range} onChange={setRange} />
       </div>
@@ -190,62 +191,74 @@ function Transactions() {
 
 function Refunds() {
   const [data, setData] = useState({ items: [], meta: null });
+  const [range, setRange] = useState(() => dateRange());
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     api
-      .get("/payments/refunds", { page, limit: 20 })
+      .get("/payments/refunds", { ...range, page, limit: 20 })
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [page]);
-
-  if (loading) return <Loading />;
+  }, [range, page]);
 
   return (
-    <Card tight>
-      <Table
-        title="Refunds"
-        columns={[
-          {
-            key: "order",
-            label: "Order",
-            render: (row) => (
-              <div className="stack">
-                <Link to={`/orders/${row.order}`} className="mono">{row.orderCode}</Link>
-                <span className="row-sub">{when(row.createdAt)}</span>
-              </div>
-            ),
-          },
-          { key: "amount", label: "Amount", align: "right", render: (row) => <strong>{rupees(row.amount)}</strong> },
-          {
-            key: "destination",
-            label: "Where it went",
-            render: (row) => (
-              <Pill tone={row.destination === "wallet" ? "accent" : undefined}>
-                {row.destination === "wallet" ? "Customer wallet" : row.destination === "source" ? "Back to source" : "Cash"}
-              </Pill>
-            ),
-          },
-          { key: "reason", label: "Reason", render: (row) => <span className="muted">{row.reason || "—"}</span> },
-          { key: "requestedByName", label: "By", render: (row) => <span className="muted">{row.requestedByName || "system"}</span> },
-          {
-            key: "status",
-            label: "Status",
-            render: (row) => (
-              <Pill tone={row.status === "completed" ? "ok" : row.status === "failed" ? "danger" : "info"}>
-                {row.status}
-              </Pill>
-            ),
-          },
-        ]}
-        rows={data.items}
-        empty={<Empty title="No refunds yet" hint="Refunds raised from an order or a support ticket show up here." />}
-      />
-      <Pagination meta={data.meta} onPage={setPage} />
-    </Card>
+    <>
+      <div className="toolbar">
+        <span className="spacer" />
+        <DateRange value={range} onChange={(next) => { setRange(next); setPage(1); }} />
+      </div>
+
+      <Card tight>
+        {loading ? (
+          <Loading />
+        ) : (
+          <>
+            <Table
+              title="Refunds"
+              columns={[
+                {
+                  key: "order",
+                  label: "Order",
+                  render: (row) => (
+                    <div className="stack">
+                      <Link to={`/orders/${row.order}`} className="mono">{row.orderCode}</Link>
+                      <span className="row-sub">{when(row.createdAt)}</span>
+                    </div>
+                  ),
+                },
+                { key: "amount", label: "Amount", align: "right", render: (row) => <strong>{rupees(row.amount)}</strong> },
+                {
+                  key: "destination",
+                  label: "Where it went",
+                  render: (row) => (
+                    <Pill tone={row.destination === "wallet" ? "accent" : undefined}>
+                      {row.destination === "wallet" ? "Customer wallet" : row.destination === "source" ? "Back to source" : "Cash"}
+                    </Pill>
+                  ),
+                },
+                { key: "reason", label: "Reason", render: (row) => <span className="muted">{row.reason || "—"}</span> },
+                { key: "requestedByName", label: "By", render: (row) => <span className="muted">{row.requestedByName || "system"}</span> },
+                {
+                  key: "status",
+                  label: "Status",
+                  render: (row) => (
+                    <Pill tone={row.status === "completed" ? "ok" : row.status === "failed" ? "danger" : "info"}>
+                      {row.status}
+                    </Pill>
+                  ),
+                },
+              ]}
+              rows={data.items}
+              empty={<Empty title="No refunds in this window" hint="Refunds raised from an order or a support ticket show up here." />}
+            />
+            <Pagination meta={data.meta} onPage={setPage} />
+          </>
+        )}
+      </Card>
+    </>
   );
 }
 
