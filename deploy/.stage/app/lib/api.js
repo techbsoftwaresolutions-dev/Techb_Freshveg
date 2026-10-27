@@ -8,12 +8,13 @@ const BASE = `${API}/api/v1`;
 export const SITE_URL = process.env.SITE_URL || "http://localhost:3100";
 
 /**
- * Catalog reads are cached and revalidated on a timer rather than fetched per
- * request. A product page hit by a search engine and by a hundred shoppers
- * should not be a hundred round trips — and prices change on the order of
- * minutes, not seconds.
+ * Catalog reads are cached briefly and revalidated on a timer rather than
+ * fetched per request, so a product page hit by a hundred shoppers is not a
+ * hundred round trips. The windows are short on purpose: when an admin deletes
+ * a product, changes a price or pauses a banner, the storefront should show it
+ * within seconds, not minutes.
  */
-async function get(path, { query, revalidate = 60 } = {}) {
+async function get(path, { query, revalidate = 10 } = {}) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(query || {})) {
     if (value !== undefined && value !== null && value !== "") search.set(key, String(value));
@@ -37,23 +38,23 @@ async function get(path, { query, revalidate = 60 } = {}) {
   return payload;
 }
 
-export const getHome = (store) => get("/storefront/home", { query: { store }, revalidate: 60 });
+export const getHome = (store) => get("/storefront/home", { query: { store }, revalidate: 10 });
 
-export const getCategories = () => get("/storefront/categories", { query: { depth: 3 }, revalidate: 300 });
+export const getCategories = () => get("/storefront/categories", { query: { depth: 3 }, revalidate: 30 });
 
-export const getCategory = (slug) => get(`/storefront/categories/${slug}`, { revalidate: 300 });
+export const getCategory = (slug) => get(`/storefront/categories/${slug}`, { revalidate: 30 });
 
-export const getProducts = (query) => get("/storefront/products", { query, revalidate: 60 });
+export const getProducts = (query) => get("/storefront/products", { query, revalidate: 10 });
 
-export const getProduct = (slug) => get(`/storefront/products/${slug}`, { revalidate: 60 });
+export const getProduct = (slug) => get(`/storefront/products/${slug}`, { revalidate: 10 });
 
 export const search = (q, query) =>
-  get("/storefront/search", { query: { q, ...query }, revalidate: 30 });
+  get("/storefront/search", { query: { q, ...query }, revalidate: 10 });
 
 export const getBanners = (placement) =>
-  get("/banners/live", { query: { placement }, revalidate: 120 });
+  get("/banners/live", { query: { placement }, revalidate: 30 });
 
-export const getStores = () => get("/stores/public", { revalidate: 300 });
+export const getStores = () => get("/stores/public", { revalidate: 60 });
 
 export const checkPincode = (pincode) =>
   get("/storefront/serviceability", { query: { pincode }, revalidate: 0 });

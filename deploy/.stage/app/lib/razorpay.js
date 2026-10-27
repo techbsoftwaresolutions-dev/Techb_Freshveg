@@ -21,6 +21,25 @@ function loadScript() {
   });
 }
 
+// Razorpay only shows a logo it can load over https, so a plain /icons/... link
+// is ignored on localhost or http. Sending the image itself (a base64 data URL)
+// works everywhere. If it can't be read the window simply keeps its default tile.
+async function loadLogo() {
+  try {
+    const response = await fetch("/icons/icon-192.png");
+    if (!response.ok) return "";
+    const blob = await response.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : "");
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Opens the Razorpay window (UPI first) for an order that is awaiting payment.
  * Resolves { paid: true } once the payment is verified by our server, or
@@ -35,6 +54,7 @@ export async function payWithRazorpay(orderId) {
   if (!checkout) throw new Error("Razorpay did not return a payment session. Please try again.");
 
   await loadScript();
+  const logo = await loadLogo();
 
   return new Promise((resolve, reject) => {
     const instance = new window.Razorpay({
@@ -44,6 +64,8 @@ export async function payWithRazorpay(orderId) {
       currency: checkout.currency,
       name: checkout.name,
       description: checkout.description,
+      // The logo shown in the green panel instead of the plain "H" tile.
+      ...(logo ? { image: logo } : {}),
       prefill: checkout.prefill,
       theme: { color: "#16803c" },
       // UPI first, then the other options.

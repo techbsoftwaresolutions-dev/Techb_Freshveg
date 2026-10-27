@@ -155,9 +155,12 @@ async function replaceVariants(product, variantPayloads, schema = null) {
   // More than one variant means the product is merchandised as packs/options.
   const isSplitIntoPacks = variantPayloads.length > 1;
   const existing = await Variant.find({ product: product._id });
+  const byId = new Map(existing.map((v) => [String(v._id), v]));
   const byAxisKey = new Map(existing.map((v) => [v.axisKey, v]));
 
-  const keptKeys = new Set();
+  // Which stored variants this save has claimed, so two rows can never end up
+  // writing to the same one (that is how a second pack used to overwrite the first).
+  const keptIds = new Set();
   let sequence = 0;
 
   for (const payload of variantPayloads) {
@@ -177,8 +180,7 @@ async function replaceVariants(product, variantPayloads, schema = null) {
       attributes = clean;
     }
 
-    const axisKey = axisValues.map((a) => `${a.code}=${a.value}`).sort().join("|");
-    keptKeys.add(axisKey);
+    const axisKey = Variant.keyFor(axisValues, payload.name);
 
     const fields = {
       product: product._id,
@@ -205,19 +207,30 @@ async function replaceVariants(product, variantPayloads, schema = null) {
       isDefault: Boolean(payload.isDefault),
     };
 
-    const found = byAxisKey.get(axisKey);
+    // Match the row to its stored variant by id first (the admin sends it), then
+    // by fingerprint. A lone variant sent without either still lands on the
+    // product's one existing variant, as it always has.
+    let found = (payload.id && byId.get(String(payload.id))) || byAxisKey.get(axisKey) || null;
+    if (!found && variantPayloads.length === 1) {
+      const live = existing.filter((v) => v.status !== "archived");
+      if (live.length === 1) found = live[0];
+    }
+    if (found && keptIds.has(String(found._id))) found = null;
+
     if (found) {
       Object.assign(found, fields);
       await found.save();
+      keptIds.add(String(found._id));
     } else {
-      await Variant.create({
+      const created = await Variant.create({
         ...fields,
         sku: payload.sku || buildSku(product, axisValues, existing.length + sequence),
       });
+      keptIds.add(String(created._id));
     }
   }
 
-  const removed = existing.filter((v) => !keptKeys.has(v.axisKey));
+  const removed = existing.filter((v) => !keptIds.has(String(v._id)));
   if (removed.length) {
     await Variant.updateMany({ _id: { $in: removed.map((v) => v._id) } }, { status: "archived" });
   }

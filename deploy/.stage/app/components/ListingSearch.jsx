@@ -48,7 +48,9 @@ const icon = {
   "aria-hidden": true,
 };
 
-// Phone header: back · title · search icon — or back · input · ✕ once open.
+// Phone header: round back · title + "Delivering to" pill · round share, and a
+// search row underneath (typing swaps the listing for live results; the mic
+// searches by voice where the browser supports it).
 export function SearchHead({ title, backHref = "/" }) {
   const { open, setOpen, query, setQuery } = useSearch();
   const input = useRef(null);
@@ -57,13 +59,23 @@ export function SearchHead({ title, backHref = "/" }) {
     if (open) input.current?.focus();
   }, [open]);
 
+  const share = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title, url });
+      else if (navigator.clipboard) await navigator.clipboard.writeText(url);
+    } catch {
+      // the share sheet was dismissed
+    }
+  };
+
   const close = () => {
     setQuery("");
     setOpen(false);
   };
 
-  // ✕ clears the text first (listing comes back, field stays ready); a second
-  // tap on the empty field closes it and restores the normal header.
+  // ✕ clears the text first (the listing comes back, the field stays ready);
+  // a second tap on the empty field closes search and restores the title bar.
   const clear = () => {
     if (query) {
       setQuery("");
@@ -73,9 +85,42 @@ export function SearchHead({ title, backHref = "/" }) {
     }
   };
 
+  const [micOk, setMicOk] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognition = useRef(null);
+  useEffect(() => {
+    setMicOk(Boolean(window.SpeechRecognition || window.webkitSpeechRecognition));
+    return () => recognition.current?.abort?.();
+  }, []);
+
+  const toggleMic = () => {
+    if (listening) {
+      recognition.current?.stop();
+      return;
+    }
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Speech) return;
+    const rec = new Speech();
+    rec.lang = "en-IN";
+    rec.interimResults = false;
+    rec.onstart = () => setListening(true);
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    rec.onresult = (event) => {
+      const heard = (event.results?.[0]?.[0]?.transcript || "").replace(/[.?!]+$/, "").trim();
+      if (heard) setQuery(heard);
+    };
+    recognition.current = rec;
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+    }
+  };
+
   return (
-    <div className={`cat-mobile-head${open ? " searching" : ""}`}>
-      <Link href={backHref} aria-label="Back" className="cat-mobile-btn">
+    <div className={`cat-mobile-head ref${open ? " searching" : ""}`}>
+      <Link href={backHref} aria-label="Back" className="cat-mobile-btn round">
         <svg {...icon}>
           <path d="M19 12H5M11 6l-6 6 6 6" />
         </svg>
@@ -83,31 +128,51 @@ export function SearchHead({ title, backHref = "/" }) {
 
       {open ? (
         <>
-          <label className="cat-search-field">
+          <div className="cat-search-field">
             <input
               ref={input}
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => event.key === "Escape" && close()}
-              placeholder="Search products"
               aria-label="Search products"
               enterKeyHint="search"
             />
-          </label>
-          <button type="button" className="cat-mobile-btn" aria-label={query ? "Clear search" : "Close search"} onClick={clear}>
-            <svg {...icon}>
-              <path d="M6 6l12 12M18 6 6 18" />
-            </svg>
-          </button>
+            {!query && micOk ? (
+              <button
+                type="button"
+                className={`cat-field-btn${listening ? " listening" : ""}`}
+                aria-label={listening ? "Stop voice search" : "Search by voice"}
+                aria-pressed={listening}
+                onClick={toggleMic}
+              >
+                <svg {...icon}>
+                  <rect x="9" y="3" width="6" height="11" rx="3" />
+                  <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" />
+                </svg>
+              </button>
+            ) : null}
+            <button type="button" className="cat-field-btn" aria-label={query ? "Clear search" : "Close search"} onClick={clear}>
+              <svg {...icon}>
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
         </>
       ) : (
         <>
-          <span className="cat-mobile-title">{title}</span>
-          <button type="button" className="cat-mobile-btn" aria-label="Search" onClick={() => setOpen(true)}>
+          <button type="button" className="cat-mobile-pill cat-mobile-pill-btn" aria-label="Search products" onClick={() => setOpen(true)} />
+          {/* Search icon button hidden for now — the bar above opens search instead.
+          <button type="button" className="cat-mobile-btn round" aria-label="Search" onClick={() => setOpen(true)}>
             <svg {...icon}>
               <circle cx="11" cy="11" r="6.5" />
               <path d="m20 20-4-4" />
+            </svg>
+          </button>
+          */}
+          <button type="button" className="cat-mobile-btn round" aria-label="Share" onClick={share}>
+            <svg {...icon}>
+              <path d="M12 15V4M8 8l4-4 4 4M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7" />
             </svg>
           </button>
         </>
