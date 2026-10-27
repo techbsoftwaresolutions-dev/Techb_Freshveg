@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import CallButton from "@/components/CallButton";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/Providers";
@@ -30,6 +31,9 @@ function MobileHead() {
     </div>
   );
 }
+
+const laterDate = (value) =>
+  new Date(value).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
 
 export default function OrderPage() {
   return (
@@ -151,6 +155,9 @@ function OrderDetail() {
     );
   }
 
+  // Items held back from this delivery and coming on a later day.
+  const waitingItems = (order?.items || []).filter((i) => i.deferred?.expectedOn && !i.deferred.deliveredAt);
+
   const canCancel =
     !CLOSED.includes(tracking.status) &&
     !["OUT_FOR_DELIVERY", "ARRIVED", "PICKED_UP"].includes(tracking.status);
@@ -264,9 +271,11 @@ function OrderDetail() {
                 <strong>{tracking.partner.name}</strong>
                 <span>Your delivery partner</span>
               </div>
-              <a href={`tel:${tracking.partner.phone}`} className="btn sm primary">
-                Call
-              </a>
+              <CallButton
+                phone={tracking.partner.phone}
+                name={tracking.partner.name}
+                title="Call your delivery partner"
+              />
             </div>
           ) : null}
 
@@ -300,10 +309,18 @@ function OrderDetail() {
           <div className="sticky">
             <div className="panel">
               <h3>
-                {order.items.length} item{order.items.length === 1 ? "" : "s"}
+                {order.items.length - waitingItems.length} item{order.items.length - waitingItems.length === 1 ? "" : "s"}
+                {waitingItems.length ? <small className="item-later-count"> · {waitingItems.length} arriving later</small> : null}
               </h3>
+              {waitingItems.length ? (
+                <p className="notice info" style={{ marginBottom: 12 }}>
+                  {waitingItems.length === 1 ? "1 item" : `${waitingItems.length} items`} from this order will be
+                  delivered separately on <strong>{laterDate(waitingItems[0].deferred.expectedOn)}</strong>
+                  {waitingItems[0].deferred.reason ? ` — ${waitingItems[0].deferred.reason}` : ""}. We're sorry for the wait.
+                </p>
+              ) : null}
               <div className="order-items">
-                {order.items.map((item) => (
+                {order.items.filter((i) => !waitingItems.includes(i)).map((item) => (
                   <div key={item.id || item.sku} className="order-item">
                     <span className="order-thumb">{item.image ? <img src={item.image} alt="" /> : item.name?.[0]}</span>
                     <span className="order-item-name">
@@ -311,11 +328,41 @@ function OrderDetail() {
                       <span>
                         {item.variantName ? `${item.variantName} · ` : ""}×{item.quantity}
                       </span>
+                      {item.deferred?.expectedOn ? (
+                        <span className={`item-later${item.deferred.deliveredAt ? " done" : ""}`}>
+                          {item.deferred.deliveredAt ? "Delivered later" : `Arriving ${laterDate(item.deferred.expectedOn)}`}
+                        </span>
+                      ) : null}
                     </span>
                     <strong>{rupees(item.payable)}</strong>
                   </div>
                 ))}
               </div>
+
+              {waitingItems.length ? (
+                <>
+                  <h4 className="items-later-head">Arriving later</h4>
+                  <div className="order-items">
+                    {waitingItems.map((item) => (
+                  <div key={item.id || item.sku} className="order-item">
+                    <span className="order-thumb">{item.image ? <img src={item.image} alt="" /> : item.name?.[0]}</span>
+                    <span className="order-item-name">
+                      {item.name}
+                      <span>
+                        {item.variantName ? `${item.variantName} · ` : ""}×{item.quantity}
+                      </span>
+                      {item.deferred?.expectedOn ? (
+                        <span className={`item-later${item.deferred.deliveredAt ? " done" : ""}`}>
+                          {item.deferred.deliveredAt ? "Delivered later" : `Arriving ${laterDate(item.deferred.expectedOn)}`}
+                        </span>
+                      ) : null}
+                    </span>
+                    <strong>{rupees(item.payable)}</strong>
+                  </div>
+                    ))}
+                  </div>
+                </>
+              ) : null}
 
               <div className="bill">
                 <div className="bill-row">

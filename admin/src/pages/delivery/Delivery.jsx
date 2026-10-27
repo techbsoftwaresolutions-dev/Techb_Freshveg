@@ -278,9 +278,6 @@ function Zones() {
       <Banner tone="error">{error}</Banner>
 
       <div className="toolbar">
-        <span className="muted" style={{ fontSize: 13 }}>
-          Zones override a store's flat delivery charge for particular pincodes.
-        </span>
         <span className="spacer" />
         {canManage ? (
           <button className="btn primary" onClick={() => navigate("/delivery/zones/new")}>+ New zone</button>
@@ -476,10 +473,10 @@ function ZoneModal({ zone, onClose, onSaved }) {
       </div>
 
       <div className="grid cols-3">
-        <Field label="Extra minutes" help="Added to the store's prep time.">
+        <Field label="Extra minutes">
           <input type="number" value={form.extraMinutes} onChange={(e) => setForm({ ...form, extraMinutes: Number(e.target.value) })} />
         </Field>
-        <Field label="Priority" help="Checked highest first, so a specific zone can sit inside a general one.">
+        <Field label="Priority">
           <input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} />
         </Field>
         <Field label="Status">
@@ -693,7 +690,7 @@ function SlotModal({ slot, onClose, onSaved }) {
         </Field>
       </div>
 
-      <Field label="Days" help="None selected means every day.">
+      <Field label="Days">
         <div className="inline" style={{ gap: 4 }}>
           {DAYS.map((name, day) => (
             <button
@@ -708,10 +705,10 @@ function SlotModal({ slot, onClose, onSaved }) {
       </Field>
 
       <div className="grid cols-3">
-        <Field label="Capacity" help="Orders this window can take.">
+        <Field label="Capacity">
           <input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} />
         </Field>
-        <Field label="Cut-off (minutes)" help="How long before it opens booking closes.">
+        <Field label="Cut-off (minutes)">
           <input type="number" value={form.cutoffMinutes} onChange={(e) => setForm({ ...form, cutoffMinutes: Number(e.target.value) })} />
         </Field>
         <Field label="Surcharge (₹)">

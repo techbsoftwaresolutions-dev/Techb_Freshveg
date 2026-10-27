@@ -485,12 +485,11 @@ function EditCustomerModal({ customer, onClose, onSaved }) {
       <div className="grid cols-2">
         <Field
           label="Phone"
-          help="10 digits — this is what the customer signs in with."
           error={form.phone && !phoneOk ? "Enter a 10-digit number" : ""}
         >
           <input type="tel" inputMode="numeric" maxLength={10} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))} />
         </Field>
-        <Field label="Status" help="Blocked customers can't sign in.">
+        <Field label="Status">
           <Select value={form.status} onChange={set("status")}>
             <option value="active">Active</option>
             <option value="blocked">Blocked</option>

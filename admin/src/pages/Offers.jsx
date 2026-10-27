@@ -190,7 +190,7 @@ function OfferImageField({ value, onChange }) {
   const [uploadError, setUploadError] = useState("");
 
   return (
-    <Field label="Image" help="Shown on the right of the offer card on the website homepage. A cut-out photo on a light background works best.">
+    <Field label="Image">
       {value ? (
         <div className="media-thumb" style={{ width: 96, marginBottom: 10 }}>
           <img src={value} alt="" />
@@ -301,7 +301,7 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
         <Field label="Title">
           <input type="text" autoFocus value={form.title} onChange={(e) => set("title", e.target.value)} />
         </Field>
-        <Field label="Badge" help="Short text on the product card, e.g. “20% OFF”.">
+        <Field label="Badge">
           <input type="text" value={form.badge} onChange={(e) => set("badge", e.target.value)} />
         </Field>
       </div>
@@ -355,7 +355,7 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
                 onChange={(e) => setReward("discountPct", Number(e.target.value))}
               />
             </Field>
-            <Field label="Max discount ₹" help="Caps the percentage.">
+            <Field label="Max discount ₹">
               <input
                 type="number"
                 value={(form.reward.maxDiscount || 0) / 100}
@@ -416,14 +416,14 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
 
       <div className="section-label">Conditions</div>
       <div className="grid cols-2">
-        <Field label="Minimum cart value ₹" help="Measured against the eligible items only.">
+        <Field label="Minimum cart value ₹">
           <input
             type="number"
             value={(form.conditions.minCartValue || 0) / 100}
             onChange={(e) => setCondition("minCartValue", Math.round(Number(e.target.value) * 100))}
           />
         </Field>
-        <Field label="Limit to categories" help="Includes everything beneath the ones you pick.">
+        <Field label="Limit to categories">
           <Select
             multiple
             size={4}
@@ -453,7 +453,6 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
       <div className="section-label">Publication</div>
       <Field
         label="Flash sale ends at"
-        help="Optional. Set this to run the offer as a countdown 'Flash Deal' on the homepage — leave it blank for a regular offer with no countdown."
         style={{ marginBottom: 14 }}
       >
         <DatePicker
@@ -470,7 +469,7 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
             <option value="paused">Paused</option>
           </Select>
         </Field>
-        <Field label="Priority" help="Higher wins when two offers clash.">
+        <Field label="Priority">
           <input type="number" value={form.priority} onChange={(e) => set("priority", Number(e.target.value))} />
         </Field>
         <Field label="Stacking">

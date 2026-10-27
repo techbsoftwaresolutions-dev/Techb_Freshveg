@@ -95,6 +95,25 @@ module.exports = [
     default: t("We couldn't fulfil {{code}}", "Sorry — the store couldn't complete this order. You've been refunded.", "order:{{orderId}}"),
   },
 
+  // ------------------------------------------------- items delivered later
+  {
+    event: "ITEMS_DELAYED",
+    name: "Some items will arrive later",
+    channels: ["push", "sms", "inapp"],
+    default: t(
+      "Some items will arrive later",
+      "{{items}} from order {{code}} will be delivered on {{date}}. {{reason}}We're sorry for the wait.",
+      "order:{{orderId}}"
+    ),
+    sms: t("", "Hosur Basket: {{items}} from order {{code}} will be delivered on {{date}}. Sorry for the wait."),
+  },
+  {
+    event: "DELAYED_ITEMS_DELIVERED",
+    name: "Remaining items delivered",
+    channels: ["push", "inapp"],
+    default: t("Remaining items delivered", "{{items}} from order {{code}} has been delivered. Thank you for waiting!", "order:{{orderId}}"),
+  },
+
   // ---------------------------------------------------------- returns
   {
     event: "RETURN_REQUESTED",

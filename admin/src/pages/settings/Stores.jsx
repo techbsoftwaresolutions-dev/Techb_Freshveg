@@ -4,7 +4,20 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Switch, Table, rupees, useConfirm } from "../../components/ui";
+import {
+  Banner,
+  Card,
+  Empty,
+  Field,
+  Loading,
+  Modal,
+  Pagination,
+  Pill,
+  Switch,
+  Table,
+  rupees,
+  useConfirm,
+} from "../../components/ui";
 
 // Commercial rules are per store — a city branch can carry a higher free
 // delivery threshold than a small-town one without any code change.
@@ -41,7 +54,14 @@ export default function Stores() {
   // on record, the default store, staff or offers tied to it alone) and says
   // why; that reason is shown as it comes.
   async function removeStore(store) {
-    if (!(await confirm({ title: "Delete store?", message: `Delete "${store.name}"? Its stock, delivery zones and slots go with it. This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
+    if (
+      !(await confirm({
+        title: "Delete store?",
+        message: `Delete "${store.name}"? Its stock, delivery zones and slots go with it. This can't be undone.`,
+        confirmLabel: "Yes, delete",
+      }))
+    )
+      return;
     setDeleting(store.id);
     setError("");
     setDeleted("");
@@ -57,7 +77,12 @@ export default function Stores() {
     }
   }
 
-  if (loading) return <div className="page"><Loading /></div>;
+  if (loading)
+    return (
+      <div className="page">
+        <Loading />
+      </div>
+    );
 
   return (
     <div className="page">
@@ -69,7 +94,9 @@ export default function Stores() {
       </div>
 
       <Banner tone="error">{error}</Banner>
-      <Banner tone="ok">{deleted ? `${deleted} deleted.` : saved ? `${saved} saved.` : ""}</Banner>
+      <Banner tone="ok">
+        {deleted ? `${deleted} deleted.` : saved ? `${saved} saved.` : ""}
+      </Banner>
 
       <Card tight>
         <Table
@@ -81,10 +108,12 @@ export default function Stores() {
               render: (row) => (
                 <div className="stack">
                   <span className="row-title">
-                    {row.name} {row.isDefault && <Pill tone="accent">default</Pill>}
+                    {row.name}{" "}
+                    {row.isDefault && <Pill tone="accent">default</Pill>}
                   </span>
                   <span className="row-sub">
-                    <span className="tag">{row.code}</span> · {row.type.replace(/_/g, " ")}
+                    <span className="tag">{row.code}</span> ·{" "}
+                    {row.type.replace(/_/g, " ")}
                   </span>
                 </div>
               ),
@@ -103,7 +132,9 @@ export default function Stores() {
               label: "Delivers to",
               render: (row) => (
                 <span className="muted">
-                  {row.servicePincodes?.length ? `${row.servicePincodes.length} pincodes` : "—"}
+                  {row.servicePincodes?.length
+                    ? `${row.servicePincodes.length} pincodes`
+                    : "—"}
                 </span>
               ),
             },
@@ -118,7 +149,8 @@ export default function Stores() {
               label: "Free above",
               align: "right",
               render: (row) =>
-                row.settings?.freeDeliveryEnabled === false || !row.settings?.freeDeliveryAbove
+                row.settings?.freeDeliveryEnabled === false ||
+                !row.settings?.freeDeliveryAbove
                   ? "Off"
                   : rupees(row.settings.freeDeliveryAbove),
             },
@@ -127,8 +159,12 @@ export default function Stores() {
               label: "Status",
               render: (row) => (
                 <div className="inline" style={{ gap: 4 }}>
-                  <Pill tone={row.status === "active" ? "ok" : "warn"}>{row.status}</Pill>
-                  {!row.settings?.acceptingOrders && <Pill tone="danger">paused</Pill>}
+                  <Pill tone={row.status === "active" ? "ok" : "warn"}>
+                    {row.status}
+                  </Pill>
+                  {!row.settings?.acceptingOrders && (
+                    <Pill tone="danger">paused</Pill>
+                  )}
                 </div>
               ),
             },
@@ -143,7 +179,11 @@ export default function Stores() {
                         type="button"
                         className="btn sm danger"
                         disabled={row.isDefault || deleting === row.id}
-                        title={row.isDefault ? "The default store can't be deleted" : undefined}
+                        title={
+                          row.isDefault
+                            ? "The default store can't be deleted"
+                            : undefined
+                        }
                         onClick={(event) => {
                           event.stopPropagation(); // the row itself opens the store
                           removeStore(row);
@@ -157,8 +197,17 @@ export default function Stores() {
               : []),
           ]}
           rows={items}
-          onRowClick={editable ? (row) => navigate(`/settings/stores/${row.id}`) : undefined}
-          empty={<Empty title="No stores" hint="Seed the backend or create one via the API." />}
+          onRowClick={
+            editable
+              ? (row) => navigate(`/settings/stores/${row.id}`)
+              : undefined
+          }
+          empty={
+            <Empty
+              title="No stores"
+              hint="Seed the backend or create one via the API."
+            />
+          }
         />
         <Pagination meta={meta} onPage={setPage} />
       </Card>
@@ -203,26 +252,43 @@ export function StoreFormPage() {
 // Pincodes from free text: commas, spaces or new lines between them, duplicates
 // dropped, anything that is not six digits set aside to be pointed out.
 function parsePincodes(text) {
-  const parts = text.split(/[\s,]+/).map((p) => p.trim()).filter(Boolean);
+  const parts = text
+    .split(/[\s,]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
   const valid = [...new Set(parts.filter((p) => /^\d{6}$/.test(p)))];
   const invalid = parts.filter((p) => !/^\d{6}$/.test(p));
   return { valid, invalid };
 }
 
 function StoreModal({ value, saving, onClose, onSave }) {
-  const [form, setForm] = useState({ ...value, servicePincodes: value.servicePincodes || [] });
-  const [pincodeText, setPincodeText] = useState((value.servicePincodes || []).join(", "));
+  const [form, setForm] = useState({
+    ...value,
+    servicePincodes: value.servicePincodes || [],
+  });
+  const [pincodeText, setPincodeText] = useState(
+    (value.servicePincodes || []).join(", "),
+  );
   const badPincodes = parsePincodes(pincodeText).invalid;
-  const setSetting = (key, next) => setForm((f) => ({ ...f, settings: { ...f.settings, [key]: next } }));
+  const setSetting = (key, next) =>
+    setForm((f) => ({ ...f, settings: { ...f.settings, [key]: next } }));
   const setUpi = (key, next) =>
-    setForm((f) => ({ ...f, settings: { ...f.settings, upi: { ...f.settings?.upi, [key]: next } } }));
-  const money = (key) => (e) => setSetting(key, Math.round(Number(e.target.value || 0) * 100));
+    setForm((f) => ({
+      ...f,
+      settings: { ...f.settings, upi: { ...f.settings?.upi, [key]: next } },
+    }));
+  const money = (key) => (e) =>
+    setSetting(key, Math.round(Number(e.target.value || 0) * 100));
 
   // Free delivery. A store saved before the switch existed with no amount
   // means "no free delivery", so it opens switched off rather than invalid.
   const storedAmount = form.settings?.freeDeliveryAbove || 0;
-  const freeOn = form.settings?.freeDeliveryEnabled === true || (form.settings?.freeDeliveryEnabled !== false && storedAmount > 0);
-  const [freeText, setFreeText] = useState(storedAmount ? String(storedAmount / 100) : "");
+  const freeOn =
+    form.settings?.freeDeliveryEnabled === true ||
+    (form.settings?.freeDeliveryEnabled !== false && storedAmount > 0);
+  const [freeText, setFreeText] = useState(
+    storedAmount ? String(storedAmount / 100) : "",
+  );
   const freeAmount = Number(freeText);
   // Rupees with at most paise: ₹399.50 is fine, ₹399.555 is not.
   const freeError = !freeOn
@@ -241,7 +307,10 @@ function StoreModal({ value, saving, onClose, onSave }) {
         ...form.settings,
         freeDeliveryEnabled: freeOn,
         // Kept while switched off so turning it back on needs no retyping.
-        freeDeliveryAbove: freeError || freeText.trim() === "" ? storedAmount : Math.round(freeAmount * 100),
+        freeDeliveryAbove:
+          freeError || freeText.trim() === ""
+            ? storedAmount
+            : Math.round(freeAmount * 100),
       },
     });
 
@@ -255,7 +324,11 @@ function StoreModal({ value, saving, onClose, onSave }) {
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn primary" disabled={saving || Boolean(freeError)} onClick={submit}>
+          <button
+            className="btn primary"
+            disabled={saving || Boolean(freeError)}
+            onClick={submit}
+          >
             {saving ? "Saving…" : "Save changes"}
           </button>
         </>
@@ -263,10 +336,17 @@ function StoreModal({ value, saving, onClose, onSave }) {
     >
       <div className="grid cols-2">
         <Field label="Name">
-          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
         </Field>
         <Field label="Status">
-          <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          <Select
+            value={form.status}
+            onChange={(e) => setForm({ ...form, status: e.target.value })}
+          >
             <option value="active">Active</option>
             <option value="paused">Paused</option>
             <option value="closed">Closed</option>
@@ -282,7 +362,7 @@ function StoreModal({ value, saving, onClose, onSave }) {
         help={
           badPincodes.length
             ? `Not 6-digit pincodes, will be ignored: ${badPincodes.join(", ")}`
-            : `${form.servicePincodes.length} pincode${form.servicePincodes.length === 1 ? "" : "s"}. Separate with commas or new lines. A customer outside these cannot check out against this store.`
+            : undefined
         }
       >
         <textarea
@@ -291,7 +371,10 @@ function StoreModal({ value, saving, onClose, onSave }) {
           onChange={(e) => {
             const text = e.target.value;
             setPincodeText(text);
-            setForm((f) => ({ ...f, servicePincodes: parsePincodes(text).valid }));
+            setForm((f) => ({
+              ...f,
+              servicePincodes: parsePincodes(text).valid,
+            }));
           }}
         />
       </Field>
@@ -330,7 +413,9 @@ function StoreModal({ value, saving, onClose, onSave }) {
           <input
             type="number"
             value={form.settings?.prepTimeMinutes || 0}
-            onChange={(e) => setSetting("prepTimeMinutes", Number(e.target.value))}
+            onChange={(e) =>
+              setSetting("prepTimeMinutes", Number(e.target.value))
+            }
           />
         </Field>
       </div>
@@ -347,11 +432,7 @@ function StoreModal({ value, saving, onClose, onSave }) {
         }
         className="free-delivery-card"
       >
-        <Field
-          label="Minimum order value"
-          error={freeError}
-          help={freeOn ? "Customers get free delivery once their cart reaches this amount." : undefined}
-        >
+        <Field label="Minimum order value" error={freeError}>
           <div className="inline" style={{ gap: 6 }}>
             <span className="muted">₹</span>
             <input
@@ -369,7 +450,8 @@ function StoreModal({ value, saving, onClose, onSave }) {
         </Field>
         {!freeOn ? (
           <p className="faint" style={{ margin: 0, fontSize: 13 }}>
-            Free delivery is currently disabled. Customers will not see the free-delivery progress card.
+            Free delivery is currently disabled. Customers will not see the
+            free-delivery progress card.
           </p>
         ) : null}
       </Card>
@@ -392,16 +474,8 @@ function StoreModal({ value, saving, onClose, onSave }) {
           Accepting orders
         </label>
       </div>
-      <p className="faint" style={{ fontSize: 12, marginBottom: 0 }}>
-        Unticking “accepting orders” stops checkout at this store immediately — the kill switch for a
-        power cut or a rush.
-      </p>
 
       <div className="section-label">UPI payment</div>
-      <p className="faint" style={{ fontSize: 12, marginTop: -8 }}>
-        No payment gateway is wired up — this just shows the customer where to pay. Orders are created
-        awaiting payment and you confirm them yourself once the money lands.
-      </p>
       <label className="checkbox" style={{ marginBottom: 10 }}>
         <input
           type="checkbox"
@@ -411,7 +485,7 @@ function StoreModal({ value, saving, onClose, onSave }) {
         Show UPI as a payment option at checkout
       </label>
       <div className="grid cols-2">
-        <Field label="UPI ID or mobile number" help="e.g. yourstore@okaxis or 98765 43210@ybl">
+        <Field label="UPI ID or mobile number" help="">
           <input
             type="text"
             value={form.settings?.upi?.vpa || ""}
@@ -419,7 +493,7 @@ function StoreModal({ value, saving, onClose, onSave }) {
             disabled={!form.settings?.upi?.enabled}
           />
         </Field>
-        <Field label="Payee name shown to customer" help="Defaults to the store name if left blank">
+        <Field label="Payee name shown to customer">
           <input
             type="text"
             value={form.settings?.upi?.payeeName || ""}

@@ -46,6 +46,7 @@ const publicUser = (user) => ({
   name: user.name,
   phone: user.phone,
   email: user.email,
+  avatar: user.avatar || "",
   role: user.role,
   permissions: user.permissions,
   status: user.status,
@@ -258,6 +259,71 @@ router.patch(
     for (const field of ["name", "email", "notificationPrefs"]) {
       if (req.body[field] !== undefined) user[field] = req.body[field];
     }
+    // The photo is an https link from the avatar upload, or "" to remove it.
+    if (req.body.avatar !== undefined) {
+      const avatar = String(req.body.avatar || "").trim();
+      if (avatar && !/^https:\/\/[^\s]+$/i.test(avatar)) throw ApiError.badRequest("That is not a valid photo link");
+      user.avatar = avatar;
+    }
+    await user.save();
+    res.json({ success: true, user: publicUser(user) });
+  })
+);
+
+// Changing the sign-in number: the new number has to be proved with an OTP
+// sent to it, so nobody can attach a number they do not own. Two steps — this
+// check (before spending an SMS), then the code through /otp/request, then
+// /me/phone/verify.
+const newPhoneOf = (req, user) => {
+  const phone = String(req.body.phone || "").trim();
+  if (!/^\d{10}$/.test(phone)) throw ApiError.badRequest("Enter a valid 10-digit mobile number");
+  if (phone === user.phone) throw ApiError.badRequest("That is already your mobile number");
+  return phone;
+};
+
+router.post(
+  "/me/phone/check",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+    if (!user) throw ApiError.notFound("Account not found");
+    const phone = newPhoneOf(req, user);
+    if (await User.exists({ phone, role: user.role })) {
+      throw ApiError.conflict("That number is already registered with another account");
+    }
+    res.json({ success: true });
+  })
+);
+
+router.post(
+  "/me/phone/verify",
+  requireAuth,
+  otpVerifyLimiter,
+  asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+    if (!user) throw ApiError.notFound("Account not found");
+    const phone = newPhoneOf(req, user);
+    const code = String(req.body.code || "").trim();
+
+    const record = await Otp.findOne({ phone, role: user.role, consumedAt: null }).sort({ createdAt: -1 });
+    if (!record) throw ApiError.badRequest("Request an OTP first");
+    if (record.expiresAt < new Date()) throw ApiError.badRequest("That OTP has expired");
+    if (record.attempts >= 5) throw ApiError.badRequest("Too many wrong attempts. Request a new OTP.");
+    if (record.codeHash !== Otp.hash(code)) {
+      record.attempts += 1;
+      await record.save();
+      throw ApiError.badRequest("Incorrect OTP");
+    }
+
+    if (await User.exists({ phone, role: user.role })) {
+      throw ApiError.conflict("That number is already registered with another account");
+    }
+
+    record.consumedAt = new Date();
+    await record.save();
+
+    user.phone = phone;
+    user.phoneVerifiedAt = new Date();
     await user.save();
     res.json({ success: true, user: publicUser(user) });
   })

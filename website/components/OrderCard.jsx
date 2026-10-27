@@ -54,6 +54,7 @@ export default function OrderCard({ order }) {
   const [note, setNote] = useState("");
 
   const items = order.items || [];
+  const laterCount = items.filter((i) => i.deferred?.expectedOn && !i.deferred.deliveredAt).length;
   const shown = items.slice(0, MAX_THUMBS);
   const more = items.length - shown.length;
   const delivered = order.status === "DELIVERED";
@@ -101,7 +102,8 @@ export default function OrderCard({ order }) {
 
         <div className="oc-sum">
           <span className="oc-count">
-            {items.length} item{items.length === 1 ? "" : "s"}
+            {items.length - laterCount} item{items.length - laterCount === 1 ? "" : "s"}
+            {laterCount ? ` · ${laterCount} arriving later` : ""}
           </span>
           <strong className="oc-total">{rupees(order.pricing?.total)}</strong>
         </div>

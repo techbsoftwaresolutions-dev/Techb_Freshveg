@@ -21,6 +21,7 @@ const emptyProduct = {
   tags: [],
   status: "draft",
   isFeatured: false,
+  offer: { kind: "", title: "", discountPct: "", details: "" },
   attributes: {},
   media: [],
 };
@@ -34,6 +35,19 @@ const VARIANT_SYSTEM_FIELDS = [
   "totalStock", "inStock", "createdAt", "updatedAt", "discountPct", "savings", "unitPrice",
 ];
 
+// What the offer dropdown sends: only the fields that belong to the chosen kind.
+function offerPayload(offer = {}) {
+  const kind = offer.kind || "";
+  if (!kind) return { kind: "", title: "", details: "" };
+  const pct = Number(offer.discountPct);
+  return {
+    kind,
+    title: offer.title || "",
+    details: kind === "combo" ? offer.details || "" : "",
+    ...(kind === "discount" && offer.discountPct !== "" && Number.isFinite(pct) ? { discountPct: pct } : {}),
+  };
+}
+
 function duplicateOf({ product, variants }) {
   const copy = {
     ...emptyProduct,
@@ -44,6 +58,7 @@ function duplicateOf({ product, variants }) {
     description: product.description || "",
     tags: product.tags || [],
     isFeatured: Boolean(product.isFeatured),
+    offer: { ...emptyProduct.offer, ...(product.offer || {}) },
     attributes: product.attributes || {},
     media: (product.media || []).map((m) => ({ ...m })),
   };
@@ -155,6 +170,7 @@ export default function ProductForm() {
       description: product.description,
       tags: product.tags,
       isFeatured: product.isFeatured,
+      offer: offerPayload(product.offer),
       status: publish ? "active" : product.status,
       attributes: product.attributes,
       media: (product.media || []).map((m, index) => ({
@@ -269,7 +285,7 @@ export default function ProductForm() {
                   placeholder="e.g. Tomato"
                 />
               </Field>
-              <Field label="Category" help="Determines every field below.">
+              <Field label="Category">
                 <SelectMenu
                   value={product.category}
                   onChange={pickCategory}
@@ -291,7 +307,7 @@ export default function ProductForm() {
                   options={brands.map((b) => ({ value: b.id, label: b.name }))}
                 />
               </Field>
-              <Field label="Tags" help="Comma separated.">
+              <Field label="Tags">
                 <input
                   type="text"
                   value={(product.tags || []).join(", ")}
@@ -321,6 +337,11 @@ export default function ProductForm() {
                 disabled={!editable}
               />
             </Field>
+            <OfferField
+              offer={{ ...emptyProduct.offer, ...(product.offer || {}) }}
+              editable={editable}
+              onChange={(offer) => setProduct({ ...product, offer })}
+            />
             <label className="checkbox">
               <input
                 type="checkbox"
@@ -392,9 +413,6 @@ export default function ProductForm() {
                 </tbody>
               </table>
 
-              <p className="faint" style={{ fontSize: 12, marginBottom: 0 }}>
-                Change these under Categories → Defaults and every product here follows.
-              </p>
             </Card>
           )}
 
@@ -556,10 +574,6 @@ function StockCard({ productId, variants, editable }) {
           })}
         </div>
       )}
-      <p className="faint" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>
-        A product only shows "In stock" on the storefront once it has real stock recorded here — creating or
-        publishing it does not set any on its own.
-      </p>
     </Card>
   );
 }
@@ -592,6 +606,71 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gi
 // is the only place that gap gets closed. Uploads go straight to the storage
 // API and land in `media` as soon as each one finishes; nothing here is
 // persisted until the product itself is saved.
+const OFFER_KINDS = [
+  { value: "", label: "No offer" },
+  { value: "discount", label: "Discount" },
+  { value: "special", label: "Special offer" },
+  { value: "combo", label: "Combo offer" },
+];
+
+// An expandable "Offer" dropdown: pick a kind and the fields for it open below.
+function OfferField({ offer, editable, onChange }) {
+  const set = (patch) => onChange({ ...offer, ...patch });
+  return (
+    <div className="offer-field">
+      <Field label="Offer">
+        <Select value={offer.kind || ""} onChange={(e) => set({ kind: e.target.value })} disabled={!editable}>
+          {OFFER_KINDS.map((k) => (
+            <option key={k.value} value={k.value}>{k.label}</option>
+          ))}
+        </Select>
+      </Field>
+
+      {offer.kind ? (
+        <div className="offer-panel">
+          {offer.kind === "discount" ? (
+            <Field label="Discount %">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={offer.discountPct ?? ""}
+                onChange={(e) => set({ discountPct: e.target.value })}
+                placeholder="e.g. 10"
+                disabled={!editable}
+              />
+            </Field>
+          ) : null}
+          <Field label={offer.kind === "combo" ? "Combo name" : "Offer title"}>
+            <input
+              type="text"
+              value={offer.title || ""}
+              maxLength={60}
+              onChange={(e) => set({ title: e.target.value })}
+              placeholder={
+                offer.kind === "combo" ? "e.g. Breakfast combo" : offer.kind === "special" ? "e.g. Festival special" : "Optional, e.g. Weekend deal"
+              }
+              disabled={!editable}
+            />
+          </Field>
+          {offer.kind === "combo" ? (
+            <Field label="What's in the combo">
+              <input
+                type="text"
+                value={offer.details || ""}
+                maxLength={200}
+                onChange={(e) => set({ details: e.target.value })}
+                placeholder="e.g. Milk 1 L + Bread + Butter 100 g"
+                disabled={!editable}
+              />
+            </Field>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function MediaUploader({ media, name, editable, onChange }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -707,9 +786,6 @@ function MediaUploader({ media, name, editable, onChange }) {
                   ))}
                 </div>
               </div>
-              <p className="faint" style={{ fontSize: 12, margin: "10px 0 0", textAlign: "center" }}>
-                Tap a dot to choose which part of the photo stays in view when it is cropped.
-              </p>
             </div>
             <footer className="modal-foot">
               {picked !== 0 ? (
@@ -765,11 +841,7 @@ function MediaUploader({ media, name, editable, onChange }) {
             </div>
           ))}
         </div>
-      ) : (
-        <p className="faint" style={{ fontSize: 12.5, margin: 0 }}>
-          No photos yet — the storefront shows a blank tile until at least one is added.
-        </p>
-      )}
+      ) : null}
     </Card>
   );
 }
@@ -961,12 +1033,6 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
           </tbody>
         </table>
       </div>
-      {!axes.length && (
-        <p className="faint" style={{ fontSize: 12, padding: "10px 16px", margin: 0 }}>
-          This category has no variant axis, so the product has a single sellable variant. Mark an
-          attribute as a variant axis on the category to split it by size, colour and so on.
-        </p>
-      )}
     </Card>
   );
 }

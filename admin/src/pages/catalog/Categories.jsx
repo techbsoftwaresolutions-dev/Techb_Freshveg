@@ -938,7 +938,7 @@ function NewCategoryModal({ parentId, tree, saving, onClose, onCreate }) {
         />
       </Field>
       <div className="grid cols-2">
-        <Field label="Parent" help="Leave empty to create a top-level department.">
+        <Field label="Parent">
           <SelectMenu
             value={form.parent}
             onChange={(parent) => setForm({ ...form, parent })}
@@ -957,10 +957,6 @@ function NewCategoryModal({ parentId, tree, saving, onClose, onCreate }) {
           />
         </Field>
       </div>
-      <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>
-        It inherits its parent's capabilities, defaults and fields. Add anything specific to it
-        afterwards — no deploy needed.
-      </p>
     </Modal>
   );
 }

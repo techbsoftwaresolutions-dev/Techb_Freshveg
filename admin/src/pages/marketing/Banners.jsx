@@ -382,7 +382,7 @@ function BannerModal({ banner, placements, onClose, onSaved }) {
             <option value="url">A URL</option>
           </Select>
         </Field>
-        <Field label="Value" help="A slug, an id, or a search term.">
+        <Field label="Value">
           <input
             type="text"
             value={form.target.value}

@@ -7,6 +7,9 @@ import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../com
 // The order QR is switched off: the delivery partner only needs the OTP.
 const SHOW_QR = false;
 
+const laterDate = (value) =>
+  new Date(value).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
 
 export default function OrderTrackScreen({ route, navigation }) {
@@ -73,6 +76,7 @@ export default function OrderTrackScreen({ route, navigation }) {
   if (loading) return <Loading />;
   if (!tracking) return <EmptyState title="Couldn't load this order" hint={error} />;
 
+  const waitingItems = (order?.items || []).filter((i) => i.deferred?.expectedOn && !i.deferred.deliveredAt);
   const isClosed = CLOSED.includes(tracking.status);
   const canCancel = !isClosed && !["OUT_FOR_DELIVERY", "ARRIVED", "PICKED_UP"].includes(tracking.status);
 
@@ -231,14 +235,29 @@ export default function OrderTrackScreen({ route, navigation }) {
       {/* Items and bill */}
       {order ? (
         <Card style={{ padding: spacing.md }}>
-          <Text style={type.h3}>{order.items.length} items</Text>
+          <Text style={type.h3}>
+            {order.items.length - waitingItems.length} items
+            {waitingItems.length ? ` · ${waitingItems.length} arriving later` : ""}
+          </Text>
+          {waitingItems.length ? (
+            <Notice tone="warn" style={{ marginTop: spacing.sm }}>
+              {`${waitingItems.length === 1 ? "1 item" : `${waitingItems.length} items`} will be delivered separately on ${laterDate(waitingItems[0].deferred.expectedOn)}${waitingItems[0].deferred.reason ? ` — ${waitingItems[0].deferred.reason}` : ""}. We're sorry for the wait.`}
+            </Notice>
+          ) : null}
           <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
-            {order.items.map((item) => (
+            {[...order.items.filter((i) => !waitingItems.includes(i)), ...waitingItems].map((item) => (
               <Pressable key={item.id || item.sku} style={styles.itemRow} onPress={() => openProduct(item)}>
                 <Thumb item={item} size={44} />
-                <Text style={[type.small, { flex: 1 }]} numberOfLines={2}>
-                  {item.name} {item.variantName ? `· ${item.variantName}` : ""}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={type.small} numberOfLines={2}>
+                    {item.name} {item.variantName ? `· ${item.variantName}` : ""}
+                  </Text>
+                  {item.deferred?.expectedOn ? (
+                    <Text style={[type.tiny, { color: item.deferred.deliveredAt ? colors.save : colors.warn, fontWeight: "700" }]}>
+                      {item.deferred.deliveredAt ? "Delivered later" : `Arriving ${laterDate(item.deferred.expectedOn)}`}
+                    </Text>
+                  ) : null}
+                </View>
                 <Text style={type.tiny}>×{item.quantity}</Text>
                 <Text style={styles.itemPrice}>{rupees(item.payable)}</Text>
               </Pressable>

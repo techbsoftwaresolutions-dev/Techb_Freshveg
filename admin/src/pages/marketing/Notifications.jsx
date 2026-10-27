@@ -5,7 +5,19 @@ import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import {
-  Banner, Card, Divider, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, when,
+  Banner,
+  Card,
+  Divider,
+  Empty,
+  Field,
+  Loading,
+  Modal,
+  Pagination,
+  Pill,
+  Stat,
+  Table,
+  Tabs,
+  when,
 } from "../../components/ui";
 
 const CHANNEL_LABEL = {
@@ -16,7 +28,12 @@ const CHANNEL_LABEL = {
   inapp: "In-app",
 };
 
-const STATUS_TONE = { sent: "ok", failed: "danger", skipped: "warn", queued: "info" };
+const STATUS_TONE = {
+  sent: "ok",
+  failed: "danger",
+  skipped: "warn",
+  queued: "info",
+};
 
 const AUDIENCE_LABEL = {
   all: "Every active customer",
@@ -64,7 +81,11 @@ function Templates() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const openTemplate = (template) =>
-    navigate(template?.id ? `/marketing/notifications/templates/${template.id}` : "/marketing/notifications/templates/new");
+    navigate(
+      template?.id
+        ? `/marketing/notifications/templates/${template.id}`
+        : "/marketing/notifications/templates/new",
+    );
 
   const load = useCallback(() => {
     setLoading(true);
@@ -91,10 +112,13 @@ function Templates() {
 
       <div className="page-head" style={{ marginBottom: 12 }}>
         <span className="muted" style={{ fontSize: 13 }}>
-          {templates.length} templates covering {data?.events?.length || 0} events.
+          {templates.length} templates covering {data?.events?.length || 0}{" "}
+          events.
         </span>
         {canManage ? (
-          <button className="btn" onClick={() => openTemplate(null)}>+ New template</button>
+          <button className="btn" onClick={() => openTemplate(null)}>
+            + New template
+          </button>
         ) : null}
       </div>
 
@@ -123,13 +147,25 @@ export function TemplateFormPage() {
       backLabel="Notifications"
       load={async (id) => {
         const data = await api.get("/notifications/templates");
-        const template = id ? (data.templates || []).find((t) => t.id === id) : {};
+        const template = id
+          ? (data.templates || []).find((t) => t.id === id)
+          : {};
         return template
-          ? { template, events: data.events || [], channels: data.channels || Object.keys(CHANNEL_LABEL) }
+          ? {
+              template,
+              events: data.events || [],
+              channels: data.channels || Object.keys(CHANNEL_LABEL),
+            }
           : null;
       }}
       render={({ template, events, channels }, back) => (
-        <TemplateModal template={template} events={events} channels={channels} onClose={back} onSaved={back} />
+        <TemplateModal
+          template={template}
+          events={events}
+          channels={channels}
+          onClose={back}
+          onSaved={back}
+        />
       )}
     />
   );
@@ -147,7 +183,9 @@ function Group({ title, rows, canManage, onEdit }) {
             render: (row) => (
               <div className="stack">
                 <span className="row-title">{row.name}</span>
-                <span className="row-sub mono" style={{ fontSize: 11.5 }}>{row.event}</span>
+                <span className="row-sub mono" style={{ fontSize: 11.5 }}>
+                  {row.event}
+                </span>
               </div>
             ),
           },
@@ -175,13 +213,19 @@ function Group({ title, rows, canManage, onEdit }) {
           {
             key: "audience",
             label: "Who",
-            render: (row) => <span className="muted">{row.audience.split("_").join(" ")}</span>,
+            render: (row) => (
+              <span className="muted">{row.audience.split("_").join(" ")}</span>
+            ),
           },
           {
             key: "enabled",
             label: "",
             render: (row) =>
-              row.enabled ? <Pill tone="ok">on</Pill> : <Pill tone="danger">off</Pill>,
+              row.enabled ? (
+                <Pill tone="ok">on</Pill>
+              ) : (
+                <Pill tone="danger">off</Pill>
+              ),
           },
         ]}
         rows={rows}
@@ -207,7 +251,8 @@ function TemplateModal({ template, events, channels, onClose, onSaved }) {
   const [overrides, setOverrides] = useState(() => {
     const seed = {};
     for (const channel of Object.keys(CHANNEL_LABEL)) {
-      if (template[channel]?.title || template[channel]?.body) seed[channel] = template[channel];
+      if (template[channel]?.title || template[channel]?.body)
+        seed[channel] = template[channel];
     }
     return seed;
   });
@@ -245,8 +290,14 @@ function TemplateModal({ template, events, channels, onClose, onSaved }) {
       wide
       footer={
         <>
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" disabled={busy || !form.name} onClick={save}>
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="btn primary"
+            disabled={busy || !form.name}
+            onClick={save}
+          >
             {busy ? "Saving…" : "Save template"}
           </button>
         </>
@@ -256,32 +307,46 @@ function TemplateModal({ template, events, channels, onClose, onSaved }) {
 
       <div className="grid cols-2">
         <Field label="Name">
-          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
         </Field>
         <Field
           label="Fires on"
-          help={isNew ? "The event that triggers it." : "Locked — changing it would disconnect the template from its trigger."}
+          help={isNew ? "The event that triggers it." : ""}
         >
           <Select
             value={form.event}
             disabled={!isNew}
             onChange={(e) => setForm({ ...form, event: e.target.value })}
           >
-            {events.map((event) => <option key={event} value={event}>{event}</option>)}
+            {events.map((event) => (
+              <option key={event} value={event}>
+                {event}
+              </option>
+            ))}
           </Select>
         </Field>
       </div>
 
       <div className="grid cols-3">
         <Field label="Audience">
-          <Select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })}>
+          <Select
+            value={form.audience}
+            onChange={(e) => setForm({ ...form, audience: e.target.value })}
+          >
             <option value="customer">Customers</option>
             <option value="delivery_partner">Delivery partners</option>
             <option value="admin">Staff</option>
           </Select>
         </Field>
-        <Field label="Kind" help="Marketing can be muted by the customer; transactional cannot.">
-          <Select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+        <Field label="Kind">
+          <Select
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          >
             <option value="transactional">Transactional</option>
             <option value="marketing">Marketing</option>
           </Select>
@@ -299,7 +364,10 @@ function TemplateModal({ template, events, channels, onClose, onSaved }) {
       </div>
 
       <div className="section-label">Channels</div>
-      <div className="inline" style={{ gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+      <div
+        className="inline"
+        style={{ gap: 8, flexWrap: "wrap", marginBottom: 14 }}
+      >
         {channels.map((channel) => (
           <button
             key={channel}
@@ -325,10 +393,16 @@ function TemplateModal({ template, events, channels, onClose, onSaved }) {
         .filter((channel) => channel !== "inapp")
         .map((channel) => (
           <div key={channel} style={{ marginBottom: 12 }}>
-            <div className="section-label" style={{ fontSize: 11.5 }}>{CHANNEL_LABEL[channel] || channel}</div>
+            <div className="section-label" style={{ fontSize: 11.5 }}>
+              {CHANNEL_LABEL[channel] || channel}
+            </div>
             <CopyFields
-              value={overrides[channel] || { title: "", body: "", deeplink: "" }}
-              onChange={(next) => setOverrides({ ...overrides, [channel]: next })}
+              value={
+                overrides[channel] || { title: "", body: "", deeplink: "" }
+              }
+              onChange={(next) =>
+                setOverrides({ ...overrides, [channel]: next })
+              }
               compact
             />
           </div>
@@ -342,11 +416,19 @@ function CopyFields({ value, onChange, compact }) {
     <>
       <div className="grid cols-2">
         <Field label="Title">
-          <input type="text" value={value.title || ""} onChange={(e) => onChange({ ...value, title: e.target.value })} />
+          <input
+            type="text"
+            value={value.title || ""}
+            onChange={(e) => onChange({ ...value, title: e.target.value })}
+          />
         </Field>
         {!compact ? (
-          <Field label="Deeplink" help="Where tapping it lands, for example order:{{orderId}}">
-            <input type="text" value={value.deeplink || ""} onChange={(e) => onChange({ ...value, deeplink: e.target.value })} />
+          <Field label="Deeplink">
+            <input
+              type="text"
+              value={value.deeplink || ""}
+              onChange={(e) => onChange({ ...value, deeplink: e.target.value })}
+            />
           </Field>
         ) : null}
       </div>
@@ -370,7 +452,11 @@ function Broadcast() {
   const [templates, setTemplates] = useState([]);
   const [groups, setGroups] = useState([]);
   const [event, setEvent] = useState("");
-  const [context, setContext] = useState({ title: "", body: "", offerCode: "" });
+  const [context, setContext] = useState({
+    title: "",
+    body: "",
+    offerCode: "",
+  });
   // Either a built-in segment or "group:<id>" for a saved customer group.
   const [audience, setAudience] = useState("all");
   const [result, setResult] = useState(null);
@@ -382,13 +468,18 @@ function Broadcast() {
     api
       .get("/notifications/templates")
       .then((data) => {
-        const marketing = (data.templates || []).filter((t) => t.category === "marketing");
+        const marketing = (data.templates || []).filter(
+          (t) => t.category === "marketing",
+        );
         setTemplates(marketing);
         if (marketing.length) setEvent(marketing[0].event);
       })
       .catch((err) => setError(err.message));
 
-    api.get("/customers/groups/all").then((d) => setGroups(d.groups || [])).catch(() => {});
+    api
+      .get("/customers/groups/all")
+      .then((d) => setGroups(d.groups || []))
+      .catch(() => {});
   }, []);
 
   const selected = templates.find((t) => t.event === event);
@@ -438,12 +529,19 @@ function Broadcast() {
           <>
             <Field label="Template">
               <Select value={event} onChange={(e) => setEvent(e.target.value)}>
-                {templates.map((t) => <option key={t.event} value={t.event}>{t.name}</option>)}
+                {templates.map((t) => (
+                  <option key={t.event} value={t.event}>
+                    {t.name}
+                  </option>
+                ))}
               </Select>
             </Field>
 
             <Field label="Who gets it">
-              <Select value={audience} onChange={(e) => setAudience(e.target.value)}>
+              <Select
+                value={audience}
+                onChange={(e) => setAudience(e.target.value)}
+              >
                 <option value="all">{AUDIENCE_LABEL.all}</option>
                 <option value="new">{AUDIENCE_LABEL.new}</option>
                 <option value="repeat">{AUDIENCE_LABEL.repeat}</option>
@@ -463,14 +561,32 @@ function Broadcast() {
             <Divider style={{ margin: "14px 0" }} />
 
             <div className="section-label">Fill the placeholders</div>
-            <Field label="Headline" help="Lands wherever the template says title.">
-              <input type="text" value={context.title} onChange={(e) => setContext({ ...context, title: e.target.value })} />
+            <Field label="Headline">
+              <input
+                type="text"
+                value={context.title}
+                onChange={(e) =>
+                  setContext({ ...context, title: e.target.value })
+                }
+              />
             </Field>
             <Field label="Message">
-              <textarea rows={3} value={context.body} onChange={(e) => setContext({ ...context, body: e.target.value })} />
+              <textarea
+                rows={3}
+                value={context.body}
+                onChange={(e) =>
+                  setContext({ ...context, body: e.target.value })
+                }
+              />
             </Field>
-            <Field label="Offer code" help="Optional — only if the copy mentions one.">
-              <input type="text" value={context.offerCode} onChange={(e) => setContext({ ...context, offerCode: e.target.value })} />
+            <Field label="Offer code">
+              <input
+                type="text"
+                value={context.offerCode}
+                onChange={(e) =>
+                  setContext({ ...context, offerCode: e.target.value })
+                }
+              />
             </Field>
 
             <button
@@ -489,11 +605,20 @@ function Broadcast() {
         <Card title="Preview" style={{ marginBottom: 14 }}>
           {selected ? (
             <div className="preview-push">
-              <strong>{fill(selected.default?.title, context) || context.title || "Your headline"}</strong>
+              <strong>
+                {fill(selected.default?.title, context) ||
+                  context.title ||
+                  "Your headline"}
+              </strong>
               <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
-                {fill(selected.default?.body, context) || context.body || "Your message goes here."}
+                {fill(selected.default?.body, context) ||
+                  context.body ||
+                  "Your message goes here."}
               </p>
-              <div className="inline" style={{ gap: 4, marginTop: 10, flexWrap: "wrap" }}>
+              <div
+                className="inline"
+                style={{ gap: 4, marginTop: 10, flexWrap: "wrap" }}
+              >
                 {(selected.channels || []).map((channel) => (
                   <Pill key={channel}>{CHANNEL_LABEL[channel] || channel}</Pill>
                 ))}
@@ -517,8 +642,9 @@ function Broadcast() {
         ) : (
           <Card>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-              Anyone who has turned offers off is skipped and counted — the difference between the
-              two numbers after a send is your opt-out rate.
+              Anyone who has turned offers off is skipped and counted — the
+              difference between the two numbers after a send is your opt-out
+              rate.
             </p>
           </Card>
         )}
@@ -530,7 +656,9 @@ function Broadcast() {
           onClose={() => setConfirming(false)}
           footer={
             <>
-              <button className="btn" onClick={() => setConfirming(false)}>Cancel</button>
+              <button className="btn" onClick={() => setConfirming(false)}>
+                Cancel
+              </button>
               <button className="btn primary" disabled={busy} onClick={send}>
                 {busy ? "Sending…" : "Send it"}
               </button>
@@ -539,7 +667,10 @@ function Broadcast() {
         >
           <p style={{ marginTop: 0 }}>
             This goes to <strong>{audienceLabel}</strong> on{" "}
-            {(selected?.channels || []).map((c) => CHANNEL_LABEL[c] || c).join(", ")}.
+            {(selected?.channels || [])
+              .map((c) => CHANNEL_LABEL[c] || c)
+              .join(", ")}
+            .
           </p>
           <p className="muted" style={{ fontSize: 13 }}>
             There is no unsend. Read the preview once more before you confirm.
@@ -552,7 +683,10 @@ function Broadcast() {
 
 function fill(text, context) {
   if (!text) return "";
-  return text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, key) => context[key] ?? "");
+  return text.replace(
+    /\{\{\s*([\w.]+)\s*\}\}/g,
+    (_m, key) => context[key] ?? "",
+  );
 }
 
 // ---------------------------------------------------------------- log
@@ -565,7 +699,10 @@ function DeliveryLog() {
   const [events, setEvents] = useState([]);
 
   useEffect(() => {
-    api.get("/notifications/templates").then((d) => setEvents(d.events || [])).catch(() => {});
+    api
+      .get("/notifications/templates")
+      .then((d) => setEvents(d.events || []))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -582,13 +719,21 @@ function DeliveryLog() {
       <Banner tone="error">{error}</Banner>
 
       <div className="toolbar">
-        <Select value={filters.event} onChange={(e) => setFilters({ event: e.target.value, page: 1 })}>
+        <Select
+          value={filters.event}
+          onChange={(e) => setFilters({ event: e.target.value, page: 1 })}
+        >
           <option value="">Every event</option>
-          {events.map((event) => <option key={event} value={event}>{event}</option>)}
+          {events.map((event) => (
+            <option key={event} value={event}>
+              {event}
+            </option>
+          ))}
         </Select>
         <span className="spacer" />
         <span className="muted" style={{ fontSize: 12.5 }}>
-          What was attempted and how it went — read this when someone says they were never told.
+          What was attempted and how it went — read this when someone says they
+          were never told.
         </span>
       </div>
 
@@ -600,7 +745,13 @@ function DeliveryLog() {
             <Table
               title="Delivery log"
               columns={[
-                { key: "when", label: "When", render: (row) => <span className="muted">{when(row.createdAt)}</span> },
+                {
+                  key: "when",
+                  label: "When",
+                  render: (row) => (
+                    <span className="muted">{when(row.createdAt)}</span>
+                  ),
+                },
                 {
                   key: "user",
                   label: "To",
@@ -617,7 +768,9 @@ function DeliveryLog() {
                   render: (row) => (
                     <div className="stack">
                       <span>{row.title}</span>
-                      <span className="row-sub mono" style={{ fontSize: 11.5 }}>{row.event}</span>
+                      <span className="row-sub mono" style={{ fontSize: 11.5 }}>
+                        {row.event}
+                      </span>
                     </div>
                   ),
                 },
@@ -625,7 +778,10 @@ function DeliveryLog() {
                   key: "channels",
                   label: "Channels",
                   render: (row) => (
-                    <div className="inline" style={{ gap: 4, flexWrap: "wrap" }}>
+                    <div
+                      className="inline"
+                      style={{ gap: 4, flexWrap: "wrap" }}
+                    >
                       {(row.channels || []).map((c) => (
                         <Pill key={c.channel} tone={STATUS_TONE[c.status]}>
                           {CHANNEL_LABEL[c.channel] || c.channel}
@@ -639,9 +795,13 @@ function DeliveryLog() {
                   key: "why",
                   label: "Notes",
                   render: (row) => {
-                    const note = (row.channels || []).find((c) => c.reason || c.error);
+                    const note = (row.channels || []).find(
+                      (c) => c.reason || c.error,
+                    );
                     return note ? (
-                      <span className="row-sub">{note.reason || note.error}</span>
+                      <span className="row-sub">
+                        {note.reason || note.error}
+                      </span>
                     ) : (
                       <span className="faint">—</span>
                     );
@@ -651,13 +811,20 @@ function DeliveryLog() {
                   key: "readAt",
                   label: "Read",
                   render: (row) =>
-                    row.readAt ? <Pill tone="ok">read</Pill> : <span className="faint">unread</span>,
+                    row.readAt ? (
+                      <Pill tone="ok">read</Pill>
+                    ) : (
+                      <span className="faint">unread</span>
+                    ),
                 },
               ]}
               rows={data.items}
               empty={<Empty title="Nothing sent yet" />}
             />
-            <Pagination meta={data.meta} onPage={(page) => setFilters((f) => ({ ...f, page }))} />
+            <Pagination
+              meta={data.meta}
+              onPage={(page) => setFilters((f) => ({ ...f, page }))}
+            />
           </>
         )}
       </Card>

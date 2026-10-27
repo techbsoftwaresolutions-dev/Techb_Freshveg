@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ContactUs from "./ContactUs";
+import CallButton from "./CallButton";
 
 // Only pages that exist are linked. About, careers and FAQs have no route
 // yet — they join these lists when they do, rather than sitting here as
@@ -55,7 +56,9 @@ export default function Footer({ categories = [] }) {
             <h4>Get in Touch</h4>
             <ul className="footer-contact">
               <li>
-                <a href="tel:+919003597158">+91 90035 97158</a>
+                <CallButton phone="+919003597158" label="+91 90035 97158" title="Call Hosur Basket" className="footer-link-btn">
+                  +91 90035 97158
+                </CallButton>
               </li>
               <li>
                 <a href="https://hosurbasket.com">hosurbasket.com</a>

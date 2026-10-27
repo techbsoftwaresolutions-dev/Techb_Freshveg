@@ -380,7 +380,7 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
 
           {step.key === "refund" ? (
             <div className="grid cols-2">
-              <Field label="Refund amount (₹)" help="Defaults to the value of the returned lines only.">
+              <Field label="Refund amount (₹)">
                 <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
               </Field>
               <Field

@@ -21,7 +21,7 @@ router.use(optionalAuth);
 // What a customer app or the website reads. Draft products, cost prices and
 // internal notes never leave through here.
 const PRODUCT_CARD_FIELDS =
-  "name slug shortDescription media category categoryPath brand unit priceFrom priceTo mrpFrom maxDiscountPct rating inStock variantCount defaultVariant tags isFeatured";
+  "name slug shortDescription media category categoryPath brand unit priceFrom priceTo mrpFrom maxDiscountPct rating inStock variantCount defaultVariant tags isFeatured offer";
 
 /** 1 -> "1", 1.5 -> "1.5". Trailing zeroes on a shelf label read as noise. */
 function trimNumber(value) {
@@ -328,6 +328,9 @@ router.get(
   })
 );
 
+const OFFER_KINDS = ["discount", "special", "combo"];
+const OFFER_RAIL_TITLES = { discount: "Discounts", special: "Special Offers", combo: "Combo Offers" };
+
 // The app's home screen in one request: categories, live offers and a few
 // merchandised rails. One round trip matters on a phone connection.
 router.get(
@@ -355,7 +358,7 @@ router.get(
           (
             await Product.find({ categoryPath: category._id, status: "active" })
               .select(PRODUCT_CARD_FIELDS)
-              .sort({ isFeatured: -1, "rating.average": -1 })
+              .sort({ sortOrder: 1, isFeatured: -1, "rating.average": -1 })
               .limit(10)
               .lean()
           ).map(leanToApi),
@@ -363,6 +366,27 @@ router.get(
         ),
       }))
     );
+
+    // One rail per offer kind the admin has tagged products with, so the home
+    // page can show Discounts / Special Offers / Combo Offers on their own.
+    const offerRails = (
+      await Promise.all(
+        OFFER_KINDS.map(async (kind) => ({
+          kind,
+          title: OFFER_RAIL_TITLES[kind],
+          products: await withCardDetails(
+            (
+              await Product.find({ status: "active", "offer.kind": kind })
+                .select(PRODUCT_CARD_FIELDS)
+                .sort({ sortOrder: 1, createdAt: -1 })
+                .limit(12)
+                .lean()
+            ).map(leanToApi),
+            store
+          ),
+        }))
+      )
+    ).filter((rail) => rail.products.length);
 
     // A "Flash Deal" countdown is only ever as real as its deadline — so
     // this looks for an offer someone actually gave a schedule.endsAt in the
@@ -453,6 +477,7 @@ router.get(
       }),
       featured,
       rails: rails.filter((r) => r.products.length),
+      offerRails,
       flashDeal,
     });
   })
@@ -556,6 +581,8 @@ router.get(
     }
     if (req.query.tag) filter.tags = req.query.tag;
     if (req.query.featured === "true") filter.isFeatured = true;
+    // ?offer=combo — the products an admin tagged with that offer kind.
+    if (OFFER_KINDS.includes(req.query.offer)) filter["offer.kind"] = req.query.offer;
     const buyable = await buyableAt(await storeFor);
     if (req.query.inStock === "true") filter.$and = [...(filter.$and || []), buyable];
     // The phone's "Offers" chip: only products with a discount on them.
@@ -610,7 +637,7 @@ router.get(
       // `_id` last: products tie on rating and price all the time, and
       // without a final unique key Mongo may order the ties differently on
       // every page request — so a product can show on two pages or on none.
-      sort: { ...(sortMap[req.query.sort] || { isFeatured: -1, "rating.average": -1 }), _id: 1 },
+      sort: { ...(sortMap[req.query.sort] || { sortOrder: 1, isFeatured: -1, "rating.average": -1 }), _id: 1 },
       first: buyable,
       select: PRODUCT_CARD_FIELDS,
       populate: { path: "brand", select: "name slug" },

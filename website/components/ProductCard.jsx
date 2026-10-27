@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { discountPct, img, rupees } from "@/lib/format";
+import { discountPct, img, offerLabel, rupees } from "@/lib/format";
 import AddToCart from "./AddToCart";
 import WishlistButton from "./WishlistButton";
 
@@ -59,6 +59,7 @@ export default function ProductCard({ product }) {
         </h3>
       </NameWrap>
       <div className="card-pack">{size}</div>
+      {offerLabel(product.offer) ? <span className={`offer-tag ${product.offer.kind}`}>{offerLabel(product.offer)}</span> : null}
 
       <div className="card-foot">
         <div>

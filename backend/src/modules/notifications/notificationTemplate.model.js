@@ -25,6 +25,10 @@ const EVENTS = [
   "RETURN_PICKED",
   "REFUNDED",
 
+  // Part of an order delivered on a later day.
+  "ITEMS_DELAYED",
+  "DELAYED_ITEMS_DELIVERED",
+
   // Automated rules.
   "ABANDONED_CART_1",
   "ABANDONED_CART_2",

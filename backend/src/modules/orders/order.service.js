@@ -273,6 +273,9 @@ async function transition(order, to, actor = {}, note = "") {
       // Stock physically leaves the building here, clearing the reservation
       // made at checkout.
       for (const item of order.items) {
+        // An item held back for a later day has not left the building yet; its
+        // stock is dispatched when it is delivered (see the delayed-items route).
+        if (item.deferred?.expectedOn && !item.deferred.deliveredAt) continue;
         await inventoryService.dispatch(order.store, item.variant, item.pickedQuantity ?? item.quantity, {
           refType: "order", refId: order._id, refCode: order.code, reason: "Delivered",
           actor,
@@ -341,6 +344,39 @@ async function announce(order, status) {
           minute: "2-digit",
         })
       : "",
+  });
+}
+
+// Told to the customer when some items of an order will come on a later day,
+// and again when they arrive. The templates are created on first use, so a
+// shop whose notification templates were seeded before this existed still
+// sends them (an admin can reword them afterwards like any other).
+const NotificationTemplate = require("../notifications/notificationTemplate.model");
+const deferredTemplates = require("../../seed/notificationTemplates").filter((tpl) =>
+  ["ITEMS_DELAYED", "DELAYED_ITEMS_DELIVERED"].includes(tpl.event)
+);
+
+const shortDate = (date) =>
+  new Date(date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+
+async function announceDeferred(order, event, items) {
+  const tpl = deferredTemplates.find((t) => t.event === event);
+  if (tpl) {
+    await NotificationTemplate.updateOne(
+      { event, audience: "customer" },
+      { $setOnInsert: { ...tpl, audience: "customer", enabled: true, isSystem: true } },
+      { upsert: true }
+    ).catch(() => {});
+  }
+  const names = items.map((i) => `${i.name}${i.variantName ? ` (${i.variantName})` : ""}`);
+  const first = items[0];
+  await notificationService.notify(order.customer, event, {
+    code: order.code,
+    orderId: order._id.toString(),
+    items: names.length > 3 ? `${names.slice(0, 3).join(", ")} and ${names.length - 3} more` : names.join(", "),
+    count: items.length,
+    date: first?.deferred?.expectedOn ? shortDate(first.deferred.expectedOn) : "",
+    reason: first?.deferred?.reason ? `${first.deferred.reason}. ` : "",
   });
 }
 
@@ -451,6 +487,16 @@ async function completeDelivery(order, { otp, photo, signature, location }, acto
 // What the customer's tracking screen renders.
 function trackingView(order) {
   return {
+    delayedItems: (order.items || [])
+      .filter((item) => item.deferred?.expectedOn)
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        variantName: item.variantName,
+        expectedOn: item.deferred.expectedOn,
+        deliveredAt: item.deferred.deliveredAt || null,
+        reason: item.deferred.reason || "",
+      })),
     code: order.code,
     status: order.status,
     statusLabel: STATUSES[order.status].customerLabel,
@@ -466,6 +512,7 @@ function trackingView(order) {
 }
 
 module.exports = {
+  announceDeferred,
   placeOrder,
   transition,
   assignDeliveryPartner,
