@@ -37,6 +37,35 @@ export default function Inventory() {
   const [error, setError] = useState("");
   const [adjusting, setAdjusting] = useState(null);
 
+  // Category and subcategory narrow every stock view (low stock included). The
+  // subcategory is whichever child of the chosen category is picked; leaving it
+  // on "All" covers the whole category.
+  // The search box: what is typed, and what has been sent to the server after a
+  // short pause so it is not asked on every keystroke.
+  const [search, setSearch] = useState("");
+  const [term, setTerm] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTerm(search.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const [tree, setTree] = useState([]);
+  const [category, setCategory] = useState("");
+  const [subcategory, setSubcategory] = useState("");
+  const subcategories = tree.find((node) => node.id === category)?.children || [];
+  const categoryFilter = subcategory || category;
+
+  useEffect(() => {
+    // Not every role can read the catalog; without it the filter just stays hidden.
+    api
+      .get("/catalog/categories/tree", { status: "active" })
+      .then((res) => setTree(res.tree || []))
+      .catch(() => setTree([]));
+  }, []);
+
   useEffect(() => {
     api
       .get("/stores/public")
@@ -59,7 +88,7 @@ export default function Inventory() {
     setError("");
     const mine = ++requestId.current;
     api
-      .get(path, { store: store || undefined, page, limit: 20 })
+      .get(path, { store: store || undefined, category: categoryFilter || undefined, q: term || undefined, page, limit: 20 })
       .then((res) => mine === requestId.current && setData({ ...res, items: res.items || [], tab }))
       .catch((err) => {
         if (mine !== requestId.current) return;
@@ -67,7 +96,7 @@ export default function Inventory() {
         setData({ items: [], meta: null, tab });
       })
       .finally(() => mine === requestId.current && setLoading(false));
-  }, [tab, store, page]);
+  }, [tab, store, page, categoryFilter, term]);
 
   useEffect(() => {
     if (!store && tab !== "movements") return;
@@ -94,7 +123,7 @@ export default function Inventory() {
 
       <Banner tone="error">{error}</Banner>
 
-      <div className="toolbar">
+      <div className="toolbar inv-toolbar">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -108,6 +137,50 @@ export default function Inventory() {
           </button>
         ))}
         <span className="spacer" />
+        {tab !== "movements" && (
+          <input
+            type="search"
+            placeholder="Search item or SKU…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ minWidth: 220 }}
+            aria-label="Search inventory"
+          />
+        )}
+        {tree.length > 0 && tab !== "movements" && (
+          <>
+            <Select
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                setSubcategory("");
+                setPage(1);
+              }}
+            >
+              <option value="">All categories</option>
+              {tree.map((node) => (
+                <option key={node.id} value={node.id}>
+                  {node.name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              value={subcategory}
+              onChange={(e) => {
+                setSubcategory(e.target.value);
+                setPage(1);
+              }}
+              disabled={!subcategories.length}
+            >
+              <option value="">{category ? "All subcategories" : "Subcategory"}</option>
+              {subcategories.map((node) => (
+                <option key={node.id} value={node.id}>
+                  {node.name}
+                </option>
+              ))}
+            </Select>
+          </>
+        )}
         <Select value={store} onChange={(e) => setStore(e.target.value)}>
           {stores.map((s) => (
             <option key={s.id} value={s.id}>

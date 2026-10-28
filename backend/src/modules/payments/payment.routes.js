@@ -1,4 +1,5 @@
 const express = require("express");
+const { dateBounds } = require("../../core/dateRange");
 const QRCode = require("qrcode");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
@@ -188,11 +189,8 @@ router.get(
     if (req.query.method) filter.method = { $in: String(req.query.method).split(",") };
     if (req.query.store) filter.store = req.query.store;
     if (req.query.search) filter.orderCode = new RegExp(String(req.query.search), "i");
-    if (req.query.from || req.query.to) {
-      filter.createdAt = {};
-      if (req.query.from) filter.createdAt.$gte = new Date(req.query.from);
-      if (req.query.to) filter.createdAt.$lte = new Date(req.query.to);
-    }
+    const created = dateBounds(req.query.from, req.query.to);
+    if (created) filter.createdAt = created;
 
     const result = await paginate(Payment, filter, req.query, { defaultSort: { createdAt: -1 } });
 

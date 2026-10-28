@@ -63,7 +63,7 @@ const attributes = [
     isFilterable: true,
     group: "Produce",
     seq: 3,
-    helpText: "How the item was grown or sourced",
+    helpText: "",
     options: [
       { value: "desi", label: "Desi / Local" },
       { value: "hybrid", label: "Hybrid" },

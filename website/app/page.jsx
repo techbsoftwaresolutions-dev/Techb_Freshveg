@@ -49,7 +49,7 @@ export default async function HomePage() {
     );
   }
 
-  const { offers = [], featured = [], rails = [], store, categories = [], flashDeal = null } = home;
+  const { offers = [], featured = [], rails = [], offerRails = [], store, categories = [], flashDeal = null } = home;
   const banners = bannerData?.banners || [];
   // The admin's own empty-state hint is the spec here: "falls back to its
   // built-in hero until you add one" — so a hero banner is optional, and
@@ -182,6 +182,19 @@ export default async function HomePage() {
               </Carousel>
             </section>
           ) : null}
+
+          {/* Products the admin tagged Discount / Special offer / Combo offer,
+              each kind in its own row. A kind with no products has no row. */}
+          {offerRails.map((rail) => (
+            <section key={rail.kind} className="section" id={`offers-${rail.kind}`}>
+              <SectionHead title={rail.title} href={`/c?offer=${rail.kind}`} linkLabel="View All" accent />
+              <Carousel label={rail.title}>
+                {inStockFirst(rail.products).map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </Carousel>
+            </section>
+          ))}
 
           {/* Merchandising strip. Its contents are banners created in the
               admin, so the shop changes what is promoted here without a

@@ -2,8 +2,9 @@ import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import {
-  Banner, Card, DateRange, Empty, Loading, Modal, Pagination, Pill, Table, when,
+  Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, when,
 } from "../../components/ui";
+import DateFilter from "../../components/DateFilter";
 
 const ACTION_TONE = {
   create: "ok",
@@ -81,7 +82,7 @@ export default function AuditLog() {
           <option value="adjust">Adjusted</option>
         </Select>
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={setRange} />
       </div>
 
       <Card tight>
@@ -165,7 +166,7 @@ function EntryModal({ entry, onClose }) {
       wide
       footer={<button className="btn" onClick={onClose}>Close</button>}
     >
-      <div className="grid cols-3" style={{ marginBottom: 16 }}>
+      <div className="grid cols-3" style={{ marginBottom: 16, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
         <div className="stack">
           <span className="faint" style={{ fontSize: 11 }}>WHO</span>
           <strong>{entry.actorName || "system"}</strong>
@@ -177,10 +178,18 @@ function EntryModal({ entry, onClose }) {
         </div>
         <div className="stack">
           <span className="faint" style={{ fontSize: 11 }}>FROM</span>
-          <strong className="mono">{entry.ip || "—"}</strong>
-          <span className="row-sub">{entry.method} {entry.path}</span>
+          <strong className="mono" style={{ overflowWrap: "anywhere" }}>{entry.ip || "—"}</strong>
         </div>
       </div>
+
+      {entry.path ? (
+        <div className="stack" style={{ marginBottom: 16 }}>
+          <span className="faint" style={{ fontSize: 11 }}>REQUEST</span>
+          <span className="mono" style={{ fontSize: 12.5, overflowWrap: "anywhere" }}>
+            {entry.method} {entry.path}
+          </span>
+        </div>
+      ) : null}
 
       <div className="section-label">Summary</div>
       <p style={{ marginTop: 0 }}>{entry.summary}</p>

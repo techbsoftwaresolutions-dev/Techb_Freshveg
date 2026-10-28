@@ -10,6 +10,27 @@ import PwaSupport from "@/components/PwaSupport";
 import ReviewPrompt from "@/components/ReviewPrompt";
 import { getCategories, SITE_URL } from "@/lib/api";
 
+// Local-business structured data so Google can show the store's address and
+// phone for "grocery delivery in Hosur" searches.
+const LOCAL_BUSINESS = {
+  "@context": "https://schema.org",
+  "@type": "GroceryStore",
+  name: "Hosur Basket",
+  url: SITE_URL,
+  image: `${SITE_URL}/og-image.png`,
+  telephone: "+919003597158",
+  priceRange: "₹",
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: "#74/22, GKD Nagar, Avalapalli Road",
+    addressLocality: "Hosur",
+    addressRegion: "Tamil Nadu",
+    postalCode: "635109",
+    addressCountry: "IN",
+  },
+  areaServed: "Hosur",
+};
+
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -18,13 +39,15 @@ export const metadata = {
     template: "%s | Hosur Basket",
   },
   description:
-    "Order fresh fruit, vegetables, groceries, personal care and household essentials from your neighbourhood store. Same-day delivery, with free delivery above a minimum order.",
+    "Order fresh fruit, vegetables, groceries, personal care and household essentials from Hosur Basket, GKD Nagar, Avalapalli Road, Hosur 635109. Same-day delivery, with free delivery above a minimum order.",
   openGraph: {
     type: "website",
     siteName: "Hosur Basket",
     locale: "en_IN",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Hosur Basket — your everyday supermarket" }],
   },
+  keywords: ["Hosur Basket", "grocery delivery Hosur", "fresh vegetables Hosur", "fruits Hosur", "Avalapalli Road Hosur", "supermarket Hosur 635109"],
+  other: { "geo.region": "IN-TN", "geo.placename": "Hosur" },
   twitter: { card: "summary_large_image", images: ["/og-image.png"] },
   robots: { index: true, follow: true },
   applicationName: "Hosur Basket",
@@ -61,6 +84,10 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="en-IN" className={poppins.variable}>
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(LOCAL_BUSINESS) }}
+        />
         <Providers>
           {/* Header reads useSearchParams, which needs a Suspense boundary so
               the rest of the page can still be statically rendered. */}

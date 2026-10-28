@@ -1852,7 +1852,7 @@ body { background: var(--bg); }
 .dash-greet p { margin: 4px 0 0; color: var(--text-muted); font-size: 14px; }
 
 .grid.dashboard-3 {
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.1fr) minmax(0, 0.95fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.25fr);
   align-items: start;
 }
 @media (max-width: 1280px) {
@@ -1952,3 +1952,125 @@ body { background: var(--bg); }
   background: linear-gradient(180deg, transparent 0%, rgba(20, 86, 48, 0.55) 100%);
 }
 @media (max-height: 880px) { .sidebar-art { display: none; } }
+
+/* Recent Orders on the dashboard: every cell stays on one line (order number,
+   customer, status, total) instead of wrapping letter by letter in the narrow
+   column. The wider third column above gives it room; if a screen is still too
+   narrow the table scrolls sideways rather than wrapping. */
+table.data.recent-orders th,
+table.data.recent-orders td { white-space: nowrap; padding-left: 10px; padding-right: 10px; }
+table.data.recent-orders .pill { font-size: 11px; padding: 2px 8px; white-space: nowrap; }
+table.data.recent-orders .stack { display: grid; gap: 2px; }
+
+/* Keep the lists inside their cards. A grid column sizes itself to its widest
+   non-wrapping text by default, which pushed the time off the right edge and
+   under the next card; minmax(0, 1fr) lets the title shrink and show "…" instead. */
+.activity-list,
+.rank-list { grid-template-columns: minmax(0, 1fr); }
+.activity-item,
+.rank-item { min-width: 0; }
+.activity-item .activity-body { min-width: 0; }
+.activity-item .activity-time { margin-left: 4px; }
+
+/* Dashboard lists share one text size with the tables (12.5px) so no card looks
+   louder than its neighbours. Recent Activity keeps its title on a single line,
+   trimmed with "…" if it is too long (hover shows the whole text). */
+.grid.dashboard-3 .row-title { font-size: 12.5px; line-height: 1.35; }
+.grid.dashboard-3 .row-sub { font-size: 11px; }
+.grid.dashboard-3 .rank-row .row-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.activity-item .activity-body { overflow-wrap: normal; }
+.activity-item .activity-body .row-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.activity-item .activity-body .row-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Inventory filter bar: tabs, search, category, subcategory and store sit on one
+   line on a normal desktop screen. The boxes are a little narrower than the
+   default so they all fit; on a narrower window the bar wraps as before. */
+@media (min-width: 1300px) {
+  .toolbar.inv-toolbar { flex-wrap: nowrap; }
+  .toolbar.inv-toolbar .btn { flex: 0 0 auto; white-space: nowrap; }
+  .toolbar.inv-toolbar input[type="search"] { min-width: 120px; width: 170px; flex: 0 1 170px; }
+  .toolbar.inv-toolbar .select-menu { min-width: 120px; width: 150px; flex: 0 1 150px; }
+}
+
+/* Date filter menu (calendar button → All Time / Last 7 Days / … / Custom Range). */
+.date-filter { position: relative; }
+.date-filter-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; }
+.date-filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.date-filter-btn svg.flip { transform: rotate(180deg); }
+.date-filter-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1000;
+  width: 250px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(16, 18, 24, 0.22);
+}
+.date-filter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.date-filter-item:hover { background: var(--surface-2); color: var(--text); }
+.date-filter-item.on { color: var(--accent); font-weight: 650; }
+.date-filter-item.custom { margin-top: 4px; border-top: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+.date-filter-item svg.flip { transform: rotate(180deg); }
+.date-filter-custom { display: grid; gap: 10px; padding: 10px 6px 6px; }
+.date-filter-custom label { display: grid; gap: 4px; font-size: 12px; color: var(--text-faint); }
+.date-filter-custom input[type="date"] { width: 100%; min-width: 0; }
+.date-filter-apply { width: 100%; justify-content: center; }
+
+/* Product photos: click a photo to open its options (make primary, remove, crop
+   focus) in a small popup, so nothing is drawn over the picture. */
+.media-item { min-width: 0; }
+button.media-thumb-btn { padding: 0; width: 100%; cursor: pointer; font: inherit; display: block; }
+button.media-thumb-btn:hover:not(:disabled) { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+button.media-thumb-btn.readonly { cursor: default; }
+.photo-options { width: min(380px, calc(100vw - 32px)); }
+.photo-options-thumb { width: min(300px, 100%); margin: 0 auto; }
+.photo-options-thumb .media-focal-grid { opacity: 1; }
+.photo-options .modal-foot { flex-wrap: wrap; }
+
+/* Product form: the expandable Offer dropdown. */
+.offer-field { margin-bottom: 14px; }
+.offer-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 12px);
+  background: var(--surface-2, rgba(0, 0, 0, 0.02));
+}
+.offer-panel > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+@media (max-width: 700px) { .offer-panel { grid-template-columns: 1fr; } }
+
+/* Drag-to-reorder rows (Products page). */
+.drag-th, .drag-td { width: 28px; padding-left: 12px !important; padding-right: 0 !important; }
+.drag-handle { display: inline-block; cursor: grab; color: var(--text-faint, #9aa5a0); letter-spacing: -2px; font-size: 16px; line-height: 1; user-select: none; }
+.drag-handle:hover { color: var(--accent); }
+.drag-handle.off { cursor: not-allowed; opacity: 0.4; }
+table.data tr.dragging { opacity: 0.45; }
+table.data tr.drop-target td { box-shadow: inset 0 2px 0 var(--accent); }
+
+.position-input { width: 54px; padding: 5px 6px; text-align: center; font-size: 13px; }
+.position-input::-webkit-inner-spin-button { display: none; }
+
+/* Order detail: the strip above the items that explains / drives "Deliver later". */
+.delay-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--border); background: var(--surface-2, rgba(0,0,0,0.02)); }
+.delay-bar.active { background: #fff7e0; }
+.delay-bar .spacer { flex: 1; }

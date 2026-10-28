@@ -3,6 +3,7 @@ import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "rea
 import { api } from "../api/client";
 import { clockTime, colors, formatAddress, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill, callNumber } from "../components/ui";
+import { ItemThumb } from "../components/ItemThumb";
 
 const fullTime = (value) =>
   value
@@ -10,6 +11,12 @@ const fullTime = (value) =>
     : "—";
 
 // Read-only record of a finished delivery, opened from History.
+// Items the store held back to deliver on another day — the rider must not
+// hand these over (or count them) on this trip.
+const isLater = (item) => Boolean(item.deferred?.expectedOn && !item.deferred?.deliveredAt);
+const laterDate = (value) =>
+  new Date(value).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+
 export default function DeliveredDetailScreen({ route }) {
   const { orderId } = route.params;
   const [order, setOrder] = useState(null);
@@ -31,6 +38,8 @@ export default function DeliveredDetailScreen({ route }) {
   const address = order.delivery?.address;
   const customerName = address?.contactName || order.customerSnapshot?.name || "Customer";
   const customerPhone = address?.contactPhone || order.customerSnapshot?.phone;
+  const laterItems = (order.items || []).filter(isLater);
+  const nowItems = (order.items || []).filter((item) => !isLater(item));
   const cod = order.payment?.method === "cod";
 
   const times = [
@@ -74,13 +83,14 @@ export default function DeliveredDetailScreen({ route }) {
 
       <Card style={{ padding: spacing.md }}>
         <Text style={styles.label}>
-          {order.items?.length} item{order.items?.length === 1 ? "" : "s"}
+          {nowItems.length} item{nowItems.length === 1 ? "" : "s"} delivered
         </Text>
         <View style={{ marginTop: spacing.sm }}>
-          {(order.items || []).map((item, index) => (
+          {nowItems.map((item, index) => (
             <View key={item.id || item.sku || index}>
               {index > 0 ? <Divider style={{ marginVertical: spacing.sm }} /> : null}
               <View style={styles.row}>
+                <ItemThumb item={item} />
                 <Text style={[type.body, { flex: 1 }]} numberOfLines={2}>
                   {item.name}
                   {item.variantName ? ` · ${item.variantName}` : ""}
@@ -91,6 +101,29 @@ export default function DeliveredDetailScreen({ route }) {
           ))}
         </View>
       </Card>
+
+      {laterItems.length ? (
+        <Card style={{ padding: spacing.md }}>
+          <Text style={styles.label}>
+            {laterItems.length} item{laterItems.length === 1 ? "" : "s"} coming later
+          </Text>
+          <View style={{ marginTop: spacing.sm }}>
+            {laterItems.map((item, index) => (
+              <View key={item.id || item.sku || index}>
+                {index > 0 ? <Divider style={{ marginVertical: spacing.sm }} /> : null}
+                <View style={styles.row}>
+                  <ItemThumb item={item} />
+                  <Text style={[type.body, { flex: 1 }]} numberOfLines={2}>
+                    {item.name}
+                    {item.variantName ? ` · ${item.variantName}` : ""}
+                  </Text>
+                  <Text style={type.tiny}>{laterDate(item.deferred.expectedOn)}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </Card>
+      ) : null}
 
       {times.length ? (
         <Card style={{ padding: spacing.md, gap: spacing.sm }}>

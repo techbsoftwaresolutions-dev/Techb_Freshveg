@@ -3,8 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+import DateFilter from "../../components/DateFilter";
 import {
-  Banner, Card, DateRange, Empty, Loading, Pagination, Pill, Stat, Table, Tabs, rupees, when,
+  Banner, Card, Empty, Loading, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
 
 const STATUS_TONE = {
@@ -44,6 +45,20 @@ export default function Payments() {
     </div>
   );
 }
+
+// A full date and time for a payment, e.g. "26 Oct 2026, 04:35:12 pm". Shown as
+// its own column so every payment says exactly when it happened.
+const stamp = (value) =>
+  value
+    ? new Date(value).toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "—";
 
 function Transactions() {
   const [data, setData] = useState({ items: [], meta: null, totals: null });
@@ -103,7 +118,7 @@ function Transactions() {
           <option value="refunded">Refunded</option>
         </Select>
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={(next) => { setRange(next); setFilters((f) => ({ ...f, page: 1 })); }} />
       </div>
 
       <Card tight>
@@ -120,9 +135,13 @@ function Transactions() {
                   render: (row) => (
                     <div className="stack">
                       <Link to={`/orders/${row.order}`} className="mono">{row.orderCode}</Link>
-                      <span className="row-sub">{when(row.createdAt)}</span>
                     </div>
                   ),
+                },
+                {
+                  key: "createdAt",
+                  label: "Date & time",
+                  render: (row) => <span style={{ whiteSpace: "nowrap" }}>{stamp(row.createdAt)}</span>,
                 },
                 {
                   key: "method",
@@ -174,7 +193,7 @@ function Transactions() {
                 },
               ]}
               rows={data.items}
-              empty={<Empty title="No payments in this window" />}
+              empty={<Empty title="No payments in this period" />}
             />
             <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
           </>

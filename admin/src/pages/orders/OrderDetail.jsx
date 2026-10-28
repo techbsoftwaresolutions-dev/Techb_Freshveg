@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Loading, Modal, Pill, rupees, when } from "../../components/ui";
+import { Banner, Card, Field, Loading, Modal, Pill, rupees, useConfirm, when } from "../../components/ui";
 import { statusTone } from "./Orders";
 
 export default function OrderDetail() {
+  const [confirm, confirmDialog] = useConfirm();
   const { id } = useParams();
   const navigate = useNavigate();
   const { can } = useAuth();
@@ -21,6 +22,9 @@ export default function OrderDetail() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [assigning, setAssigning] = useState(false);
+  // Items ticked for "Deliver later", and the popup that asks for the date.
+  const [picked, setPicked] = useState([]);
+  const [delaying, setDelaying] = useState(false);
 
   const load = useCallback(async () => {
     const data = await api.get(`/orders/${id}`);
@@ -43,7 +47,15 @@ export default function OrderDetail() {
       await api.post(`/orders/${id}/status`, { status });
       await load();
     } catch (err) {
-      setError(err.message);
+      // Usually the order moved on while this page was open (the delivery
+      // partner finished it in the app, or this was clicked twice). Show the
+      // order as it really is now instead of leaving the old status on screen.
+      await load().catch(() => {});
+      setError(
+        err.status === 409
+          ? "This order was just updated by someone else — it now shows its latest status."
+          : err.message
+      );
     } finally {
       setBusy(false);
     }
@@ -76,6 +88,34 @@ export default function OrderDetail() {
     }
   }
 
+  async function delayItems({ expectedOn, reason }) {
+    setBusy(true);
+    setError("");
+    try {
+      await api.post(`/orders/${id}/delay-items`, { items: picked, expectedOn, reason });
+      setDelaying(false);
+      setPicked([]);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function delayedArrived(...items) {
+    setBusy(true);
+    setError("");
+    try {
+      await api.post(`/orders/${id}/delayed-items/delivered`, { items: items.map((i) => i.id) });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading) return <div className="page"><Loading /></div>;
   if (!order) return <div className="page"><Banner tone="error">{error || "Order not found"}</Banner></div>;
 
@@ -87,6 +127,12 @@ export default function OrderDetail() {
   );
   const exits = actions.filter((a) => a.kind === "danger");
 
+  // Items can be moved to a later delivery any time before the order closes.
+  const canDelay = can("orders.manage") && !["CANCELLED", "REJECTED", "REFUNDED"].includes(order.status);
+  const waitingItems = order.items.filter((i) => i.deferred?.expectedOn && !i.deferred.deliveredAt);
+  const togglePick = (itemId) =>
+    setPicked((list) => (list.includes(itemId) ? list.filter((x) => x !== itemId) : [...list, itemId]));
+
   const address = order.delivery?.address || {};
   // weightGrams is per the same reference unit unitPrice is quoted against,
   // so it multiplies by quantity exactly like unitPrice does. Lines whose
@@ -95,6 +141,7 @@ export default function OrderDetail() {
 
   return (
     <div className="page">
+      {confirmDialog}
       <div className="page-head">
         <div>
           <h1 className="mono">{order.code}</h1>
@@ -144,8 +191,14 @@ export default function OrderDetail() {
                 key={action.status}
                 className="btn danger"
                 disabled={busy}
-                onClick={() => {
-                  if (window.confirm(`${action.label} ${order.code}? The customer will be told.`)) advance(action.status);
+                onClick={async () => {
+                  const yes = await confirm({
+                    title: `${action.label}?`,
+                    message: `${action.label} ${order.code}? The customer will be told.`,
+                    confirmLabel: `Yes, ${action.label.toLowerCase()}`,
+                    cancelLabel: "No, keep it",
+                  });
+                  if (yes) advance(action.status);
                 }}
               >
                 {action.label}
@@ -166,6 +219,17 @@ export default function OrderDetail() {
             tight
             actions={
               <>
+                {canDelay ? (
+                  <button className="btn sm" disabled={!picked.length || busy} onClick={() => setDelaying(true)}>
+                    Deliver later{picked.length ? ` (${picked.length})` : ""}
+                  </button>
+                ) : null}
+                {waitingItems.length ? <Pill tone="warn">{waitingItems.length} arriving later</Pill> : null}
+                {waitingItems.length > 1 && can("orders.manage") ? (
+                  <button className="btn sm primary" disabled={busy} onClick={() => delayedArrived(...waitingItems)}>
+                    Mark all {waitingItems.length} delivered
+                  </button>
+                ) : null}
                 <Pill>
                   <IconBoxSm /> {order.items.length} item{order.items.length === 1 ? "" : "s"}
                 </Pill>
@@ -183,10 +247,30 @@ export default function OrderDetail() {
               </>
             }
           >
+            {canDelay ? (
+              <div className={`delay-bar${picked.length ? " active" : ""}`}>
+                {picked.length ? (
+                  <>
+                    <strong>{picked.length} of {order.items.length} items selected</strong>
+                    <span className="muted">— they will not go out today. The other {order.items.length - picked.length} are delivered now.</span>
+                    <span className="spacer" />
+                    <button className="btn sm primary" disabled={busy} onClick={() => setDelaying(true)}>
+                      Deliver these later…
+                    </button>
+                    <button className="btn sm" disabled={busy} onClick={() => setPicked([])}>Clear</button>
+                  </>
+                ) : (
+                  <span className="muted">
+                    Some items can't go out today? Tick them below, then choose a later delivery date.
+                  </span>
+                )}
+              </div>
+            ) : null}
             <div className="table-wrap">
               <table className="data">
                 <thead>
                   <tr>
+                    {canDelay ? <th style={{ width: 28 }} aria-label="Select" /> : null}
                     <th style={{ width: 32 }}>#</th>
                     <th>Item</th>
                     <th className="num">Qty</th>
@@ -197,6 +281,17 @@ export default function OrderDetail() {
                 <tbody>
                   {order.items.map((item, itemIndex) => (
                     <tr key={item.id || item.sku}>
+                      {canDelay ? (
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={picked.includes(item.id)}
+                            disabled={Boolean(item.deferred?.deliveredAt)}
+                            onChange={() => togglePick(item.id)}
+                            aria-label={`Deliver ${item.name} later`}
+                          />
+                        </td>
+                      ) : null}
                       <td className="muted">{itemIndex + 1}</td>
                       <td>
                         <div className="row-with-media">
@@ -213,6 +308,25 @@ export default function OrderDetail() {
                               {item.variantName ? ` · ${item.variantName}` : ""}
                             </span>
                             <span className="tag tag-plain">{item.sku}</span>
+                            {item.deferred?.expectedOn ? (
+                              <span className="inline" style={{ gap: 8, marginTop: 4 }}>
+                                {item.deferred.deliveredAt ? (
+                                  <Pill tone="ok">Delivered later · {when(item.deferred.deliveredAt)}</Pill>
+                                ) : (
+                                  <>
+                                    <Pill tone="warn">
+                                      Arriving {new Date(item.deferred.expectedOn).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}
+                                    </Pill>
+                                    {can("orders.manage") ? (
+                                      <button className="btn sm" disabled={busy} onClick={() => delayedArrived(item)}>
+                                        Mark delivered
+                                      </button>
+                                    ) : null}
+                                  </>
+                                )}
+                                {item.deferred.reason ? <span className="row-sub">{item.deferred.reason}</span> : null}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       </td>
@@ -361,6 +475,15 @@ export default function OrderDetail() {
           )}
         </div>
       </div>
+
+      {delaying && (
+        <DelayModal
+          busy={busy}
+          items={order.items.filter((i) => picked.includes(i.id))}
+          onClose={() => setDelaying(false)}
+          onSave={delayItems}
+        />
+      )}
 
       {assigning && (
         <AssignModal
@@ -522,6 +645,44 @@ function Row({ label, value, tone }) {
         {value}
       </td>
     </tr>
+  );
+}
+
+// Asks when the chosen items will arrive. Saving tells the customer straight
+// away (push, SMS and in the app) and marks the lines on their order page.
+function DelayModal({ busy, items, onClose, onSave }) {
+  const today = new Date().toLocaleDateString("en-CA");
+  const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString("en-CA");
+  const [expectedOn, setExpectedOn] = useState(tomorrow);
+  const [reason, setReason] = useState("");
+
+  return (
+    <Modal
+      title="Deliver these items later"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn primary" disabled={!expectedOn || busy} onClick={() => onSave({ expectedOn, reason })}>
+            {busy ? "Saving…" : "Save & notify customer"}
+          </button>
+        </>
+      }
+    >
+      <ul className="muted" style={{ margin: "0 0 14px", paddingLeft: 18 }}>
+        {items.map((i) => (
+          <li key={i.id}>{i.name}{i.variantName ? ` · ${i.variantName}` : ""} × {i.quantity}</li>
+        ))}
+      </ul>
+      <div className="grid cols-2">
+        <Field label="New delivery date">
+          <input type="date" min={today} value={expectedOn} onChange={(e) => setExpectedOn(e.target.value)} />
+        </Field>
+        <Field label="Reason (shown to the customer)">
+          <input type="text" maxLength={120} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Out of stock today" />
+        </Field>
+      </div>
+    </Modal>
   );
 }
 

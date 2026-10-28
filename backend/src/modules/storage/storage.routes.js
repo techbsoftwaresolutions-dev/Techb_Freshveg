@@ -65,11 +65,8 @@ router.get(
   })
 );
 
-router.post(
-  "/",
-  // Staff upload catalogue images; customers upload review photos and proof.
-  requireAnyPermission("catalog.manage", "marketing.manage", "delivery.fulfil", "customers.manage"),
-  express.raw({ type: Object.keys(ALLOWED), limit: MAX_BYTES }),
+// Shared by every upload route: checks the bytes and stores them.
+const receive = (folderFor) =>
   asyncHandler(async (req, res) => {
     if (!Buffer.isBuffer(req.body) || !req.body.length) {
       throw ApiError.badRequest("Send the image as the raw request body with its Content-Type set");
@@ -87,9 +84,24 @@ router.post(
     // gets stored; `declared` above only has to be one of the allowed image
     // types to get this far, which is what stops non-image uploads.
 
-    const result = await storage.resolve().save(req.body, actual, req.query.folder);
+    const result = await storage.resolve().save(req.body, actual, folderFor(req));
     res.status(201).json({ success: true, ...result });
-  })
+  });
+
+router.post(
+  "/",
+  // Staff upload catalogue images; customers upload review photos and proof.
+  requireAnyPermission("catalog.manage", "marketing.manage", "delivery.fulfil", "customers.manage"),
+  express.raw({ type: Object.keys(ALLOWED), limit: MAX_BYTES }),
+  receive((req) => req.query.folder)
+);
+
+// A signed-in customer's own profile photo. No staff permission needed, the
+// folder is fixed, and the file is capped well below the staff limit.
+router.post(
+  "/avatar",
+  express.raw({ type: Object.keys(ALLOWED), limit: Math.min(MAX_BYTES, 2 * 1024 * 1024) }),
+  receive(() => "avatars")
 );
 
 module.exports = router;

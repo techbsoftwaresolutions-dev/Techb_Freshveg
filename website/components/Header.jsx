@@ -14,7 +14,7 @@ export default function Header({ categories = [] }) {
   const params = useSearchParams();
   const pathname = usePathname();
   const cart = useCart();
-  const { user, signedIn } = useAuth();
+  const { user, signedIn, signOut } = useAuth();
   const { store, pincode, setPincode } = useStore();
 
   const [term, setTerm] = useState(params.get("q") || "");
@@ -27,6 +27,52 @@ export default function Header({ categories = [] }) {
   // clicked, or the route changes.
   const [pinnedCategory, setPinnedCategory] = useState(null);
   const catbarRef = useRef(null);
+  const catScrollRef = useRef(null);
+  const [catEdge, setCatEdge] = useState({ start: true, end: true });
+
+  // The category strip scrolls sideways without a visible scrollbar; the
+  // round arrows below it take over, and hide themselves at either end.
+  useEffect(() => {
+    const el = catScrollRef.current;
+    if (!el) return undefined;
+    const measure = () =>
+      setCatEdge({
+        start: el.scrollLeft <= 1,
+        end: el.scrollLeft >= el.scrollWidth - el.clientWidth - 1,
+      });
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      observer.disconnect();
+    };
+  }, [categories]);
+
+  const scrollCats = (direction) => {
+    const el = catScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * Math.max(el.clientWidth * 0.6, 240), behavior: "smooth" });
+  };
+
+  // The "My Account" dropdown in the top strip.
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef(null);
+  useEffect(() => setAccountOpen(false), [pathname]);
+  useEffect(() => {
+    if (!accountOpen) return undefined;
+    const onDown = (event) => {
+      if (accountRef.current && !accountRef.current.contains(event.target)) setAccountOpen(false);
+    };
+    const onKey = (event) => event.key === "Escape" && setAccountOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [accountOpen]);
 
   // Commented out for now — the department flyout menus (Fresh Vegetables /
   // Fresh Fruits etc. opening a submenu of their subcategories) are disabled
@@ -148,21 +194,55 @@ export default function Header({ categories = [] }) {
             <IconHelp className="utility-icon" />
             Help Center
           </Link>
-          {/* Always /account, even signed out: the destination must not depend
-              on client-only state, or the server and client render different
-              hrefs and hydration fails. /account redirects to /login by
-              itself, so the behaviour is identical either way. */}
-          <Link href="/account" className="utility-item">
-            <IconUser className="utility-icon" />
-            {/* The label depends on the stored session, which the server
-                render cannot see — suppressHydrationWarning sits on the
-                element whose own text varies, because React only suppresses
-                a mismatch for the element that carries it. */}
-            <span suppressHydrationWarning>
-              {signedIn ? user.name?.split(" ")[0] || "My Account" : "My Account"}
-            </span>
-            <IconCaret className="utility-caret" aria-hidden="true" />
-          </Link>
+          {/* The label depends on the stored session, which the server render
+              cannot see — suppressHydrationWarning sits on the element whose
+              own text varies. The menu itself only renders once opened, which
+              is always after hydration, so it can freely depend on signedIn. */}
+          <div className="account-menu" ref={accountRef}>
+            <button
+              type="button"
+              className="utility-item account-menu-btn"
+              aria-haspopup="menu"
+              aria-expanded={accountOpen}
+              onClick={() => setAccountOpen((open) => !open)}
+            >
+              <IconUser className="utility-icon" />
+              <span suppressHydrationWarning>
+                {signedIn ? user.name?.split(" ")[0] || "My Account" : "My Account"}
+              </span>
+              <IconCaret className={`utility-caret${accountOpen ? " open" : ""}`} aria-hidden="true" />
+            </button>
+
+            {accountOpen ? (
+              <div className="account-menu-pop" role="menu">
+                {signedIn ? (
+                  <>
+                    <Link href="/account" role="menuitem">My Account</Link>
+                    <Link href="/orders" role="menuitem">My Orders</Link>
+                    <Link href="/account/edit" role="menuitem">Edit Profile</Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="account-menu-out"
+                      onClick={() => {
+                        setAccountOpen(false);
+                        signOut();
+                        router.push("/");
+                      }}
+                    >
+                      Sign out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login" role="menuitem" className="account-menu-primary">Sign in / Sign up</Link>
+                    <Link href="/orders" role="menuitem">Track Order</Link>
+                    <Link href="/help" role="menuitem">Help Center</Link>
+                  </>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -248,7 +328,25 @@ export default function Header({ categories = [] }) {
       {pinOpen ? <PincodeBar onDone={() => setPinOpen(false)} setPincode={setPincode} store={store} /> : null}
 
       <nav className="catbar" aria-label="Categories" ref={catbarRef}>
-        <div className="wrap catbar-inner">
+        <button
+          type="button"
+          className="catbar-arrow prev"
+          onClick={() => scrollCats(-1)}
+          hidden={catEdge.start}
+          aria-label="Scroll categories left"
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          className="catbar-arrow next"
+          onClick={() => scrollCats(1)}
+          hidden={catEdge.end}
+          aria-label="Scroll categories right"
+        >
+          ›
+        </button>
+        <div className="wrap catbar-inner" ref={catScrollRef}>
           <Link href="/c" className="catbar-all">
             <IconMenu className="catbar-all-icon" />
             All Categories

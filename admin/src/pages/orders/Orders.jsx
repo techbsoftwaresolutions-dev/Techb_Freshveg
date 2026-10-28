@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+import DateFilter from "../../components/DateFilter";
 import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, rupees, when } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
@@ -43,6 +44,8 @@ export default function Orders() {
   // A dashboard card (e.g. "Pending Orders") links here with ?status=..., so
   // that lands on the matching bucket instead of always opening on "All".
   const [filters, setFilters] = useState({ status: searchParams.get("status") || "", page: 1 });
+  // The calendar button next to the status chips: { from, to } as yyyy-mm-dd.
+  const [range, setRange] = useState({ from: "", to: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -66,7 +69,7 @@ export default function Orders() {
 
   function load() {
     return api
-      .get("/orders", { ...filters, limit: 20 })
+      .get("/orders", { ...filters, ...range, limit: 20 })
       .then(setData)
       .catch((err) => setError(err.message));
   }
@@ -106,11 +109,11 @@ export default function Orders() {
   useEffect(() => {
     setLoading(true);
     api
-      .get("/orders", { ...filters, limit: 20 })
+      .get("/orders", { ...filters, ...range, limit: 20 })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [filters]);
+  }, [filters, range]);
 
   // A handful of useful buckets rather than all 19 statuses as chips. The
   // "Pending" value must match PENDING_ORDER_STATUSES in Dashboard.jsx
@@ -152,6 +155,14 @@ export default function Orders() {
             {bucket.label}
           </button>
         ))}
+        <span className="spacer" />
+        <DateFilter
+          value={range}
+          onChange={(next) => {
+            setRange(next);
+            setFilters((f) => ({ ...f, page: 1 }));
+          }}
+        />
       </div>
 
       <Card tight>

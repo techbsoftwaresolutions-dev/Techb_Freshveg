@@ -284,6 +284,17 @@ router.delete(
 
 // ---------------------------------------------------------------- products
 
+// The saved display order. Products nobody has placed yet have no sortOrder and
+// come first (newest first), then the placed ones by position.
+const PRODUCT_ORDER = { sortOrder: 1, createdAt: -1, _id: 1 };
+
+// Writes 1..N for a full list of ids, in that order.
+const saveOrder = (ids) =>
+  Product.bulkWrite(
+    ids.map((id, index) => ({ updateOne: { filter: { _id: id }, update: { $set: { sortOrder: index + 1 } } } })),
+    { timestamps: false }
+  );
+
 router.get(
   "/products",
   canView,
@@ -304,12 +315,24 @@ router.get(
     if (req.query.search) filter.name = new RegExp(escapeRegex(req.query.search), "i");
 
     const result = await paginate(Product, filter, req.query, {
-      defaultSort: { createdAt: -1 },
+      defaultSort: PRODUCT_ORDER,
       populate: [
         { path: "category", select: "name slug path" },
         { path: "brand", select: "name slug" },
       ],
     });
+    // Where each row sits in the full saved order (1 = first), so the admin can
+    // show it and let someone type a new position.
+    const order = await Product.find({ status: { $ne: "archived" } })
+      .sort(PRODUCT_ORDER)
+      .select("_id")
+      .lean();
+    const place = new Map(order.map((p, i) => [String(p._id), i + 1]));
+    result.items = result.items.map((doc) => {
+      const row = typeof doc.toJSON === "function" ? doc.toJSON() : doc;
+      return { ...row, position: place.get(String(row.id)) || null };
+    });
+
     res.json({ success: true, ...result });
   })
 );
@@ -329,6 +352,60 @@ router.get(
     ]);
 
     res.json({ success: true, product, variants, schema });
+  })
+);
+
+// Drag-to-reorder from the Products page. `ids` are the rows the admin was
+// looking at, in their new order. They trade places among the slots they
+// already held in the full list, so reordering a filtered or paged view never
+// disturbs products that were not on screen.
+router.post(
+  "/products/reorder",
+  canManage,
+  asyncHandler(async (req, res) => {
+    const ids = Array.isArray(req.body.ids) ? req.body.ids.map(String) : [];
+    if (ids.length < 2 || new Set(ids).size !== ids.length) {
+      throw ApiError.badRequest("Send at least two different products to reorder");
+    }
+
+    const all = await Product.find({ status: { $ne: "archived" } })
+      .sort(PRODUCT_ORDER)
+      .select("_id")
+      .lean();
+    const sequence = all.map((p) => String(p._id));
+    const wanted = new Set(ids);
+    const slots = [];
+    sequence.forEach((id, index) => wanted.has(id) && slots.push(index));
+    if (slots.length !== ids.length) throw ApiError.unprocessable("Some of those products no longer exist");
+
+    const next = [...sequence];
+    slots.forEach((slot, i) => {
+      next[slot] = ids[i];
+    });
+
+    await saveOrder(next);
+    res.json({ success: true });
+  })
+);
+
+// "Put this product at position N" — the typed-number alternative to dragging,
+// for when the product is pages away from where it should go.
+router.post(
+  "/products/:id/move",
+  canManage,
+  asyncHandler(async (req, res) => {
+    const target = Math.floor(Number(req.body.position));
+    if (!Number.isFinite(target) || target < 1) throw ApiError.badRequest("Position must be 1 or more");
+
+    const all = await Product.find({ status: { $ne: "archived" } }).sort(PRODUCT_ORDER).select("_id").lean();
+    const sequence = all.map((p) => String(p._id));
+    const from = sequence.indexOf(String(req.params.id));
+    if (from < 0) throw ApiError.notFound("Product not found");
+
+    sequence.splice(from, 1);
+    sequence.splice(Math.min(target, sequence.length + 1) - 1, 0, String(req.params.id));
+    await saveOrder(sequence);
+    res.json({ success: true, position: sequence.indexOf(String(req.params.id)) + 1 });
   })
 );
 
@@ -373,6 +450,16 @@ router.patch(
       product.status = req.body.status;
       if (req.body.status === "active" && !product.publishedAt) product.publishedAt = new Date();
     }
+    // The offer dropdown on the list: only the kind is set here. Clearing it
+    // (or changing kind) drops details that belong to the old kind; the title
+    // and discount % are edited in the full form.
+    if (req.body.offer && typeof req.body.offer === "object") {
+      const kind = req.body.offer.kind || "";
+      if (!["", "discount", "special", "combo"].includes(kind)) throw ApiError.badRequest("Unknown offer type");
+      if (kind !== (product.offer?.kind || "")) {
+        product.offer = kind ? { kind, title: "", details: "" } : { kind: "", title: "", details: "" };
+      }
+    }
     await product.save();
 
     // inStock follows the switch (and the counts underneath it), and the
@@ -385,7 +472,7 @@ router.patch(
       before, after: { soldOut: product.soldOut, status: product.status },
     });
 
-    const fresh = await Product.findById(product._id).select("status soldOut inStock");
+    const fresh = await Product.findById(product._id).select("status soldOut inStock offer");
     res.json({ success: true, product: fresh });
   })
 );

@@ -450,8 +450,13 @@ function ExportMenu({ columns, rows, title }) {
 // but every page works without it (falls back to "export"), so adding
 // sorting and download buttons here reaches every list in the app without
 // having to touch each page's own columns.
-export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
+// `onReorder(fromIndex, toIndex)` turns on drag-to-reorder: each row gets a grip
+// handle in a leading column. Dragging is off while a column sort is active,
+// because the rows on screen are then not in their saved order.
+export function Table({ columns, rows, empty, onRowClick, keyOf, title, onReorder }) {
   const [sort, setSort] = useState({ key: null, dir: 1 });
+  const [drag, setDrag] = useState({ from: null, over: null });
+  const reorderable = Boolean(onReorder) && !sort.key;
 
   const sortedRows = useMemo(() => {
     if (!sort.key) return rows;
@@ -471,6 +476,7 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
       <table className="data">
         <thead>
           <tr>
+            {onReorder ? <th className="drag-th" aria-label="Reorder" /> : null}
             {columns.map((col, i) => {
               const sortable = col.sortable !== false;
               const last = i === columns.length - 1;
@@ -497,7 +503,18 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
               key={keyOf ? keyOf(row) : row.id || index}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               style={onRowClick ? { cursor: "pointer" } : undefined}
+              className={[drag.from === index ? "dragging" : "", drag.over === index && drag.from !== index ? "drop-target" : ""].filter(Boolean).join(" ") || undefined}
+              draggable={reorderable || undefined}
+              onDragStart={reorderable ? (e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(index)); setDrag({ from: index, over: index }); } : undefined}
+              onDragOver={reorderable ? (e) => { e.preventDefault(); if (drag.over !== index) setDrag((d) => ({ ...d, over: index })); } : undefined}
+              onDrop={reorderable ? (e) => { e.preventDefault(); if (drag.from !== null && drag.from !== index) onReorder(drag.from, index); setDrag({ from: null, over: null }); } : undefined}
+              onDragEnd={reorderable ? () => setDrag({ from: null, over: null }) : undefined}
             >
+              {onReorder ? (
+                <td className="drag-td" onClick={(e) => e.stopPropagation()}>
+                  <span className={`drag-handle${reorderable ? "" : " off"}`} title={reorderable ? "Drag to reorder" : "Clear the column sort to reorder"} aria-hidden="true">⋮⋮</span>
+                </td>
+              ) : null}
               {columns.map((col) => (
                 <td key={col.key} className={col.align === "right" ? "num" : ""}>
                   {col.render ? col.render(row) : row[col.key]}

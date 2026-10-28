@@ -8,7 +8,7 @@ import ProductGallery from "@/components/ProductGallery";
 import PdpDelivery from "@/components/PdpDelivery";
 import ProductTabs from "@/components/ProductTabs";
 import ShareRow from "@/components/ShareRow";
-import { discountPct, rupees } from "@/lib/format";
+import { discountPct, offerLabel, rupees } from "@/lib/format";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -147,9 +147,13 @@ export default async function ProductPage({ params }) {
           ) : null}
 
           {product.shortDescription ? <p className="pdp-lede">{product.shortDescription}</p> : null}
+          {product.offer?.kind === "combo" && product.offer.details ? (
+            <p className="pdp-lede"><strong>Combo includes:</strong> {product.offer.details}</p>
+          ) : null}
 
           {/* Badges driven by the category's capability flags, not by product type. */}
           <div className="pdp-tags">
+            {offerLabel(product.offer) ? <span className="pill save">{offerLabel(product.offer)}</span> : null}
             {features.perishable ? <span className="pill brand">Fresh stock</span> : null}
             {product.attributes?.organic ? <span className="pill save">Organic</span> : null}
             {features.returnable ? (

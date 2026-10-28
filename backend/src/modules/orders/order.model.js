@@ -48,6 +48,19 @@ const orderItemSchema = new mongoose.Schema(
       enum: ["pending", "picked", "unavailable", "substituted", "returned"],
       default: "pending",
     },
+
+    // An item that cannot go out with the rest of the order (a stock or
+    // quality problem) and will be delivered separately on a later day.
+    // `expectedOn` set and `deliveredAt` empty = still on its way.
+    deferred: {
+      expectedOn: Date,
+      reason: { type: String, default: "" },
+      markedAt: Date,
+      deliveredAt: Date,
+      // Whether the stock for this line has already left the shelf. It has when
+      // the item was held back only after the order was marked delivered.
+      dispatched: { type: Boolean, default: false },
+    },
   },
   subdocOptions
 );

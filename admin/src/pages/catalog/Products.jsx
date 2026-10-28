@@ -5,6 +5,8 @@ import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees, useConfirm } from "../../components/ui";
 
+const OFFER_LABEL = { discount: "Discount", special: "Special offer", combo: "Combo offer" };
+
 export default function Products() {
   const [confirm, confirmDialog] = useConfirm();
   const { can } = useAuth();
@@ -28,6 +30,7 @@ export default function Products() {
   const [error, setError] = useState("");
   const [removingId, setRemovingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const canManage = can("catalog.manage");
 
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function Products() {
       filters.search ? 250 : 0
     );
     return () => clearTimeout(timer);
-  }, [filters]);
+  }, [filters, reloadKey]);
 
   const pickTab = (id) => {
     setTab(id);
@@ -70,12 +73,42 @@ export default function Products() {
     patchRow(change);
     try {
       const { product: fresh } = await api.patch(`/catalog/products/${product.id}/quick`, change);
-      patchRow({ status: fresh.status, soldOut: fresh.soldOut, inStock: fresh.inStock });
+      patchRow({ status: fresh.status, soldOut: fresh.soldOut, inStock: fresh.inStock, offer: fresh.offer });
     } catch (err) {
-      patchRow({ status: product.status, soldOut: product.soldOut, inStock: product.inStock });
+      patchRow({ status: product.status, soldOut: product.soldOut, inStock: product.inStock, offer: product.offer });
       setError(`${product.name}: ${err.message}`);
     } finally {
       setBusyId(null);
+    }
+  }
+
+  // Drag a row to a new place. The list moves at once; the server then stores
+  // the new order, and the list is put back if that fails.
+  async function reorder(from, to) {
+    const before = data.items;
+    const items = [...before];
+    const [moved] = items.splice(from, 1);
+    items.splice(to, 0, moved);
+    // The rows trade their position numbers along with their places.
+    const slots = before.map((p) => p.position);
+    setData((d) => ({ ...d, items: items.map((p, i) => ({ ...p, position: slots[i] })) }));
+    setError("");
+    try {
+      await api.post("/catalog/products/reorder", { ids: items.map((p) => p.id) });
+    } catch (err) {
+      setData((d) => ({ ...d, items: before }));
+      setError(`Could not save the new order: ${err.message}`);
+    }
+  }
+
+  // Typed position: the server moves the product there and the list reloads.
+  async function moveTo(product, position) {
+    setError("");
+    try {
+      await api.post(`/catalog/products/${product.id}/move`, { position });
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setError(`${product.name}: ${err.message}`);
     }
   }
 
@@ -160,6 +193,19 @@ export default function Products() {
             <Table
               title="Products"
               columns={[
+                ...(canManage
+                  ? [
+                      {
+                        key: "position",
+                        label: "#",
+                        sortable: false,
+                        exportable: false,
+                        width: 70,
+                        render: (row) =>
+                          row.position ? <PositionInput row={row} onMove={moveTo} /> : null,
+                      },
+                    ]
+                  : []),
                 {
                   key: "name",
                   label: "Product",
@@ -189,6 +235,31 @@ export default function Products() {
                       </div>
                     );
                   },
+                },
+                {
+                  key: "offer",
+                  label: "Offer",
+                  sortable: false,
+                  exportable: false,
+                  width: 170,
+                  render: (row) =>
+                    canManage && row.status !== "archived" ? (
+                      <div onClick={(e) => e.stopPropagation()} draggable={false}>
+                        <Select
+                          value={row.offer?.kind || ""}
+                          disabled={busyId === row.id}
+                          onChange={(e) => quickUpdate(row, { offer: { kind: e.target.value } })}
+                          aria-label={`Offer for ${row.name}`}
+                        >
+                          <option value="">No offer</option>
+                          <option value="discount">Discount</option>
+                          <option value="special">Special offer</option>
+                          <option value="combo">Combo offer</option>
+                        </Select>
+                      </div>
+                    ) : (
+                      OFFER_LABEL[row.offer?.kind] || "—"
+                    ),
                 },
                 {
                   key: "price",
@@ -272,6 +343,7 @@ export default function Products() {
                 },
               ]}
               rows={data.items}
+              onReorder={canManage && data.items.length > 1 ? reorder : undefined}
               onRowClick={(row) => navigate(`/catalog/products/${row.id}`)}
               empty={
                 <Empty
@@ -292,6 +364,35 @@ export default function Products() {
         )}
       </Card>
     </div>
+  );
+}
+
+// A small number box: type where the product should sit and press Enter (or
+// click away). Out-of-range numbers are clamped by the server.
+function PositionInput({ row, onMove }) {
+  const [value, setValue] = useState(String(row.position));
+  useEffect(() => setValue(String(row.position)), [row.position]);
+  const commit = () => {
+    const n = Math.floor(Number(value));
+    if (!Number.isFinite(n) || n < 1) return setValue(String(row.position));
+    if (n !== row.position) onMove(row, n);
+  };
+  return (
+    <input
+      className="position-input"
+      type="number"
+      min="1"
+      value={value}
+      draggable={false}
+      title="Type a position and press Enter"
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") setValue(String(row.position));
+      }}
+    />
   );
 }
 

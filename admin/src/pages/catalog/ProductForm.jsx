@@ -21,6 +21,7 @@ const emptyProduct = {
   tags: [],
   status: "draft",
   isFeatured: false,
+  offer: { kind: "", title: "", discountPct: "", details: "" },
   attributes: {},
   media: [],
 };
@@ -34,6 +35,19 @@ const VARIANT_SYSTEM_FIELDS = [
   "totalStock", "inStock", "createdAt", "updatedAt", "discountPct", "savings", "unitPrice",
 ];
 
+// What the offer dropdown sends: only the fields that belong to the chosen kind.
+function offerPayload(offer = {}) {
+  const kind = offer.kind || "";
+  if (!kind) return { kind: "", title: "", details: "" };
+  const pct = Number(offer.discountPct);
+  return {
+    kind,
+    title: offer.title || "",
+    details: kind === "combo" ? offer.details || "" : "",
+    ...(kind === "discount" && offer.discountPct !== "" && Number.isFinite(pct) ? { discountPct: pct } : {}),
+  };
+}
+
 function duplicateOf({ product, variants }) {
   const copy = {
     ...emptyProduct,
@@ -44,6 +58,7 @@ function duplicateOf({ product, variants }) {
     description: product.description || "",
     tags: product.tags || [],
     isFeatured: Boolean(product.isFeatured),
+    offer: { ...emptyProduct.offer, ...(product.offer || {}) },
     attributes: product.attributes || {},
     media: (product.media || []).map((m) => ({ ...m })),
   };
@@ -155,6 +170,7 @@ export default function ProductForm() {
       description: product.description,
       tags: product.tags,
       isFeatured: product.isFeatured,
+      offer: offerPayload(product.offer),
       status: publish ? "active" : product.status,
       attributes: product.attributes,
       media: (product.media || []).map((m, index) => ({
@@ -269,7 +285,7 @@ export default function ProductForm() {
                   placeholder="e.g. Tomato"
                 />
               </Field>
-              <Field label="Category" help="Determines every field below.">
+              <Field label="Category">
                 <SelectMenu
                   value={product.category}
                   onChange={pickCategory}
@@ -291,7 +307,7 @@ export default function ProductForm() {
                   options={brands.map((b) => ({ value: b.id, label: b.name }))}
                 />
               </Field>
-              <Field label="Tags" help="Comma separated.">
+              <Field label="Tags">
                 <input
                   type="text"
                   value={(product.tags || []).join(", ")}
@@ -321,6 +337,11 @@ export default function ProductForm() {
                 disabled={!editable}
               />
             </Field>
+            <OfferField
+              offer={{ ...emptyProduct.offer, ...(product.offer || {}) }}
+              editable={editable}
+              onChange={(offer) => setProduct({ ...product, offer })}
+            />
             <label className="checkbox">
               <input
                 type="checkbox"
@@ -392,9 +413,6 @@ export default function ProductForm() {
                 </tbody>
               </table>
 
-              <p className="faint" style={{ fontSize: 12, marginBottom: 0 }}>
-                Change these under Categories → Defaults and every product here follows.
-              </p>
             </Card>
           )}
 
@@ -556,10 +574,6 @@ function StockCard({ productId, variants, editable }) {
           })}
         </div>
       )}
-      <p className="faint" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>
-        A product only shows "In stock" on the storefront once it has real stock recorded here — creating or
-        publishing it does not set any on its own.
-      </p>
     </Card>
   );
 }
@@ -592,9 +606,84 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gi
 // is the only place that gap gets closed. Uploads go straight to the storage
 // API and land in `media` as soon as each one finishes; nothing here is
 // persisted until the product itself is saved.
+const OFFER_KINDS = [
+  { value: "", label: "No offer" },
+  { value: "discount", label: "Discount" },
+  { value: "special", label: "Special offer" },
+  { value: "combo", label: "Combo offer" },
+];
+
+// An expandable "Offer" dropdown: pick a kind and the fields for it open below.
+function OfferField({ offer, editable, onChange }) {
+  const set = (patch) => onChange({ ...offer, ...patch });
+  return (
+    <div className="offer-field">
+      <Field label="Offer">
+        <Select value={offer.kind || ""} onChange={(e) => set({ kind: e.target.value })} disabled={!editable}>
+          {OFFER_KINDS.map((k) => (
+            <option key={k.value} value={k.value}>{k.label}</option>
+          ))}
+        </Select>
+      </Field>
+
+      {offer.kind ? (
+        <div className="offer-panel">
+          {offer.kind === "discount" ? (
+            <Field label="Discount %">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={offer.discountPct ?? ""}
+                onChange={(e) => set({ discountPct: e.target.value })}
+                placeholder="e.g. 10"
+                disabled={!editable}
+              />
+            </Field>
+          ) : null}
+          <Field label={offer.kind === "combo" ? "Combo name" : "Offer title"}>
+            <input
+              type="text"
+              value={offer.title || ""}
+              maxLength={60}
+              onChange={(e) => set({ title: e.target.value })}
+              placeholder={
+                offer.kind === "combo" ? "e.g. Breakfast combo" : offer.kind === "special" ? "e.g. Festival special" : "Optional, e.g. Weekend deal"
+              }
+              disabled={!editable}
+            />
+          </Field>
+          {offer.kind === "combo" ? (
+            <Field label="What's in the combo">
+              <input
+                type="text"
+                value={offer.details || ""}
+                maxLength={200}
+                onChange={(e) => set({ details: e.target.value })}
+                placeholder="e.g. Milk 1 L + Bread + Butter 100 g"
+                disabled={!editable}
+              />
+            </Field>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function MediaUploader({ media, name, editable, onChange }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  // Index of the photo whose options popup is open, or null.
+  const [picked, setPicked] = useState(null);
+  const pickedItem = picked !== null ? media[picked] : null;
+
+  useEffect(() => {
+    if (picked === null) return undefined;
+    const onKey = (e) => e.key === "Escape" && setPicked(null);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [picked]);
 
   async function handleFiles(fileList) {
     const files = Array.from(fileList || []);
@@ -667,62 +756,92 @@ function MediaUploader({ media, name, editable, onChange }) {
     >
       <Banner tone="error">{error}</Banner>
 
+      {pickedItem ? (
+        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setPicked(null)}>
+          <div className="modal photo-options" role="dialog" aria-modal="true" aria-label="Photo options">
+            <header className="modal-head">
+              <h2>Photo {picked + 1}{picked === 0 ? " · Primary" : ""}</h2>
+              <button type="button" className="btn ghost sm" onClick={() => setPicked(null)} aria-label="Close">
+                ✕
+              </button>
+            </header>
+            <div className="modal-body">
+              <div className="media-thumb photo-options-thumb">
+                <img
+                  src={pickedItem.url}
+                  alt={pickedItem.alt || ""}
+                  style={{ objectPosition: `${pickedItem.focalX ?? 50}% ${pickedItem.focalY ?? 50}%` }}
+                />
+                {/* Where the storefront card crops this photo from — only
+                    matters once it's cropped to a square. */}
+                <div className="media-focal-grid">
+                  {FOCAL_POINTS.map(([fx, fy]) => (
+                    <button
+                      key={`${fx}-${fy}`}
+                      type="button"
+                      className={(pickedItem.focalX ?? 50) === fx && (pickedItem.focalY ?? 50) === fy ? "active" : ""}
+                      aria-label={`Crop focus: ${fy === 0 ? "top" : fy === 100 ? "bottom" : "middle"} ${fx === 0 ? "left" : fx === 100 ? "right" : "center"}`}
+                      onClick={() => setFocal(picked, fx, fy)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <footer className="modal-foot">
+              {picked !== 0 ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    makePrimary(picked);
+                    setPicked(null);
+                  }}
+                >
+                  Make primary
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn danger"
+                onClick={() => {
+                  remove(picked);
+                  setPicked(null);
+                }}
+              >
+                Remove
+              </button>
+              <button type="button" className="btn primary" onClick={() => setPicked(null)}>
+                Done
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+
       {media.length ? (
         <div className="media-grid">
           {media.map((item, index) => (
             <div key={`${item.url}-${index}`} className="media-item">
-              <div className="media-thumb">
+              {/* Click a photo to open its options: make it the main photo,
+                  remove it, or choose where its crop is centred. */}
+              <button
+                type="button"
+                className={`media-thumb media-thumb-btn${editable ? "" : " readonly"}`}
+                onClick={() => editable && setPicked(index)}
+                aria-label={editable ? `Photo ${index + 1} options` : `Photo ${index + 1}`}
+                disabled={!editable}
+              >
                 <img
                   src={item.url}
                   alt={item.alt || ""}
                   style={{ objectPosition: `${item.focalX ?? 50}% ${item.focalY ?? 50}%` }}
                 />
                 {index === 0 ? <span className="media-primary">Primary</span> : null}
-                {editable ? (
-                  <>
-                    {/* Where the storefront card crops this photo from — only
-                        matters once it's cropped to a square, which is why
-                        this lives right on the thumbnail instead of a
-                        separate settings panel. */}
-                    <span className="media-focal-hint">Crop focus</span>
-                    <div className="media-focal-grid">
-                      {FOCAL_POINTS.map(([fx, fy]) => (
-                        <button
-                          key={`${fx}-${fy}`}
-                          type="button"
-                          className={(item.focalX ?? 50) === fx && (item.focalY ?? 50) === fy ? "active" : ""}
-                          aria-label={`Crop focus: ${fy === 0 ? "top" : fy === 100 ? "bottom" : "middle"} ${fx === 0 ? "left" : fx === 100 ? "right" : "center"}`}
-                          onClick={() => setFocal(index, fx, fy)}
-                        />
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-                {editable ? (
-                  <div className="media-thumb-actions">
-                    {index !== 0 ? (
-                      <button type="button" className="btn ghost sm" onClick={() => makePrimary(index)}>
-                        Make primary
-                      </button>
-                    ) : null}
-                    <button type="button" className="btn ghost sm danger" onClick={() => remove(index)}>
-                      Remove
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-              {/* Shown so a stored image URL can be checked at a glance —
-                  broken photos are much faster to diagnose when the URL is
-                  right there instead of hidden behind a DevTools lookup. */}
-              <div className="media-url" title={item.url}>{item.url}</div>
+              </button>
             </div>
           ))}
         </div>
-      ) : (
-        <p className="faint" style={{ fontSize: 12.5, margin: 0 }}>
-          No photos yet — the storefront shows a blank tile until at least one is added.
-        </p>
-      )}
+      ) : null}
     </Card>
   );
 }
@@ -914,12 +1033,6 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
           </tbody>
         </table>
       </div>
-      {!axes.length && (
-        <p className="faint" style={{ fontSize: 12, padding: "10px 16px", margin: 0 }}>
-          This category has no variant axis, so the product has a single sellable variant. Mark an
-          attribute as a variant axis on the category to split it by size, colour and so on.
-        </p>
-      )}
     </Card>
   );
 }

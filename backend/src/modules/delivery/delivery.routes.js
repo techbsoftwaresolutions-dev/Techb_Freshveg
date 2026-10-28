@@ -1,4 +1,5 @@
 const express = require("express");
+const { dateBounds } = require("../../core/dateRange");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
 const { paginate } = require("../../core/query");
@@ -226,11 +227,8 @@ router.get(
     if (status) filter.status = { $in: String(status).split(",") };
     else filter["delivery.assignedAt"] = { $ne: null };
 
-    if (from || to) {
-      filter.placedAt = {};
-      if (from) filter.placedAt.$gte = new Date(from);
-      if (to) filter.placedAt.$lte = new Date(to);
-    }
+    const placed = dateBounds(from, to);
+    if (placed) filter.placedAt = placed;
 
     const result = await paginate(Order, filter, req.query, {
       defaultSort: { placedAt: -1 },
@@ -296,11 +294,8 @@ router.get(
   canView,
   asyncHandler(async (req, res) => {
     const match = { "delivery.partner": { $ne: null } };
-    if (req.query.from || req.query.to) {
-      match.placedAt = {};
-      if (req.query.from) match.placedAt.$gte = new Date(req.query.from);
-      if (req.query.to) match.placedAt.$lte = new Date(req.query.to);
-    }
+    const placed = dateBounds(req.query.from, req.query.to);
+    if (placed) match.placedAt = placed;
 
     const rows = await Order.aggregate([
       { $match: match },

@@ -41,6 +41,7 @@ export default {
       apiBaseUrl: process.env.API_BASE_URL,
       // Website used for shared product links (src/components/ShareRow.js).
       webBaseUrl: process.env.WEB_BASE_URL,
+      eas: { projectId: "7eb234bb-513d-4593-b9ed-7e9697189a13" },
     },
   },
 };

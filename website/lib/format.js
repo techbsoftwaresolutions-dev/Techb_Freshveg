@@ -27,3 +27,13 @@ export function img(url, width = 600) {
   if (typeof url !== "string" || !url.includes("res.cloudinary.com") || !url.includes("/image/upload/")) return url;
   return url.replace("/image/upload/", `/image/upload/f_auto,q_auto,w_${width}/`);
 }
+
+
+// The text for a product's merchandising tag, or "" when it has none.
+export function offerLabel(offer) {
+  if (!offer?.kind) return "";
+  if (offer.title) return offer.title;
+  if (offer.kind === "discount") return offer.discountPct ? `${offer.discountPct}% discount` : "Discount";
+  if (offer.kind === "combo") return "Combo offer";
+  return "Special offer";
+}

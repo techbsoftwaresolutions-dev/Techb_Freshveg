@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
 const { paginate, paging } = require("../../core/query");
@@ -19,6 +20,33 @@ const canAdjust = requirePermission("inventory.adjust");
 
 const actorOf = (req) => ({ id: req.user.id, name: req.user.name, role: req.user.role });
 
+// Narrows an inventory list to some variants. ?category= takes a category or a
+// subcategory id and means "everything filed at or beneath it" (a variant's
+// categoryPath holds its category and all of that category's ancestors, so one
+// lookup covers a whole department as well as a single subcategory). ?q= is
+// the search box: it matches the product name, the pack name or the SKU.
+// Returns null when neither was asked for, otherwise the matching variant ids.
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+async function variantScope({ category, q } = {}) {
+  const match = {};
+
+  if (category) {
+    if (!mongoose.isValidObjectId(category)) throw ApiError.badRequest("Unknown category");
+    match.categoryPath = category;
+  }
+
+  const term = String(q || "").trim().slice(0, 80);
+  if (term) {
+    const pattern = new RegExp(escapeRegex(term), "i");
+    const productIds = await Product.find({ name: pattern }).select("_id").limit(1000).lean();
+    match.$or = [{ sku: pattern }, { name: pattern }, { product: { $in: productIds.map((p) => p._id) } }];
+  }
+
+  if (!Object.keys(match).length) return null;
+  return Variant.distinct("_id", match);
+}
+
 router.get(
   "/",
   canView,
@@ -26,7 +54,8 @@ router.get(
     const filter = {};
     if (req.query.store) filter.store = req.query.store;
     if (req.query.product) filter.product = req.query.product;
-    if (req.query.category) filter.category = req.query.category;
+    const inCategory = await variantScope(req.query);
+    if (inCategory) filter.variant = { $in: inCategory };
 
     const result = await paginate(Inventory, filter, req.query, {
       defaultSort: { updatedAt: -1 },
@@ -46,6 +75,8 @@ router.get(
   canView,
   asyncHandler(async (req, res) => {
     const filter = req.query.store ? { store: req.query.store } : {};
+    const inCategory = await variantScope(req.query);
+    if (inCategory) filter.variant = { $in: inCategory };
     const rows = await Inventory.find(filter)
       .populate("variant", "sku name sellingPrice lowStockThreshold")
       .populate("product", "name slug media")
@@ -67,9 +98,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const { page, limit, skip } = paging(req.query);
     const stores = await Store.find(req.query.store ? { _id: req.query.store } : { status: "active" }).select("name");
+    const inCategory = await variantScope(req.query);
 
     const [result] = await Variant.aggregate([
-      { $match: { status: "active" } },
+      { $match: { status: "active", ...(inCategory ? { _id: { $in: inCategory } } : {}) } },
       {
         $lookup: {
           from: Product.collection.name,
@@ -133,6 +165,8 @@ router.get(
     const days = Number(req.query.days) || 3;
     const filter = { "batches.expiresOn": { $lte: new Date(Date.now() + days * 86400000) } };
     if (req.query.store) filter.store = req.query.store;
+    const inCategory = await variantScope(req.query);
+    if (inCategory) filter.variant = { $in: inCategory };
 
     const rows = await Inventory.find(filter)
       .populate("variant", "sku name sellingPrice")

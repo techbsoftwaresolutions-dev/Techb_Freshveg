@@ -4,8 +4,9 @@ import {
 } from "recharts";
 import { api } from "../../api/client";
 import {
-  Banner, Card, DateRange, Empty, Loading, Stat, Table, Tabs, rupees,
+  Banner, Card, Empty, Loading, Stat, Table, Tabs, rupees,
 } from "../../components/ui";
+import DateFilter from "../../components/DateFilter";
 
 const CHART_COLOURS = ["#2f6df6", "#0f9d58", "#b7791f", "#5a4cdb", "#d43b3b", "#0e7c5a"];
 
@@ -24,7 +25,7 @@ export default function Reports() {
         <div>
           <h1>Reports</h1>
         </div>
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={setRange} />
       </div>
 
       <Tabs

@@ -87,6 +87,21 @@ const productSchema = new mongoose.Schema(
     publishedAt: Date,
     isFeatured: { type: Boolean, default: false, index: true },
 
+    // Position set by dragging rows on the admin Products page (1 = first).
+    // Products nobody has placed yet have none and sort ahead of placed ones,
+    // so a new product shows at the top until it is dragged somewhere.
+    sortOrder: { type: Number, index: true },
+
+    // A merchandising label shown on the storefront ("Discount", "Special
+    // offer", "Combo offer"). It does not change the price — that still comes
+    // from the variants' MRP and selling price.
+    offer: {
+      kind: { type: String, enum: ["", "discount", "special", "combo"], default: "" },
+      title: { type: String, default: "", trim: true, maxlength: 60 },
+      discountPct: { type: Number, min: 0, max: 100 },
+      details: { type: String, default: "", trim: true, maxlength: 200 },
+    },
+
     rating: {
       average: { type: Number, default: 0, min: 0, max: 5 },
       count: { type: Number, default: 0, min: 0 },

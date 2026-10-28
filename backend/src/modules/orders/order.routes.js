@@ -1,4 +1,5 @@
 const express = require("express");
+const { dateBounds } = require("../../core/dateRange");
 const QRCode = require("qrcode");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
@@ -164,11 +165,8 @@ router.get(
     if (req.query.store) filter.store = req.query.store;
     if (req.query.partner) filter["delivery.partner"] = req.query.partner;
     if (req.query.paymentStatus) filter["payment.status"] = req.query.paymentStatus;
-    if (req.query.from || req.query.to) {
-      filter.placedAt = {};
-      if (req.query.from) filter.placedAt.$gte = new Date(req.query.from);
-      if (req.query.to) filter.placedAt.$lte = new Date(req.query.to);
-    }
+    const placed = dateBounds(req.query.from, req.query.to);
+    if (placed) filter.placedAt = placed;
 
     const result = await paginate(Order, filter, req.query, { defaultSort: { placedAt: -1 } });
     res.json({ success: true, ...result });
@@ -234,6 +232,95 @@ router.post(
       item.itemStatus = picked.quantity > 0 ? "picked" : "unavailable";
     }
     await order.save();
+    res.json({ success: true, order });
+  })
+);
+
+// Items that cannot go out with the rest of the order and will come on a later
+// day. The customer is told straight away (push, SMS and in-app), and the order
+// page shows those lines as "arriving <date>".
+router.post(
+  "/:id/delay-items",
+  requirePermission("orders.manage"),
+  asyncHandler(async (req, res) => {
+    const order = await Order.findById(req.params.id);
+    if (!order) throw ApiError.notFound("Order not found");
+    if (["CANCELLED", "REJECTED", "REFUNDED"].includes(order.status)) {
+      throw ApiError.badRequest("This order is closed — nothing can be delayed");
+    }
+
+    const day = String(req.body.expectedOn || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw ApiError.badRequest("Choose the new delivery date");
+    const expectedOn = new Date(`${day}T00:00:00+05:30`);
+    const todayIst = new Date(`${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })}T00:00:00+05:30`);
+    if (Number.isNaN(expectedOn.getTime()) || expectedOn < todayIst) {
+      throw ApiError.badRequest("The new delivery date can't be in the past");
+    }
+
+    const ids = Array.isArray(req.body.items) ? req.body.items.map(String) : [];
+    const chosen = ids.map((id) => order.items.id(id)).filter(Boolean);
+    if (!chosen.length) throw ApiError.badRequest("Select at least one item");
+    if (chosen.some((item) => item.deferred?.deliveredAt)) {
+      throw ApiError.badRequest("An item you picked has already been delivered");
+    }
+
+    const reason = String(req.body.reason || "").trim().slice(0, 120);
+    for (const item of chosen) {
+      item.deferred = {
+        expectedOn,
+        reason,
+        markedAt: new Date(),
+        deliveredAt: undefined,
+        // Already delivered with the order = the stock is gone; otherwise it
+        // is taken off the shelf when the item is finally delivered.
+        dispatched: item.deferred?.dispatched || order.status === "DELIVERED",
+      };
+    }
+    await order.save();
+
+    await orderService.announceDeferred(order, "ITEMS_DELAYED", chosen);
+    await audit.record({
+      req, action: "update", entity: "Order", entityId: order._id, label: order.code,
+      after: { delayedItems: chosen.map((i) => i.name), expectedOn: day, reason },
+    });
+
+    res.json({ success: true, order });
+  })
+);
+
+// The delayed items have arrived.
+router.post(
+  "/:id/delayed-items/delivered",
+  requireAnyPermission("orders.manage", "delivery.fulfil"),
+  asyncHandler(async (req, res) => {
+    const order = await Order.findById(req.params.id);
+    if (!order) throw ApiError.notFound("Order not found");
+
+    const ids = Array.isArray(req.body.items) ? req.body.items.map(String) : [];
+    const chosen = ids
+      .map((id) => order.items.id(id))
+      .filter((item) => item?.deferred?.expectedOn && !item.deferred.deliveredAt);
+    if (!chosen.length) throw ApiError.badRequest("Nothing delayed to mark as delivered");
+
+    const inventoryService = require("../inventory/inventory.service");
+    for (const item of chosen) {
+      item.deferred.deliveredAt = new Date();
+      if (!item.deferred.dispatched) {
+        await inventoryService.dispatch(order.store, item.variant, item.pickedQuantity ?? item.quantity, {
+          refType: "order", refId: order._id, refCode: order.code, reason: "Delivered later",
+          actor: { id: req.user.id, name: req.user.name, role: req.user.role },
+        });
+        item.deferred.dispatched = true;
+      }
+    }
+    await order.save();
+
+    await orderService.announceDeferred(order, "DELAYED_ITEMS_DELIVERED", chosen);
+    await audit.record({
+      req, action: "update", entity: "Order", entityId: order._id, label: order.code,
+      after: { delayedItemsDelivered: chosen.map((i) => i.name) },
+    });
+
     res.json({ success: true, order });
   })
 );

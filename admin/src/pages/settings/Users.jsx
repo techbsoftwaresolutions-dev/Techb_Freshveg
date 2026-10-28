@@ -4,20 +4,39 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, when } from "../../components/ui";
+import {
+  Banner,
+  Card,
+  Empty,
+  Field,
+  Loading,
+  Modal,
+  Pagination,
+  Pill,
+  Table,
+  when,
+} from "../../components/ui";
 
 // Staff accounts and their roles. Only a super admin opens this page — an
 // admin can run the shop but cannot create other admins.
 const ROLE_TONE = { super_admin: "accent", admin: "ok", store_manager: "warn" };
 
 const ROLE_BLURB = {
-  super_admin: "Full control, including settings and every user.",
+  super_admin: "",
   admin: "Runs the shop day to day and manages staff.",
   store_manager: "Looks after catalog, stock and orders.",
-  delivery_partner: "Delivers orders. Signs in to the delivery app with email and password.",
+  delivery_partner:
+    "Delivers orders. Signs in to the delivery app with email and password.",
 };
 
-const BLANK = { name: "", phone: "", email: "", role: "store_manager", status: "active", password: "" };
+const BLANK = {
+  name: "",
+  phone: "",
+  email: "",
+  role: "store_manager",
+  status: "active",
+  password: "",
+};
 
 export default function Users() {
   const { user: me } = useAuth();
@@ -53,17 +72,24 @@ export default function Users() {
 
   useEffect(() => {
     // Typing in the search box waits a beat so each keystroke isn't a request.
-    const timer = setTimeout(() => {
-      setLoading(true);
-      api
-        .get("/staff", { limit: 20, page, ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) })
-        .then((data) => {
-          setItems(data.items);
-          setMeta(data.meta);
-        })
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
-    }, filters.search ? 250 : 0);
+    const timer = setTimeout(
+      () => {
+        setLoading(true);
+        api
+          .get("/staff", {
+            limit: 20,
+            page,
+            ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)),
+          })
+          .then((data) => {
+            setItems(data.items);
+            setMeta(data.meta);
+          })
+          .catch((err) => setError(err.message))
+          .finally(() => setLoading(false));
+      },
+      filters.search ? 250 : 0,
+    );
     return () => clearTimeout(timer);
   }, [page, filters]);
 
@@ -96,13 +122,22 @@ export default function Users() {
         <div>
           <h1>Users</h1>
         </div>
-        <button className="btn primary" onClick={() => navigate("/settings/users/new")}>
+        <button
+          className="btn primary"
+          onClick={() => navigate("/settings/users/new")}
+        >
           + Add user
         </button>
       </div>
 
       <Banner tone="error">{error}</Banner>
-      <Banner tone="ok">{deleted ? `${deleted} deleted.` : saved ? `${saved} ${created ? "added" : "saved"}.` : ""}</Banner>
+      <Banner tone="ok">
+        {deleted
+          ? `${deleted} deleted.`
+          : saved
+            ? `${saved} ${created ? "added" : "saved"}.`
+            : ""}
+      </Banner>
 
       <div className="toolbar">
         <input
@@ -112,13 +147,21 @@ export default function Users() {
           onChange={(e) => setFilter("search", e.target.value)}
           style={{ minWidth: 260 }}
         />
-        <Select value={filters.role} onChange={(e) => setFilter("role", e.target.value)}>
+        <Select
+          value={filters.role}
+          onChange={(e) => setFilter("role", e.target.value)}
+        >
           <option value="">All roles</option>
           {roles.map((r) => (
-            <option key={r.key} value={r.key}>{r.label}</option>
+            <option key={r.key} value={r.key}>
+              {r.label}
+            </option>
           ))}
         </Select>
-        <Select value={filters.status} onChange={(e) => setFilter("status", e.target.value)}>
+        <Select
+          value={filters.status}
+          onChange={(e) => setFilter("status", e.target.value)}
+        >
           <option value="">Any status</option>
           <option value="active">Active</option>
           <option value="blocked">Blocked</option>
@@ -139,27 +182,44 @@ export default function Users() {
                   render: (row) => (
                     <div className="stack">
                       <span className="row-title">
-                        {row.name || "—"} {row.id === me?.id && <Pill>you</Pill>}
+                        {row.name || "—"}{" "}
+                        {row.id === me?.id && <Pill>you</Pill>}
                       </span>
                       <span className="row-sub">{row.email || "No email"}</span>
                     </div>
                   ),
                 },
-                { key: "phone", label: "Phone", render: (row) => <span>{row.phone}</span> },
+                {
+                  key: "phone",
+                  label: "Phone",
+                  render: (row) => <span>{row.phone}</span>,
+                },
                 {
                   key: "role",
                   label: "Role",
-                  render: (row) => <Pill tone={ROLE_TONE[row.role]}>{roleLabel(row.role)}</Pill>,
+                  render: (row) => (
+                    <Pill tone={ROLE_TONE[row.role]}>
+                      {roleLabel(row.role)}
+                    </Pill>
+                  ),
                 },
                 {
                   key: "status",
                   label: "Status",
-                  render: (row) => <Pill tone={row.status === "active" ? "ok" : "danger"}>{row.status}</Pill>,
+                  render: (row) => (
+                    <Pill tone={row.status === "active" ? "ok" : "danger"}>
+                      {row.status}
+                    </Pill>
+                  ),
                 },
                 {
                   key: "lastLoginAt",
                   label: "Last sign-in",
-                  render: (row) => <span className="muted">{row.lastLoginAt ? when(row.lastLoginAt) : "Never"}</span>,
+                  render: (row) => (
+                    <span className="muted">
+                      {row.lastLoginAt ? when(row.lastLoginAt) : "Never"}
+                    </span>
+                  ),
                 },
                 {
                   key: "actions",
@@ -169,7 +229,10 @@ export default function Users() {
                   render: (row) => {
                     const self = row.id === me?.id;
                     return (
-                      <div className="inline" style={{ gap: 6, justifyContent: "flex-end" }}>
+                      <div
+                        className="inline"
+                        style={{ gap: 6, justifyContent: "flex-end" }}
+                      >
                         <button
                           type="button"
                           className="btn sm"
@@ -184,7 +247,11 @@ export default function Users() {
                           type="button"
                           className="btn sm danger"
                           disabled={self || deleting === row.id}
-                          title={self ? "You can't delete your own account" : undefined}
+                          title={
+                            self
+                              ? "You can't delete your own account"
+                              : undefined
+                          }
                           onClick={(event) => {
                             event.stopPropagation();
                             setConfirming(row);
@@ -199,13 +266,17 @@ export default function Users() {
               ]}
               rows={items}
               onRowClick={(row) => navigate(`/settings/users/${row.id}`)}
-              empty={<Empty title="No users found" hint="Try clearing the filters, or add a user." />}
+              empty={
+                <Empty
+                  title="No users found"
+                  hint="Try clearing the filters, or add a user."
+                />
+              }
             />
             <Pagination meta={meta} onPage={setPage} />
           </>
         )}
       </Card>
-
 
       {confirming && (
         <Modal
@@ -213,17 +284,26 @@ export default function Users() {
           onClose={() => !deleting && setConfirming(null)}
           footer={
             <>
-              <button className="btn" disabled={Boolean(deleting)} onClick={() => setConfirming(null)}>
+              <button
+                className="btn"
+                disabled={Boolean(deleting)}
+                onClick={() => setConfirming(null)}
+              >
                 Cancel
               </button>
-              <button className="btn danger" disabled={Boolean(deleting)} onClick={() => removeUser(confirming)}>
+              <button
+                className="btn danger"
+                disabled={Boolean(deleting)}
+                onClick={() => removeUser(confirming)}
+              >
                 {deleting ? "Deleting…" : "Yes, delete"}
               </button>
             </>
           }
         >
           <p style={{ margin: 0 }}>
-            <strong>{confirming.name || confirming.phone}</strong> will no longer be able to sign in.
+            <strong>{confirming.name || confirming.phone}</strong> will no
+            longer be able to sign in.
           </p>
           <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
             To keep their record, block them instead of deleting.
@@ -254,7 +334,9 @@ export function UserFormPage() {
           isSelf={Boolean(user && user.id === me?.id)}
           onClose={() => back()}
           onSaved={(saved, created) =>
-            back(`/settings/users?saved=${encodeURIComponent(saved.name)}${created ? "&created=1" : ""}`)
+            back(
+              `/settings/users?saved=${encodeURIComponent(saved.name)}${created ? "&created=1" : ""}`,
+            )
           }
         />
       )}
@@ -274,12 +356,17 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
   const role = roles.find((r) => r.key === form.role);
 
   const passwordProblem =
-    form.password && form.password.length < minPassword ? `At least ${minPassword} characters` : "";
-  const phoneProblem = isNew && form.phone && !/^\d{10}$/.test(form.phone) ? "10 digits" : "";
+    form.password && form.password.length < minPassword
+      ? `At least ${minPassword} characters`
+      : "";
+  const phoneProblem =
+    isNew && form.phone && !/^\d{10}$/.test(form.phone) ? "10 digits" : "";
   const isPartner = form.role === "delivery_partner";
   const needsPassword = true;
   const emailProblem =
-    isPartner && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) ? "Enter a valid email" : "";
+    isPartner && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+      ? "Enter a valid email"
+      : "";
   const incomplete =
     !form.name.trim() ||
     Boolean(emailProblem) ||
@@ -322,10 +409,17 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
           <button
             className="btn primary"
-            disabled={saving || incomplete || Boolean(passwordProblem) || Boolean(phoneProblem)}
+            disabled={
+              saving ||
+              incomplete ||
+              Boolean(passwordProblem) ||
+              Boolean(phoneProblem)
+            }
             onClick={submit}
           >
             {saving ? "Saving…" : isNew ? "Add user" : "Save changes"}
@@ -338,12 +432,17 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
       <div className="section-label">Details</div>
       <div className="grid cols-2">
         <Field label="Full name" error={fieldErrors.name}>
-          <input type="text" value={form.name} placeholder="e.g. Ravi Kumar" onChange={(e) => set("name", e.target.value)} />
+          <input
+            type="text"
+            value={form.name}
+            placeholder="e.g. Ravi Kumar"
+            onChange={(e) => set("name", e.target.value)}
+          />
         </Field>
         <Field
           label="Mobile number"
           error={fieldErrors.phone || phoneProblem}
-          help={isNew ? "10 digits. They sign in with this." : "The sign-in number can't be changed."}
+          help={isNew ? "10 digits. They sign in with this." : ""}
         >
           <input
             type="text"
@@ -352,27 +451,52 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
             value={form.phone}
             placeholder="98765 43210"
             disabled={!isNew}
-            onChange={(e) => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+            onChange={(e) =>
+              set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))
+            }
           />
         </Field>
       </div>
       <Field
         label={isPartner ? "Email (their sign-in)" : "Email (optional)"}
         error={fieldErrors.email || (form.email ? emailProblem : "")}
-        help={isPartner ? "The delivery boy signs in to the app with this email and the password below." : undefined}
+        help={
+          isPartner
+            ? "The delivery boy signs in to the app with this email and the password below."
+            : undefined
+        }
       >
-        <input type="text" inputMode="email" autoComplete="off" value={form.email} placeholder="name@example.com" onChange={(e) => set("email", e.target.value)} />
+        <input
+          type="text"
+          inputMode="email"
+          autoComplete="off"
+          value={form.email}
+          placeholder="name@example.com"
+          onChange={(e) => set("email", e.target.value)}
+        />
       </Field>
 
       <div className="section-label">Role</div>
       <Field
         label="Role"
         error={fieldErrors.role}
-        help={isSelf ? "You can't change your own role." : role ? ROLE_BLURB[role.key] : undefined}
+        help={
+          isSelf
+            ? "You can't change your own role."
+            : role
+              ? ROLE_BLURB[role.key]
+              : undefined
+        }
       >
-        <Select value={form.role} disabled={isSelf} onChange={(e) => set("role", e.target.value)}>
+        <Select
+          value={form.role}
+          disabled={isSelf}
+          onChange={(e) => set("role", e.target.value)}
+        >
           {roles.map((r) => (
-            <option key={r.key} value={r.key}>{r.label}</option>
+            <option key={r.key} value={r.key}>
+              {r.label}
+            </option>
           ))}
         </Select>
       </Field>
@@ -381,15 +505,28 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
         <div className="perm-box">
           <div className="perm-box-title">{role.label} can</div>
           <div className="perm-chips">
-            {(showAllPerms ? role.permissions : role.permissions.slice(0, 5)).map((p) => (
-              <span key={p} className="perm-chip">{p}</span>
+            {(showAllPerms
+              ? role.permissions
+              : role.permissions.slice(0, 5)
+            ).map((p) => (
+              <span key={p} className="perm-chip">
+                {p}
+              </span>
             ))}
             {role.permissions.length > 5 && (
-              <button type="button" className="perm-chip more" onClick={() => setShowAllPerms((v) => !v)}>
-                {showAllPerms ? "Show less" : `+${role.permissions.length - 5} more`}
+              <button
+                type="button"
+                className="perm-chip more"
+                onClick={() => setShowAllPerms((v) => !v)}
+              >
+                {showAllPerms
+                  ? "Show less"
+                  : `+${role.permissions.length - 5} more`}
               </button>
             )}
-            {!role.permissions.length && <span className="faint">Nothing in the admin</span>}
+            {!role.permissions.length && (
+              <span className="faint">Nothing in the admin</span>
+            )}
           </div>
         </div>
       )}
@@ -397,8 +534,15 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
       {!isNew && (
         <>
           <div className="section-label">Account</div>
-          <Field label="Status" help={isSelf ? "You can't block your own account." : "Blocked users can't sign in."}>
-            <Select value={form.status} disabled={isSelf} onChange={(e) => set("status", e.target.value)}>
+          <Field
+            label="Status"
+            help={isSelf ? "You can't block your own account." : ""}
+          >
+            <Select
+              value={form.status}
+              disabled={isSelf}
+              onChange={(e) => set("status", e.target.value)}
+            >
               <option value="active">Active</option>
               <option value="blocked">Blocked</option>
             </Select>
@@ -410,7 +554,7 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
       <Field
         label={isNew ? "Password" : "Reset password (optional)"}
         error={fieldErrors.password || passwordProblem}
-        help={isNew ? `At least ${minPassword} characters.` : "Leave blank to keep the current password. A role change applies the next time they sign in."}
+        help={isNew ? `At least ${minPassword} characters.` : ""}
       >
         <input
           type="password"

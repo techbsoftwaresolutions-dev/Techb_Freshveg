@@ -463,7 +463,7 @@ export default function Dashboard() {
                         </span>
                       )}
                       <div className="activity-body">
-                        <div className="row-title">
+                        <div className="row-title" title={cleanSummary(entry.summary) || `${entry.action} ${entry.entity}`}>
                           {cleanSummary(entry.summary) || `${entry.action} ${entry.entity}`}
                         </div>
                         <div className="row-sub">
@@ -498,7 +498,7 @@ export default function Dashboard() {
           >
             {orders.length ? (
               <div className="table-wrap">
-                <table className="data">
+                <table className="data recent-orders">
                   <thead>
                     <tr>
                       <th>Order</th>
