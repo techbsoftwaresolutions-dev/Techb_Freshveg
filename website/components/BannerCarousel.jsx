@@ -4,7 +4,7 @@ import Link from "next/link";
 import { img } from "@/lib/format";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const ROTATE_MS = 6000;
+const ROTATE_MS = 4500;
 
 // Where a banner's target points. The admin stores a kind and a value rather
 // than a URL, so the shape of the site can change without rewriting banners.
@@ -92,8 +92,6 @@ export default function BannerCarousel({ banners = [] }) {
   return (
     <div
       className="banner-carousel"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
       aria-roledescription="carousel"
     >
       {href ? (

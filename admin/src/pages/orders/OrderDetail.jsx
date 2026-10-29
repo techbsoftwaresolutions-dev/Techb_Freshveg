@@ -395,7 +395,7 @@ export default function OrderDetail() {
             <ul className="timeline">
               {/* Steps this order skipped (a COD order never passes through
                   "payment received") are left out rather than shown as done. */}
-              {timeline
+              {deliveryStages(timeline, order.status)
                 .filter((step) => step.state !== "skipped")
                 .map((step) => (
                   <li key={step.status} className={step.state}>
@@ -530,9 +530,31 @@ function nextStepHint(order) {
 // The order's journey as a row of numbered steps: done ones ticked, the
 // current one highlighted, the rest waiting. Off-path states (cancelled,
 // rejected, returns) replace the row with a single line saying so.
+const DELIVERY_STAGES = [
+  { label: "Order placed", statuses: ["ORDER_PLACED", "PAYMENT_PENDING"] },
+  { label: "Order confirmed", statuses: ["ORDER_CONFIRMED"] },
+  { label: "Preparing order", statuses: ["ORDER_ACCEPTED", "PICKING", "PACKING", "READY_FOR_PICKUP", "ASSIGNED_TO_DELIVERY", "PICKED_UP"] },
+  { label: "Out for delivery", statuses: ["OUT_FOR_DELIVERY", "ARRIVED"] },
+  { label: "Delivered", statuses: ["DELIVERED"] },
+];
+
+function deliveryStages(timeline, status) {
+  const current = DELIVERY_STAGES.findIndex((stage) => stage.statuses.includes(status));
+  return DELIVERY_STAGES.map((stage, index) => {
+    const events = timeline.filter((step) => stage.statuses.includes(step.status));
+    const reached = events.find((step) => step.at);
+    return {
+      status: stage.statuses[0],
+      label: stage.label,
+      at: reached?.at || null,
+      state: index === current ? "active" : (current >= 0 && index < current) || events.some((step) => step.state === "done") ? "done" : "pending",
+    };
+  });
+}
+
 function StageTracker({ timeline, status, statuses }) {
-  const steps = timeline.filter((step) => step.state !== "skipped");
-  const offPath = !steps.some((step) => step.status === status) && status !== "ORDER_PLACED";
+  const steps = deliveryStages(timeline, status);
+  const offPath = !DELIVERY_STAGES.some((stage) => stage.statuses.includes(status));
 
   if (offPath && ["CANCELLED", "REJECTED", "REFUNDED"].includes(status)) {
     return (
@@ -546,13 +568,13 @@ function StageTracker({ timeline, status, statuses }) {
   return (
     <ol className="stage-tracker" aria-label="Order progress">
       {steps.map((step, index) => {
-        const state = step.status === status ? "current" : step.state === "done" ? "done" : "pending";
+        const state = step.state === "active" ? "current" : step.state === "done" ? "done" : "pending";
         return (
           <li key={step.status} className={`stage ${state}`}>
             <span className="stage-dot" aria-hidden="true">
               {state === "done" ? "✓" : index + 1}
             </span>
-            <span className="stage-label">{statuses[step.status]?.label || step.label}</span>
+            <span className="stage-label">{step.label}</span>
             {step.at ? <span className="stage-time">{when(step.at)}</span> : null}
           </li>
         );

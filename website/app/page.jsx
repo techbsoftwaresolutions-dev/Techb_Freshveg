@@ -73,47 +73,7 @@ export default async function HomePage() {
         ) : null}
 
         <div className="home-main">
-          <section className="hero">
-            <div className="hero-media" aria-hidden={heroBanners.length ? undefined : "true"}>
-              {heroBanners.length ? <HeroCarousel banners={heroBanners} /> : <HeroArt />}
-            </div>
-
-            <div className="hero-main">
-              <span className="hero-eyebrow">Fresh • Healthy • Everyday</span>
-              <h1>
-                Fresh from the market, <span className="hero-accent">at your door</span>
-              </h1>
-              <p>
-                Fruit and vegetables picked today, groceries for the week, and everything else the
-                house needs — from {store?.name || "your neighbourhood store"}.
-              </p>
-              <div className="hero-cta">
-                <Link href="/c" className="btn primary lg">
-                  Shop Now
-                  <IconArrow />
-                </Link>
-                <Link href="/c" className="btn lg hero-secondary">
-                  <IconGrid />
-                  <span className="hide-narrow">Browse&nbsp;</span>Categories
-                </Link>
-              </div>
-
-              <ul className="hero-features">
-                <li>
-                  <IconLeafBadge />
-                  <span>100% Fresh<br />Products</span>
-                </li>
-                <li>
-                  <IconTruck />
-                  <span>Fast &amp; Reliable<br />Delivery</span>
-                </li>
-                <li>
-                  <IconShield />
-                  <span>Secure<br />Payments</span>
-                </li>
-              </ul>
-            </div>
-          </section>
+          <HeroCarousel banners={heroBanners} categories={categories} storeName={store?.name} fallbackArt={<HeroArt />} />
 
           {/* Departments as tiles — the one grid a returning shopper scans
               before typing a search. */}
@@ -186,7 +146,7 @@ export default async function HomePage() {
           {/* Products the admin tagged Discount / Special offer / Combo offer,
               each kind in its own row. A kind with no products has no row. */}
           {offerRails.map((rail) => (
-            <section key={rail.kind} className="section" id={`offers-${rail.kind}`}>
+            <section key={rail.kind} className="section offer-section" id={`offers-${rail.kind}`}>
               <SectionHead title={rail.title} href={`/c?offer=${rail.kind}`} linkLabel="View All" accent />
               <Carousel label={rail.title}>
                 {inStockFirst(rail.products).map((product) => (

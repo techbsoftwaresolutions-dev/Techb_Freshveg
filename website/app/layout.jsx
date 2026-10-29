@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FooterGate from "@/components/FooterGate";
 import MobileNav from "@/components/MobileNav";
+import CartDrawer from "@/components/CartDrawer";
 import PwaSupport from "@/components/PwaSupport";
 import ReviewPrompt from "@/components/ReviewPrompt";
 import { getCategories, SITE_URL } from "@/lib/api";
@@ -96,6 +97,7 @@ export default async function RootLayout({ children }) {
           </Suspense>
 
           <main>{children}</main>
+          <CartDrawer />
 
           <FooterGate>
             <Footer categories={categories} />

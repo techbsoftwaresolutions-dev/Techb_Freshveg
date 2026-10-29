@@ -494,13 +494,15 @@ export default function Layout() {
               onSubmit={submitSearch}
               role="search"
             >
-              <IconSearch width="15" height="15" />
               <input
                 type="search"
                 placeholder="Search for products, orders, customers…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
+              <button type="submit" className="topbar-search-submit" aria-label="Search">
+                <IconSearch width="15" height="15" />
+              </button>
             </form>
           </div>
           <div className="topbar-right">

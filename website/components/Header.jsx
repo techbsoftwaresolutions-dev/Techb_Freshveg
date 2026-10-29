@@ -95,7 +95,9 @@ export default function Header({ categories = [] }) {
       }
     };
     document.addEventListener("mousedown", onDocPointerDown);
-    return () => document.removeEventListener("mousedown", onDocPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocPointerDown);
+    };
   }, []);
 
   // Keep the box in step when the user lands on /search?q= from elsewhere.
@@ -186,10 +188,6 @@ export default function Header({ categories = [] }) {
           <span className="utility-item utility-wide">Freshness You Can Trust</span>
           <FreeDeliveryNote className="utility-item utility-promo" withSeparator />
           <span className="utility-spacer" />
-          <Link href="/orders" className="utility-item">
-            <IconTruck className="utility-icon" />
-            Track Order
-          </Link>
           <Link href="/help" className="utility-item utility-wide">
             <IconHelp className="utility-icon" />
             Help Center
@@ -306,7 +304,7 @@ export default function Header({ categories = [] }) {
 
           <span className="header-divider" aria-hidden="true" />
 
-          <Link href="/cart" className="header-btn cart-btn">
+          <button type="button" className="header-btn cart-btn" aria-haspopup="dialog" aria-controls="cart-drawer" onClick={() => window.dispatchEvent(new Event("open-cart"))}>
             <span className="cart-btn-icon">
               <IconCart className="header-btn-icon" />
               <span className="cart-badge" suppressHydrationWarning>
@@ -321,32 +319,30 @@ export default function Header({ categories = [] }) {
                 {rupees(cart.summary?.total)}
               </span>
             </span>
-          </Link>
+          </button>
         </div>
       </div>
 
       {pinOpen ? <PincodeBar onDone={() => setPinOpen(false)} setPincode={setPincode} store={store} /> : null}
 
       <nav className="catbar" aria-label="Categories" ref={catbarRef}>
-        <button
-          type="button"
-          className="catbar-arrow prev"
-          onClick={() => scrollCats(-1)}
-          hidden={catEdge.start}
-          aria-label="Scroll categories left"
-        >
-          ‹
-        </button>
-        <button
-          type="button"
-          className="catbar-arrow next"
-          onClick={() => scrollCats(1)}
-          hidden={catEdge.end}
-          aria-label="Scroll categories right"
-        >
-          ›
-        </button>
-        <div className="wrap catbar-inner" ref={catScrollRef}>
+        <div className="wrap catbar-layout">
+          <div className="catbar-scroll" ref={catScrollRef}>
+            <button
+              type="button"
+              className="catbar-arrow prev"
+              onClick={() => scrollCats(-1)}
+              hidden={catEdge.start}
+              aria-label="Scroll categories left"
+            >‹</button>
+            <button
+              type="button"
+              className="catbar-arrow next"
+              onClick={() => scrollCats(1)}
+              hidden={catEdge.end}
+              aria-label="Scroll categories right"
+            >›</button>
+            <div className="catbar-inner">
           <Link href="/c" className="catbar-all">
             <IconMenu className="catbar-all-icon" />
             All Categories
@@ -416,10 +412,9 @@ export default function Header({ categories = [] }) {
               </div>
             );
           })}
-          <span className="catbar-spacer" />
-          <Link href="/c?sort=discount" className="catbar-offers">
-            Offers
-          </Link>
+          <Link href="/c?sort=discount" className="catbar-offers">Offers</Link>
+            </div>
+          </div>
         </div>
       </nav>
     </header>
