@@ -49,10 +49,10 @@ export default function AppDownload() {
         <p>Get fresh groceries, exclusive offers and a better shopping experience on our app.</p>
         <button type="button" className="app-band-btn" onClick={install}>
           <span className="app-band-btn-icon">
-            <IconPhone />
+            <IconGooglePlay />
           </span>
           <span className="app-band-btn-text">
-            <small>Get it on your phone</small>
+            <small>Get it on Google Play</small>
             <strong>Install the app</strong>
           </span>
           <IconArrow />
@@ -234,11 +234,13 @@ function IconLeaf({ className }) {
   );
 }
 
-function IconPhone() {
+function IconGooglePlay() {
   return (
-    <svg {...iconProps} width="24" height="24">
-      <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
-      <path d="M11 18.5h2" />
+    <svg viewBox="0 0 48 48" width="30" height="30" aria-hidden="true">
+      <path fill="#4285F4" d="M6.2 5.1A4.2 4.2 0 0 0 5 8.1v31.8a4.2 4.2 0 0 0 1.2 3L27.8 24 6.2 5.1Z" />
+      <path fill="#00C853" d="M8.9 3.1a4.1 4.1 0 0 0-2.7 2L27.8 24l7.4-6.5L10.3 3.3a4.1 4.1 0 0 0-1.4-.2Z" />
+      <path fill="#EA4335" d="M6.2 42.9a4.1 4.1 0 0 0 4.1 1.8l24.9-14.2L27.8 24 6.2 42.9Z" />
+      <path fill="#FBBC04" d="m35.2 17.5 6.1 3.5c2.3 1.3 2.3 4.7 0 6l-6.1 3.5L27.8 24l7.4-6.5Z" />
     </svg>
   );
 }

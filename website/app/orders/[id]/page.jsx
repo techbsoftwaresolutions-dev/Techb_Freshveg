@@ -15,6 +15,33 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 const SHOW_QR = false;
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+const ORDER_PROGRESS_STAGES = [
+  { label: "Order placed", statuses: ["ORDER_PLACED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED"] },
+  { label: "Order confirmed", statuses: ["ORDER_CONFIRMED"] },
+  { label: "Preparing your order", statuses: ["ORDER_ACCEPTED", "PICKING", "PACKING", "READY_FOR_PICKUP", "ASSIGNED_TO_DELIVERY", "PICKED_UP"] },
+  { label: "On the way to you", statuses: ["OUT_FOR_DELIVERY", "ARRIVED"] },
+  { label: "Delivered", statuses: ["DELIVERED"] },
+];
+
+function groupedProgress(timeline = [], currentStatus) {
+  const currentIndex = ORDER_PROGRESS_STAGES.findIndex((stage) => stage.statuses.includes(currentStatus))
+    ?? timeline.findIndex((step) => step.state === "active");
+  const activeIndex = currentIndex < 0 ? timeline.reduce((found, step) => {
+    if (step.state !== "active") return found;
+    return ORDER_PROGRESS_STAGES.findIndex((stage) => stage.statuses.includes(step.status));
+  }, -1) : currentIndex;
+
+  return ORDER_PROGRESS_STAGES.map((stage, index) => {
+    const events = timeline.filter((step) => stage.statuses.includes(step.status));
+    const reached = [...events].reverse().find((step) => step.at);
+    return {
+      status: stage.statuses[0],
+      label: stage.label,
+      at: reached?.at || null,
+      state: index === activeIndex ? "active" : activeIndex >= 0 && index < activeIndex ? "done" : "pending",
+    };
+  });
+}
 
 // Phone: a compact back-arrow header stands in for the site header (its search
 // bar, category bar and the footer step aside while this is on the page — see
@@ -284,8 +311,7 @@ function OrderDetail() {
             <ol className="timeline">
               {/* Steps the order skipped — a COD order never passes through
                   "payment received" — are left out, not shown as done. */}
-              {tracking.timeline
-                .filter((step) => step.state !== "skipped")
+              {groupedProgress(tracking.timeline, order?.status)
                 .map((step) => (
                   <li key={step.status} className={`timeline-step ${step.state}`}>
                     <span className="timeline-dot" aria-hidden="true">
