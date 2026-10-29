@@ -57,6 +57,7 @@ dist/
 build/
 .expo/
 .next/
+.next-dev/
 *.apk
 *.aab
 *.zip
