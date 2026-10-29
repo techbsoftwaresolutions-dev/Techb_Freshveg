@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import DateFilter from "../../components/DateFilter";
+import DateFilter, { todayRange } from "../../components/DateFilter";
 import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, rupees, when } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
@@ -45,7 +45,7 @@ export default function Orders() {
   // that lands on the matching bucket instead of always opening on "All".
   const [filters, setFilters] = useState({ status: searchParams.get("status") || "", page: 1 });
   // The calendar button next to the status chips: { from, to } as yyyy-mm-dd.
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(todayRange);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 

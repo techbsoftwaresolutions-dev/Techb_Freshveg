@@ -74,6 +74,9 @@ function duplicateOf({ product, variants }) {
   return { copy, copiedVariants };
 }
 
+// The red asterisk beside a mandatory field's label.
+const Req = () => <span style={{ color: "var(--danger)" }}> *</span>;
+
 export default function ProductForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -94,6 +97,9 @@ export default function ProductForm() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [notice, setNotice] = useState("");
+  // Flipped on the first failed save; from then on the checklist is re-run on
+  // every edit, so each message disappears as soon as its field is filled in.
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -156,7 +162,58 @@ export default function ProductForm() {
 
   const axes = schema?.variantAxes || [];
 
+  // The mandatory checklist. Returns { name, category, ..., variants: {i: {...}},
+  // attributes: {code: msg} } — empty when everything required is filled in.
+  function validate() {
+    const errs = { variants: {}, attributes: {} };
+    if (!product.name.trim()) errs.name = "Product name is required";
+    if (!product.category) errs.category = "Select a category";
+    if (!(product.shortDescription || "").trim()) errs.shortDescription = "Short description is required";
+    if (!(product.media || []).length) errs.photos = "Add at least one product photo";
+
+    if (!variants.length) errs.noVariants = "Add at least one variant with its price";
+    variants.forEach((v, i) => {
+      const row = {};
+      if (!v.mrp || v.mrp <= 0) row.mrp = "Enter MRP";
+      if (!v.sellingPrice || v.sellingPrice <= 0) row.sellingPrice = "Enter selling price";
+      else if (v.mrp > 0 && v.sellingPrice > v.mrp) row.sellingPrice = "Cannot be more than MRP";
+      if (Object.keys(row).length) errs.variants[i] = row;
+    });
+
+    for (const field of schema?.fields || []) {
+      if (!field.required || field.scope !== "product" || field.isVariantAxis) continue;
+      const value = product.attributes?.[field.code];
+      const empty =
+        value === undefined || value === null || value === "" || (Array.isArray(value) && !value.length);
+      if (empty) errs.attributes[field.code] = `${field.label} is required`;
+    }
+    return errs;
+  }
+
+  const hasErrors = (errs) =>
+    Boolean(
+      errs.name || errs.category || errs.shortDescription || errs.photos || errs.noVariants ||
+        Object.keys(errs.variants).length || Object.keys(errs.attributes).length
+    );
+
+  const formErrors = submitted ? validate() : { variants: {}, attributes: {} };
+
   async function save({ publish } = {}) {
+    const errs = validate();
+    if (hasErrors(errs)) {
+      setSubmitted(true);
+      setNotice("");
+      setError("Please fill in the required fields marked below — nothing was saved.");
+      // Wait a tick so the inline messages exist, then bring the first one into view.
+      setTimeout(() => {
+        document.querySelector(".field .error, .photos-error, .variant-error")?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 50);
+      return;
+    }
+
     setSaving(true);
     setError("");
     setFieldErrors({});
@@ -276,7 +333,7 @@ export default function ProductForm() {
         <div style={{ display: "grid", gap: 14 }}>
           <Card title="Basics">
             <div className="grid cols-2">
-              <Field label="Product name">
+              <Field label={<>Product name<Req /></>} error={formErrors.name}>
                 <input
                   type="text"
                   value={product.name}
@@ -285,7 +342,7 @@ export default function ProductForm() {
                   placeholder="e.g. Tomato"
                 />
               </Field>
-              <Field label="Category">
+              <Field label={<>Category<Req /></>} error={formErrors.category}>
                 <SelectMenu
                   value={product.category}
                   onChange={pickCategory}
@@ -322,7 +379,7 @@ export default function ProductForm() {
               </Field>
             </div>
 
-            <Field label="Short description">
+            <Field label={<>Short description<Req /></>} error={formErrors.shortDescription}>
               <input
                 type="text"
                 value={product.shortDescription}
@@ -355,6 +412,7 @@ export default function ProductForm() {
 
           <MediaUploader
             media={product.media || []}
+            requiredError={formErrors.photos}
             name={product.name}
             editable={editable}
             onChange={(media) => setProduct((p) => ({ ...p, media }))}
@@ -368,7 +426,7 @@ export default function ProductForm() {
               <SchemaForm
                 groups={schema.groups}
                 values={product.attributes || {}}
-                errors={fieldErrors}
+                errors={{ ...fieldErrors, ...formErrors.attributes }}
                 onChange={(attributes) => setProduct({ ...product, attributes })}
               />
             </Card>
@@ -380,6 +438,7 @@ export default function ProductForm() {
               variants={variants}
               schema={schema}
               editable={editable}
+              errors={formErrors}
               onChange={setVariants}
             />
           )}
@@ -671,7 +730,7 @@ function OfferField({ offer, editable, onChange }) {
   );
 }
 
-function MediaUploader({ media, name, editable, onChange }) {
+function MediaUploader({ media, name, editable, onChange, requiredError }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   // Index of the photo whose options popup is open, or null.
@@ -734,7 +793,7 @@ function MediaUploader({ media, name, editable, onChange }) {
 
   return (
     <Card
-      title="Photos"
+      title={<>Photos<Req /></>}
       actions={
         editable && (
           <label className="btn sm" style={{ cursor: uploading ? "not-allowed" : "pointer", marginBottom: 0 }}>
@@ -754,6 +813,7 @@ function MediaUploader({ media, name, editable, onChange }) {
         )
       }
     >
+      {requiredError && !media.length && <div className="photos-error">{requiredError}</div>}
       <Banner tone="error">{error}</Banner>
 
       {pickedItem ? (
@@ -848,7 +908,7 @@ function MediaUploader({ media, name, editable, onChange }) {
 
 // Variants are a table, not a form: the axes are columns because the category
 // decided what they are, so the editor has no fixed shape either.
-function VariantEditor({ axes, variants, schema, editable, onChange }) {
+function VariantEditor({ axes, variants, schema, editable, onChange, errors = { variants: {} } }) {
   const set = (index, patch) =>
     onChange(variants.map((v, i) => (i === index ? { ...v, ...patch } : v)));
 
@@ -874,7 +934,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
 
   return (
     <Card
-      title="Variants & pricing"
+      title={<>Variants & pricing<Req /></>}
       actions={
         editable && (
           <button className="btn sm" onClick={() => onChange([...variants, blankVariant(schema)])}>
@@ -884,6 +944,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
       }
       tight
     >
+      {errors.noVariants && <div className="variant-error" style={{ padding: "10px 16px" }}>{errors.noVariants}</div>}
       <div className="table-wrap">
         <table className="data">
           <thead>
@@ -952,7 +1013,10 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                     onChange={money(index, "mrp")}
                     disabled={!editable}
                     style={{ width: 92 }}
+                    className={errors.variants?.[index]?.mrp ? "invalid" : undefined}
+                    placeholder="Required"
                   />
+                  {errors.variants?.[index]?.mrp && <div className="variant-error">{errors.variants[index].mrp}</div>}
                 </td>
                 <td className="num">
                   <input
@@ -961,7 +1025,12 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                     onChange={money(index, "sellingPrice")}
                     disabled={!editable}
                     style={{ width: 92 }}
+                    className={errors.variants?.[index]?.sellingPrice ? "invalid" : undefined}
+                    placeholder="Required"
                   />
+                  {errors.variants?.[index]?.sellingPrice && (
+                    <div className="variant-error">{errors.variants[index].sellingPrice}</div>
+                  )}
                 </td>
                 <td className="num">
                   <input

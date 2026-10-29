@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Area,
   AreaChart,
@@ -36,7 +36,6 @@ import {
   IconReviews,
   IconMaintenance,
   IconBanners,
-  IconAudit,
   IconDelivery,
   IconShield,
 } from "../components/Icons";
@@ -114,30 +113,6 @@ function pctChange(current, previous) {
   return current > 0 ? 100 : 0;
 }
 
-// An audit diff on an image field reads as a full upload URL (scheme, host,
-// port, /uploads/...) — useless as a glance-able activity line. Show just the
-// file name; the full path is one click away on the Audit Log page.
-function cleanSummary(text) {
-  if (!text) return text;
-  return text.replace(/https?:\/\/\S+/g, (url) => {
-    const trimmed = url.replace(/[),.]+$/, "");
-    return trimmed.split("/").pop() || trimmed;
-  });
-}
-
-const ACTIVITY_ICONS = {
-  Product: IconProducts,
-  Category: IconCategories,
-  Order: IconOrders,
-  Customer: IconCustomers,
-  Offer: IconOffers,
-  Settings: IconSettings,
-  Review: IconReviews,
-  SupportTicket: IconSupport,
-  MaintenanceAsset: IconMaintenance,
-  Banner: IconBanners,
-};
-
 // Matches the backend's own definition of "pending" for lifetime.pendingOrders
 // (report.routes.js): every status except the three that mean the order is
 // done, one way or another.
@@ -160,6 +135,24 @@ const PENDING_ORDER_STATUSES = [
 // every order rather than the most recent fifty.
 export default function Dashboard() {
   const { can } = useAuth();
+  const navigate = useNavigate();
+  // A row that opens its product when clicked (or Enter/Space when focused).
+  const openProduct = (id) =>
+    id
+      ? {
+          onClick: () => navigate(`/catalog/products/${id}`),
+          onKeyDown: (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              navigate(`/catalog/products/${id}`);
+            }
+          },
+          role: "link",
+          tabIndex: 0,
+          style: { cursor: "pointer" },
+          title: "Open product",
+        }
+      : {};
   const [data, setData] = useState(null);
   const [orders, setOrders] = useState([]);
   const [ordersTotal, setOrdersTotal] = useState(0);
@@ -169,7 +162,6 @@ export default function Dashboard() {
   const [productsTotal, setProductsTotal] = useState(0);
   const [customersTotal, setCustomersTotal] = useState(0);
   const [topProducts, setTopProducts] = useState([]);
-  const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -196,9 +188,6 @@ export default function Dashboard() {
       can("reports.view")
         ? api.get("/reports/products", { limit: 5 })
         : Promise.resolve({ products: [] }),
-      can("reports.view")
-        ? api.get("/audit", { limit: 6 })
-        : Promise.resolve({ items: [] }),
       can("inventory.view")
         ? api.get("/inventory/out-of-stock", { limit: 6 })
         : Promise.resolve({ items: [], meta: null }),
@@ -212,7 +201,6 @@ export default function Dashboard() {
           productData,
           customerData,
           topProductData,
-          activityData,
           outData,
         ]) => {
           setData(dashboard);
@@ -223,7 +211,6 @@ export default function Dashboard() {
           setProductsTotal(productData.meta?.total || 0);
           setCustomersTotal(customerData.meta?.total || 0);
           setTopProducts(topProductData.products || []);
-          setActivity(activityData.items || []);
           setOutOfStock({ items: outData.items || [], total: outData.meta?.total || 0 });
         },
       )
@@ -343,7 +330,7 @@ export default function Dashboard() {
             {topProducts.length ? (
               <div className="rank-list">
                 {topProducts.map((product, index) => (
-                  <div className="rank-item" key={product.id || product.name}>
+                  <div className="rank-item row-link" key={product.id || product.name} {...openProduct(product.id)}>
                     <span className="rank-num">{index + 1}</span>
                     {product.image ? (
                       <img src={product.image} alt="" className="rank-thumb" />
@@ -439,51 +426,6 @@ export default function Dashboard() {
             )}
           </Card>
 
-          <Card
-            title="Recent Activity"
-            actions={
-              <Link className="btn sm" to="/settings/audit">
-                View all
-              </Link>
-            }
-            tight
-          >
-            {activity.length ? (
-              <div className="activity-list">
-                {activity.map((entry) => {
-                  const EntryIcon = ACTIVITY_ICONS[entry.entity] || IconAudit;
-                  const thumb = entry.thumbnail;
-                  return (
-                    <div className="activity-item" key={entry.id}>
-                      {thumb ? (
-                        <img src={thumb} alt="" className="activity-icon activity-thumb" />
-                      ) : (
-                        <span className="activity-icon">
-                          <EntryIcon />
-                        </span>
-                      )}
-                      <div className="activity-body">
-                        <div className="row-title" title={cleanSummary(entry.summary) || `${entry.action} ${entry.entity}`}>
-                          {cleanSummary(entry.summary) || `${entry.action} ${entry.entity}`}
-                        </div>
-                        <div className="row-sub">
-                          {entry.actorName || "System"}
-                        </div>
-                      </div>
-                      <span className="activity-time">
-                        {when(entry.createdAt)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <Empty
-                title="No admin activity yet"
-                hint="Staff changes will show up here."
-              />
-            )}
-          </Card>
         </div>
 
         <div style={{ display: "grid", gap: 14 }}>
@@ -561,7 +503,7 @@ export default function Dashboard() {
                       {outOfStock.items.map((row) => {
                         const image = row.product?.media?.find((m) => m.type === "image")?.url;
                         return (
-                          <tr key={row.id}>
+                          <tr key={row.id} className="row-link" {...openProduct(row.product?.id || row.product?._id)}>
                             <td>
                               <div className="inline" style={{ gap: 10 }}>
                                 {image ? (
@@ -610,7 +552,7 @@ export default function Dashboard() {
                     {lowStock.slice(0, 6).map((row) => {
                       const image = row.product?.media?.find((m) => m.type === "image")?.url;
                       return (
-                        <tr key={row.id}>
+                        <tr key={row.id} className="row-link" {...openProduct(row.product?.id || row.product?._id)}>
                           <td>
                             <div className="inline" style={{ gap: 10 }}>
                               {image ? (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { IconCalendar, IconChevronDown } from "./Icons";
+import { IconChevronDown } from "./Icons";
 
-// A compact date filter: one calendar button that opens a small menu with
+// A compact date filter: one text field (showing the current choice, e.g. Today) that opens a small menu with
 // All Time, Last 7 Days, Last 15 Days, Last 1 Month and a Custom Range.
 // It reads and writes the same { from, to } value (yyyy-mm-dd, local dates) as
 // the older DateRange control, so a page can swap one for the other.
@@ -19,6 +19,10 @@ const PRESETS = [
   { key: "15", label: "Last 15 Days" },
   { key: "month", label: "Last 1 Month" },
 ];
+
+// What every list and report opens on: today only. Pick another range from
+// the field to see more.
+export const todayRange = () => rangeFor("today");
 
 function rangeFor(key) {
   if (key === "all") return { from: "", to: "" };
@@ -47,6 +51,15 @@ function choiceOf(value) {
     if (range.from === value.from && range.to === value.to) return preset.key;
   }
   return "custom";
+}
+
+// What the field shows: the preset's name, or the dates for a custom range.
+function labelOf(value, choice) {
+  const preset = PRESETS.find((p) => p.key === choice);
+  if (preset) return preset.label;
+  const short = (d) =>
+    d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "…";
+  return `${short(value.from)} – ${short(value.to)}`;
 }
 
 export default function DateFilter({ value, onChange }) {
@@ -95,14 +108,13 @@ export default function DateFilter({ value, onChange }) {
     <div className="date-filter" ref={box}>
       <button
         type="button"
-        className={`btn date-filter-btn${choice !== "all" ? " active" : ""}`}
+        className={`date-filter-field${open ? " open" : ""}`}
         onClick={toggle}
         aria-haspopup="true"
         aria-expanded={open}
         aria-label="Filter by date"
-        title={choice === "all" ? "All time" : "Date filter on"}
       >
-        <IconCalendar width="18" height="18" aria-hidden="true" />
+        <span>{labelOf(value, choice)}</span>
         <IconChevronDown width="14" height="14" aria-hidden="true" className={open ? "flip" : ""} />
       </button>
 

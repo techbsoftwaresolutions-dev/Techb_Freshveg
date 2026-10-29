@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import DateFilter from "../../components/DateFilter";
+import DateFilter, { todayRange } from "../../components/DateFilter";
 import {
   Banner, Card, Empty, Loading, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
@@ -62,7 +62,7 @@ const stamp = (value) =>
 
 function Transactions() {
   const [data, setData] = useState({ items: [], meta: null, totals: null });
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(todayRange);
   const [filters, setFilters] = useState({ status: "", method: "", search: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

@@ -4,7 +4,7 @@ import { api } from "../../api/client";
 import {
   Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, when,
 } from "../../components/ui";
-import DateFilter from "../../components/DateFilter";
+import DateFilter, { todayRange } from "../../components/DateFilter";
 
 const ACTION_TONE = {
   create: "ok",
@@ -22,7 +22,7 @@ const ACTION_TONE = {
 export default function AuditLog() {
   const [data, setData] = useState({ items: [], meta: null });
   const [filters, setFilters] = useState({ search: "", entity: "", action: "", page: 1 });
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(todayRange);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [detail, setDetail] = useState(null);
