@@ -24,7 +24,7 @@ function hrefFor(target) {
   }
 }
 
-export default function BannerCarousel({ banners = [] }) {
+export default function BannerCarousel({ banners = [], categories = [] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const timer = useRef(null);
@@ -52,6 +52,15 @@ export default function BannerCarousel({ banners = [] }) {
 
   const banner = banners[index];
   const href = hrefFor(banner.target);
+  const produce = categories
+    .filter((category) => category.image && /fruit|vegetable|produce|grocery/i.test(category.name))
+    .concat(categories.filter((category) => category.image))
+    .filter((category, i, all) => all.findIndex((item) =>
+      (item.id && item.id === category.id) ||
+      (item.slug && item.slug === category.slug) ||
+      item.name === category.name
+    ) === i);
+  const featuredProduce = produce[index % (produce.length || 1)];
 
   const content = (
     <div
@@ -75,6 +84,7 @@ export default function BannerCarousel({ banners = [] }) {
         </>
       ) : null}
       <div className="banner-copy">
+        <span className="banner-kicker"><span aria-hidden="true">✦</span> Hosur Basket · Fresh offers</span>
         <strong>{banner.title}</strong>
         {banner.subtitle ? <span>{banner.subtitle}</span> : null}
         {href ? (
@@ -86,6 +96,13 @@ export default function BannerCarousel({ banners = [] }) {
           </span>
         ) : null}
       </div>
+      {featuredProduce ? (
+        <span className="banner-feature-image-wrap" key={featuredProduce.id || featuredProduce.slug || featuredProduce.name} aria-hidden="true">
+          <img className="banner-feature-image" src={img(featuredProduce.image, 640)} alt="" />
+          <span className="banner-leaf leaf-one" />
+          <span className="banner-leaf leaf-two" />
+        </span>
+      ) : null}
     </div>
   );
 

@@ -5,10 +5,9 @@ import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
 import VariantPicker from "@/components/VariantPicker";
 import ProductGallery from "@/components/ProductGallery";
-import PdpDelivery from "@/components/PdpDelivery";
 import ProductTabs from "@/components/ProductTabs";
 import ShareRow from "@/components/ShareRow";
-import { discountPct, offerLabel, rupees } from "@/lib/format";
+import { discountPct, offerLabel, productMedia, rupees } from "@/lib/format";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -31,7 +30,7 @@ export async function generateMetadata({ params }) {
       title: `${product.name} | Hosur Basket`,
       description,
       url: `${SITE_URL}/p/${product.slug}`,
-      images: product.media?.[0]?.url ? [product.media[0].url] : undefined,
+      images: productMedia(product)[0]?.url ? [productMedia(product)[0].url] : undefined,
     },
   };
 }
@@ -42,6 +41,7 @@ export default async function ProductPage({ params }) {
   if (!data) notFound();
 
   const { product, variants = [], specs = [], features = {}, related = [], breadcrumb = [] } = data;
+  const media = productMedia(product);
 
   const cheapest = variants.reduce(
     (low, v) => (!low || v.sellingPrice < low.sellingPrice ? v : low),
@@ -58,7 +58,7 @@ export default async function ProductPage({ params }) {
     "@type": "Product",
     name: product.name,
     description: product.shortDescription || product.description || undefined,
-    image: product.media?.map((m) => m.url).filter(Boolean),
+    image: media.map((m) => m.url).filter(Boolean),
     sku: cheapest?.sku,
     brand: product.brand?.name ? { "@type": "Brand", name: product.brand.name } : undefined,
     category: breadcrumb.map((b) => b.name).join(" > ") || undefined,
@@ -126,80 +126,64 @@ export default async function ProductPage({ params }) {
       <div className="split pdp">
         <div className="sticky">
           <ProductGallery
-            media={product.media}
+            media={media}
             name={product.name}
             badge={off > 0 ? <span className="badge">{off}% OFF</span> : null}
           />
         </div>
 
         <div className="pdp-info">
-          {product.brand?.name ? <span className="pdp-brand">{product.brand.name}</span> : null}
-          <h1 className="pdp-title">{product.name}</h1>
-
-          {product.rating?.count ? (
-            <div className="rating-row">
-              <span className="rating-stars" style={{ "--rating": product.rating.average }} aria-hidden="true" />
-              <span className="rating-value">{Number(product.rating.average).toFixed(1)}</span>
-              <span className="rating-count">
-                ({product.rating.count} review{product.rating.count === 1 ? "" : "s"})
-              </span>
-            </div>
-          ) : null}
-
-          {product.shortDescription ? <p className="pdp-lede">{product.shortDescription}</p> : null}
-          {product.offer?.kind === "combo" && product.offer.details ? (
-            <p className="pdp-lede"><strong>Combo includes:</strong> {product.offer.details}</p>
-          ) : null}
-
-          {/* Badges driven by the category's capability flags, not by product type. */}
-          <div className="pdp-tags">
-            {offerLabel(product.offer) ? <span className="pill save">{offerLabel(product.offer)}</span> : null}
-            {features.perishable ? <span className="pill brand">Fresh stock</span> : null}
-            {product.attributes?.organic ? <span className="pill save">Organic</span> : null}
-            {features.returnable ? (
-              <span className="pill">
-                {product.returnWindowDays ? `${product.returnWindowDays}-day return` : "Returnable"}
-              </span>
-            ) : (
-              <span className="pill accent">No returns</span>
-            )}
-            {features.allowSubstitution ? <span className="pill">Substitution allowed</span> : null}
-          </div>
-
           {/* One card: pack picker, price and buttons together. */}
           <div className="panel pdp-buy">
+            <div className="pdp-summary">
+              <ShareRow name={product.name} />
+              {product.brand?.name ? <span className="pdp-brand">{product.brand.name}</span> : null}
+              <h1 className="pdp-title">{product.name}</h1>
+              {breadcrumb.length ? (
+                <Link className="pdp-similar-link" href={`/c/${breadcrumb[breadcrumb.length - 1].slug}`}>
+                  View all similar products
+                </Link>
+              ) : null}
+              {product.rating?.count ? (
+                <div className="rating-row">
+                  <span className="rating-stars" style={{ "--rating": product.rating.average }} aria-hidden="true" />
+                  <span className="rating-value">{Number(product.rating.average).toFixed(1)}</span>
+                  <span className="rating-count">
+                    ({product.rating.count} review{product.rating.count === 1 ? "" : "s"})
+                  </span>
+                </div>
+              ) : null}
+              {product.shortDescription ? <p className="pdp-lede">{product.shortDescription}</p> : null}
+              {product.offer?.kind === "combo" && product.offer.details ? (
+                <p className="pdp-lede"><strong>Combo includes:</strong> {product.offer.details}</p>
+              ) : null}
+              <div className="pdp-tags">
+                {offerLabel(product.offer) ? <span className="pill save">{offerLabel(product.offer)}</span> : null}
+                {features.perishable ? <span className="pill brand">Fresh stock</span> : null}
+                {product.attributes?.organic ? <span className="pill save">Organic</span> : null}
+                {features.returnable ? (
+                  <span className="pill">
+                    {product.returnWindowDays ? `${product.returnWindowDays}-day return` : "Returnable"}
+                  </span>
+                ) : (
+                  <span className="pill accent">No returns</span>
+                )}
+                {features.allowSubstitution ? <span className="pill">Substitution allowed</span> : null}
+              </div>
+            </div>
             <VariantPicker product={product} variants={variants} />
           </div>
 
-          <PdpDelivery />
-
-          {specs.length ? (
-            <div className="panel pdp-specs">
-              <h3>Product details</h3>
-              <dl>
-                {specs.map((spec) => (
-                  <div key={spec.label}>
-                    <dt>{spec.label}</dt>
-                    <dd>
-                      {formatSpec(spec.value)}
-                      {spec.unit ? ` ${spec.unit}` : ""}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          ) : null}
-
-          <ShareRow name={product.name} />
-
-          <ProductTabs product={product} />
+          <div className="panel pdp-tabs-panel">
+            <ProductTabs product={product} specs={specs} />
+          </div>
         </div>
       </div>
 
       {related.length ? (
-        <section className="section">
+        <section className="section pdp-related">
           <div className="section-head">
-            <h2 className="accent">You may also like</h2>
+            <h2>You may also like</h2>
           </div>
           <Carousel label="You may also like">
             {related.map((item) => (
@@ -210,10 +194,4 @@ export default async function ProductPage({ params }) {
       ) : null}
     </div>
   );
-}
-
-function formatSpec(value) {
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  return String(value);
 }
