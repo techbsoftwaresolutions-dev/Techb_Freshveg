@@ -214,6 +214,18 @@ router.post(
   })
 );
 
+// Manual or resend trigger for Store Owner WhatsApp Alert from Admin Panel
+router.post(
+  "/:id/notify-owner",
+  requirePermission("orders.manage"),
+  asyncHandler(async (req, res) => {
+    const order = await Order.findById(req.params.id);
+    if (!order) throw ApiError.notFound("Order not found");
+    await orderService.notifyOwnerStatusUpdate(order, order.status);
+    res.json({ success: true, message: `Owner WhatsApp alert sent for ${order.status}` });
+  })
+);
+
 // Records what was actually put in the bag. Loose produce rarely matches the
 // ordered weight exactly, so the picked quantity is what gets billed.
 router.post(

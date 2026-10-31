@@ -430,6 +430,21 @@ export default function General() {
               ))}
             </div>
 
+            <div className="section-label">Owner WhatsApp Alert</div>
+            <div style={{ maxWidth: 420, marginBottom: 18 }}>
+              <Field label="Owner WhatsApp number (with country code)">
+                <input
+                  type="text"
+                  placeholder="+917010272131"
+                  value={draft.ownerWhatsApp || ""}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, ownerWhatsApp: e.target.value }))}
+                />
+              </Field>
+              <div style={{ fontSize: 12, color: "var(--muted, #666)", marginTop: 4 }}>
+                Instant order alerts with product list, customer phone, and COD vs Online Paid will be sent here.
+              </div>
+            </div>
+
             <div className="section-label">Abandoned cart</div>
             <label className="checkbox" style={{ marginBottom: 12 }}>
               <input

@@ -19,7 +19,8 @@ const ORDER_PROGRESS_STAGES = [
   { label: "Order placed", statuses: ["ORDER_PLACED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED"] },
   { label: "Order confirmed", statuses: ["ORDER_CONFIRMED"] },
   { label: "Preparing your order", statuses: ["ORDER_ACCEPTED", "PICKING", "PACKING", "READY_FOR_PICKUP", "ASSIGNED_TO_DELIVERY", "PICKED_UP"] },
-  { label: "On the way to you", statuses: ["OUT_FOR_DELIVERY", "ARRIVED"] },
+  { label: "Out for delivery", statuses: ["OUT_FOR_DELIVERY"] },
+  { label: "Executive arrived at location", statuses: ["ARRIVED"] },
   { label: "Delivered", statuses: ["DELIVERED"] },
 ];
 
@@ -221,6 +222,24 @@ function OrderDetail() {
           <span>The store is preparing it now — you can follow every step below.</span>
         </div>
       ) : null}
+
+      {tracking.status === "ARRIVED" ? (
+        <div className="notice warn" role="alert" style={{ marginBottom: 14, background: "#fff8e1", borderColor: "#ffe082", color: "#e65100", padding: "14px 18px", borderRadius: 8 }}>
+          <strong style={{ fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            <span>📍</span> Delivery Executive Arrived at Your Location!
+          </strong>
+          <p style={{ margin: "6px 0 0 0", fontSize: 14 }}>
+            Our delivery partner has arrived at your address with your fresh vegetables. Please share your handover code <strong>{tracking.otp}</strong> at the door to collect your package.
+          </p>
+        </div>
+      ) : null}
+
+      <div style={{ background: "#f1f8e9", border: "1px solid #dcedc8", borderRadius: 8, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "#33691e" }}>
+        <span style={{ fontSize: 18 }}>📱</span>
+        <span>
+          <strong>WhatsApp updates active:</strong> Order confirmation, dispatch, and arrival notifications are sent directly to your WhatsApp.
+        </span>
+      </div>
 
       <nav className="crumbs">
         <Link href="/">Home</Link> › <Link href="/orders">My orders</Link> › <span>{tracking.code}</span>

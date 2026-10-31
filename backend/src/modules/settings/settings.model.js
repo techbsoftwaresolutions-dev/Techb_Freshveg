@@ -78,6 +78,7 @@ const settingsSchema = new mongoose.Schema(
         email: { type: Boolean, default: false },
         whatsapp: { type: Boolean, default: false },
       },
+      ownerWhatsApp: { type: String, default: "" },
       abandonedCart: {
         enabled: { type: Boolean, default: true },
         firstReminderMinutes: { type: Number, default: 30 },

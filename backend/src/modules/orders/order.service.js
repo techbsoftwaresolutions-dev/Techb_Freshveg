@@ -206,6 +206,7 @@ async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", sl
   // announcing here — and "we've got your order" is the one notification a
   // customer actually waits for.
   await announce(order, "ORDER_PLACED");
+  notifyOwnerNewOrder(order).catch(() => {});
 
   // COD needs no payment step, so it can go straight on to confirmation.
   if (paymentMethod === "cod") {
@@ -317,6 +318,9 @@ async function transition(order, to, actor = {}, note = "") {
   // notification about something that then failed to save is worse than none.
   await announce(order, to);
 
+  // Send owner-specific WhatsApp alert on key status changes
+  notifyOwnerStatusUpdate(order, to).catch(() => {});
+
   // A rider was already chosen while the store was preparing this order, so
   // hand it over the moment it is ready instead of waiting for a second click.
   if (to === "READY_FOR_PICKUP" && from !== "ASSIGNED_TO_DELIVERY" && order.delivery?.partner) {
@@ -336,16 +340,121 @@ async function announce(order, status) {
     orderId: order._id.toString(),
     total: `₹${((order.pricing.total || 0) / 100).toFixed(0)}`,
     itemCount: order.items.length,
-    partner: order.delivery.partnerName || "",
+    partner: order.delivery.partnerName || "Our delivery partner",
     otp: order.delivery.otp || "",
     eta: order.delivery.expectedBy
       ? new Date(order.delivery.expectedBy).toLocaleTimeString("en-IN", {
           hour: "2-digit",
           minute: "2-digit",
         })
-      : "",
+      : "shortly",
   });
 }
+
+// Sends owner-tailored WhatsApp notifications on key order lifecycle stages
+async function notifyOwnerStatusUpdate(order, status) {
+  try {
+    const channels = require("../notifications/channels");
+    let settings = null;
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const Settings = require("../settings/settings.model");
+        settings = await Settings.load();
+      } catch {
+        // In dev/demo or if settings not yet seeded
+      }
+    }
+
+    const callmebotKey = process.env.CALLMEBOT_API_KEY || "";
+    const isWhatsAppOn =
+      settings?.notifications?.channels?.whatsapp ||
+      process.env.WHATSAPP_DRY_RUN === "true" ||
+      (callmebotKey.trim() !== "" && !callmebotKey.includes("←") && !callmebotKey.includes("paste"));
+    if (!isWhatsAppOn) return;
+
+    const ownerPhone = settings?.notifications?.ownerWhatsApp || process.env.OWNER_WHATSAPP_NUMBER || "+917010272131";
+    const isCOD = order.payment?.method === "cod";
+    const totalFormatted = `₹${((order.pricing?.total || 0) / 100).toFixed(0)}`;
+    const customerName = order.customerSnapshot?.name || "Customer";
+    const customerPhone = order.customerSnapshot?.phone || "";
+    const partnerName = order.delivery?.partnerName || "Assigned Partner";
+    const partnerPhone = order.delivery?.partnerPhone || "";
+
+    const addr = order.delivery?.address;
+    const addressStr = addr
+      ? [addr.line1, addr.line2, addr.city, addr.pincode].filter(Boolean).join(", ")
+      : "Store pickup";
+
+    let title = "";
+    let body = "";
+    const event = `OWNER_${status}`;
+
+    // Estimated delivery time in minutes
+    let minsToDeliver = 30;
+    if (order.delivery?.expectedBy) {
+      const diffMs = new Date(order.delivery.expectedBy).getTime() - Date.now();
+      minsToDeliver = Math.max(5, Math.round(diffMs / 60000));
+    }
+
+    // Owner only receives concise, essential business notifications to avoid message rush:
+    // 1. New Order Confirmed (items, payment mode, payment amount, ETA in mins, delivered status: NO)
+    // 2. Order Delivered (payment collected, delivered status: YES)
+    switch (status) {
+      case "ORDER_PLACED":
+      case "ORDER_CONFIRMED": {
+        const paymentModeText = isCOD
+          ? `⚠️ Cash on Delivery (COD) - Collect ${totalFormatted}`
+          : `✅ Online Payment (PAID)`;
+
+        const itemsSummary = (order.items || [])
+          .map((item) => `• ${item.name} (${item.quantity} ${item.unit || "unit"}) - ₹${((item.payable || item.lineTotal) / 100).toFixed(0)}`)
+          .join("\n");
+
+        title = `🚨 FreshVeg - New Order #${order.code}`;
+        body = 
+`🛒 Ordered Products:
+${itemsSummary || "• Order items"}
+
+💰 Payment Amount: ${totalFormatted}
+💳 Payment Mode: ${paymentModeText}
+⏱️ To Deliver In: ~${minsToDeliver} mins
+📦 Status: ⏳ NOT DELIVERED (Pending)
+
+👤 Customer: ${customerName} (📞 ${customerPhone})
+📍 Address: ${addressStr}
+
+🔗 Admin Link: http://localhost:5180/orders`;
+        break;
+      }
+
+      case "DELIVERED": {
+        const paymentModeText = isCOD
+          ? `✅ Cash Collected (${totalFormatted})`
+          : `✅ Paid Online (${totalFormatted})`;
+
+        title = `✅ FreshVeg - Order #${order.code} Delivered`;
+        body = 
+`📦 Status: ✅ DELIVERED
+💰 Payment Amount: ${totalFormatted}
+💳 Payment Mode: ${paymentModeText}
+👤 Customer: ${customerName} (📞 ${customerPhone})`;
+        break;
+      }
+
+      default:
+        // Skip intermediate updates (OUT_FOR_DELIVERY, ARRIVED) for owner to avoid rush
+        return;
+    }
+
+    await channels.whatsapp({ event, title, body }, { phone: ownerPhone });
+  } catch (err) {
+    console.warn("[order] notifyOwnerStatusUpdate error:", err.message);
+  }
+}
+
+// Backwards compatibility alias
+const notifyOwnerNewOrder = (order) => notifyOwnerStatusUpdate(order, "ORDER_CONFIRMED");
 
 // Told to the customer when some items of an order will come on a later day,
 // and again when they arrive. The templates are created on first use, so a
@@ -520,4 +629,5 @@ module.exports = {
   trackingView,
   nextOrderCode,
   creditRewards,
+  notifyOwnerStatusUpdate,
 };

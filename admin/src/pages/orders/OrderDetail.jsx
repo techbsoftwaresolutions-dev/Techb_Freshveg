@@ -25,6 +25,7 @@ export default function OrderDetail() {
   // Items ticked for "Deliver later", and the popup that asks for the date.
   const [picked, setPicked] = useState([]);
   const [delaying, setDelaying] = useState(false);
+  const [ownerNotified, setOwnerNotified] = useState(false);
 
   const load = useCallback(async () => {
     const data = await api.get(`/orders/${id}`);
@@ -61,6 +62,22 @@ export default function OrderDetail() {
     }
   }
 
+
+
+  async function notifyOwner() {
+    setBusy(true);
+    setError("");
+    try {
+      await api.post(`/orders/${id}/notify-owner`);
+      setOwnerNotified(true);
+      setTimeout(() => setOwnerNotified(false), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function openAssign() {
     setAssigning(true);
     setError("");
@@ -88,6 +105,8 @@ export default function OrderDetail() {
     }
   }
 
+
+
   async function delayItems({ expectedOn, reason }) {
     setBusy(true);
     setError("");
@@ -103,6 +122,8 @@ export default function OrderDetail() {
     }
   }
 
+
+
   async function delayedArrived(...items) {
     setBusy(true);
     setError("");
@@ -115,6 +136,8 @@ export default function OrderDetail() {
       setBusy(false);
     }
   }
+
+
 
   if (loading) return <div className="page"><Loading /></div>;
   if (!order) return <div className="page"><Banner tone="error">{error || "Order not found"}</Banner></div>;
@@ -204,6 +227,15 @@ export default function OrderDetail() {
                 {action.label}
               </button>
             ))}
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={busy}
+              onClick={notifyOwner}
+              title="Send or resend owner WhatsApp alert for current status"
+            >
+              {ownerNotified ? "✓ Owner Alert Sent!" : "📲 Send WhatsApp to Owner"}
+            </button>
           </div>
         </div>
       ) : null}
@@ -534,7 +566,8 @@ const DELIVERY_STAGES = [
   { label: "Order placed", statuses: ["ORDER_PLACED", "PAYMENT_PENDING"] },
   { label: "Order confirmed", statuses: ["ORDER_CONFIRMED"] },
   { label: "Preparing order", statuses: ["ORDER_ACCEPTED", "PICKING", "PACKING", "READY_FOR_PICKUP", "ASSIGNED_TO_DELIVERY", "PICKED_UP"] },
-  { label: "Out for delivery", statuses: ["OUT_FOR_DELIVERY", "ARRIVED"] },
+  { label: "Out for delivery", statuses: ["OUT_FOR_DELIVERY"] },
+  { label: "Arrived at address", statuses: ["ARRIVED"] },
   { label: "Delivered", statuses: ["DELIVERED"] },
 ];
 

@@ -11,20 +11,27 @@ module.exports = [
   {
     event: "ORDER_PLACED",
     name: "Order placed",
-    channels: ["push", "inapp"],
-    default: t("Order placed 🎉", "We've got your order {{code}}. The store is getting it ready.", "order:{{orderId}}"),
+    channels: ["push", "inapp", "whatsapp"],
+    default: t("Order placed 🎉", "We've got your order {{code}}. The store is getting it ready. Track: http://localhost:3100/orders/{{orderId}}", "order:{{orderId}}"),
   },
   {
     event: "PAYMENT_CONFIRMED",
     name: "Payment received",
-    channels: ["push", "inapp"],
+    channels: ["push", "inapp", "whatsapp"],
     default: t("Payment received", "We've received {{total}} for order {{code}}.", "order:{{orderId}}"),
   },
   {
     event: "ORDER_CONFIRMED",
     name: "Order confirmed",
-    channels: ["push", "inapp"],
-    default: t("Order confirmed", "{{code}} is confirmed. We'll let you know when it's on the way.", "order:{{orderId}}"),
+    channels: ["push", "inapp", "whatsapp"],
+    default: t("Order confirmed", "Your order {{code}} is confirmed! Track live: http://localhost:3100/orders/{{orderId}}", "order:{{orderId}}"),
+    whatsapp: t("Order confirmed", "Your order {{code}} is confirmed! We'll let you know when it's on the way. Track live: http://localhost:3100/orders/{{orderId}}"),
+  },
+  {
+    event: "DELIVERY_TIME_SET",
+    name: "Delivery time update",
+    channels: ["push", "inapp", "whatsapp"],
+    default: t("Delivery time update", "Your order {{code}} will be delivered in about {{eta}}.", "order:{{orderId}}"),
   },
   {
     event: "ORDER_ACCEPTED",
@@ -65,22 +72,25 @@ module.exports = [
   {
     event: "OUT_FOR_DELIVERY",
     name: "Out for delivery",
-    // The one update worth an SMS: it is the message people actually act on.
-    channels: ["push", "sms", "inapp"],
-    default: t("Out for delivery 🛵", "{{partner}} is on the way with {{code}}. Expected by {{eta}}.", "order:{{orderId}}"),
+    // The one update worth an SMS/WhatsApp: it is the message people actually act on.
+    channels: ["push", "sms", "inapp", "whatsapp"],
+    default: t("Out for delivery 🛵", "{{partner}} is on the way with {{code}}. Expected by {{eta}}. Track: http://localhost:3100/orders/{{orderId}}", "order:{{orderId}}"),
     sms: t("", "Your Samagra Mart order {{code}} is out for delivery. Share code {{otp}} at the door."),
+    whatsapp: t("Out for delivery 🛵", "Your order {{code}} is out for delivery with {{partner}}! Expected by {{eta}}. Share handover OTP {{otp}} at the door. Track live: http://localhost:3100/orders/{{orderId}}"),
   },
   {
     event: "ARRIVED",
     name: "Partner arrived",
-    channels: ["push", "inapp"],
-    default: t("Your order is here", "{{partner}} has arrived. Your handover code is {{otp}}.", "order:{{orderId}}"),
+    channels: ["push", "inapp", "whatsapp"],
+    default: t("Your order is here 📍", "{{partner}} has arrived at your location with order {{code}}. Your handover code is {{otp}}.", "order:{{orderId}}"),
+    whatsapp: t("Delivery partner arrived 📍", "Our partner {{partner}} has arrived at your location with order {{code}}! Please collect your items. Your handover code is {{otp}}."),
   },
   {
     event: "DELIVERED",
     name: "Delivered",
-    channels: ["push", "inapp"],
+    channels: ["push", "inapp", "whatsapp"],
     default: t("Delivered ✅", "{{code}} has been delivered. Enjoy!", "order:{{orderId}}"),
+    whatsapp: t("Delivered ✅", "Your order {{code}} has been delivered successfully. Thank you for choosing FreshVeg! 🥗"),
   },
   {
     event: "CANCELLED",

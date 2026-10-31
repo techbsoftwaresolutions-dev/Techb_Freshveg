@@ -370,6 +370,11 @@ export default function CheckoutPage() {
               </p>
             ) : null}
 
+            <div style={{ marginTop: 14, padding: "8px 12px", background: "#f1f8e9", borderRadius: 6, fontSize: 13, color: "#2e7d32", display: "flex", alignItems: "center", gap: 8 }}>
+              <span>💬</span>
+              <span>You will receive live WhatsApp updates for order confirmation, live tracking & arrival.</span>
+            </div>
+
             <button
               className="btn primary block lg"
               style={{ marginTop: 16 }}
