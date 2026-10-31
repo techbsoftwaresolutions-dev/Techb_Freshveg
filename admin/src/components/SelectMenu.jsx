@@ -26,6 +26,9 @@ export default function SelectMenu({
   style,
   invalid = false,
   ariaLabel,
+  onAdd, // when set, the popover opens with a small "type a name + Add" bar on top
+  addPlaceholder = "Type a name…",
+  onRemove, // with `removable` options: shows × on that row
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -36,8 +39,9 @@ export default function SelectMenu({
   const popRef = useRef(null);
   const listRef = useRef(null);
   const searchRef = useRef(null);
+  const [draft, setDraft] = useState("");
 
-  const withSearch = searchable ?? options.filter((o) => !o.group).length > 8;
+  const withSearch = !onAdd && (searchable ?? options.filter((o) => !o.group).length > 8);
 
   // Each option knows its section (the nearest depth-0 option above it), so
   // a search can keep the heading a match sits under.
@@ -101,6 +105,7 @@ export default function SelectMenu({
   useEffect(() => {
     if (!open) return undefined;
     setQuery("");
+    setDraft("");
     const at = annotated.findIndex((o) => !o.group && String(o.value) === String(value ?? ""));
     setActive(Math.max(0, (emptyLabel ? 1 : 0) + at));
     const onDown = (event) => {
@@ -115,7 +120,7 @@ export default function SelectMenu({
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", onScroll, true);
     // Focus the search, or the list itself, so the keyboard works at once.
-    requestAnimationFrame(() => (withSearch ? searchRef.current : listRef.current)?.focus());
+    requestAnimationFrame(() => (withSearch || onAdd ? searchRef.current : listRef.current)?.focus());
     return () => {
       document.removeEventListener("mousedown", onDown);
       window.removeEventListener("resize", measure);
@@ -176,7 +181,14 @@ export default function SelectMenu({
     }
   };
 
-  const listMax = place ? Math.max(120, place.maxHeight - (withSearch ? 52 : 4)) : 320;
+  const submitDraft = () => {
+    const text = draft.trim();
+    if (!text) return;
+    close();
+    onAdd?.(text);
+  };
+
+  const listMax = place ? Math.max(120, place.maxHeight - (withSearch || onAdd ? 52 : 4)) : 320;
 
   const pop =
     open && place
@@ -195,6 +207,32 @@ export default function SelectMenu({
               transformOrigin: place.bottom != null ? "bottom" : "top",
             }}
           >
+            {onAdd ? (
+              <div className="select-menu-add">
+                <input
+                  ref={searchRef}
+                  type="text"
+                  maxLength={24}
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      submitDraft();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      close();
+                    }
+                  }}
+                  placeholder={addPlaceholder}
+                  aria-label="New option name"
+                />
+                <button type="button" className="select-menu-add-btn" disabled={!draft.trim()} onMouseDown={(e) => e.preventDefault()} onClick={submitDraft}>
+                  Add
+                </button>
+              </div>
+            ) : null}
             {withSearch ? (
               <div className="select-menu-search">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -251,6 +289,20 @@ export default function SelectMenu({
                         {option.label}
                       </span>
                       {option.hint ? <span className="select-menu-hint">{option.hint}</span> : null}
+                      {option.removable && onRemove ? (
+                        <button
+                          type="button"
+                          className="select-menu-remove"
+                          aria-label={`Remove ${option.label}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemove(option.value);
+                          }}
+                        >
+                          ×
+                        </button>
+                      ) : null}
                       {isSelected ? (
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="m5 12.5 4.5 4.5L19 7.5" />

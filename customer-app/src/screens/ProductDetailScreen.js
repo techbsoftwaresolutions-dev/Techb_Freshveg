@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../components/AppText";
 import { api } from "../api/client";
 import { useCart } from "../context/CartContext";
 import { useStore } from "../context/StoreContext";
-import { colors, radius, rupees, spacing, type, unitSuffix } from "../theme";
+import { colors, fontFamily, radius, rupees, spacing, type, unitSuffix } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
 import QtyStepper from "../components/QtyStepper";
 import ProductCard from "../components/ProductCard";
@@ -16,7 +17,10 @@ export default function ProductDetailScreen({ route, navigation }) {
   const cart = useCart();
 
   const [data, setData] = useState(null);
-  const [variantId, setVariantId] = useState(null);
+  // One or several packs can be ticked at once; the first one drives the
+  // single-pack price card, and with two or more each gets its own row.
+  const [selectedIds, setSelectedIds] = useState([]);
+  const variantId = selectedIds[0] || null;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [galleryIndex, setGalleryIndex] = useState(0);
@@ -32,7 +36,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           detail.variants.find((v) => v.id === detail.product.defaultVariant) ||
           detail.variants.find((v) => v.availability?.available > 0) ||
           detail.variants[0];
-        setVariantId(preferred?.id || null);
+        setSelectedIds(preferred?.id ? [preferred.id] : []);
         navigation.setOptions({ title: detail.product.name });
       })
       .catch((err) => setError(err.message))
@@ -43,6 +47,22 @@ export default function ProductDetailScreen({ route, navigation }) {
     () => data?.variants.find((v) => v.id === variantId) || null,
     [data, variantId]
   );
+
+  const picked = useMemo(
+    () => (data?.variants || []).filter((v) => selectedIds.includes(v.id)),
+    [data, selectedIds]
+  );
+  const multi = picked.length > 1;
+
+  // A sold-out pack can be looked at, but only on its own.
+  const togglePack = (option) => {
+    if ((option.availability?.available ?? 0) <= 0) return setSelectedIds([option.id]);
+    setSelectedIds((current) => {
+      const live = current.filter((id) => (data.variants.find((v) => v.id === id)?.availability?.available ?? 0) > 0);
+      if (live.includes(option.id)) return live.length > 1 ? live.filter((id) => id !== option.id) : live;
+      return [...live, option.id];
+    });
+  };
 
   const line = cart.items.find((i) => String(i.variant) === String(variantId));
   const quantity = line?.quantity || 0;
@@ -95,7 +115,8 @@ export default function ProductDetailScreen({ route, navigation }) {
           ) : null}
           {discount > 0 ? (
             <View style={styles.discountRibbon}>
-              <Text style={styles.discountText}>{discount}% OFF</Text>
+              <Text style={styles.discountPct}>{discount}%</Text>
+              <Text style={styles.discountWord}>OFF</Text>
             </View>
           ) : null}
         </View>
@@ -131,12 +152,12 @@ export default function ProductDetailScreen({ route, navigation }) {
               <Text style={styles.sectionTitle}>Choose a pack</Text>
               <View style={styles.variantRow}>
                 {data.variants.map((option) => {
-                  const isSelected = option.id === variantId;
+                  const isSelected = selectedIds.includes(option.id);
                   const soldOut = (option.availability?.available ?? 0) <= 0;
                   return (
                     <Pressable
                       key={option.id}
-                      onPress={() => setVariantId(option.id)}
+                      onPress={() => togglePack(option)}
                       style={[
                         styles.variantChip,
                         isSelected && styles.variantChipActive,
@@ -157,7 +178,46 @@ export default function ProductDetailScreen({ route, navigation }) {
             </>
           ) : null}
 
+          {/* Several packs picked: one row each, with its own quantity. */}
+          {multi ? (
+            <Card style={styles.multiCard}>
+              {picked.map((option, index) => {
+                const optionLine = cart.items.find((i) => String(i.variant) === String(option.id));
+                const optionAvailable = option.availability?.available ?? 0;
+                const off = option.mrp > option.sellingPrice;
+                return (
+                  <View key={option.id}>
+                    {index > 0 ? <Divider /> : null}
+                    <View style={styles.multiRow}>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.multiName} numberOfLines={1}>
+                          {option.name}
+                        </Text>
+                        <View style={styles.priceRow}>
+                          <Text style={styles.multiPrice}>{rupees(option.sellingPrice)}</Text>
+                          {off ? <Text style={styles.multiMrp}>{rupees(option.mrp)}</Text> : null}
+                        </View>
+                      </View>
+                      <QtyStepper
+                        quantity={optionLine?.quantity || 0}
+                        step={option.stepQty ?? 1}
+                        min={option.minOrderQty ?? 1}
+                        max={Math.min(option.maxOrderQty ?? 50, optionAvailable)}
+                        unit={unitSuffix(option)}
+                        busy={Boolean(cart.pending[option.id])}
+                        onAdd={() => cart.add(option.id).catch(() => {})}
+                        onChange={(q) => cart.setQuantity(option.id, q).catch(() => {})}
+                        onRemove={() => cart.remove(option.id).catch(() => {})}
+                      />
+                    </View>
+                  </View>
+                );
+              })}
+            </Card>
+          ) : null}
+
           {/* Price */}
+          {!multi ? (
           <Card style={styles.priceCard}>
             <View style={{ flex: 1 }}>
               <View style={styles.priceRow}>
@@ -194,6 +254,7 @@ export default function ProductDetailScreen({ route, navigation }) {
               </View>
             )}
           </Card>
+          ) : null}
 
           {cart.error ? <Notice tone="error" style={{ marginTop: spacing.md }}>{cart.error}</Notice> : null}
 
@@ -311,17 +372,23 @@ const styles = StyleSheet.create({
     width: 16,
   },
   image: { width: "100%", height: "100%" },
+  // The same small stacked tag as on the product cards — "13%" over "OFF".
   discountRibbon: {
     position: "absolute",
-    top: spacing.lg,
-    left: 0,
-    backgroundColor: colors.save,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    borderTopRightRadius: radius.sm,
-    borderBottomRightRadius: radius.sm,
+    top: spacing.md,
+    left: spacing.md,
+    minWidth: 46,
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 5,
+    borderWidth: 2,
+    borderColor: "#fff",
   },
-  discountText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+  discountPct: { color: "#fff", fontFamily: fontFamily.extrabold, fontSize: 15, lineHeight: 17 },
+  discountWord: { color: "rgba(255,255,255,0.92)", fontFamily: fontFamily.bold, fontSize: 10, lineHeight: 12, letterSpacing: 0.8 },
 
   body: { padding: spacing.lg },
   brand: { ...type.small, marginTop: 2 },
@@ -330,6 +397,11 @@ const styles = StyleSheet.create({
 
   sectionTitle: { ...type.h2, marginTop: spacing.xl, marginBottom: spacing.md },
 
+  multiCard: { padding: 0, marginTop: spacing.md },
+  multiRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md },
+  multiName: { fontSize: 14, fontWeight: "700", color: colors.text },
+  multiPrice: { fontSize: 15, fontWeight: "800", color: colors.text },
+  multiMrp: { fontSize: 12, color: colors.textFaint, textDecorationLine: "line-through" },
   variantRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   variantChip: {
     paddingHorizontal: spacing.md,

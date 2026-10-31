@@ -1,11 +1,6 @@
 import React from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "./AppText";
 import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
 
 export function Button({ title, onPress, variant = "primary", size = "md", disabled, loading, style }) {

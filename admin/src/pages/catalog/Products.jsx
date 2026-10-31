@@ -130,7 +130,7 @@ export default function Products() {
   }
 
   return (
-    <div className="page">
+    <div className="page products-page">
       {confirmDialog}
       <div className="page-head">
         <div>
@@ -145,14 +145,17 @@ export default function Products() {
 
       <Banner tone="error">{error}</Banner>
 
-      <div className="toolbar">
-        <button className={`btn sm${tab === "" ? " primary" : ""}`} onClick={() => pickTab("")}>
+      <div className="chip-row" role="tablist" aria-label="Category">
+        <button type="button" role="tab" aria-selected={tab === ""} className={`cat-chip${tab === "" ? " on" : ""}`} onClick={() => pickTab("")}>
           All
         </button>
         {roots.map((root) => (
           <button
             key={root.id}
-            className={`btn sm${tab === root.id ? " primary" : ""}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === root.id}
+            className={`cat-chip${tab === root.id ? " on" : ""}`}
             onClick={() => pickTab(root.id)}
           >
             {root.name}
@@ -160,14 +163,16 @@ export default function Products() {
         ))}
       </div>
 
-      <div className="toolbar">
-        <input
-          type="search"
-          placeholder="Search products…"
-          value={filters.search}
-          onChange={(e) => set("search", e.target.value)}
-          style={{ minWidth: 220 }}
-        />
+      <div className="toolbar products-filters">
+        <span className="search-field">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input
+            type="search"
+            placeholder="Search products…"
+            value={filters.search}
+            onChange={(e) => set("search", e.target.value)}
+          />
+        </span>
         <Select value={filters.category} onChange={(e) => set("category", e.target.value)}>
           <option value={tab}>{tab ? "All sub-categories" : "All categories"}</option>
           {subcategories.map((c) => (
@@ -265,10 +270,13 @@ export default function Products() {
                   key: "price",
                   label: "Price",
                   align: "right",
-                  render: (row) =>
-                    row.priceFrom === row.priceTo
-                      ? rupees(row.priceFrom)
-                      : `${rupees(row.priceFrom)} – ${rupees(row.priceTo)}`,
+                  render: (row) => (
+                    <strong className="price-cell">
+                      {row.priceFrom === row.priceTo
+                        ? rupees(row.priceFrom)
+                        : `${rupees(row.priceFrom)} – ${rupees(row.priceTo)}`}
+                    </strong>
+                  ),
                 },
                 {
                   key: "variantCount",
@@ -330,14 +338,23 @@ export default function Products() {
                   render: (row) =>
                     can("catalog.manage") && (
                       <button
-                        className="btn sm danger"
+                        type="button"
+                        className="icon-delete"
                         disabled={removingId === row.id}
+                        title={`Delete ${row.name}`}
+                        aria-label={`Delete ${row.name}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           removeProduct(row);
                         }}
                       >
-                        {removingId === row.id ? "Removing…" : "Delete"}
+                        {removingId === row.id ? (
+                          "…"
+                        ) : (
+                          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+                          </svg>
+                        )}
                       </button>
                     ),
                 },

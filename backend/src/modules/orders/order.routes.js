@@ -15,6 +15,7 @@ const Order = require("./order.model");
 const User = require("../auth/user.model");
 const Store = require("../stores/store.model");
 const orderService = require("./order.service");
+const deliveryTimes = require("../stores/deliveryTime");
 const audit = require("../audit/audit.service");
 const { STATUSES, allowedTransitions, buildTimeline, describeAction } = require("./orderStatus");
 
@@ -179,10 +180,13 @@ router.get(
   asyncHandler(async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) throw ApiError.notFound("Order not found");
+    const store = await Store.findById(order.store).select("settings");
 
     res.json({
       success: true,
       order,
+      // The choices the store offers for "tell the customer when it arrives".
+      deliveryTimes: deliveryTimes.optionsFor(store?.settings).map(({ key, label }) => ({ key, label })),
       timeline: buildTimeline(order.status, order.statusHistory),
       // Exactly the moves this user may make from here.
       actions: allowedTransitions(order.status, req.user.role).map(describeAction),
@@ -285,6 +289,56 @@ router.post(
     });
 
     res.json({ success: true, order });
+  })
+);
+
+// Tells the customer when the order will arrive: 15 min, 30 min, 1 hour or
+// next day. They get a push / SMS / in-app message and the order's expected
+// delivery time is updated to match.
+router.post(
+  "/:id/delivery-time",
+  requirePermission("orders.manage"),
+  asyncHandler(async (req, res) => {
+    const order = await Order.findById(req.params.id);
+    if (!order) throw ApiError.notFound("Order not found");
+    if (["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"].includes(order.status)) {
+      throw ApiError.badRequest("This order is closed — the delivery time can't be changed");
+    }
+    let option = String(req.body.option || "");
+    const store = await Store.findById(order.store);
+    // A new choice typed into the dropdown joins the store's list, so it is
+    // there next time too.
+    if (req.body.add) {
+      const typed = deliveryTimes.parseTyped(req.body.add);
+      if (!typed) throw ApiError.badRequest("Type a delivery time, like Next morning or 2 hours");
+      const before = deliveryTimes.optionsFor(store.settings);
+      const merged = deliveryTimes.normaliseCustom([...(store.settings.deliveryTimeOptions || []), typed]);
+      store.settings.deliveryTimeOptions = merged;
+      store.markModified("settings");
+      await store.save();
+      const after = deliveryTimes.optionsFor(store.settings);
+      const found = after.find(
+        (o) => o.label.toLowerCase() === typed.label.toLowerCase() || (!typed.plain && o.minutes === typed.minutes && !o.at && !o.plain)
+      );
+      if (!found) throw ApiError.badRequest("That delivery time can't be added");
+      option = found.key;
+      void before;
+    }
+    if (!deliveryTimes.optionsFor(store?.settings).some((o) => o.key === option)) {
+      throw ApiError.badRequest("Choose one of the delivery times in the list");
+    }
+
+    const result = await orderService.setDeliveryTime(order, option, store?.settings);
+    await audit.record({
+      req, action: "update", entity: "Order", entityId: order._id, label: order.code,
+      after: { deliveryTime: result.label },
+    });
+    res.json({
+      success: true,
+      order,
+      deliveryTime: result,
+      deliveryTimes: deliveryTimes.optionsFor(store?.settings).map(({ key, label }) => ({ key, label })),
+    });
   })
 );
 

@@ -1,13 +1,13 @@
 import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
-import { Banner, Card, Field, Loading, Tabs } from "../../components/ui";
+import { Banner, Field, Loading, Tabs } from "../../components/ui";
+import { Affix, FormSection, Segmented, SwitchRow } from "../../components/FormKit";
 
 // One settings document, edited a section at a time — so two admins working on
 // different areas do not overwrite each other with a whole-document save.
 const SECTIONS = [
   { key: "company", label: "Company" },
-  { key: "tax", label: "Tax" },
   { key: "payment", label: "Payment" },
   { key: "loyalty", label: "Loyalty" },
   { key: "referral", label: "Referrals" },
@@ -95,8 +95,25 @@ export default function General() {
       })),
   });
 
+  // On/off rows, top-level or inside a nested block (channels, abandoned cart…).
+  const flag = (key, title) => (
+    <SwitchRow checked={Boolean(draft[key])} onChange={(v) => setDraft((d) => ({ ...d, [key]: v }))} title={title} />
+  );
+  const nestedFlag = (parent, key, title) => (
+    <SwitchRow
+      checked={Boolean(draft[parent]?.[key])}
+      onChange={(v) => setDraft((d) => ({ ...d, [parent]: { ...(d[parent] || {}), [key]: v } }))}
+      title={title}
+    />
+  );
+  const nestedNumber = (parent, key, fallback) => ({
+    type: "number",
+    value: draft[parent]?.[key] ?? fallback,
+    onChange: (e) => setDraft((d) => ({ ...d, [parent]: { ...(d[parent] || {}), [key]: Number(e.target.value) } })),
+  });
+
   return (
-    <div className="page">
+    <div className="page products-page settings-page">
       <div className="page-head">
         <div>
           <h1>General settings</h1>
@@ -108,491 +125,248 @@ export default function General() {
 
       <Tabs tabs={SECTIONS} active={section} onChange={setSection} />
 
-      <Card>
+      <div className="offer-main settings-main">
         {section === "company" ? (
           <>
-            <div className="grid cols-2">
-              <Field label="Trading name">
-                <input
-                  type="text"
-                  value={draft.name || ""}
-                  onChange={set("name")}
-                />
+            <FormSection step="1" title="Business">
+              <div className="grid cols-2">
+                <Field label="Trading name">
+                  <input type="text" value={draft.name || ""} onChange={set("name")} />
+                </Field>
+                <Field label="Legal name">
+                  <input type="text" value={draft.legalName || ""} onChange={set("legalName")} />
+                </Field>
+              </div>
+              <div className="grid cols-2">
+                <Field label="GSTIN">
+                  <input type="text" className="mono" value={draft.gstin || ""} onChange={set("gstin")} />
+                </Field>
+                <Field label="FSSAI licence">
+                  <input type="text" className="mono" value={draft.fssai || ""} onChange={set("fssai")} />
+                </Field>
+              </div>
+            </FormSection>
+            <FormSection step="2" title="Contact">
+              <div className="grid cols-2">
+                <Field label="Support phone">
+                  <input type="text" value={draft.supportPhone || ""} onChange={set("supportPhone")} />
+                </Field>
+                <Field label="Support email">
+                  <input type="text" value={draft.supportEmail || ""} onChange={set("supportEmail")} />
+                </Field>
+              </div>
+              <Field label="Address">
+                <textarea rows={3} value={draft.address || ""} onChange={set("address")} />
               </Field>
-              <Field label="Legal name">
-                <input
-                  type="text"
-                  value={draft.legalName || ""}
-                  onChange={set("legalName")}
-                />
-              </Field>
-            </div>
-            <div className="grid cols-2">
-              <Field label="GSTIN">
-                <input
-                  type="text"
-                  value={draft.gstin || ""}
-                  onChange={set("gstin")}
-                />
-              </Field>
-              <Field label="FSSAI licence">
-                <input
-                  type="text"
-                  value={draft.fssai || ""}
-                  onChange={set("fssai")}
-                />
-              </Field>
-            </div>
-            <div className="grid cols-2">
-              <Field label="Support phone">
-                <input
-                  type="text"
-                  value={draft.supportPhone || ""}
-                  onChange={set("supportPhone")}
-                />
-              </Field>
-              <Field label="Support email">
-                <input
-                  type="text"
-                  value={draft.supportEmail || ""}
-                  onChange={set("supportEmail")}
-                />
-              </Field>
-            </div>
-            <Field label="Address">
-              <textarea value={draft.address || ""} onChange={set("address")} />
-            </Field>
-          </>
-        ) : null}
-
-        {section === "tax" ? (
-          <>
-            <label className="checkbox" style={{ marginBottom: 14 }}>
-              <input
-                type="checkbox"
-                checked={Boolean(draft.pricesIncludeTax)}
-                onChange={set("pricesIncludeTax")}
-              />
-              Prices shown to customers include tax
-            </label>
-            <div className="grid cols-3">
-              <Field label="Default tax rate (%)">
-                <input
-                  type="number"
-                  value={draft.defaultRatePct ?? 0}
-                  onChange={set("defaultRatePct")}
-                />
-              </Field>
-              <Field label="Home state code">
-                <input
-                  type="text"
-                  value={draft.homeStateCode || ""}
-                  onChange={set("homeStateCode")}
-                />
-              </Field>
-            </div>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={Boolean(draft.splitCgstSgst)}
-                onChange={set("splitCgstSgst")}
-              />
-              Split the rate into CGST and SGST on invoices
-            </label>
+            </FormSection>
           </>
         ) : null}
 
         {section === "payment" ? (
           <>
-            <div
-              className="inline"
-              style={{ marginBottom: 14, gap: 20, flexWrap: "wrap" }}
-            >
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.codEnabled)}
-                  onChange={set("codEnabled")}
-                />
-                Cash on delivery
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.onlineEnabled)}
-                  onChange={set("onlineEnabled")}
-                />
-                Online payment
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.allowWallet)}
-                  onChange={set("allowWallet")}
-                />
-                Allow wallet at checkout
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.allowLoyalty)}
-                  onChange={set("allowLoyalty")}
-                />
-                Allow points at checkout
-              </label>
-            </div>
-
-            <div className="grid cols-2">
-              <Field label="Gateway" help="">
-                <Select
+            <FormSection step="1" title="Ways to pay">
+              {flag("codEnabled", "Cash on delivery")}
+              {flag("onlineEnabled", "Online payment")}
+              {flag("allowWallet", "Allow wallet at checkout")}
+              {flag("allowLoyalty", "Allow points at checkout")}
+            </FormSection>
+            <FormSection step="2" title="Gateway & refunds">
+              <Field label="Gateway">
+                <Segmented
                   value={draft.provider || "none"}
-                  onChange={set("provider")}
-                >
-                  <option value="none">None — cash and wallet only</option>
-                  <option value="razorpay">Razorpay</option>
-                  <option value="stripe">Stripe</option>
-                </Select>
+                  onChange={(v) => setDraft((d) => ({ ...d, provider: v }))}
+                  options={[
+                    { value: "none", label: "None" },
+                    { value: "razorpay", label: "Razorpay" },
+                    { value: "stripe", label: "Stripe" },
+                  ]}
+                />
               </Field>
-              <Field label="Refunds">
-                <label className="checkbox" style={{ marginTop: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(draft.autoRefundToWallet)}
-                    onChange={set("autoRefundToWallet")}
-                  />
-                  Refund to wallet by default (instant)
-                </label>
-              </Field>
-            </div>
-
-            <Banner tone="info">
-              With no gateway keys set, checkout falls back to cash on delivery
-              rather than failing.
-            </Banner>
+              {flag("autoRefundToWallet", "Refund to wallet by default (instant)")}
+              <Banner tone="info">
+                With no gateway keys set, checkout falls back to cash on delivery
+                rather than failing.
+              </Banner>
+            </FormSection>
           </>
         ) : null}
 
         {section === "loyalty" ? (
           <>
-            <label className="checkbox" style={{ marginBottom: 14 }}>
-              <input
-                type="checkbox"
-                checked={Boolean(draft.enabled)}
-                onChange={set("enabled")}
-              />
-              Loyalty points are running
-            </label>
-            <div className="grid cols-3">
-              <Field label="Rupees per point">
-                <input
-                  type="number"
-                  value={draft.rupeesPerPoint ?? 100}
-                  onChange={set("rupeesPerPoint")}
-                />
-              </Field>
-              <Field label="Point value (paise)">
-                <input
-                  type="number"
-                  value={draft.pointValuePaise ?? 10}
-                  onChange={set("pointValuePaise")}
-                />
-              </Field>
-              <Field label="Minimum to redeem">
-                <input
-                  type="number"
-                  value={draft.minPointsToRedeem ?? 0}
-                  onChange={set("minPointsToRedeem")}
-                />
-              </Field>
-              <Field label="Max % of an order">
-                <input
-                  type="number"
-                  value={draft.maxRedeemPctOfOrder ?? 0}
-                  onChange={set("maxRedeemPctOfOrder")}
-                />
-              </Field>
-              <Field label="Points expire after (days)">
-                <input
-                  type="number"
-                  value={draft.expiryDays ?? 0}
-                  onChange={set("expiryDays")}
-                />
-              </Field>
-            </div>
+            <FormSection step="1" title="Programme">
+              {flag("enabled", "Loyalty points are running")}
+            </FormSection>
+            <FormSection step="2" title="Earning & redeeming">
+              <div className="grid cols-3">
+                <Field label="Rupees per point">
+                  <Affix prefix="₹">
+                    <input type="number" value={draft.rupeesPerPoint ?? 100} onChange={set("rupeesPerPoint")} />
+                  </Affix>
+                </Field>
+                <Field label="Point value">
+                  <Affix suffix="paise">
+                    <input type="number" value={draft.pointValuePaise ?? 10} onChange={set("pointValuePaise")} />
+                  </Affix>
+                </Field>
+                <Field label="Minimum to redeem">
+                  <Affix suffix="points">
+                    <input type="number" value={draft.minPointsToRedeem ?? 0} onChange={set("minPointsToRedeem")} />
+                  </Affix>
+                </Field>
+                <Field label="Max share of an order">
+                  <Affix suffix="%">
+                    <input type="number" value={draft.maxRedeemPctOfOrder ?? 0} onChange={set("maxRedeemPctOfOrder")} />
+                  </Affix>
+                </Field>
+                <Field label="Points expire after">
+                  <Affix suffix="days">
+                    <input type="number" value={draft.expiryDays ?? 0} onChange={set("expiryDays")} />
+                  </Affix>
+                </Field>
+              </div>
+            </FormSection>
           </>
         ) : null}
 
         {section === "referral" ? (
           <>
-            <label className="checkbox" style={{ marginBottom: 14 }}>
-              <input
-                type="checkbox"
-                checked={Boolean(draft.enabled)}
-                onChange={set("enabled")}
-              />
-              Referrals are running
-            </label>
-            <div className="grid cols-3">
-              <Field label="Reward to the referrer (₹)">
-                <input {...money("referrerReward")} />
-              </Field>
-              <Field label="Reward to the friend (₹)">
-                <input {...money("refereeReward")} />
-              </Field>
-              <Field label="Minimum first order (₹)">
-                <input {...money("minFirstOrderValue")} />
-              </Field>
-            </div>
-            <Banner tone="info">
-              Rewards are paid when the friend's first order is{" "}
-              <strong>delivered</strong>, not when they sign up.
-            </Banner>
+            <FormSection step="1" title="Programme">
+              {flag("enabled", "Referrals are running")}
+            </FormSection>
+            <FormSection step="2" title="Rewards">
+              <div className="grid cols-3">
+                <Field label="Reward to the referrer">
+                  <Affix prefix="₹"><input {...money("referrerReward")} /></Affix>
+                </Field>
+                <Field label="Reward to the friend">
+                  <Affix prefix="₹"><input {...money("refereeReward")} /></Affix>
+                </Field>
+                <Field label="Minimum first order">
+                  <Affix prefix="₹"><input {...money("minFirstOrderValue")} /></Affix>
+                </Field>
+              </div>
+              <Banner tone="info">
+                Rewards are paid when the friend's first order is{" "}
+                <strong>delivered</strong>, not when they sign up.
+              </Banner>
+            </FormSection>
           </>
         ) : null}
 
         {section === "delivery" ? (
           <>
-            <div
-              className="inline"
-              style={{ marginBottom: 14, gap: 20, flexWrap: "wrap" }}
-            >
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.slotsEnabled)}
-                  onChange={set("slotsEnabled")}
-                />
-                Let customers choose a delivery slot
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.liveTrackingEnabled)}
-                  onChange={set("liveTrackingEnabled")}
-                />
-                Live rider tracking
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.otpRequired)}
-                  onChange={set("otpRequired")}
-                />
-                Require a handover OTP
-              </label>
-            </div>
-            <div className="grid cols-3">
-              <Field label="Open slots this many days ahead">
-                <input
-                  type="number"
-                  value={draft.slotDays ?? 3}
-                  onChange={set("slotDays")}
-                />
-              </Field>
-            </div>
-            <div className="inline" style={{ gap: 20, flexWrap: "wrap" }}>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.proofPhotoRequired)}
-                  onChange={set("proofPhotoRequired")}
-                />
-                Require a photo at handover
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.proofSignatureRequired)}
-                  onChange={set("proofSignatureRequired")}
-                />
-                Require a signature
-              </label>
-            </div>
+            <FormSection step="1" title="Delivery options">
+              {flag("slotsEnabled", "Let customers choose a delivery slot")}
+              {flag("liveTrackingEnabled", "Live rider tracking")}
+              <div className="grid cols-3">
+                <Field label="Open slots this many days ahead">
+                  <Affix suffix="days">
+                    <input type="number" value={draft.slotDays ?? 3} onChange={set("slotDays")} />
+                  </Affix>
+                </Field>
+              </div>
+            </FormSection>
+            <FormSection step="2" title="Proof at handover">
+              {flag("otpRequired", "Require a handover OTP")}
+              {flag("proofPhotoRequired", "Require a photo at handover")}
+              {flag("proofSignatureRequired", "Require a signature")}
+            </FormSection>
           </>
         ) : null}
 
         {section === "notifications" ? (
           <>
-            <div className="section-label">Channels</div>
-            <div
-              className="inline"
-              style={{ gap: 20, flexWrap: "wrap", marginBottom: 18 }}
-            >
-              {["push", "sms", "email", "whatsapp"].map((channel) => (
-                <label key={channel} className="checkbox">
+            <FormSection step="1" title="Channels">
+              <div className="type-grid">
+                {["push", "sms", "email", "whatsapp"].map((channel) => {
+                  const on = Boolean(draft.channels?.[channel]);
+                  return (
+                    <button
+                      key={channel}
+                      type="button"
+                      aria-pressed={on}
+                      className={`type-tile${on ? " on" : ""}`}
+                      onClick={() =>
+                        setDraft((d) => ({ ...d, channels: { ...(d.channels || {}), [channel]: !on } }))
+                      }
+                    >
+                      <span className="type-glyph">{on ? "✓" : "+"}</span>
+                      <strong style={{ textTransform: "capitalize" }}>{channel === "sms" ? "SMS" : channel}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+            </FormSection>
+
+            <FormSection step="2" title="Abandoned cart">
+              {nestedFlag("abandonedCart", "enabled", "Nudge customers who leave something in the cart")}
+              <div className="grid cols-3">
+                <Field label="First nudge after">
+                  <Affix suffix="min"><input {...nestedNumber("abandonedCart", "firstReminderMinutes", 30)} /></Affix>
+                </Field>
+                <Field label="Second nudge after">
+                  <Affix suffix="hours"><input {...nestedNumber("abandonedCart", "secondReminderHours", 6)} /></Affix>
+                </Field>
+                <Field label="Coupon in the second nudge">
                   <input
-                    type="checkbox"
-                    checked={Boolean(draft.channels?.[channel])}
-                    onChange={setNested("channels", channel)}
+                    type="text"
+                    className="mono"
+                    value={draft.abandonedCart?.secondReminderCoupon || ""}
+                    onChange={setNested("abandonedCart", "secondReminderCoupon")}
                   />
-                  {channel}
-                </label>
-              ))}
-            </div>
+                </Field>
+              </div>
+            </FormSection>
 
-            <div className="section-label">Abandoned cart</div>
-            <label className="checkbox" style={{ marginBottom: 12 }}>
-              <input
-                type="checkbox"
-                checked={Boolean(draft.abandonedCart?.enabled)}
-                onChange={setNested("abandonedCart", "enabled")}
-              />
-              Nudge customers who leave something in the cart
-            </label>
-            <div className="grid cols-3">
-              <Field label="First nudge after (minutes)">
-                <input
-                  type="number"
-                  value={draft.abandonedCart?.firstReminderMinutes ?? 30}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      abandonedCart: {
-                        ...d.abandonedCart,
-                        firstReminderMinutes: Number(e.target.value),
-                      },
-                    }))
-                  }
-                />
-              </Field>
-              <Field label="Second nudge after (hours)">
-                <input
-                  type="number"
-                  value={draft.abandonedCart?.secondReminderHours ?? 6}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      abandonedCart: {
-                        ...d.abandonedCart,
-                        secondReminderHours: Number(e.target.value),
-                      },
-                    }))
-                  }
-                />
-              </Field>
-              <Field label="Coupon in the second nudge">
-                <input
-                  type="text"
-                  value={draft.abandonedCart?.secondReminderCoupon || ""}
-                  onChange={setNested("abandonedCart", "secondReminderCoupon")}
-                />
-              </Field>
-            </div>
+            <FormSection step="3" title="Win back">
+              {nestedFlag("winBack", "enabled", "Message customers who have not ordered in a while")}
+              <div className="grid cols-3">
+                <Field label="Inactive for">
+                  <Affix suffix="days"><input {...nestedNumber("winBack", "inactiveDays", 30)} /></Affix>
+                </Field>
+              </div>
+            </FormSection>
 
-            <div className="section-label">Win back</div>
-            <label className="checkbox" style={{ marginBottom: 12 }}>
-              <input
-                type="checkbox"
-                checked={Boolean(draft.winBack?.enabled)}
-                onChange={setNested("winBack", "enabled")}
-              />
-              Message customers who have not ordered in a while
-            </label>
-            <div className="grid cols-3">
-              <Field label="Inactive for (days)">
-                <input
-                  type="number"
-                  value={draft.winBack?.inactiveDays ?? 30}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      winBack: {
-                        ...d.winBack,
-                        inactiveDays: Number(e.target.value),
-                      },
-                    }))
-                  }
-                />
-              </Field>
-            </div>
-
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={Boolean(draft.lowStockAlerts)}
-                onChange={set("lowStockAlerts")}
-              />
-              Alert staff when stock runs low
-            </label>
+            <FormSection step="4" title="Staff alerts">
+              {flag("lowStockAlerts", "Alert staff when stock runs low")}
+            </FormSection>
           </>
         ) : null}
 
         {section === "app" ? (
           <>
-            <div
-              className="inline"
-              style={{ gap: 20, flexWrap: "wrap", marginBottom: 14 }}
-            >
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.reviewsEnabled)}
-                  onChange={set("reviewsEnabled")}
-                />
-                Reviews
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.reviewsNeedApproval)}
-                  onChange={set("reviewsNeedApproval")}
-                />
-                Hold reviews for approval
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.wishlistEnabled)}
-                  onChange={set("wishlistEnabled")}
-                />
-                Wishlist
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.guestCheckoutEnabled)}
-                  onChange={set("guestCheckoutEnabled")}
-                />
-                Guest checkout
-              </label>
-            </div>
-
-            <div className="grid cols-2">
-              <Field label="Minimum supported app version">
-                <input
-                  type="text"
-                  value={draft.minSupportedVersion || ""}
-                  onChange={set("minSupportedVersion")}
-                />
-              </Field>
-            </div>
-
-            <label className="checkbox" style={{ marginBottom: 12 }}>
-              <input
-                type="checkbox"
-                checked={Boolean(draft.maintenanceMode)}
-                onChange={set("maintenanceMode")}
-              />
-              Maintenance mode — the apps show a message instead of the shop
-            </label>
-            {draft.maintenanceMode ? (
-              <Field label="What the message says">
-                <textarea
-                  value={draft.maintenanceMessage || ""}
-                  onChange={set("maintenanceMessage")}
-                />
-              </Field>
-            ) : null}
+            <FormSection step="1" title="Shop features">
+              {flag("reviewsEnabled", "Reviews")}
+              {flag("reviewsNeedApproval", "Hold reviews for approval")}
+              {flag("wishlistEnabled", "Wishlist")}
+              {flag("guestCheckoutEnabled", "Guest checkout")}
+            </FormSection>
+            <FormSection step="2" title="App version">
+              <div className="grid cols-2">
+                <Field label="Minimum supported app version">
+                  <input type="text" className="mono" value={draft.minSupportedVersion || ""} onChange={set("minSupportedVersion")} placeholder="1.0.0" />
+                </Field>
+              </div>
+            </FormSection>
+            <FormSection step="3" title="Maintenance">
+              {flag("maintenanceMode", "Maintenance mode — the apps show a message instead of the shop")}
+              {draft.maintenanceMode ? (
+                <Field label="What the message says">
+                  <textarea rows={3} value={draft.maintenanceMessage || ""} onChange={set("maintenanceMessage")} />
+                </Field>
+              ) : null}
+            </FormSection>
           </>
         ) : null}
 
-        <div className="divider" />
-        <button className="btn primary" disabled={saving} onClick={save}>
-          {saving
-            ? "Saving…"
-            : `Save ${SECTIONS.find((s) => s.key === section)?.label.toLowerCase()} settings`}
-        </button>
-      </Card>
+        <div className="settings-savebar">
+          <button className="btn primary" disabled={saving} onClick={save}>
+            {saving
+              ? "Saving…"
+              : `Save ${SECTIONS.find((s) => s.key === section)?.label.toLowerCase()} settings`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

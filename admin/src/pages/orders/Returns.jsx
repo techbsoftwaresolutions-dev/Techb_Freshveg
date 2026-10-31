@@ -66,7 +66,7 @@ export default function Returns() {
   }
 
   return (
-    <div className="page">
+    <div className="page products-page orders-page">
       <div className="page-head">
         <div>
           <h1>Returns</h1>

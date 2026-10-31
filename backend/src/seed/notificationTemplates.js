@@ -108,6 +108,20 @@ module.exports = [
     sms: t("", "Hosur Basket: {{items}} from order {{code}} will be delivered on {{date}}. Sorry for the wait."),
   },
   {
+    event: "DELIVERY_TIME_SET",
+    name: "Delivery time update",
+    channels: ["push", "sms", "inapp"],
+    default: t("Delivery time update", "Your order {{code}} will be delivered {{when}}.", "order:{{orderId}}"),
+    sms: t("", "Hosur Basket: your order {{code}} will be delivered {{when}}."),
+  },
+  {
+    event: "AFTER_HOURS_ORDER",
+    name: "Early-morning delivery",
+    channels: ["push", "sms", "inapp"],
+    default: t("Order confirmed — delivery {{when}}", "Your order {{code}} is confirmed and will be delivered {{when}}. {{reason}}", "order:{{orderId}}"),
+    sms: t("", "Hosur Basket: order {{code}} confirmed. Delivery {{when}}. {{reason}}"),
+  },
+  {
     event: "DELAYED_ITEMS_DELIVERED",
     name: "Remaining items delivered",
     channels: ["push", "inapp"],

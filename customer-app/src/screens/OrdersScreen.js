@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
-import { FlatList, Image, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, Image, RefreshControl, StyleSheet, View } from "react-native";
+import { Text } from "../components/AppText";
 import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";

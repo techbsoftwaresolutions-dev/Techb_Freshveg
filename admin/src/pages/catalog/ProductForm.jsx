@@ -1,11 +1,12 @@
 import Select from "../../components/Select";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Field, Loading, Pill } from "../../components/ui";
 import SchemaForm from "../../components/SchemaForm";
 import SelectMenu from "../../components/SelectMenu";
+import { suggestDetails } from "./productAutofill";
 
 // This screen is the point of the whole engine. Pick a category and the rest
 // of the form rebuilds itself from that category's resolved schema — which
@@ -152,9 +153,11 @@ export default function ProductForm() {
       });
       // Seed one variant per axis combination the category implies, so a new
       // product is immediately sellable.
-      if (!variants.length) {
-        setVariants([blankVariant(next)]);
-      }
+      // Rows that carry no price yet (the starter row, or ones pre-filled for the
+      // previous category) belong to the old category's axes, so start fresh.
+      setVariants((vs) =>
+        !vs.length || vs.every((v) => !v.mrp && !v.sellingPrice) ? [blankVariant(next)] : vs
+      );
     } catch (err) {
       setError(err.message);
     }
@@ -291,12 +294,119 @@ export default function ProductForm() {
     [categories, product.category]
   );
 
+
+  // New product: once a category is picked and a name typed, look the product up
+  // (own catalogue → built-in guide → Open Food Facts) and fill what is still
+  // empty. A field is only overwritten if it still holds what the last lookup
+  // put there, so anything the admin typed or edited by hand is left alone.
+  const lastAuto = useRef({});
+  const productRef = useRef(product);
+  productRef.current = product;
+  const variantsRef = useRef(variants);
+  variantsRef.current = variants;
+  const [autoNote, setAutoNote] = useState(null);
+  useEffect(() => {
+    if (!isNew || fromId || !editable) return undefined;
+    const name = product.name.trim();
+    if (name.length < 3 || !product.category || !schema) {
+      setAutoNote(null);
+      return undefined;
+    }
+    let alive = true;
+    setAutoNote({ state: "loading" });
+    const timer = setTimeout(async () => {
+      let found = null;
+      try {
+        found = await suggestDetails({ name, categoryId: product.category, categoryName, schema, brands });
+      } catch {
+        found = null;
+      }
+      if (!alive) return;
+      if (!found) {
+        setAutoNote(null);
+        return;
+      }
+      const { patch } = found;
+      const last = lastAuto.current;
+      const isEmpty = (v) => v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length);
+      const free = (key, current) => isEmpty(current) || JSON.stringify(current) === JSON.stringify(last[key]);
+      const current = productRef.current;
+      const filled = [];
+      const record = {};
+      const changes = {};
+      const put = (key, label, value) => {
+        if (isEmpty(value) || !free(key, current[key])) return;
+        changes[key] = value;
+        record[key] = value;
+        filled.push(label);
+      };
+      put("shortDescription", "short description", patch.shortDescription);
+      put("description", "description", patch.description);
+      put("tags", "tags", patch.tags);
+      put("brand", "brand", patch.brand);
+      put("media", "photo", patch.media);
+      const attrs = { ...(current.attributes || {}) };
+      let attrCount = 0;
+      for (const [code, value] of Object.entries(patch.attributes || {})) {
+        if (isEmpty(value) || !free(`attr:${code}`, attrs[code])) continue;
+        attrs[code] = value;
+        record[`attr:${code}`] = value;
+        attrCount += 1;
+      }
+      if (attrCount) {
+        changes.attributes = attrs;
+        filled.push(`${attrCount} detail${attrCount > 1 ? "s" : ""}`);
+      }
+      lastAuto.current = { ...last, ...record };
+      if (Object.keys(changes).length) setProduct((p) => ({ ...p, ...changes, attributes: changes.attributes ? { ...(p.attributes || {}), ...changes.attributes } : p.attributes }));
+      const rows = found.variantRows || [];
+      const sig = (list) => JSON.stringify(list.map((v) => [v.axis || {}, v.packSize?.value ?? null, v.packSize?.unit ?? null, v.weightGrams || 0]));
+      const cur = variantsRef.current;
+      const unpriced = cur.every((v) => !v.mrp && !v.sellingPrice);
+      const starter = cur.length === 1 && !Object.keys(cur[0].axis || {}).length;
+      // Replace the variant rows only while they are still untouched: the empty
+      // starter row, or rows this lookup added earlier (no price typed since).
+      if (unpriced && (starter || sig(cur) === last.variantsSig)) {
+        if (rows.length) {
+          const defaultAt = Math.min(rows.length - 1, Math.floor(rows.length / 2));
+          const built = rows.map((row, i) => ({
+            ...blankVariant(schema),
+            _key: makeVariantKey(),
+            axis: row.axis || {},
+            ...(row.packSize?.value ? { packSize: row.packSize } : {}),
+            ...(row.weightGrams ? { weightGrams: row.weightGrams } : {}),
+            isDefault: i === defaultAt,
+          }));
+          setVariants(built);
+          lastAuto.current.variantsSig = sig(built);
+          filled.push(`${rows.length} pack size${rows.length > 1 ? "s" : ""}`);
+        } else if (last.variantsSig) {
+          setVariants([blankVariant(schema)]);
+          lastAuto.current.variantsSig = "";
+        }
+      }
+      setAutoNote(
+        filled.length
+          ? { state: "done", text: `Filled ${filled.join(", ")} from ${found.label}. Please check before saving.` }
+          : { state: "kept", text: "Details are already filled in — nothing was changed." }
+      );
+    }, 800);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.name, product.category, schema]);
+
   if (loading) return <div className="page"><Loading /></div>;
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className="page product-page">
+      <div className="page-head product-head">
         <div>
+          <button type="button" className="product-crumb" onClick={() => navigate("/catalog/products")}>
+            ← Products
+          </button>
           <h1>{isNew ? "New product" : product.name || "Product"}</h1>
           {basedOn && <span className="faint" style={{ fontSize: 12 }}>Based on: {basedOn}</span>}
         </div>
@@ -332,6 +442,12 @@ export default function ProductForm() {
       <div className="grid split">
         <div style={{ display: "grid", gap: 14 }}>
           <Card title="Basics">
+            {autoNote ? (
+              <div className={`autofill-note ${autoNote.state}`} role="status">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M19 3v4M17 5h4" /></svg>
+                <span>{autoNote.state === "loading" ? "Looking up product details…" : autoNote.text}</span>
+              </div>
+            ) : null}
             <div className="grid cols-2">
               <Field label={<>Product name<Req /></>} error={formErrors.name}>
                 <input
@@ -735,6 +851,7 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
   const [error, setError] = useState("");
   // Index of the photo whose options popup is open, or null.
   const [picked, setPicked] = useState(null);
+  const [dragging, setDragging] = useState(false);
   const pickedItem = picked !== null ? media[picked] : null;
 
   useEffect(() => {
@@ -793,25 +910,7 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
 
   return (
     <Card
-      title={<>Photos<Req /></>}
-      actions={
-        editable && (
-          <label className="btn sm" style={{ cursor: uploading ? "not-allowed" : "pointer", marginBottom: 0 }}>
-            {uploading ? "Uploading…" : "+ Add photos"}
-            <input
-              type="file"
-              accept={ACCEPTED_IMAGE_TYPES.join(",")}
-              multiple
-              hidden
-              disabled={uploading}
-              onChange={(e) => {
-                handleFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-          </label>
-        )
-      }
+      title={<h2>Photos<Req /></h2>}
     >
       {requiredError && !media.length && <div className="photos-error">{requiredError}</div>}
       <Banner tone="error">{error}</Banner>
@@ -878,6 +977,21 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
         </div>
       ) : null}
 
+      <div
+        className={`photo-zone${dragging ? " dragging" : ""}`}
+        onDragOver={(e) => {
+          if (!editable) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          if (!editable) return;
+          e.preventDefault();
+          setDragging(false);
+          handleFiles(e.dataTransfer.files);
+        }}
+      >
       {media.length ? (
         <div className="media-grid">
           {media.map((item, index) => (
@@ -900,8 +1014,47 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
               </button>
             </div>
           ))}
+          {editable ? (
+            <label className="photo-add-tile" title="Add more photos">
+              <span>＋</span>
+              Add
+              <input
+                type="file"
+                accept={ACCEPTED_IMAGE_TYPES.join(",")}
+                multiple
+                hidden
+                disabled={uploading}
+                onChange={(e) => {
+                  handleFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          ) : null}
         </div>
+      ) : editable ? (
+        <label className="photo-drop">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 16l4-4 3 3 4-5 5 6" />
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <circle cx="9" cy="9" r="1.3" />
+          </svg>
+          <strong>{uploading ? "Uploading…" : "Drag photos here, or click to choose"}</strong>
+          <span>JPEG, PNG, WebP or GIF · the first photo is the primary one</span>
+          <input
+            type="file"
+            accept={ACCEPTED_IMAGE_TYPES.join(",")}
+            multiple
+            hidden
+            disabled={uploading}
+            onChange={(e) => {
+              handleFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
       ) : null}
+      </div>
     </Card>
   );
 }
@@ -934,7 +1087,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange, errors = { 
 
   return (
     <Card
-      title={<>Variants & pricing<Req /></>}
+      title={<h2>Variants & pricing<Req /></h2>}
       actions={
         editable && (
           <button className="btn sm" onClick={() => onChange([...variants, blankVariant(schema)])}>

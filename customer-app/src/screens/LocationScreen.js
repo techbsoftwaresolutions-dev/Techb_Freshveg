@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { useStore } from "../context/StoreContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Notice, Pill } from "../components/ui";
@@ -7,7 +8,7 @@ import { Button, Card, Notice, Pill } from "../components/ui";
 // Serviceability is a real gate: which store serves a pincode decides prices,
 // stock and delivery charges, so it is asked once and remembered.
 export default function LocationScreen({ navigation }) {
-  const { pincode, store, setPincode } = useStore();
+  const { pincode, store, setPincode, setArea } = useStore();
   const [value, setValue] = useState(pincode || "");
   const [result, setResult] = useState(null);
   const [checking, setChecking] = useState(false);
@@ -18,8 +19,9 @@ export default function LocationScreen({ navigation }) {
     try {
       const data = await setPincode(value);
       setResult(data);
-      if (data.serviceable) {
-        // Give them a moment to read the confirmation before leaving.
+      // With several named areas on this pincode they pick theirs first;
+      // otherwise give them a moment to read the confirmation and leave.
+      if (data.serviceable && !(data.areas?.length > 1)) {
         setTimeout(() => navigation.goBack(), 900);
       }
     } finally {
@@ -54,6 +56,38 @@ export default function LocationScreen({ navigation }) {
         </Notice>
       ) : null}
 
+      {result?.serviceable && result.areas?.length > 1 ? (
+        <Card style={{ padding: spacing.md, gap: spacing.sm }}>
+          <Text style={type.h3}>Choose your area</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+            {result.areas.map((name) => {
+              const on = store?.area === name;
+              return (
+                <Pressable
+                  key={name}
+                  onPress={async () => {
+                    await setArea(name);
+                    navigation.goBack();
+                  }}
+                  style={{
+                    paddingHorizontal: 14,
+                    height: 36,
+                    borderRadius: 18,
+                    borderWidth: 1.5,
+                    borderColor: on ? colors.primary : colors.borderStrong,
+                    backgroundColor: on ? colors.primarySoft : colors.surface,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ fontSize: 13, color: on ? colors.primaryDark : colors.text }}>{name}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+      ) : null}
+
       {result?.serviceable ? (
         <Card style={{ padding: spacing.md, gap: 6 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
@@ -62,7 +96,15 @@ export default function LocationScreen({ navigation }) {
               {result.isOpen ? "Open now" : "Closed"}
             </Pill>
           </View>
-          <Text style={type.small}>Delivers in about {result.prepTimeMinutes} minutes</Text>
+          <Text style={type.small}>
+            {result.afterHours
+              ? `Delivers ${result.afterHours.when}`
+              : result.deliveryTime === "next_day"
+              ? "Delivers the next day"
+              : result.deliveryTimeLabel
+                ? `Delivers in about ${result.deliveryTimeLabel.replace(/\bmin\b/, "minutes")}`
+                : `Delivers in about ${result.prepTimeMinutes} minutes`}
+          </Text>
           <Text style={type.small}>
             Minimum order {rupees(result.minOrderValue)} · Free delivery above{" "}
             {rupees(result.freeDeliveryAbove)}
@@ -74,7 +116,7 @@ export default function LocationScreen({ navigation }) {
         <Card style={{ padding: spacing.md }}>
           <Text style={type.tiny}>Currently delivering from</Text>
           <Text style={type.h3}>{store.name}</Text>
-          {pincode ? <Text style={type.small}>Pincode {pincode}</Text> : null}
+          {pincode ? <Text style={type.small}>Pincode {pincode}{store.area ? ` · ${store.area}` : ""}</Text> : null}
         </Card>
       ) : null}
 

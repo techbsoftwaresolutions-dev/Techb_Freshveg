@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
+import { FormSection, Segmented, SwitchRow } from "../../components/FormKit";
 import {
   Banner,
   Card,
@@ -35,6 +36,20 @@ const STATUS_TONE = {
   queued: "info",
 };
 
+const CHANNEL_HINT = {
+  push: "A notification on the phone",
+  sms: "A text message",
+  email: "An email",
+  whatsapp: "A WhatsApp message",
+  inapp: "The bell inside the app",
+};
+
+const WHO_LABEL = {
+  customer: "Customers",
+  delivery_partner: "Delivery partners",
+  admin: "Staff",
+};
+
 const AUDIENCE_LABEL = {
   all: "Every active customer",
   new: "Signed up, never ordered",
@@ -46,7 +61,7 @@ export default function Notifications() {
   const [tab, setTab] = useState("templates");
 
   return (
-    <div className="page">
+    <div className="page products-page notifications-page">
       <div className="page-head">
         <div>
           <h1>Notifications</h1>
@@ -79,6 +94,9 @@ function Templates() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [who, setWho] = useState("");
+  const [state, setState] = useState("");
   const navigate = useNavigate();
   const openTemplate = (template) =>
     navigate(
@@ -102,21 +120,51 @@ function Templates() {
 
   if (loading) return <Loading />;
 
-  const templates = data?.templates || [];
+  const all = data?.templates || [];
+  const term = query.trim().toLowerCase();
+  const templates = all.filter(
+    (t) =>
+      (!who || t.audience === who) &&
+      (!state || (state === "on" ? t.enabled : !t.enabled)) &&
+      (!term || `${t.name} ${t.event} ${t.default?.title || ""}`.toLowerCase().includes(term)),
+  );
   const transactional = templates.filter((t) => t.category === "transactional");
   const marketing = templates.filter((t) => t.category === "marketing");
+  const onCount = all.filter((t) => t.enabled).length;
 
   return (
     <>
       <Banner tone="error">{error}</Banner>
 
-      <div className="page-head" style={{ marginBottom: 12 }}>
-        <span className="muted" style={{ fontSize: 13 }}>
-          {templates.length} templates covering {data?.events?.length || 0}{" "}
-          events.
+      <div className="notif-summary">
+        <div className="inv-stat ok"><span>Templates</span><strong>{all.length}</strong></div>
+        <div className="inv-stat info"><span>Events covered</span><strong>{data?.events?.length || 0}</strong></div>
+        <div className="inv-stat ok"><span>Sending</span><strong>{onCount}</strong></div>
+        <div className={`inv-stat ${all.length - onCount ? "danger" : "info"}`}><span>Switched off</span><strong>{all.length - onCount}</strong></div>
+      </div>
+
+      <div className="toolbar products-filters">
+        <span className="search-field">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input type="search" placeholder="Search templates…" value={query} onChange={(e) => setQuery(e.target.value)} />
         </span>
+        <div className="chip-row notif-tabs" role="tablist" aria-label="Audience">
+          {[["", "Everyone"], ["customer", "Customers"], ["delivery_partner", "Delivery partners"], ["admin", "Staff"]].map(([value, label]) => (
+            <button key={label} type="button" role="tab" aria-selected={who === value} className={`cat-chip small${who === value ? " on" : ""}`} onClick={() => setWho(value)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="chip-row notif-tabs" role="tablist" aria-label="State">
+          {[["", "Any"], ["on", "On"], ["off", "Off"]].map(([value, label]) => (
+            <button key={label} type="button" role="tab" aria-selected={state === value} className={`cat-chip small${state === value ? " on" : ""}`} onClick={() => setState(value)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="spacer" />
         {canManage ? (
-          <button className="btn" onClick={() => openTemplate(null)}>
+          <button className="btn primary" onClick={() => openTemplate(null)}>
             + New template
           </button>
         ) : null}
@@ -173,7 +221,7 @@ export function TemplateFormPage() {
 
 function Group({ title, rows, canManage, onEdit }) {
   return (
-    <Card title={title} tight style={{ marginBottom: 14 }}>
+    <Card title={`${title} · ${rows.length}`} tight style={{ marginBottom: 14 }}>
       <Table
         title={title}
         columns={[
@@ -214,7 +262,7 @@ function Group({ title, rows, canManage, onEdit }) {
             key: "audience",
             label: "Who",
             render: (row) => (
-              <span className="muted">{row.audience.split("_").join(" ")}</span>
+              <span className="reward-pill">{WHO_LABEL[row.audience] || row.audience.split("_").join(" ")}</span>
             ),
           },
           {
@@ -230,7 +278,7 @@ function Group({ title, rows, canManage, onEdit }) {
         ]}
         rows={rows}
         onRowClick={canManage ? (row) => onEdit(row) : undefined}
-        empty={<Empty title="No templates in this group" />}
+        empty={<Empty title="No templates here" hint="Try a different search or filter." />}
       />
     </Card>
   );
@@ -305,108 +353,111 @@ function TemplateModal({ template, events, channels, onClose, onSaved }) {
     >
       <Banner tone="error">{error}</Banner>
 
-      <div className="grid cols-2">
-        <Field label="Name">
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-        </Field>
-        <Field
-          label="Fires on"
-          help={isNew ? "The event that triggers it." : ""}
-        >
-          <Select
-            value={form.event}
-            disabled={!isNew}
-            onChange={(e) => setForm({ ...form, event: e.target.value })}
-          >
-            {events.map((event) => (
-              <option key={event} value={event}>
-                {event}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
-
-      <div className="grid cols-3">
-        <Field label="Audience">
-          <Select
-            value={form.audience}
-            onChange={(e) => setForm({ ...form, audience: e.target.value })}
-          >
-            <option value="customer">Customers</option>
-            <option value="delivery_partner">Delivery partners</option>
-            <option value="admin">Staff</option>
-          </Select>
-        </Field>
-        <Field label="Kind">
-          <Select
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-          >
-            <option value="transactional">Transactional</option>
-            <option value="marketing">Marketing</option>
-          </Select>
-        </Field>
-        <Field label="Enabled">
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={form.enabled}
-              onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-            />
-            <span>{form.enabled ? "Sending" : "Paused"}</span>
-          </label>
-        </Field>
-      </div>
-
-      <div className="section-label">Channels</div>
-      <div
-        className="inline"
-        style={{ gap: 8, flexWrap: "wrap", marginBottom: 14 }}
-      >
-        {channels.map((channel) => (
-          <button
-            key={channel}
-            type="button"
-            className={`chip ${form.channels.includes(channel) ? "on" : ""}`}
-            onClick={() => toggleChannel(channel)}
-          >
-            {CHANNEL_LABEL[channel] || channel}
-          </button>
-        ))}
-      </div>
-
-      <div className="section-label">Default copy</div>
-      <CopyFields
-        value={form.default}
-        onChange={(next) => setForm({ ...form, default: next })}
-      />
-
-      <Divider style={{ margin: "16px 0" }} />
-
-      <div className="section-label">Per-channel wording</div>
-      {form.channels
-        .filter((channel) => channel !== "inapp")
-        .map((channel) => (
-          <div key={channel} style={{ marginBottom: 12 }}>
-            <div className="section-label" style={{ fontSize: 11.5 }}>
-              {CHANNEL_LABEL[channel] || channel}
+      <div className="offer-layout">
+        <div className="offer-main">
+          <FormSection step="1" title="The basics">
+            <div className="grid cols-2">
+              <Field label="Name">
+                <input type="text" autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Order delivered" />
+              </Field>
+              <Field label="Fires on" help={isNew ? "The event that triggers it." : ""}>
+                <Select value={form.event} disabled={!isNew} onChange={(e) => setForm({ ...form, event: e.target.value })}>
+                  {events.map((event) => (
+                    <option key={event} value={event}>
+                      {event}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
             </div>
-            <CopyFields
-              value={
-                overrides[channel] || { title: "", body: "", deeplink: "" }
-              }
-              onChange={(next) =>
-                setOverrides({ ...overrides, [channel]: next })
-              }
-              compact
+            <Field label="Who receives it">
+              <Segmented
+                value={form.audience}
+                onChange={(v) => setForm({ ...form, audience: v })}
+                options={[
+                  { value: "customer", label: "Customers" },
+                  { value: "delivery_partner", label: "Delivery partners" },
+                  { value: "admin", label: "Staff" },
+                ]}
+              />
+            </Field>
+            <Field label="Kind">
+              <Segmented
+                value={form.category}
+                onChange={(v) => setForm({ ...form, category: v })}
+                options={[
+                  { value: "transactional", label: "Transactional" },
+                  { value: "marketing", label: "Marketing" },
+                ]}
+              />
+            </Field>
+            <SwitchRow
+              checked={form.enabled}
+              onChange={(v) => setForm({ ...form, enabled: v })}
+              title={form.enabled ? "Sending" : "Paused"}
             />
+          </FormSection>
+
+          <FormSection step="2" title="Channels">
+            <div className="type-grid">
+              {channels.map((channel) => (
+                <button
+                  key={channel}
+                  type="button"
+                  aria-pressed={form.channels.includes(channel)}
+                  className={`type-tile${form.channels.includes(channel) ? " on" : ""}`}
+                  onClick={() => toggleChannel(channel)}
+                >
+                  <span className="type-glyph">{form.channels.includes(channel) ? "✓" : "+"}</span>
+                  <strong>{CHANNEL_LABEL[channel] || channel}</strong>
+                </button>
+              ))}
+            </div>
+          </FormSection>
+
+          <FormSection step="3" title="Default wording">
+            <CopyFields value={form.default} onChange={(next) => setForm({ ...form, default: next })} />
+          </FormSection>
+
+          {form.channels.filter((channel) => channel !== "inapp").length ? (
+            <FormSection step="4" title="Per-channel wording">
+              {form.channels
+                .filter((channel) => channel !== "inapp")
+                .map((channel) => (
+                  <div key={channel} className="channel-copy">
+                    <div className="channel-copy-head">
+                      <Pill>{CHANNEL_LABEL[channel] || channel}</Pill>
+                    </div>
+                    <CopyFields
+                      value={overrides[channel] || { title: "", body: "", deeplink: "" }}
+                      onChange={(next) => setOverrides({ ...overrides, [channel]: next })}
+                      compact
+                    />
+                  </div>
+                ))}
+            </FormSection>
+          ) : null}
+        </div>
+
+        <aside className="offer-preview" aria-label="Preview">
+          <span className="newcat-preview-label">Preview</span>
+          <div className="push-mock">
+            <div className="push-mock-app">
+              <span className="push-mock-icon">H</span>
+              <span>Hosur Basket</span>
+              <span className="push-mock-now">now</span>
+            </div>
+            <strong>{form.default.title?.trim() || "Notification title"}</strong>
+            <span>{form.default.body?.trim() || "The message body appears here."}</span>
           </div>
-        ))}
+          <ul className="offer-facts">
+            <li><span>Goes to</span><b>{WHO_LABEL[form.audience] || form.audience}</b></li>
+            <li><span>Fires on</span><b className="mono" style={{ textTransform: "none" }}>{form.event}</b></li>
+            <li><span>Channels</span><b>{form.channels.map((c) => CHANNEL_LABEL[c] || c).join(", ") || "none"}</b></li>
+            <li><span>Status</span><b>{form.enabled ? "Sending" : "Paused"}</b></li>
+          </ul>
+        </aside>
+      </div>
     </Modal>
   );
 }
@@ -420,14 +471,16 @@ function CopyFields({ value, onChange, compact }) {
             type="text"
             value={value.title || ""}
             onChange={(e) => onChange({ ...value, title: e.target.value })}
+            placeholder="Short headline"
           />
         </Field>
         {!compact ? (
-          <Field label="Deeplink">
+          <Field label="Opens in the app">
             <input
               type="text"
               value={value.deeplink || ""}
               onChange={(e) => onChange({ ...value, deeplink: e.target.value })}
+              placeholder="/orders"
             />
           </Field>
         ) : null}
@@ -435,6 +488,7 @@ function CopyFields({ value, onChange, compact }) {
       <Field label="Body">
         <textarea
           rows={compact ? 2 : 3}
+          placeholder="The message"
           value={value.body || ""}
           onChange={(e) => onChange({ ...value, body: e.target.value })}
         />
@@ -516,8 +570,8 @@ function Broadcast() {
   }
 
   return (
-    <div className="grid split">
-      <Card title="Send a campaign">
+    <div className="offer-layout">
+      <div className="offer-main">
         <Banner tone="error">{error}</Banner>
 
         {!templates.length ? (
@@ -527,6 +581,7 @@ function Broadcast() {
           />
         ) : (
           <>
+            <FormSection step="1" title="Pick a template">
             <Field label="Template">
               <Select value={event} onChange={(e) => setEvent(e.target.value)}>
                 {templates.map((t) => (
@@ -536,8 +591,10 @@ function Broadcast() {
                 ))}
               </Select>
             </Field>
+            </FormSection>
 
-            <Field label="Who gets it">
+            <FormSection step="2" title="Choose who gets it">
+            <Field label="Audience">
               <Select
                 value={audience}
                 onChange={(e) => setAudience(e.target.value)}
@@ -558,9 +615,9 @@ function Broadcast() {
               </Select>
             </Field>
 
-            <Divider style={{ margin: "14px 0" }} />
+            </FormSection>
 
-            <div className="section-label">Fill the placeholders</div>
+            <FormSection step="3" title="Fill the placeholders">
             <Field label="Headline">
               <input
                 type="text"
@@ -589,19 +646,18 @@ function Broadcast() {
               />
             </Field>
 
-            <button
-              className="btn primary"
-              style={{ marginTop: 12 }}
-              disabled={busy || !event}
-              onClick={() => setConfirming(true)}
-            >
-              Review and send
-            </button>
+            </FormSection>
+
+            <div>
+              <button className="btn primary" disabled={busy || !event} onClick={() => setConfirming(true)}>
+                Review and send
+              </button>
+            </div>
           </>
         )}
-      </Card>
+      </div>
 
-      <div>
+      <div className="broadcast-side">
         <Card title="Preview" style={{ marginBottom: 14 }}>
           {selected ? (
             <div className="preview-push">
@@ -718,7 +774,7 @@ function DeliveryLog() {
     <>
       <Banner tone="error">{error}</Banner>
 
-      <div className="toolbar">
+      <div className="toolbar products-filters">
         <Select
           value={filters.event}
           onChange={(e) => setFilters({ event: e.target.value, page: 1 })}

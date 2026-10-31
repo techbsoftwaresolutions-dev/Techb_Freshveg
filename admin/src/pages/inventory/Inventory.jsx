@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, when } from "../../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, Tabs, when } from "../../components/ui";
 
 // Three views over the same collection, because they answer three different
 // questions a shop actually asks: what do I have, what is running out, and
@@ -103,18 +103,57 @@ export default function Inventory() {
     load();
   }, [load, store, tab]);
 
-  async function adjust(payload) {
+  // The little numbers on the tabs: how many rows each view would show.
+  const [counts, setCounts] = useState({});
+  const loadCounts = useCallback(() => {
+    if (!store) return;
+    const paths = { stock: "/inventory", low: "/inventory/low-stock", out: "/inventory/out-of-stock", expiring: "/inventory/expiring" };
+    Promise.all(
+      Object.entries(paths).map(([key, path]) =>
+        api
+          .get(path, { store, limit: 1 })
+          .then((res) => [key, res.meta?.total ?? res.items?.length ?? 0])
+          .catch(() => [key, undefined])
+      )
+    ).then((pairs) => setCounts(Object.fromEntries(pairs)));
+  }, [store]);
+
+  useEffect(() => {
+    loadCounts();
+  }, [loadCounts]);
+
+  const [notice, setNotice] = useState("");
+
+  // One modal, three ways to change a count: set it (a stock-take), add to it
+  // (goods received) or take some off (damaged / spoiled).
+  async function changeStock({ mode, variant, quantity, reason, batchNo, expiresOn, costPrice }) {
+    setError("");
     try {
-      await api.post("/inventory/adjust", { ...payload, store });
+      if (mode === "receive") {
+        await api.post("/inventory/receive", {
+          store, variant, quantity, reason,
+          ...(batchNo ? { batchNo } : {}),
+          ...(expiresOn ? { expiresOn } : {}),
+          ...(costPrice ? { costPrice: Math.round(Number(costPrice) * 100) } : {}),
+        });
+        setNotice("Stock added.");
+      } else if (mode === "damage") {
+        await api.post("/inventory/damage", { store, variant, quantity, reason });
+        setNotice("Written off — it's in the movement log.");
+      } else {
+        await api.post("/inventory/adjust", { store, variant, quantity, reason });
+        setNotice("Count saved — the difference is in the movement log.");
+      }
       setAdjusting(null);
       load();
+      loadCounts();
     } catch (err) {
       setError(err.message);
     }
   }
 
   return (
-    <div className="page">
+    <div className="page products-page inventory-page">
       <div className="page-head">
         <div>
           <h1>Inventory</h1>
@@ -122,30 +161,44 @@ export default function Inventory() {
       </div>
 
       <Banner tone="error">{error}</Banner>
+      <Banner tone="ok">{notice}</Banner>
 
-      <div className="toolbar inv-toolbar">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            className={`btn sm${tab === t.key ? " primary" : ""}`}
-            onClick={() => {
-              setTab(t.key);
-              setPage(1);
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-        <span className="spacer" />
+      <div className="inv-stats">
+        <button type="button" className={`inv-stat ok${tab === "stock" ? " on" : ""}`} onClick={() => { setTab("stock"); setPage(1); }}>
+          <span>In stock</span><strong>{counts.stock ?? "—"}</strong>
+        </button>
+        <button type="button" className={`inv-stat warn${tab === "low" ? " on" : ""}`} onClick={() => { setTab("low"); setPage(1); }}>
+          <span>Running low</span><strong>{counts.low ?? "—"}</strong>
+        </button>
+        <button type="button" className={`inv-stat danger${tab === "out" ? " on" : ""}`} onClick={() => { setTab("out"); setPage(1); }}>
+          <span>Out of stock</span><strong>{counts.out ?? "—"}</strong>
+        </button>
+        <button type="button" className={`inv-stat info${tab === "expiring" ? " on" : ""}`} onClick={() => { setTab("expiring"); setPage(1); }}>
+          <span>Expiring soon</span><strong>{counts.expiring ?? "—"}</strong>
+        </button>
+      </div>
+
+      <Tabs
+        tabs={TABS.map((t) => ({ key: t.key, label: t.label, count: counts[t.key] }))}
+        active={tab}
+        onChange={(key) => {
+          setTab(key);
+          setPage(1);
+        }}
+      />
+
+      <div className="toolbar products-filters inv-toolbar">
         {tab !== "movements" && (
-          <input
-            type="search"
-            placeholder="Search item or SKU…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ minWidth: 220 }}
-            aria-label="Search inventory"
-          />
+          <span className="search-field">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <input
+              type="search"
+              placeholder="Search item or SKU…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search inventory"
+            />
+          </span>
         )}
         {tree.length > 0 && tab !== "movements" && (
           <>
@@ -181,13 +234,6 @@ export default function Inventory() {
             </Select>
           </>
         )}
-        <Select value={store} onChange={(e) => setStore(e.target.value)}>
-          {stores.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
       </div>
 
       <Card tight>
@@ -206,11 +252,18 @@ export default function Inventory() {
                   key: "product",
                   label: "Item",
                   render: (row) => (
-                    <div className="stack">
-                      <span className="row-title">{row.product?.name}</span>
-                      <span className="row-sub">
-                        {row.variant?.name} · <span className="tag">{row.variant?.sku}</span>
-                      </span>
+                    <div className="row-with-media">
+                      {row.product?.media?.[0]?.url ? (
+                        <img className="row-media" src={row.product.media[0].url} alt="" />
+                      ) : (
+                        <span className="row-media row-media-empty" aria-hidden="true">{(row.product?.name || "?").charAt(0)}</span>
+                      )}
+                      <div className="stack">
+                        <span className="row-title">{row.product?.name}</span>
+                        <span className="row-sub">
+                          {row.variant?.name} · <span className="tag">{row.variant?.sku}</span>
+                        </span>
+                      </div>
                     </div>
                   ),
                 },
@@ -232,8 +285,24 @@ export default function Inventory() {
                   ),
                 },
                 {
+                  key: "level",
+                  label: "Stock level",
+                  sortable: false,
+                  exportable: false,
+                  render: (row) => {
+                    const cap = Math.max((row.lowStockThreshold ?? row.variant?.lowStockThreshold ?? 5) * 3, row.onHand || 0, 1);
+                    const pct = Math.max(0, Math.min(100, Math.round(((row.available || 0) / cap) * 100)));
+                    const tone = row.available <= 0 ? "danger" : row.isLow ? "warn" : "ok";
+                    return (
+                      <span className="level-bar" aria-hidden="true">
+                        <span className={`level-fill ${tone}`} style={{ width: `${pct}%` }} />
+                      </span>
+                    );
+                  },
+                },
+                {
                   key: "status",
-                  label: "",
+                  label: "Status",
                   render: (row) =>
                     row.neverStocked ? (
                       <Pill tone="danger">Never stocked</Pill>
@@ -253,12 +322,14 @@ export default function Inventory() {
                   align: "right",
                   render: (row) =>
                     editable && (
-                      <button
-                        className="btn sm"
-                        onClick={() => setAdjusting(row)}
-                      >
-                        Adjust
-                      </button>
+                      <span className="inv-actions">
+                        <button className="btn sm primary" onClick={() => setAdjusting({ row, mode: "receive" })}>
+                          + Add stock
+                        </button>
+                        <button className="btn sm" onClick={() => setAdjusting({ row, mode: "adjust" })}>
+                          Adjust
+                        </button>
+                      </span>
                     ),
                 },
               ]}
@@ -284,7 +355,7 @@ export default function Inventory() {
       </Card>
 
       {adjusting && (
-        <AdjustModal row={adjusting} onClose={() => setAdjusting(null)} onSave={adjust} />
+        <StockModal row={adjusting.row} initialMode={adjusting.mode} onClose={() => setAdjusting(null)} onSave={changeStock} />
       )}
     </div>
   );
@@ -390,13 +461,37 @@ function ExpiringTable({ rows, days = 3 }) {
   );
 }
 
-function AdjustModal({ row, onClose, onSave }) {
-  const [quantity, setQuantity] = useState(row.onHand);
-  const [reason, setReason] = useState("Stock count");
+const MODES = [
+  { key: "receive", label: "Add stock", hint: "Goods have arrived — enter how many to add." },
+  { key: "adjust", label: "Stock count", hint: "Enter the quantity actually on the shelf. The difference is written to the movement log with your name against it." },
+  { key: "damage", label: "Write off", hint: "Damaged or spoiled units — enter how many to take off." },
+];
+const DEFAULT_REASON = { receive: "Goods received", adjust: "Stock count", damage: "Damaged / spoiled" };
+
+function StockModal({ row, initialMode = "adjust", onClose, onSave }) {
+  const [mode, setMode] = useState(initialMode);
+  const [quantity, setQuantity] = useState(initialMode === "adjust" ? row.onHand : "");
+  const [reason, setReason] = useState(DEFAULT_REASON[initialMode]);
+  const [batchNo, setBatchNo] = useState("");
+  const [expiresOn, setExpiresOn] = useState("");
+  const [costPrice, setCostPrice] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const current = MODES.find((m) => m.key === mode);
+  const qty = Number(quantity);
+  const valid = quantity !== "" && Number.isFinite(qty) && (mode === "adjust" ? qty >= 0 : qty > 0);
+  const after =
+    mode === "receive" ? row.onHand + qty : mode === "damage" ? Math.max(0, row.onHand - qty) : qty;
+
+  function pick(next) {
+    setMode(next);
+    setReason(DEFAULT_REASON[next]);
+    setQuantity(next === "adjust" ? row.onHand : "");
+  }
 
   return (
     <Modal
-      title={`Adjust — ${row.product?.name}`}
+      title={`${row.product?.name}${row.variant?.name ? ` · ${row.variant.name}` : ""}`}
       onClose={onClose}
       footer={
         <>
@@ -404,29 +499,57 @@ function AdjustModal({ row, onClose, onSave }) {
             Cancel
           </button>
           <button
-            className="btn primary"
-            onClick={() => onSave({ variant: row.variant.id, quantity: Number(quantity), reason })}
+            className={`btn ${mode === "damage" ? "danger" : "primary"}`}
+            disabled={!valid || saving}
+            onClick={async () => {
+              setSaving(true);
+              await onSave({ mode, variant: row.variant.id, quantity: qty, reason, batchNo, expiresOn, costPrice });
+              setSaving(false);
+            }}
           >
-            Save adjustment
+            {saving ? "Saving…" : mode === "receive" ? "Add stock" : mode === "damage" ? "Write off" : "Save count"}
           </button>
         </>
       }
     >
-      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        Enter the quantity actually on the shelf. The difference is written to the movement log with
-        your name against it.
-      </p>
+      <div className="chip-row stock-modes" role="tablist">
+        {MODES.map((m) => (
+          <button key={m.key} type="button" role="tab" aria-selected={mode === m.key} className={`cat-chip${mode === m.key ? " on" : ""}`} onClick={() => pick(m.key)}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>{current.hint}</p>
+
+      <div className="stock-now">
+        <div><span>On hand</span><strong>{row.onHand}</strong></div>
+        <div><span>Reserved</span><strong>{row.reserved || 0}</strong></div>
+        <div className="arrow" aria-hidden="true">→</div>
+        <div className="after"><span>After</span><strong>{valid ? after : "—"}</strong></div>
+      </div>
+
       <div className="grid cols-2">
-        <Field label="Counted quantity">
-          <input type="number" autoFocus value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+        <Field label={mode === "adjust" ? "Counted quantity" : "Quantity"}>
+          <input type="number" min="0" autoFocus value={quantity} onChange={(e) => setQuantity(e.target.value)} />
         </Field>
-        <Field label="Currently recorded">
-          <input type="number" value={row.onHand} disabled />
+        <Field label="Reason">
+          <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
       </div>
-      <Field label="Reason">
-        <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} />
-      </Field>
+
+      {mode === "receive" ? (
+        <div className="grid cols-3">
+          <Field label="Batch no." help="Optional">
+            <input type="text" value={batchNo} onChange={(e) => setBatchNo(e.target.value)} />
+          </Field>
+          <Field label="Expiry date" help="Optional — feeds Expiring soon">
+            <input type="date" value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} />
+          </Field>
+          <Field label="Cost per unit (₹)" help="Optional">
+            <input type="number" min="0" step="0.01" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
+          </Field>
+        </div>
+      ) : null}
     </Modal>
   );
 }

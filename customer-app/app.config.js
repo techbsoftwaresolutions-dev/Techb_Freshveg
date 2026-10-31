@@ -12,6 +12,10 @@ export default {
     orientation: "portrait",
     userInterfaceStyle: "light",
     scheme: "samagramart",
+
+    // SDK 58 wants these listed ("expo install --fix" could not add them to a
+    // dynamic config on its own).
+    plugins: ["expo-font", "expo-status-bar"],
     icon: "./assets/icon.png",
 
     splash: {

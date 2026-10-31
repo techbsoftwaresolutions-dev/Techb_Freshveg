@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { useAuth } from "../context/AuthContext";
 import { colors, radius, spacing, type } from "../theme";
 import { Button, Notice } from "../components/ui";

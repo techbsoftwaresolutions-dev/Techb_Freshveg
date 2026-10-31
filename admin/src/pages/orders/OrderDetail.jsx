@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Field, Loading, Modal, Pill, rupees, useConfirm, when } from "../../components/ui";
-import { statusTone } from "./Orders";
+import { Banner, Card, Empty, Field, Loading, Modal, Pill, rupees, useConfirm, when } from "../../components/ui";
+import SelectMenu from "../../components/SelectMenu";
+import { Avatar, statusTone } from "./Orders";
 
 export default function OrderDetail() {
   const [confirm, confirmDialog] = useConfirm();
@@ -25,12 +26,14 @@ export default function OrderDetail() {
   // Items ticked for "Deliver later", and the popup that asks for the date.
   const [picked, setPicked] = useState([]);
   const [delaying, setDelaying] = useState(false);
+  const [deliveryTimes, setDeliveryTimes] = useState([]);
 
   const load = useCallback(async () => {
     const data = await api.get(`/orders/${id}`);
     setOrder(data.order);
     setTimeline(data.timeline);
     setActions(data.actions);
+    setDeliveryTimes(data.deliveryTimes || []);
   }, [id]);
 
   useEffect(() => {
@@ -39,6 +42,21 @@ export default function OrderDetail() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [load]);
+
+  // Picks (or adds) the delivery time and tells the customer straight away.
+  async function sendDeliveryTime(body) {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api.post(`/orders/${id}/delivery-time`, body);
+      if (res.deliveryTimes) setDeliveryTimes(res.deliveryTimes);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function advance(status) {
     setBusy(true);
@@ -117,7 +135,21 @@ export default function OrderDetail() {
   }
 
   if (loading) return <div className="page"><Loading /></div>;
-  if (!order) return <div className="page"><Banner tone="error">{error || "Order not found"}</Banner></div>;
+  if (!order) {
+    return (
+      <div className="page">
+        <Card>
+          <Empty
+            title="This order no longer exists"
+            hint="It was probably deleted. Any refund already made is still kept on record under Payments → Refunds."
+          />
+          <div style={{ textAlign: "center", paddingBottom: 20 }}>
+            <button className="btn primary" onClick={() => navigate("/orders")}>Back to orders</button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   // The way forward, and the ways out, kept apart so "Cancel order" is never
   // the button sitting where "Start packing" was a second ago. Assigning a
@@ -140,10 +172,13 @@ export default function OrderDetail() {
   const totalWeightGrams = order.items.reduce((sum, item) => sum + (item.weightGrams || 0) * item.quantity, 0);
 
   return (
-    <div className="page">
+    <div className="page products-page order-page">
       {confirmDialog}
-      <div className="page-head">
+      <div className="page-head order-head">
         <div>
+          <button type="button" className="form-page-back order-back" onClick={() => navigate("/orders")}>
+            ← All orders
+          </button>
           <h1 className="mono">{order.code}</h1>
           <p>
             Placed {when(order.placedAt)} · {order.source} ·{" "}
@@ -153,13 +188,40 @@ export default function OrderDetail() {
           </p>
         </div>
         <div className="inline">
-          <button className="btn" onClick={() => navigate("/orders")}>
-            All orders
+          <button className="btn" onClick={() => window.print()}>
+            Print
           </button>
         </div>
       </div>
 
       <Banner tone="error">{error}</Banner>
+
+      <div className="order-summary">
+        <div className="order-sum-tile">
+          <span className="order-sum-label">Order total</span>
+          <strong>{rupees(order.pricing.total)}</strong>
+          <span className="order-sum-foot">{order.items.length} item{order.items.length === 1 ? "" : "s"}{totalWeightGrams > 0 ? ` · ${(totalWeightGrams / 1000).toFixed(2)} kg` : ""}</span>
+        </div>
+        <div className="order-sum-tile">
+          <span className="order-sum-label">Payment</span>
+          <strong>{(order.payment?.method || "cod").toUpperCase()}</strong>
+          <span className="order-sum-foot">
+            <Pill tone={order.payment?.status === "paid" ? "ok" : "warn"}>{order.payment?.status || "pending"}</Pill>
+          </span>
+        </div>
+        <div className="order-sum-tile">
+          <span className="order-sum-label">Customer</span>
+          <strong>{order.customerSnapshot?.name || "—"}</strong>
+          <span className="order-sum-foot">{order.customerSnapshot?.phone || ""}</span>
+        </div>
+        <div className="order-sum-tile">
+          <span className="order-sum-label">Delivery</span>
+          <strong>{order.delivery?.partnerName || "Not assigned"}</strong>
+          <span className="order-sum-foot">
+            {order.delivery?.partnerName ? order.delivery.partnerPhone : "Waiting for a partner"}
+          </span>
+        </div>
+      </div>
 
       {/* Where the order is on its way from "placed" to "delivered", at a
           glance — the same steps the customer sees on their tracker. */}
@@ -170,6 +232,17 @@ export default function OrderDetail() {
           <div className="next-step-copy">
             <span className="section-label">Next step</span>
             <strong>{nextStepHint(order)}</strong>
+          </div>
+          <div className="next-step-time">
+            <SelectMenu
+              value={order.delivery?.etaOption || ""}
+              placeholder="Delivery time"
+              ariaLabel="Delivery time"
+              options={deliveryTimes.map((o) => ({ value: o.key, label: o.label }))}
+              onChange={(key) => sendDeliveryTime({ option: key })}
+              onAdd={(text) => sendDeliveryTime({ add: text })}
+              addPlaceholder="Add new… e.g. Next morning"
+            />
           </div>
           <div className="next-step-actions">
             {forward.map((action) => (
@@ -347,7 +420,7 @@ export default function OrderDetail() {
             </div>
           </Card>
 
-          <Card title="Payment summary">
+          <Card title="Payment summary" className="pay-card">
             <table className="data">
               <tbody>
                 <Row label="Subtotal" value={rupees(order.pricing.subtotal)} />
@@ -377,16 +450,26 @@ export default function OrderDetail() {
                 {order.pricing.roundOff !== 0 && (
                   <Row label="Round off" value={rupees(order.pricing.roundOff, { decimals: true })} />
                 )}
-                <tr>
+                <tr className="total-row">
                   <td>
                     <strong>Total</strong>
                   </td>
                   <td className="num">
-                    <strong style={{ fontSize: 15 }}>{rupees(order.pricing.total)}</strong>
+                    <strong style={{ fontSize: 17 }}>{rupees(order.pricing.total)}</strong>
                   </td>
                 </tr>
               </tbody>
             </table>
+            <div className="pay-foot">
+              <span>
+                Paid by <strong>{(order.payment?.method || "cod").toUpperCase()}</strong>
+                {order.payment?.provider ? ` · ${order.payment.provider}` : ""}
+              </span>
+              <Pill tone={order.payment?.status === "paid" ? "ok" : "warn"}>{order.payment?.status || "pending"}</Pill>
+              {order.payment?.transactionId ? <span className="mono faint">{order.payment.transactionId}</span> : null}
+              {order.payment?.amountRefunded > 0 ? <span className="faint">Refunded {rupees(order.payment.amountRefunded)}</span> : null}
+            </div>
+            {order.note ? <div className="order-note"><span className="section-label">Customer note</span>{order.note}</div> : null}
           </Card>
         </div>
 
@@ -410,9 +493,15 @@ export default function OrderDetail() {
           </Card>
 
           <Card title="Customer">
-            <div className="stack">
-              <strong>{order.customerSnapshot?.name || "—"}</strong>
-              <span className="muted">{order.customerSnapshot?.phone}</span>
+            <div className="person-cell person-big">
+              <Avatar name={order.customerSnapshot?.name} size={44} />
+              <div className="stack">
+                <strong>{order.customerSnapshot?.name || "—"}</strong>
+                <span className="muted">{order.customerSnapshot?.phone}</span>
+              </div>
+              {order.customerSnapshot?.phone ? (
+                <a className="btn sm person-call" href={`tel:${order.customerSnapshot.phone}`}>Call</a>
+              ) : null}
             </div>
             <div className="divider" />
             <div className="section-label">Delivery address</div>
@@ -431,14 +520,21 @@ export default function OrderDetail() {
             )}
           </Card>
 
+
           <Card title="Delivery">
             {order.delivery?.partnerName ? (
-              <div className="stack">
-                <strong>{order.delivery.partnerName}</strong>
-                <span className="muted">{order.delivery.partnerPhone}</span>
-                <span className="faint" style={{ fontSize: 12 }}>
-                  Assigned {when(order.delivery.assignedAt)}
-                </span>
+              <div className="person-cell person-big">
+                <Avatar name={order.delivery.partnerName} size={44} />
+                <div className="stack">
+                  <strong>{order.delivery.partnerName}</strong>
+                  <span className="muted">{order.delivery.partnerPhone}</span>
+                  <span className="faint" style={{ fontSize: 12 }}>
+                    Assigned {when(order.delivery.assignedAt)}
+                  </span>
+                </div>
+                {order.delivery.partnerPhone ? (
+                  <a className="btn sm person-call" href={`tel:${order.delivery.partnerPhone}`}>Call</a>
+                ) : null}
               </div>
             ) : (
               <p className="muted" style={{ margin: 0, fontSize: 13 }}>
@@ -773,3 +869,5 @@ function AssignModal({ busy, partners, onClose, onAssign }) {
     </Modal>
   );
 }
+
+

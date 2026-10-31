@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../components/AppText";
 import { api } from "../api/client";
 import { useStore } from "../context/StoreContext";
 import { colors, fontFamily, radius, rupees, spacing, type } from "../theme";
@@ -22,6 +23,11 @@ export default function CategoriesScreen({ navigation }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Tile width is worked out from the space actually there, so two always fit
+  // side by side — percentages plus a gap can add up to just over 100% and
+  // push the second tile onto its own line on some phones.
+  const [gridWidth, setGridWidth] = useState(0);
+  const tileWidth = gridWidth ? Math.floor((gridWidth - spacing.sm) / 2) : "48%";
 
   useEffect(() => {
     api
@@ -53,17 +59,16 @@ export default function CategoriesScreen({ navigation }) {
           const isActive = index === activeIndex;
           const tileColor = RAIL_COLORS[index % RAIL_COLORS.length];
           return (
-            <Pressable
-              key={category.id}
-              onPress={() => setActiveIndex(index)}
-              style={[styles.railItem, isActive && styles.railItemActive]}
-            >
-              <View style={[styles.railIcon, { backgroundColor: tileColor }]}>
-                {category.image ? (
-                  <Image source={{ uri: category.image }} style={styles.railIconImage} resizeMode="cover" />
-                ) : (
-                  <Text style={styles.railIconGlyph}>{category.icon || "•"}</Text>
-                )}
+            <Pressable key={category.id} onPress={() => setActiveIndex(index)} style={[styles.railItem, isActive && styles.railItemActive]}>
+              {isActive ? <View style={styles.railMarker} /> : null}
+              <View style={[styles.railRing, isActive && styles.railRingActive]}>
+                <View style={[styles.railIcon, { backgroundColor: category.image ? "#fff" : tileColor }]}>
+                  {category.image ? (
+                    <Image source={{ uri: category.image }} style={styles.railIconImage} resizeMode="cover" />
+                  ) : (
+                    <Text style={styles.railIconGlyph}>{category.icon || "•"}</Text>
+                  )}
+                </View>
               </View>
               <Text style={[styles.railLabel, isActive && styles.railLabelActive]} numberOfLines={2}>
                 {category.name}
@@ -75,14 +80,15 @@ export default function CategoriesScreen({ navigation }) {
 
       {/* Subcategories */}
       <View style={styles.panel}>
-        <Pressable
-          style={styles.ctaCard}
-          onPress={() => navigation.navigate("ProductList", { slug: active.slug, title: active.name })}
-        >
+        <Text style={styles.panelTitle} numberOfLines={1}>
+          {active.name}
+        </Text>
+
+        <Pressable style={styles.ctaCard} onPress={() => navigation.navigate("ProductList", { slug: active.slug, title: active.name })}>
           <View style={styles.ctaTextWrap}>
-            <Text style={styles.ctaText}>
-              Browse all{"\n"}
-              {active.name} {active.productCount ? `(${active.productCount})` : ""}
+            <Text style={styles.ctaKicker}>Browse all</Text>
+            <Text style={styles.ctaText} numberOfLines={2}>
+              {active.productCount ? `${active.productCount} products` : "See everything"}
             </Text>
           </View>
           <View style={styles.ctaArrow}>
@@ -93,47 +99,41 @@ export default function CategoriesScreen({ navigation }) {
         <View style={styles.pillRow}>
           <Pressable
             style={styles.pill}
-            onPress={() =>
-              navigation.navigate("ProductList", { slug: active.slug, title: active.name, openFilter: true })
-            }
+            onPress={() => navigation.navigate("ProductList", { slug: active.slug, title: active.name, openFilter: true })}
           >
             <Text style={styles.pillText}>Filter</Text>
           </Pressable>
           <Pressable
             style={styles.pill}
-            onPress={() =>
-              navigation.navigate("ProductList", { slug: active.slug, title: active.name, openSort: true })
-            }
+            onPress={() => navigation.navigate("ProductList", { slug: active.slug, title: active.name, openSort: true })}
           >
-            <Text style={styles.pillText}>Sort By ▾</Text>
+            <Text style={styles.pillText}>Sort by ▾</Text>
           </Pressable>
         </View>
 
         {active.children?.length ? (
-          <View style={styles.statList}>
+          <View style={styles.grid} onLayout={(e) => setGridWidth(Math.floor(e.nativeEvent.layout.width))}>
             {active.children.map((child, index) => (
               <Pressable
                 key={child.id}
-                style={styles.statCard}
+                style={[styles.tile, { width: tileWidth }]}
                 onPress={() => navigation.navigate("ProductList", { slug: child.slug, title: child.name })}
               >
-                <View style={[styles.statIcon, { backgroundColor: STAT_COLORS[index % STAT_COLORS.length] }]}>
+                <View style={[styles.tileIcon, { backgroundColor: child.image ? "#fff" : STAT_COLORS[index % STAT_COLORS.length] }]}>
                   {child.image ? (
-                    <Image source={{ uri: child.image }} style={styles.statIconImage} resizeMode="cover" />
+                    <Image source={{ uri: child.image }} style={styles.tileIconImage} resizeMode="cover" />
                   ) : (
-                    <Text style={styles.statIconGlyph}>{child.icon || "•"}</Text>
+                    <Text style={styles.tileIconGlyph}>{child.icon || "•"}</Text>
                   )}
                 </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.statTitle} numberOfLines={1}>
-                    {child.name}
+                <Text style={styles.tileTitle} numberOfLines={2}>
+                  {child.name}
+                </Text>
+                {child.productCount ? (
+                  <Text style={styles.tileSub}>
+                    {child.productCount} {child.productCount === 1 ? "item" : "items"}
                   </Text>
-                  {child.productCount ? (
-                    <Text style={styles.statSub}>
-                      {child.productCount} {child.productCount === 1 ? "item" : "items"}
-                    </Text>
-                  ) : null}
-                </View>
+                ) : null}
               </Pressable>
             ))}
           </View>
@@ -146,7 +146,7 @@ export default function CategoriesScreen({ navigation }) {
         {freeDeliveryOn && freeDeliveryAbove ? (
           <View style={styles.promoStrip}>
             <Text style={styles.promoText}>
-              Free delivery on orders above <Text style={styles.promoBold}>{rupees(freeDeliveryAbove)}</Text>
+              🚚 Free delivery on orders above <Text style={styles.promoBold}>{rupees(freeDeliveryAbove)}</Text>
             </Text>
           </View>
         ) : null}
@@ -159,86 +159,78 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   screenContent: { flexDirection: "row", minHeight: "100%" },
 
-  rail: { width: 92, flexGrow: 0, flexShrink: 0, backgroundColor: colors.surfaceAlt, paddingVertical: spacing.sm, paddingBottom: spacing.xxl },
-  railItem: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 6, gap: 7, marginHorizontal: 6, marginBottom: 2, borderRadius: radius.lg },
-  railItemActive: { backgroundColor: colors.accentSoft },
-  railIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
+  rail: { width: 84, flexGrow: 0, flexShrink: 0, backgroundColor: colors.surface, paddingVertical: spacing.sm, paddingBottom: spacing.xxl, borderRightWidth: 1, borderRightColor: colors.border },
+  railItem: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 4, gap: 6 },
+  railItemActive: { backgroundColor: colors.primarySoft },
+  railMarker: { position: "absolute", left: 0, top: 12, bottom: 12, width: 3.5, backgroundColor: colors.primary, borderTopRightRadius: 3, borderBottomRightRadius: 3 },
+  railRing: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    padding: 3,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "transparent",
+    shadowColor: "#0B0F1A",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
+  railRingActive: { borderColor: colors.primary },
+  railIcon: { flex: 1, borderRadius: 24, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   railIconImage: { width: "100%", height: "100%" },
-  railIconGlyph: { fontSize: 22, color: "#fff" },
-  railLabel: { fontSize: 10.8, lineHeight: 13.5, fontFamily: fontFamily.bold, color: colors.textMuted, textAlign: "center" },
-  railLabelActive: { color: colors.text },
+  railIconGlyph: { fontSize: 20, color: "#fff" },
+  railLabel: { fontSize: 10.5, lineHeight: 13, fontFamily: fontFamily.semibold, color: colors.textMuted, textAlign: "center" },
+  railLabelActive: { color: colors.primaryDark, fontFamily: fontFamily.bold },
 
-  panel: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg, paddingBottom: spacing.xxl },
+  panel: { flex: 1, backgroundColor: colors.bg, padding: spacing.md, paddingBottom: spacing.xxl },
+  panelTitle: { fontSize: 17, fontFamily: fontFamily.extrabold, color: colors.text, marginBottom: spacing.sm },
 
   ctaCard: {
-    backgroundColor: colors.saveSoft,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    backgroundColor: colors.primary,
+    borderRadius: 18,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     marginBottom: spacing.md,
   },
-  // A Text sibling in a row, with no width of its own, can mis-measure and
-  // wrap after just a word or two — this View is what actually gives it
-  // something to measure against, with the arrow button pinned at a fixed
-  // size beside it rather than squeezed by whatever the text decides.
   ctaTextWrap: { flex: 1, minWidth: 0, paddingRight: spacing.sm },
-  ctaText: { fontSize: 18, lineHeight: 23, fontFamily: fontFamily.extrabold, color: colors.save },
-  ctaArrow: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  ctaArrowGlyph: { fontSize: 16, fontFamily: fontFamily.bold, color: colors.save },
+  ctaKicker: { fontSize: 11, fontFamily: fontFamily.bold, color: "rgba(255,255,255,0.8)", letterSpacing: 0.6, textTransform: "uppercase" },
+  ctaText: { fontSize: 17, lineHeight: 22, fontFamily: fontFamily.extrabold, color: "#fff", marginTop: 1 },
+  ctaArrow: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  ctaArrowGlyph: { fontSize: 16, fontFamily: fontFamily.bold, color: colors.primaryDark },
 
   pillRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
-  pill: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pillText: { fontSize: 12, fontFamily: fontFamily.bold, color: colors.text },
+  pill: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 32, alignItems: "center", justifyContent: "center" },
+  pillText: { fontSize: 12, fontFamily: fontFamily.semibold, color: colors.textMuted },
 
-  statList: { gap: spacing.sm },
-  statCard: {
-    flexDirection: "row",
+  // Two to a row — a tile with a round picture, its name and how many items.
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  tile: {
     alignItems: "center",
-    gap: spacing.md,
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    gap: 6,
   },
-  statIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  statIconImage: { width: "100%", height: "100%" },
-  statIconGlyph: { fontSize: 18, color: "#fff" },
-  statTitle: { fontSize: 13.5, fontFamily: fontFamily.extrabold, color: colors.text },
-  statSub: { fontSize: 11, fontFamily: fontFamily.semibold, color: colors.textMuted, marginTop: 1 },
+  tileIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  tileIconImage: { width: "100%", height: "100%" },
+  tileIconGlyph: { fontSize: 24, color: "#fff" },
+  tileTitle: { fontSize: 13, lineHeight: 16, fontFamily: fontFamily.bold, color: colors.text, textAlign: "center", minHeight: 16 },
+  tileSub: { fontSize: 10.5, fontFamily: fontFamily.semibold, color: colors.textMuted },
 
   promoStrip: {
-    backgroundColor: "#111417",
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 14,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     marginTop: spacing.lg,
   },
-  promoText: { fontSize: 11.5, fontFamily: fontFamily.semibold, color: "#fff" },
-  promoBold: { fontFamily: fontFamily.extrabold, color: "#64E0B4" },
+  promoText: { fontSize: 12, fontFamily: fontFamily.semibold, color: colors.text },
+  promoBold: { fontFamily: fontFamily.extrabold, color: colors.primaryDark },
 });

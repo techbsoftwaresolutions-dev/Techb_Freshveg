@@ -2106,6 +2106,16 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .pack-option.on { border-color: var(--brand); background: var(--brand-mist); box-shadow: 0 0 0 1px var(--brand); }
 .pack-option.on strong { color: var(--brand-dark); }
 .pack-option.sold-out { opacity: 0.5; }
+.pack-multi { display: grid; gap: 10px; margin-bottom: 16px; }
+.pack-multi-row { display: grid; grid-template-columns: 1fr auto 78px; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
+.pack-multi-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pack-multi-name strong { font-size: 14px; font-weight: 600; }
+.pack-multi-name span { font-size: 12.5px; color: var(--text-muted); }
+.pack-multi-row .qty { height: 34px; min-width: 108px; }
+.pack-multi-sub { text-align: right; font-size: 14px; }
+.pack-multi-total { display: flex; align-items: baseline; justify-content: space-between; padding: 6px 4px 0; font-size: 13.5px; color: var(--text-muted); }
+.pack-multi-total strong { font-size: 26px; font-weight: 800; color: var(--text); }
+@media (max-width: 520px) { .pack-multi-row { grid-template-columns: 1fr auto; } .pack-multi-sub { grid-column: 2; } }
 .pack-in-cart {
   position: absolute;
   top: -9px;
@@ -5458,4 +5468,102 @@ body:has(.help-page) .search-form { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .market-copy, .market-photo > img { animation: none; }
   .market-shop { transition: none; }
+}
+
+/* ------------------------------------------------------------- storefront polish */
+
+/* Calm section spacing, bright cards and product photos that show the whole
+   pack instead of cropping it. */
+.home-main > .section { margin: 30px 0; }
+.home-main .section-head { margin-bottom: 14px; }
+.home-main .section-head h2 { font-size: 19px; font-weight: 650; }
+.home-main .rail { gap: 14px; grid-auto-columns: calc((100% - 4 * 14px) / 5); }
+.home-main .card {
+  padding: 10px 11px 11px;
+  gap: 3px;
+  border-radius: 12px;
+  box-shadow: 0 1px 5px rgba(19, 53, 31, 0.07);
+}
+.home-main .card:hover { box-shadow: 0 7px 20px rgba(19, 53, 31, 0.11); }
+.home-main .card-media {
+  aspect-ratio: 1.08 / 1;
+  border-radius: 9px;
+  background: #fbfcfa;
+}
+.home-main .card-media img { object-fit: contain; padding: 5px; }
+.home-main .card-media-wrap { margin-bottom: 5px; }
+.home-main .card-name { color: #285d29; font-weight: 600; }
+.home-main .card-pack { margin-bottom: 7px; }
+.home-main .price { font-size: 14px; }
+.home-main .promo-row { gap: 14px; margin: 22px 0 10px; }
+.home-main .promo { min-height: 150px; padding: 18px; border-radius: 13px; }
+.home-main .top-cats { gap: 12px; }
+.home-main .top-cat {
+  padding: 13px 8px 12px;
+  border-radius: 12px;
+  box-shadow: 0 1px 5px rgba(19, 53, 31, 0.06);
+}
+.home-main .top-cat-icon { width: 58px; height: 58px; }
+.home-main .shop-row { gap: 14px; }
+.home-main .shop-card { border-radius: 12px; }
+
+@media (max-width: 1080px) and (min-width: 721px) {
+  .home-main .promo-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-main .promo { padding: 14px; }
+  .home-main .promo h3 { font-size: 17px; }
+  .home-main .promo p { font-size: 11.5px; }
+  .home-main .rail { grid-auto-columns: calc((100% - 3 * 14px) / 4); }
+}
+
+@media (max-width: 720px) {
+  .home-main > .section { margin: 24px 0; }
+  .home-main .section-head h2 { font-size: 17px; }
+  .home-main .rail { grid-auto-columns: calc((100% - 24px) / 2.15); gap: 12px; }
+  .home-main .card { padding: 8px 9px 10px; }
+  .home-main .card-media { aspect-ratio: 1 / 1; }
+  .home-main .promo-row { gap: 12px; }
+}
+
+/* The department shelf gets a more compact tile treatment: larger produce
+   thumbnails in a soft colour pod, with room for long department names. */
+.home-main .top-cats { gap: 12px; }
+.home-main .top-cat {
+  min-height: 132px;
+  padding: 12px 8px 11px;
+  gap: 8px;
+  border-color: #e5ece5;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff 0%, #fbfdfb 100%);
+  box-shadow: 0 2px 8px rgba(28, 66, 39, 0.055);
+}
+.home-main .top-cat:hover {
+  transform: translateY(-3px);
+  border-color: #c7ddc6;
+  background: #f8fcf7;
+  box-shadow: 0 9px 20px rgba(28, 66, 39, 0.1);
+}
+.home-main .top-cat-icon {
+  width: 68px;
+  height: 68px;
+  padding: 5px;
+  border-radius: 18px;
+  background: radial-gradient(circle at 50% 42%, #fff 0 42%, #f0f7ed 100%);
+  color: #477d2b;
+}
+.home-main .top-cat-icon svg { width: 32px; height: 32px; }
+.home-main .top-cat-photo { object-fit: contain; }
+.home-main .top-cat-name {
+  max-width: 15ch;
+  color: #263e2d;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.home-main .top-cat-more .top-cat-icon { background: #edf6ed; }
+
+@media (max-width: 720px) {
+  .home-main .top-cats { grid-auto-columns: 104px; gap: 10px; }
+  .home-main .top-cat { min-height: 118px; padding: 10px 7px; }
+  .home-main .top-cat-icon { width: 58px; height: 58px; border-radius: 15px; }
+  .home-main .top-cat-name { font-size: 11px; }
 }

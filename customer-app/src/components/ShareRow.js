@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Linking, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, Pressable, Share, StyleSheet, View } from "react-native";
+import { Text } from "./AppText";
 import Constants from "expo-constants";
 import * as Clipboard from "expo-clipboard";
 import { colors, radius, spacing } from "../theme";

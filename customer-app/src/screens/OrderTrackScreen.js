@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../components/AppText";
 import { api } from "../api/client";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
@@ -144,6 +145,21 @@ export default function OrderTrackScreen({ route, navigation }) {
           </Text>
         ) : null}
       </Card>
+
+      {/* The delivery time the shop promised (15 min / 30 min / 1 hour / next day). */}
+      {tracking.etaLabel && !isClosed ? (
+        <Card style={styles.etaCard}>
+          <Text style={styles.etaLabel}>Delivery time</Text>
+          <Text style={styles.etaValue}>{tracking.etaLabel}</Text>
+          {tracking.expectedBy ? (
+            <Text style={type.small}>
+              {tracking.etaOption === "next_day" || new Date(tracking.expectedBy).toDateString() !== new Date().toDateString()
+                ? `Arriving ${laterDate(tracking.expectedBy)}`
+                : `Expected by ${new Date(tracking.expectedBy).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}
+            </Text>
+          ) : null}
+        </Card>
+      ) : null}
 
       {/* The handover code. Only shown while it is actually needed. */}
       {tracking.otp ? (
@@ -370,6 +386,9 @@ function Row({ label, value, tone, bold }) {
 }
 
 const styles = StyleSheet.create({
+  etaCard: { padding: spacing.lg, alignItems: "center", backgroundColor: colors.primarySoft, borderColor: colors.primary, borderWidth: 1 },
+  etaLabel: { ...type.small, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
+  etaValue: { fontSize: 26, fontWeight: "800", color: colors.primaryDark, marginVertical: 2 },
   screen: { flex: 1, backgroundColor: colors.bg },
   statusLabel: { fontSize: 19, fontWeight: "800", color: colors.text, textAlign: "center" },
 

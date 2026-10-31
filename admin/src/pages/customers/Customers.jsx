@@ -4,6 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
+import { Avatar } from "../orders/Orders";
+import { IconCustomers, IconOrders, IconWallet, IconOffers } from "../../components/Icons";
 import {
   Banner, Card, Divider, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
@@ -36,7 +38,7 @@ export default function Customers() {
   const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));
 
   return (
-    <div className="page">
+    <div className="page products-page customers-page">
       <div className="page-head">
         <div>
           <h1>Customers</h1>
@@ -45,19 +47,30 @@ export default function Customers() {
 
       <Banner tone="error">{error}</Banner>
 
-      <div className="toolbar">
-        <input
-          type="search"
-          placeholder="Search by name, phone or email…"
-          value={filters.search}
-          onChange={(e) => set("search", e.target.value)}
-          style={{ minWidth: 260 }}
-        />
-        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
-          <option value="">All</option>
-          <option value="active">Active</option>
-          <option value="blocked">Blocked</option>
-        </Select>
+      <div className="toolbar products-filters">
+        <span className="search-field">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input
+            type="search"
+            placeholder="Search by name, phone or email…"
+            value={filters.search}
+            onChange={(e) => set("search", e.target.value)}
+          />
+        </span>
+        <div className="chip-row cust-tabs" role="tablist" aria-label="Status">
+          {[["", "All"], ["active", "Active"], ["blocked", "Blocked"]].map(([value, label]) => (
+            <button
+              key={label}
+              type="button"
+              role="tab"
+              aria-selected={filters.status === value}
+              className={`cat-chip${filters.status === value ? " on" : ""}`}
+              onClick={() => set("status", value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <Card tight>
@@ -72,13 +85,16 @@ export default function Customers() {
                   key: "name",
                   label: "Customer",
                   render: (row) => (
-                    <div className="stack">
-                      <span className="row-title">{row.name || "—"}</span>
-                      <span className="row-sub">{row.phone}{row.email ? ` · ${row.email}` : ""}</span>
-                    </div>
+                    <span className="person-cell">
+                      <Avatar name={row.name || row.phone} />
+                      <span className="stack">
+                        <span className="row-title">{row.name || "—"}</span>
+                        <span className="row-sub">{row.phone}{row.email ? ` · ${row.email}` : ""}</span>
+                      </span>
+                    </span>
                   ),
                 },
-                { key: "orders", label: "Orders", align: "right" },
+                { key: "orders", label: "Orders", align: "right", render: (row) => <span className="count-pill">{row.orders || 0}</span> },
                 {
                   key: "totalSpend",
                   label: "Spend",
@@ -118,8 +134,12 @@ export default function Customers() {
                   render: (row) =>
                     canManage && (
                       <div className="row-actions" onClick={(e) => e.stopPropagation()}>
-                        <button className="btn sm" onClick={() => navigate(`/customers/${row.id}/edit`)}>Edit</button>
-                        <button className="btn sm danger" onClick={() => setDeleting(row)}>Delete</button>
+                        <button type="button" className="icon-edit" title={`Edit ${row.name || row.phone}`} aria-label={`Edit ${row.name || row.phone}`} onClick={() => navigate(`/customers/${row.id}/edit`)}>
+                          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" /></svg>
+                        </button>
+                        <button type="button" className="icon-delete" title={`Delete ${row.name || row.phone}`} aria-label={`Delete ${row.name || row.phone}`} onClick={() => setDeleting(row)}>
+                          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" /></svg>
+                        </button>
                       </div>
                     ),
                 },
@@ -210,7 +230,7 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
     <Modal
       title={
         <div className="inline">
-          <h2>{customer.name || customer.phone}</h2>
+          <h2>Customer</h2>
           <Pill tone={customer.status === "active" ? "ok" : "danger"}>{customer.status}</Pill>
         </div>
       }
@@ -220,20 +240,42 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
     >
       <Banner tone="error">{error}</Banner>
 
+      <div className="cust-profile">
+        <Avatar name={customer.name || customer.phone} size={72} />
+        <div className="cust-profile-main">
+          <h3>{customer.name || customer.phone}</h3>
+          <div className="cust-contact">
+            <a href={`tel:${customer.phone}`}>{customer.phone}</a>
+            {customer.email ? <a href={`mailto:${customer.email}`}>{customer.email}</a> : null}
+          </div>
+          <div className="cust-meta">
+            {customer.createdAt ? <span>Joined {when(customer.createdAt)}</span> : null}
+            <span>{stats.lastOrderAt || orders[0]?.placedAt ? `Last order ${when(stats.lastOrderAt || orders[0].placedAt)}` : "No orders yet"}</span>
+            {customer.referralCode ? <span>Referral code <b className="mono">{customer.referralCode}</b></span> : null}
+          </div>
+        </div>
+        <div className="cust-profile-actions">
+          <a className="btn sm" href={`tel:${customer.phone}`}>Call</a>
+          {canManage ? (
+            <>
+              <button className="btn sm" onClick={() => navigate(`/customers/${id}/edit`)}>Edit</button>
+              <button className="btn sm danger" onClick={() => setDeletingCustomer(true)}>Delete</button>
+            </>
+          ) : null}
+        </div>
+      </div>
+
       <div className="grid cols-4" style={{ marginBottom: 16 }}>
-        <Stat label="Orders" value={stats.orders} foot={`${stats.delivered} delivered`} />
-        <Stat label="Lifetime spend" value={rupees(stats.totalSpend)} foot={`avg ${rupees(stats.averageOrder)}`} />
-        <Stat label="Wallet" value={rupees(customer.walletBalance)} />
-        <Stat label="Points" value={customer.loyaltyPoints} />
+        <Stat label="Orders" value={stats.orders} foot={`${stats.delivered} delivered`} icon={IconOrders} hue="blue" />
+        <Stat label="Lifetime spend" value={rupees(stats.totalSpend)} foot={`avg ${rupees(stats.averageOrder)}`} icon={IconCustomers} hue="green" />
+        <Stat label="Wallet" value={rupees(customer.walletBalance)} foot={canManage ? "Use the buttons below to adjust" : undefined} icon={IconWallet} hue="violet" />
+        <Stat label="Points" value={customer.loyaltyPoints} icon={IconOffers} hue="amber" />
       </div>
 
       {canManage ? (
         <div className="inline" style={{ marginBottom: 14, gap: 8 }}>
           <button className="btn sm" onClick={() => setAdjusting("wallet")}>Adjust wallet</button>
           <button className="btn sm" onClick={() => setAdjusting("loyalty")}>Adjust points</button>
-          <span style={{ flex: 1 }} />
-          <button className="btn sm" onClick={() => navigate(`/customers/${id}/edit`)}>Edit customer</button>
-          <button className="btn sm danger" onClick={() => setDeletingCustomer(true)}>Delete</button>
         </div>
       ) : null}
 
@@ -328,9 +370,9 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
       ) : null}
 
       {tab === "addresses" ? (
-        <div style={{ display: "grid", gap: 10 }}>
+        <div className="address-grid">
           {(customer.addresses || []).map((address) => (
-            <div key={address.id} className="panel" style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
+            <div key={address.id} className="address-card">
               <div className="inline">
                 <strong>{address.label}</strong>
                 {address.isDefault ? <Pill tone="accent">default</Pill> : null}
@@ -479,26 +521,40 @@ function EditCustomerModal({ customer, onClose, onSaved }) {
       }
     >
       <Banner tone="error">{error}</Banner>
-      <Field label="Name">
-        <input type="text" autoFocus value={form.name} onChange={set("name")} placeholder="Customer name" />
-      </Field>
-      <div className="grid cols-2">
-        <Field
-          label="Phone"
-          error={form.phone && !phoneOk ? "Enter a 10-digit number" : ""}
-        >
-          <input type="tel" inputMode="numeric" maxLength={10} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))} />
-        </Field>
-        <Field label="Status">
-          <Select value={form.status} onChange={set("status")}>
-            <option value="active">Active</option>
-            <option value="blocked">Blocked</option>
-          </Select>
-        </Field>
+      <div className="newcat-layout">
+        <div className="newcat-fields">
+          <Field label="Name">
+            <input type="text" autoFocus value={form.name} onChange={set("name")} placeholder="Customer name" />
+          </Field>
+          <div className="grid cols-2">
+            <Field
+              label="Phone"
+              error={form.phone && !phoneOk ? "Enter a 10-digit number" : ""}
+            >
+              <input type="tel" inputMode="numeric" maxLength={10} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))} />
+            </Field>
+            <Field label="Status" help="Blocked customers can't sign in or order.">
+              <Select value={form.status} onChange={set("status")}>
+                <option value="active">Active</option>
+                <option value="blocked">Blocked</option>
+              </Select>
+            </Field>
+          </div>
+          <Field label="Email">
+            <input type="email" value={form.email} onChange={set("email")} placeholder="name@example.com" />
+          </Field>
+        </div>
+
+        <aside className="newcat-preview" aria-label="Preview">
+          <span className="newcat-preview-label">Preview</span>
+          <div className="newcat-tile">
+            <Avatar name={form.name || form.phone} size={72} />
+            <strong>{form.name.trim() || "Customer name"}</strong>
+            <span className="newcat-where">{form.status === "blocked" ? "Blocked" : "Active"}</span>
+            <span className="muted" style={{ fontSize: 12.5 }}>{form.phone || "Phone number"}{form.email ? ` · ${form.email}` : ""}</span>
+          </div>
+        </aside>
       </div>
-      <Field label="Email">
-        <input type="email" value={form.email} onChange={set("email")} placeholder="name@example.com" />
-      </Field>
     </Modal>
   );
 }

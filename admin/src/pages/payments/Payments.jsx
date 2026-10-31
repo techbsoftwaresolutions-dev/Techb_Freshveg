@@ -229,7 +229,14 @@ function Refunds() {
             label: "Order",
             render: (row) => (
               <div className="stack">
-                <Link to={`/orders/${row.order}`} className="mono">{row.orderCode}</Link>
+                {row.orderExists === false ? (
+                  <span className="inline" style={{ gap: 8 }}>
+                    <span className="mono muted">{row.orderCode}</span>
+                    <Pill tone="danger">Order deleted</Pill>
+                  </span>
+                ) : (
+                  <Link to={`/orders/${row.order}`} className="mono">{row.orderCode}</Link>
+                )}
                 <span className="row-sub">{when(row.createdAt)}</span>
               </div>
             ),

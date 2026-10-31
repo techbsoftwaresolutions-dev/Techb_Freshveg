@@ -29,6 +29,11 @@ const EVENTS = [
   "ITEMS_DELAYED",
   "DELAYED_ITEMS_DELIVERED",
 
+  // The delivery promise: the store's Delivery time, or early next morning
+  // for an order placed after the cut-off.
+  "DELIVERY_TIME_SET",
+  "AFTER_HOURS_ORDER",
+
   // Automated rules.
   "ABANDONED_CART_1",
   "ABANDONED_CART_2",
@@ -90,6 +95,8 @@ const notificationTemplateSchema = new mongoose.Schema(
 
     enabled: { type: Boolean, default: true, index: true },
     isSystem: { type: Boolean, default: false },
+    // Set once WhatsApp has been added to this template automatically, so removing it later sticks.
+    whatsappOffered: { type: Boolean, default: false },
   },
   baseOptions
 );

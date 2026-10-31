@@ -255,6 +255,18 @@ router.patch(
     const user = await User.findById(req.user.id);
     if (!user) throw ApiError.notFound("Account not found");
 
+    if (req.body.name !== undefined) {
+      const name = String(req.body.name || "").trim();
+      if (!name) throw ApiError.badRequest("Enter your name");
+      if (name.length > 60) throw ApiError.badRequest("That name is too long");
+      req.body.name = name;
+    }
+    if (req.body.email !== undefined) {
+      const email = String(req.body.email || "").trim();
+      if (email && !/^\S+@\S+\.\S+$/.test(email)) throw ApiError.badRequest("Enter a valid email address");
+      req.body.email = email;
+    }
+
     // Only these are self-editable; role, wallet and status are not.
     for (const field of ["name", "email", "notificationPrefs"]) {
       if (req.body[field] !== undefined) user[field] = req.body[field];
