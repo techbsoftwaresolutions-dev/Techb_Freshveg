@@ -6,7 +6,7 @@
 :root {
   color-scheme: light;
 
-  --bg: #fbf7ee;
+  --bg: #ffffff;
   --bg-alt: #f5efe2;
   --surface: #ffffff;
   --border: #e4e8e6;
@@ -5681,13 +5681,6 @@ body:has(.help-page) .search-form { display: none; }
 .home-main .price { font-size: 14px; }
 .home-main .promo-row { gap: 14px; margin: 22px 0 10px; }
 .home-main .promo { min-height: 150px; padding: 18px; border-radius: 13px; }
-.home-main .top-cats { gap: 12px; }
-.home-main .top-cat {
-  padding: 13px 8px 12px;
-  border-radius: 12px;
-  box-shadow: 0 1px 5px rgba(19, 53, 31, 0.06);
-}
-.home-main .top-cat-icon { width: 58px; height: 58px; }
 .home-main .shop-row { gap: 14px; }
 .home-main .shop-card { border-radius: 12px; }
 
@@ -5708,49 +5701,7 @@ body:has(.help-page) .search-form { display: none; }
   .home-main .promo-row { gap: 12px; }
 }
 
-/* The department shelf gets a more compact tile treatment: larger produce
-   thumbnails in a soft colour pod, with room for long department names. */
-.home-main .top-cats { gap: 12px; }
-.home-main .top-cat {
-  min-height: 132px;
-  padding: 12px 8px 11px;
-  gap: 8px;
-  border-color: #e5ece5;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #fff 0%, #fbfdfb 100%);
-  box-shadow: 0 2px 8px rgba(28, 66, 39, 0.055);
-}
-.home-main .top-cat:hover {
-  transform: translateY(-3px);
-  border-color: #c7ddc6;
-  background: #f8fcf7;
-  box-shadow: 0 9px 20px rgba(28, 66, 39, 0.1);
-}
-.home-main .top-cat-icon {
-  width: 68px;
-  height: 68px;
-  padding: 5px;
-  border-radius: 18px;
-  background: radial-gradient(circle at 50% 42%, #fff 0 42%, #f0f7ed 100%);
-  color: #477d2b;
-}
-.home-main .top-cat-icon svg { width: 32px; height: 32px; }
-.home-main .top-cat-photo { object-fit: contain; }
-.home-main .top-cat-name {
-  max-width: 15ch;
-  color: #263e2d;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.25;
-}
-.home-main .top-cat-more .top-cat-icon { background: #edf6ed; }
 
-@media (max-width: 720px) {
-  .home-main .top-cats { grid-auto-columns: 104px; gap: 10px; }
-  .home-main .top-cat { min-height: 118px; padding: 10px 7px; }
-  .home-main .top-cat-icon { width: 58px; height: 58px; border-radius: 15px; }
-  .home-main .top-cat-name { font-size: 11px; }
-}
 
 /* Wide promotional hero inspired by the supplied fresh-produce banner. */
 .market-carousel { border-radius: 22px; margin: 20px 0 12px; }
@@ -5826,3 +5777,8 @@ body:has(.help-page) .search-form { display: none; }
   .banner-leaf { width: 17px; height: 30px; }
 }
 @keyframes banner-feature-in { from { opacity: .45; } to { opacity: 1; } }
+
+/* Subcategory circles on a department page: a fixed, even gap instead of
+   spreading a few of them across the whole row. */
+.top-cats.aisle-tiles { justify-content: flex-start; gap: 28px; }
+.top-cats.aisle-tiles > .top-cat { flex: 0 0 160px; }
