@@ -20,7 +20,6 @@ function hrefFor(target) {
 
 export default function HeroCarousel({ banners = [], categories = [], storeName, fallbackArt }) {
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [reduced, setReduced] = useState(false);
   const [hidden, setHidden] = useState(false);
   const touch = useRef(null);
@@ -28,7 +27,7 @@ export default function HeroCarousel({ banners = [], categories = [], storeName,
   const count = slides.length;
   const active = index % count;
   const go = (next) => setIndex((next + count) % count);
-  const stopped = paused || reduced || hidden;
+  const stopped = reduced || hidden;
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -81,7 +80,6 @@ export default function HeroCarousel({ banners = [], categories = [], storeName,
       <button type="button" className="market-edge-arrow market-edge-next" aria-label="Next slide" onClick={() => go(active + 1)}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m10 6 6 6-6 6" /></svg>
       </button>
-      <button type="button" className="market-pause" aria-label={paused ? "Play slideshow" : "Pause slideshow"} aria-pressed={paused} onClick={() => setPaused(!paused)}>{paused ? "▶" : "Ⅱ"}</button>
     </section>
   );
 }

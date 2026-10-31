@@ -344,7 +344,6 @@ export default function Header({ categories = [] }) {
             >›</button>
             <div className="catbar-inner">
           <Link href="/c" className="catbar-all">
-            <IconMenu className="catbar-all-icon" />
             All Categories
           </Link>
           {categories.map((category) => {
@@ -441,33 +440,31 @@ function PincodeBar({ onDone, setPincode, store }) {
   };
 
   return (
-    <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg-alt)" }}>
-      <div className="wrap" style={{ padding: "14px 20px" }}>
-        <form onSubmit={check} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <strong style={{ fontSize: 14 }}>Check delivery:</strong>
+    <div className="pincode-bar">
+      <div className="wrap pincode-inner">
+        <form onSubmit={check} className="pincode-form">
+          <span className="pincode-pin" aria-hidden="true"><IconPin /></span>
+          <strong className="pincode-title">Check delivery</strong>
           <input
+            className="pincode-input"
             type="tel"
             value={value}
             onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
             placeholder="6-digit pincode"
-            style={{ width: 170 }}
             aria-label="Pincode"
           />
-          <button className="btn primary" disabled={value.length !== 6 || busy}>
+          <button className="btn primary pincode-submit" disabled={value.length !== 6 || busy}>
             {busy ? "Checking…" : "Check"}
           </button>
           {store ? (
-            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            <span className="pincode-serving">
               Currently serving from <strong>{store.name}</strong>
             </span>
           ) : null}
         </form>
 
         {result ? (
-          <p
-            className={`notice ${result.serviceable ? "save" : "error"}`}
-            style={{ marginTop: 12, marginBottom: 0 }}
-          >
+          <p className={`notice ${result.serviceable ? "save" : "error"} pincode-result`}>
             {result.serviceable
               ? `We deliver here — ${result.store.name}, about ${result.prepTimeMinutes} minutes.`
               : result.message || "We don't deliver to this pincode yet."}

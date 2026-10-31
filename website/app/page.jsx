@@ -78,7 +78,7 @@ export default async function HomePage() {
           {/* Departments as tiles — the one grid a returning shopper scans
               before typing a search. */}
           {departments.length ? (
-            <section className="section">
+            <section className="section home-categories">
               <SectionHead title="Shop by Category" href="/c" linkLabel="View All" />
               <nav className="top-cats" aria-label="Departments">
                 {departments.map((department) => (
@@ -93,12 +93,6 @@ export default async function HomePage() {
                     <span className="top-cat-name">{department.name}</span>
                   </Link>
                 ))}
-                <Link href="/c" className="top-cat top-cat-more">
-                  <span className="top-cat-icon">
-                    <IconGrid />
-                  </span>
-                  <span className="top-cat-name">More</span>
-                </Link>
               </nav>
             </section>
           ) : null}
@@ -107,7 +101,13 @@ export default async function HomePage() {
             <div className="promo-row" id="offers">
               {offers.slice(0, 3).map((offer, index) => (
                 <article key={offer.id} className={`promo tone-${index % 3}`}>
-                  {offer.image ? <img src={img(offer.image, 600)} alt="" className="promo-image" /> : null}
+                  {offer.image ? (
+                    <img
+                      src={index === 0 ? "/promo-weekend-grocery.jpg" : index === 1 ? "/promo-fresh-vegetables-replacement.jpg" : index === 2 ? "/promo-first-order-basket.jpg" : img(offer.image, 600)}
+                      alt=""
+                      className="promo-image"
+                    />
+                  ) : null}
                   <div className="promo-copy">
                     <h3>{offer.title}</h3>
                     {offer.badge ? <span className="promo-badge">{offer.badge}</span> : null}
@@ -134,7 +134,7 @@ export default async function HomePage() {
 
           {bestSellers.length ? (
             <section className="section">
-              <SectionHead title="Best Sellers" href="/c" linkLabel="View All" accent />
+              <SectionHead title="Best Sellers" href="/c" linkLabel="View All" />
               <Carousel label="Best Sellers">
                 {bestSellers.map((product) => (
                   <ProductCard key={product.id} product={product} />
@@ -147,7 +147,7 @@ export default async function HomePage() {
               each kind in its own row. A kind with no products has no row. */}
           {offerRails.map((rail) => (
             <section key={rail.kind} className="section offer-section" id={`offers-${rail.kind}`}>
-              <SectionHead title={rail.title} href={`/c?offer=${rail.kind}`} linkLabel="View All" accent />
+              <SectionHead title={rail.title} href={`/c?offer=${rail.kind}`} linkLabel="View All" />
               <Carousel label={rail.title}>
                 {inStockFirst(rail.products).map((product) => (
                   <ProductCard key={product.id} product={product} />
@@ -159,7 +159,7 @@ export default async function HomePage() {
           {/* Merchandising strip. Its contents are banners created in the
               admin, so the shop changes what is promoted here without a
               deploy. */}
-          <BannerCarousel banners={banners} />
+          <BannerCarousel banners={banners} categories={categories} />
 
           {flashDeal ? <FlashDeal deal={flashDeal} /> : null}
 
@@ -206,8 +206,10 @@ export default async function HomePage() {
                     </span>
                     <span className="shop-card-body">
                       <strong>{department.name}</strong>
-                      {department.description ? (
-                        <span className="shop-card-note">{department.description}</span>
+                      {department.description || department.slug === "fresh-vegetables" ? (
+                        <span className="shop-card-note">
+                          {department.description || "Farm-fresh greens and vegetables, fresh every day."}
+                        </span>
                       ) : null}
                       <span className="shop-cue">
                         Shop Now
