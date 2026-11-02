@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import DateFilter from "../../components/DateFilter";
+import DateFilter, { todayRange } from "../../components/DateFilter";
 import {
   Banner, Card, Empty, Loading, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
@@ -62,7 +62,7 @@ const stamp = (value) =>
 
 function Transactions() {
   const [data, setData] = useState({ items: [], meta: null, totals: null });
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(todayRange);
   const [filters, setFilters] = useState({ status: "", method: "", search: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -229,7 +229,14 @@ function Refunds() {
             label: "Order",
             render: (row) => (
               <div className="stack">
-                <Link to={`/orders/${row.order}`} className="mono">{row.orderCode}</Link>
+                {row.orderExists === false ? (
+                  <span className="inline" style={{ gap: 8 }}>
+                    <span className="mono muted">{row.orderCode}</span>
+                    <Pill tone="danger">Order deleted</Pill>
+                  </span>
+                ) : (
+                  <Link to={`/orders/${row.order}`} className="mono">{row.orderCode}</Link>
+                )}
                 <span className="row-sub">{when(row.createdAt)}</span>
               </div>
             ),

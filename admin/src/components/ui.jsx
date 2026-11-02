@@ -28,32 +28,39 @@ export function Stat({ label, value, foot, tone, icon: Icon, hue, trend, spark, 
   // the small caption underneath — the caption still renders (as plain
   // text, not its own link, so it doesn't nest an <a> inside this one).
   const Wrapper = to ? Link : "div";
-  const wrapperProps = to ? { to, className: "card stat-card" } : { className: "card" };
+  const className = `card stat-v2${to ? " stat-card" : ""}${hue ? ` hue-${hue}` : ""}${Icon ? "" : " stat-plain"}`;
   return (
-    <Wrapper {...wrapperProps}>
-      <div className="card-body stat">
-        <div className="stat-top">
-          <div className="stat-head">
-            {Icon ? (
-              <span className={`icon-chip${hue ? ` ${hue}` : ""}`}>
-                <Icon />
-              </span>
-            ) : null}
-            <div className="label">{label}</div>
-          </div>
-          {spark && spark.length > 1 ? <Sparkline points={spark} tone={trendUp ? "ok" : "danger"} /> : null}
-        </div>
-        <div className="value" style={tone ? { color: `var(--${tone})` } : undefined}>
-          {value}
-        </div>
+    <Wrapper {...(to ? { to } : {})} className={className}>
+      {Icon || hasTrend ? (
+      <div className="stat2-top">
+        {Icon ? (
+          <span className="stat2-icon">
+            <Icon />
+          </span>
+        ) : (
+          <span />
+        )}
         {hasTrend ? (
-          <div className={`stat-trend ${trendUp ? "up" : "down"}`}>
-            <span>{trendUp ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%</span>
-            <span className="stat-trend-note">vs last week</span>
-          </div>
+          <span className={`stat2-pill ${trendUp ? "up" : "down"}`} title="Compared with the previous 7 days">
+            {trendUp ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%
+          </span>
         ) : null}
-        {foot && <div className="foot">{foot}</div>}
       </div>
+      ) : null}
+
+      <div className="stat2-label">{label}</div>
+      <div className="stat2-value" style={tone ? { color: `var(--${tone})` } : undefined}>
+        {value}
+      </div>
+
+      {foot || (spark && spark.length > 1) ? (
+        <div className="stat2-foot">
+          <span>{foot}</span>
+          {spark && spark.length > 1 ? (
+            <Sparkline points={spark} tone={trendUp ? "ok" : "danger"} width={64} height={24} />
+          ) : null}
+        </div>
+      ) : null}
     </Wrapper>
   );
 }
@@ -568,17 +575,18 @@ export const when = (value) =>
 // the browser's back button does what it looks like it should.
 export function Tabs({ tabs, active, onChange }) {
   return (
-    <div className="inline" style={{ gap: 4, marginBottom: 16, flexWrap: "wrap" }}>
+    <div className="chip-row tabs-chips" role="tablist">
       {tabs.map((tab) => (
         <button
           key={tab.key}
-          className={`btn sm${active === tab.key ? " primary" : " ghost"}`}
+          type="button"
+          role="tab"
+          aria-selected={active === tab.key}
+          className={`cat-chip${active === tab.key ? " on" : ""}`}
           onClick={() => onChange(tab.key)}
         >
           {tab.label}
-          {tab.count !== undefined && tab.count !== null ? (
-            <span style={{ opacity: 0.7, marginLeft: 2 }}>({tab.count})</span>
-          ) : null}
+          {tab.count !== undefined && tab.count !== null ? <span className="chip-count">{tab.count}</span> : null}
         </button>
       ))}
     </div>

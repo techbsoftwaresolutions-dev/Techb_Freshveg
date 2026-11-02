@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import NotificationBell from "./NotificationBell";
 import {
   IconDashboard,
   IconCalendar,
@@ -80,6 +81,7 @@ const NAV = [
       {
         to: "/orders",
         label: "All Orders",
+        badge: "pending",
         permission: "orders.view",
         icon: IconOrders,
       },
@@ -103,6 +105,7 @@ const NAV = [
       {
         to: "/inventory",
         label: "Inventory",
+        badge: "lowStock",
         permission: "inventory.view",
         icon: IconInventory,
       },
@@ -115,6 +118,7 @@ const NAV = [
       {
         to: "/support",
         label: "Support",
+        badge: "tickets",
         permission: "customers.view",
         icon: IconSupport,
       },
@@ -230,57 +234,83 @@ function useTheme() {
   return [theme, setTheme];
 }
 
-// Which nav groups are collapsed, remembered across visits the same way the
-// theme is. Every group starts expanded (today's behaviour) until someone
-// collapses one.
+// Which nav groups are collapsed, remembered across visits. The sidebar works
+// like an accordion: opening a group closes the others, so the menu never
+// grows taller than the screen. Until someone picks, only the group holding
+// the current page is open (the layout effect below opens it).
+const GROUP_NAMES = NAV.map((g) => g.group).filter(Boolean);
+const NAV_KEY = "commerce.admin.navCollapsed";
+
 function useCollapsedGroups() {
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      const saved = JSON.parse(
-        localStorage.getItem("commerce.admin.navCollapsed") || "[]",
-      );
-      return new Set(Array.isArray(saved) ? saved : []);
+      const saved = JSON.parse(localStorage.getItem(NAV_KEY) || "null");
+      if (Array.isArray(saved)) return new Set(saved);
     } catch {
-      return new Set();
+      // fall through to the default
     }
+    return new Set(GROUP_NAMES);
   });
+
+  const save = (next) => {
+    try {
+      localStorage.setItem(NAV_KEY, JSON.stringify([...next]));
+    } catch {
+      // Private window or storage disabled — it still works for this session.
+    }
+  };
+
+  const onlyOpen = (group) => {
+    const next = new Set(GROUP_NAMES.filter((name) => name !== group));
+    save(next);
+    return next;
+  };
 
   const toggle = (group) => {
     setCollapsed((prev) => {
+      if (prev.has(group)) return onlyOpen(group);
       const next = new Set(prev);
-      if (next.has(group)) next.delete(group);
-      else next.add(group);
-      try {
-        localStorage.setItem(
-          "commerce.admin.navCollapsed",
-          JSON.stringify([...next]),
-        );
-      } catch {
-        // Private window or storage disabled — collapsing still works for this session.
-      }
+      next.add(group);
+      save(next);
       return next;
     });
   };
 
   // Open a group without flipping it (used to reveal the page you are on).
   const expand = (group) => {
-    setCollapsed((prev) => {
-      if (!prev.has(group)) return prev;
-      const next = new Set(prev);
-      next.delete(group);
-      try {
-        localStorage.setItem(
-          "commerce.admin.navCollapsed",
-          JSON.stringify([...next]),
-        );
-      } catch {
-        // storage disabled — still opens for this session
-      }
-      return next;
-    });
+    setCollapsed((prev) => (prev.has(group) ? onlyOpen(group) : prev));
   };
 
   return [collapsed, toggle, expand];
+}
+
+// Live numbers shown beside Orders, Inventory and Support, refreshed every
+// minute: what needs attention, not how many pages a menu holds.
+function useNavBadges(can) {
+  const [badges, setBadges] = useState({});
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      Promise.all([
+        can("reports.view") ? api.get("/reports/dashboard").catch(() => null) : null,
+        can("customers.view") ? api.get("/support", { open: "true", limit: 1 }).catch(() => null) : null,
+      ]).then(([dash, tix]) => {
+        if (!alive) return;
+        setBadges({
+          pending: dash?.lifetime?.pendingOrders || 0,
+          lowStock: dash?.lowStockCount || 0,
+          tickets: tix?.meta?.total || 0,
+        });
+      });
+    };
+    load();
+    const id = setInterval(load, 60000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [can]);
+  return badges;
 }
 
 // A real, ticking clock for the topbar — not a screenshot-time string.
@@ -300,8 +330,8 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const now = useClock();
+  const badges = useNavBadges(can);
   const [search, setSearch] = useState("");
-  const [openTickets, setOpenTickets] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   // The hamburger: hides the sidebar on a desktop, opens it as a drawer on a phone.
@@ -334,16 +364,6 @@ export default function Layout() {
     };
   }, [menuOpen]);
 
-  // The bell's badge is a real count of open support tickets, refreshed
-  // whenever the admin changes page — not a fixed placeholder number.
-  useEffect(() => {
-    if (!can("customers.view")) return;
-    api
-      .get("/support", { open: "true", limit: 1 })
-      .then((res) => setOpenTickets(res.meta?.total || 0))
-      .catch(() => {});
-  }, [can, location.pathname]);
-
   const submitSearch = (event) => {
     event.preventDefault();
     const q = search.trim();
@@ -369,6 +389,7 @@ export default function Layout() {
     const here = groups.find(
       (g) =>
         g.group &&
+        g.items.length > 1 &&
         g.items.some((item) =>
           item.end
             ? location.pathname === item.to
@@ -395,6 +416,7 @@ export default function Layout() {
           {groups.map((group, index) => {
             const isCollapsed = !!group.group && collapsedGroups.has(group.group);
             const GroupIcon = GROUP_ICONS[group.group];
+            const groupAlert = group.items.reduce((n, item) => n + (item.badge ? badges[item.badge] || 0 : 0), 0);
             const renderItem = (item) => {
               const ItemIcon = item.icon;
               return (
@@ -408,12 +430,19 @@ export default function Layout() {
                   }
                 >
                   {ItemIcon ? <ItemIcon className="nav-item-icon" /> : null}
-                  <span>{item.label}</span>
+                  <span className="nav-item-label">{item.label}</span>
+                  {item.badge && badges[item.badge] > 0 ? (
+                    <span className={`nav-badge ${item.badge === "pending" ? "amber" : item.badge === "lowStock" ? "red" : "blue"}`}>
+                      {badges[item.badge] > 99 ? "99+" : badges[item.badge]}
+                    </span>
+                  ) : null}
                 </NavLink>
               );
             };
 
-            if (!group.group) {
+            // A group with a single page is just a link; a folder holding one
+            // item with the same name only adds a click.
+            if (!group.group || group.items.length === 1) {
               return (
                 <div className="nav-top" key={index}>
                   {group.items.map(renderItem)}
@@ -434,7 +463,9 @@ export default function Layout() {
                 >
                   {GroupIcon ? <GroupIcon className="nav-group-icon" /> : null}
                   <span className="nav-group-title">{group.group}</span>
-                  <span className="nav-group-count">{group.items.length}</span>
+                  {groupAlert > 0 ? (
+                    <span className="nav-group-count alert">{groupAlert > 99 ? "99+" : groupAlert}</span>
+                  ) : null}
                   <svg
                     className="nav-group-chevron"
                     width="12"
@@ -461,6 +492,17 @@ export default function Layout() {
             );
           })}
         </nav>
+
+        <div className="sidebar-user">
+          <div className="avatar">{initials}</div>
+          <div className="sidebar-user-text">
+            <strong>{user?.name}</strong>
+            <small>{user?.role?.replace(/_/g, " ")}</small>
+          </div>
+          <button type="button" className="sidebar-signout" onClick={signOut} title="Sign out" aria-label="Sign out">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></svg>
+          </button>
+        </div>
 
         <div className="sidebar-art" aria-hidden="true">
           <svg viewBox="0 0 220 150" width="100%" height="150" fill="none">
@@ -529,18 +571,7 @@ export default function Layout() {
             >
               {theme === "dark" ? "☀" : "☾"}
             </button>
-            <NavLink
-              to="/support"
-              className="btn ghost sm icon-btn notif-btn"
-              title="Open support tickets"
-            >
-              <IconBell width="17" height="17" />
-              {openTickets > 0 ? (
-                <span className="notif-badge">
-                  {openTickets > 99 ? "99+" : openTickets}
-                </span>
-              ) : null}
-            </NavLink>
+            <NotificationBell />
             <div className="user-menu" ref={menuRef}>
               <button
                 type="button"

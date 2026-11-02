@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../components/AppText";
 import { api } from "../api/client";
 import { useCart } from "../context/CartContext";
 import { useStore } from "../context/StoreContext";
@@ -29,6 +30,9 @@ export default function ProductListScreen({ route, navigation }) {
   // binds, so nothing here is named in the app.
   const [selected, setSelected] = useState({});
   const [subcategory, setSubcategory] = useState(null);
+  // The left list scrolls on its own; picking an item brings it into view.
+  const railRef = useRef(null);
+  const railY = useRef({});
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
@@ -118,32 +122,41 @@ export default function ProductListScreen({ route, navigation }) {
             switching between a department's subcategories feels like one
             continuous flow instead of two different screens. */}
         {landing?.children?.length ? (
-          <ScrollView style={styles.rail} contentContainerStyle={{ paddingVertical: spacing.sm }}>
-            <Pressable
-              style={[styles.railItem, !subcategory && styles.railItemActive]}
-              onPress={() => setSubcategory(null)}
-            >
-              {!subcategory ? <View style={styles.railMarker} /> : null}
-              <Text style={[styles.railLabel, !subcategory && styles.railLabelActive]} numberOfLines={2}>
-                All
-              </Text>
-            </Pressable>
-            {landing.children.map((child) => {
-              const isActive = subcategory === child.slug;
-              return (
-                <Pressable
-                  key={child.id}
-                  style={[styles.railItem, isActive && styles.railItemActive]}
-                  onPress={() => setSubcategory(isActive ? null : child.slug)}
-                >
-                  {isActive ? <View style={styles.railMarker} /> : null}
-                  {child.icon ? <Text style={{ fontSize: 20 }}>{child.icon}</Text> : null}
-                  <Text style={[styles.railLabel, isActive && styles.railLabelActive]} numberOfLines={2}>
-                    {child.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <ScrollView
+            ref={railRef}
+            style={styles.rail}
+            contentContainerStyle={{ paddingVertical: spacing.sm, paddingBottom: spacing.xxl }}
+            showsVerticalScrollIndicator
+            persistentScrollbar
+            nestedScrollEnabled
+            bounces
+          >
+            <RailItem
+              label="All"
+              glyph="▦"
+              active={!subcategory}
+              onLayout={(e) => (railY.current.all = e.nativeEvent.layout.y)}
+              onPress={() => {
+                setSubcategory(null);
+                railRef.current?.scrollTo({ y: 0, animated: true });
+              }}
+            />
+            {landing.children.map((child, index) => (
+              <RailItem
+                key={child.id}
+                label={child.name}
+                image={child.image}
+                glyph={child.icon || child.name?.[0]}
+                tint={RAIL_TINTS[index % RAIL_TINTS.length]}
+                active={subcategory === child.slug}
+                onLayout={(e) => (railY.current[child.slug] = e.nativeEvent.layout.y)}
+                onPress={() => {
+                  setSubcategory(subcategory === child.slug ? null : child.slug);
+                  const y = railY.current[child.slug];
+                  if (y != null) railRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+                }}
+              />
+            ))}
           </ScrollView>
         ) : null}
 
@@ -154,69 +167,64 @@ export default function ProductListScreen({ route, navigation }) {
               own content to its bounds, which would cut off the Sort By
               dropdown below it. flexWrap keeps everything reachable
               without that trap. */}
-          <View style={styles.toolbar}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.toolbarScroll}
+            contentContainerStyle={styles.toolbar}
+          >
             <Pressable
               style={[styles.toolbarBtn, (filtersOpen || activeFilterCount > 0) && styles.toolbarBtnActive]}
-              onPress={() => {
-                setSortMenuOpen(false);
-                setFiltersOpen((v) => !v);
-              }}
+              onPress={() => setFiltersOpen((v) => !v)}
             >
               <Text style={[styles.toolbarText, (filtersOpen || activeFilterCount > 0) && styles.toolbarTextActive]}>
                 Filter{activeFilterCount ? ` (${activeFilterCount})` : ""}
               </Text>
             </Pressable>
 
-            <View style={styles.sortWrap}>
-              <Pressable
-                style={[styles.toolbarBtn, (sortMenuOpen || sort) && styles.toolbarBtnActive]}
-                onPress={() => {
-                  setFiltersOpen(false);
-                  setSortMenuOpen((v) => !v);
-                }}
-              >
-                <Text
-                  style={[styles.toolbarText, (sortMenuOpen || sort) && styles.toolbarTextActive]}
-                  numberOfLines={1}
-                >
-                  {activeSortLabel} ▾
-                </Text>
-              </Pressable>
-              {sortMenuOpen ? (
-                <View style={styles.sortMenu}>
-                  {SORTS.map((option) => {
-                    const isActive = sort === option.key;
-                    return (
-                      <Pressable
-                        key={option.key || "relevance"}
-                        style={styles.sortMenuItem}
-                        onPress={() => {
-                          setSort(option.key);
-                          setSortMenuOpen(false);
-                        }}
-                      >
-                        <Text style={[styles.sortMenuText, isActive && styles.sortMenuTextActive]}>
-                          {option.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </View>
+            <Pressable
+              style={[styles.toolbarBtn, sort && sort !== "discount" && styles.toolbarBtnActive]}
+              onPress={() => setSortMenuOpen(true)}
+            >
+              <Text style={[styles.toolbarText, sort && sort !== "discount" && styles.toolbarTextActive]} numberOfLines={1}>
+                {sort && !priceDropActive ? activeSortLabel : "Sort by"} ▾
+              </Text>
+            </Pressable>
 
             <Pressable
               style={[styles.toolbarBtn, priceDropActive && styles.toolbarBtnActive]}
-              onPress={() => {
-                setSortMenuOpen(false);
-                setSort(priceDropActive ? "" : "discount");
-              }}
+              onPress={() => setSort(priceDropActive ? "" : "discount")}
             >
-              <Text style={[styles.toolbarText, priceDropActive && styles.toolbarTextActive]}>
-                Price Drop
-              </Text>
+              <Text style={[styles.toolbarText, priceDropActive && styles.toolbarTextActive]}>Price drop</Text>
             </Pressable>
-          </View>
+          </ScrollView>
+
+          {/* Sort choices open as a sheet from the bottom, so nothing is
+              clipped by the narrow panel. */}
+          <Modal transparent animationType="fade" visible={sortMenuOpen} onRequestClose={() => setSortMenuOpen(false)}>
+            <Pressable style={styles.sheetBackdrop} onPress={() => setSortMenuOpen(false)}>
+              <Pressable style={styles.sheet} onPress={() => {}}>
+                <View style={styles.sheetGrip} />
+                <Text style={styles.sheetTitle}>Sort by</Text>
+                {SORTS.map((option) => {
+                  const isActive = sort === option.key;
+                  return (
+                    <Pressable
+                      key={option.key || "relevance"}
+                      style={styles.sheetRow}
+                      onPress={() => {
+                        setSort(option.key);
+                        setSortMenuOpen(false);
+                      }}
+                    >
+                      <Text style={[styles.sheetText, isActive && styles.sheetTextActive]}>{option.label}</Text>
+                      <View style={[styles.radio, isActive && styles.radioOn]}>{isActive ? <View style={styles.radioDot} /> : null}</View>
+                    </Pressable>
+                  );
+                })}
+              </Pressable>
+            </Pressable>
+          </Modal>
 
           {/* Filters resolved from the category's schema, narrowed to the
               values this shelf's products actually have (facets) — tucked
@@ -268,14 +276,15 @@ export default function ProductListScreen({ route, navigation }) {
               keyExtractor={(item) => item.id}
               numColumns={2}
               columnWrapperStyle={{ gap: spacing.sm, paddingHorizontal: spacing.sm }}
-              contentContainerStyle={{ gap: spacing.md, paddingVertical: spacing.md, paddingBottom: spacing.xxl }}
+              contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs, paddingBottom: spacing.xxl }}
+              showsVerticalScrollIndicator={false}
               onEndReached={loadMore}
               onEndReachedThreshold={0.4}
               onScrollBeginDrag={() => setSortMenuOpen(false)}
               ListHeaderComponent={
                 meta ? (
                   <Text style={styles.count}>
-                    {meta.total} item{meta.total === 1 ? "" : "s"}
+                    {title ? `${title} · ` : ""}{meta.total} item{meta.total === 1 ? "" : "s"}
                     {activeFilterCount ? ` · ${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"}` : ""}
                   </Text>
                 ) : null
@@ -296,6 +305,7 @@ export default function ProductListScreen({ route, navigation }) {
                 return (
                   <View style={{ flex: 1 }}>
                     <ProductCard
+                      fill
                       product={item}
                       variant={line}
                       quantity={line?.quantity || 0}
@@ -313,6 +323,28 @@ export default function ProductListScreen({ route, navigation }) {
         </View>
       </View>
     </View>
+  );
+}
+
+const RAIL_TINTS = ["#FDE9E2", "#E5F3E7", "#FCF1D6", "#F9E3EA", "#E3ECF7", "#F1E8DC"];
+
+// One subcategory down the left: a round picture (or its emoji / first
+// letter when it has none) above its name, with a green bar on the active one.
+function RailItem({ label, image, glyph, tint, active, onPress, onLayout }) {
+  return (
+    <Pressable style={[styles.railItem, active && styles.railItemActive]} onPress={onPress} onLayout={onLayout}>
+      {active ? <View style={styles.railMarker} /> : null}
+      <View style={[styles.railIcon, { backgroundColor: image ? "#fff" : tint || colors.primarySoft }, active && styles.railIconActive]}>
+        {image ? (
+          <Image source={{ uri: image }} style={styles.railImage} resizeMode="cover" />
+        ) : (
+          <Text style={styles.railGlyph}>{glyph}</Text>
+        )}
+      </View>
+      <Text style={[styles.railLabel, active && styles.railLabelActive]} numberOfLines={2}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -345,37 +377,33 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   body: { flex: 1, flexDirection: "row" },
 
-  rail: { width: 62, backgroundColor: colors.surfaceAlt },
-  railItem: { alignItems: "center", paddingVertical: spacing.md, paddingHorizontal: 4, gap: 4 },
+  rail: { width: 76, flexGrow: 0, backgroundColor: colors.surfaceAlt },
+  railItem: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 4, gap: 5 },
   railItemActive: { backgroundColor: colors.surface },
   railMarker: {
     position: "absolute",
     left: 0,
-    top: 10,
-    bottom: 10,
-    width: 3,
+    top: 12,
+    bottom: 12,
+    width: 3.5,
     backgroundColor: colors.primary,
     borderTopRightRadius: 3,
     borderBottomRightRadius: 3,
   },
-  railLabel: { ...type.tiny, textAlign: "center", fontFamily: fontFamily.semibold },
-  railLabelActive: { color: colors.primaryDark },
+  railIcon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", overflow: "hidden", borderWidth: 2, borderColor: "transparent" },
+  railIconActive: { borderColor: colors.primary },
+  railImage: { width: "100%", height: "100%" },
+  railGlyph: { fontSize: 20, color: colors.text },
+  railLabel: { fontSize: 10.5, lineHeight: 13, textAlign: "center", fontFamily: fontFamily.semibold, color: colors.textMuted },
+  railLabelActive: { color: colors.primaryDark, fontFamily: fontFamily.bold },
 
-  panel: { flex: 1, backgroundColor: colors.surface },
+  panel: { flex: 1, backgroundColor: colors.bg },
 
-  toolbar: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
+  toolbarScroll: { flexGrow: 0, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  toolbar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 10 },
   toolbarBtn: {
-    height: 34,
-    paddingHorizontal: spacing.md,
+    height: 32,
+    paddingHorizontal: 12,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderStrong,
@@ -384,33 +412,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   toolbarBtnActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  toolbarText: { fontSize: 12.5, lineHeight: 15, color: colors.textMuted, fontFamily: fontFamily.semibold, includeFontPadding: false },
+  toolbarText: { fontSize: 12, lineHeight: 15, color: colors.textMuted, fontFamily: fontFamily.semibold, includeFontPadding: false },
   toolbarTextActive: { color: colors.primaryDark },
 
-  sortWrap: { position: "relative" },
-  sortMenu: {
-    position: "absolute",
-    top: 40,
-    left: 0,
-    minWidth: 190,
+  sheetBackdrop: { flex: 1, backgroundColor: "rgba(11,15,26,0.45)", justifyContent: "flex-end" },
+  sheet: {
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 4,
-    zIndex: 30,
-    elevation: 12,
-    ...shadow.card,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 10,
+    paddingBottom: spacing.xxl,
   },
-  sortMenuItem: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  sortMenuText: { fontSize: 13, fontFamily: fontFamily.regular, color: colors.text },
-  sortMenuTextActive: { color: colors.primaryDark, fontFamily: fontFamily.semibold },
+  sheetGrip: { alignSelf: "center", width: 38, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong, marginBottom: spacing.md },
+  sheetTitle: { ...type.h2, marginBottom: spacing.sm },
+  sheetRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.border },
+  sheetText: { fontSize: 14.5, fontFamily: fontFamily.regular, color: colors.text },
+  sheetTextActive: { fontFamily: fontFamily.bold, color: colors.primaryDark },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.borderStrong, alignItems: "center", justifyContent: "center" },
+  radioOn: { borderColor: colors.primary },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
 
   // A fixed height on the ScrollView itself, not just its content — a
   // horizontal ScrollView with no height of its own can measure taller than
   // one pill row needs (a wide system font's line-height is enough to do
   // it), which shows up as a dead gap below a perfectly normal-looking row.
-  chipScroll: { flexGrow: 0, height: 48 },
+  chipScroll: { flexGrow: 0, height: 48, backgroundColor: colors.surface },
   chipRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm, alignItems: "center" },
   chip: {
     flexDirection: "row",
@@ -427,5 +454,5 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 12.5, lineHeight: 15, color: colors.textMuted, fontFamily: fontFamily.semibold, includeFontPadding: false },
   chipTextActive: { color: colors.primaryDark },
   swatch: { width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.border },
-  count: { ...type.small, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  count: { ...type.small, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
 });

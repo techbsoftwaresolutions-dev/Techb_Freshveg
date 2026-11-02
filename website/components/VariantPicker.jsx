@@ -13,7 +13,9 @@ export default function VariantPicker({ product, variants }) {
   const router = useRouter();
   const [buying, setBuying] = useState(false);
 
-  const [variantId, setVariantId] = useState(() => {
+  // Packs ticked on the page — one or several ("1 L and 5 L together"). The
+  // first is the one the price block and single-pack controls describe.
+  const [selectedIds, setSelectedIds] = useState(() => {
     // The default pack when it can be bought, else the first that can.
     const buyable = (v) => (v.availability?.available ?? 0) >= 1;
     const preferred =
@@ -21,10 +23,44 @@ export default function VariantPicker({ product, variants }) {
       variants.find(buyable) ||
       variants.find((v) => v.id === product.defaultVariant) ||
       variants[0];
-    return preferred?.id || null;
+    return preferred?.id ? [preferred.id] : [];
   });
-
+  const variantId = selectedIds[0] || null;
   const variant = variants.find((v) => v.id === variantId) || variants[0];
+
+  // Several packs at once: each has its own quantity.
+  const [multiQty, setMultiQty] = useState({});
+  const [addingAll, setAddingAll] = useState(false);
+  const picked = variants.filter((v) => selectedIds.includes(v.id)); // in the order the packs are listed
+  const multi = picked.length > 1;
+  const qtyOfPick = (v) => multiQty[v.id] ?? Math.max(1, v.minOrderQty ?? 1);
+  const multiTotal = picked.reduce((sum, v) => sum + v.sellingPrice * qtyOfPick(v), 0);
+  const multiUnits = picked.reduce((sum, v) => sum + qtyOfPick(v), 0);
+
+  function togglePack(option) {
+    const soldOut = (option.availability?.available ?? 0) < 1;
+    // A sold-out pack can be looked at, but only on its own.
+    if (soldOut) return setSelectedIds([option.id]);
+    setSelectedIds((current) => {
+      const live = current.filter((id) => (variants.find((v) => v.id === id)?.availability?.available ?? 0) >= 1);
+      if (live.includes(option.id)) return live.length > 1 ? live.filter((id) => id !== option.id) : live;
+      return [...live, option.id];
+    });
+  }
+
+  // Adds every ticked pack, one after another so the cart settles in between.
+  async function addAll() {
+    setAddingAll(true);
+    try {
+      for (const v of picked) await cart.add(v.id, qtyOfPick(v));
+      return true;
+    } catch {
+      // The cart's error toast already says what went wrong.
+      return false;
+    } finally {
+      setAddingAll(false);
+    }
+  }
 
   // How many packs to add on the first tap — a shopper who already knows they
   // want three shouldn't have to hit "ADD" then "+" twice. Resets whenever the
@@ -54,7 +90,7 @@ export default function VariantPicker({ product, variants }) {
             <div className="pack-options">
               {variants.map((option) => {
                 const soldOut = (option.availability?.available ?? 0) < 1;
-                const selected = option.id === variantId;
+                const selected = selectedIds.includes(option.id);
                 // Only the selected pack gets an AddToCart control below, so
                 // without this a pack you already have in your cart looks
                 // empty the moment you switch to a different one — the line
@@ -65,7 +101,7 @@ export default function VariantPicker({ product, variants }) {
                   <button
                     key={option.id}
                     type="button"
-                    onClick={() => setVariantId(option.id)}
+                    onClick={() => togglePack(option)}
                     className={`pack-option${selected ? " on" : ""}${soldOut ? " sold-out" : ""}`}
                     aria-pressed={selected}
                   >
@@ -82,7 +118,41 @@ export default function VariantPicker({ product, variants }) {
           </section>
         ) : null}
 
-      {!alreadyInCart && available >= 1 ? (
+      {multi ? (
+        <div className="pack-multi">
+          {picked.map((v) => {
+            const q = qtyOfPick(v);
+            const min = Math.max(1, v.minOrderQty ?? 1);
+            const max = v.maxOrderQty ?? 50;
+            return (
+              <div className="pack-multi-row" key={v.id}>
+                <div className="pack-multi-name">
+                  <strong>{v.name}</strong>
+                  <span>{rupees(v.sellingPrice)}</span>
+                </div>
+                <div className="qty">
+                  <button type="button" onClick={() => setMultiQty((m) => ({ ...m, [v.id]: Math.max(min, q - 1) }))} disabled={q <= min} aria-label={`Reduce ${v.name}`}>
+                    −
+                  </button>
+                  <span className="value">{q}</span>
+                  <button type="button" onClick={() => setMultiQty((m) => ({ ...m, [v.id]: Math.min(max, q + 1) }))} disabled={q + 1 > max} aria-label={`Increase ${v.name}`}>
+                    +
+                  </button>
+                </div>
+                <strong className="pack-multi-sub">{rupees(v.sellingPrice * q)}</strong>
+              </div>
+            );
+          })}
+          <div className="pack-multi-total">
+            <span>
+              Total · {picked.length} packs, {multiUnits} items
+            </span>
+            <strong>{rupees(multiTotal)}</strong>
+          </div>
+        </div>
+      ) : null}
+
+      {!multi && !alreadyInCart && available >= 1 ? (
         <div className="pdp-qty">
           <span>Quantity</span>
           <div className="qty">
@@ -107,6 +177,7 @@ export default function VariantPicker({ product, variants }) {
         </div>
       ) : null}
 
+      {!multi ? (
       <div className="pdp-price">
         {/* With one pack there is no picker to say what the price buys, so
             say it here — "₹68" alone could be for any amount. */}
@@ -132,12 +203,19 @@ export default function VariantPicker({ product, variants }) {
           Inclusive of all taxes
         </div>
       </div>
+      ) : null}
 
       <div className="pdp-actions">
         <div>
-          <AddToCart variantId={variant.id} disabled={available < 1} size="lg" qty={pendingQty} fullWidth />
+          {multi ? (
+            <button type="button" className="add-btn" disabled={addingAll} onClick={addAll} style={{ height: 48, fontSize: 15, width: "100%" }}>
+              {addingAll ? "…" : `Add ${picked.length} packs to cart`}
+            </button>
+          ) : (
+            <AddToCart variantId={variant.id} disabled={available < 1} size="lg" qty={pendingQty} fullWidth />
+          )}
         </div>
-        {available >= 1 ? (
+        {multi || available >= 1 ? (
           <button
             type="button"
             className="btn lg pdp-buy-now"
@@ -145,6 +223,10 @@ export default function VariantPicker({ product, variants }) {
             onClick={async () => {
               setBuying(true);
               try {
+                if (multi) {
+                  if (await addAll()) router.push("/checkout");
+                  return;
+                }
                 if (cart.quantityOf(variant.id) <= 0) await cart.add(variant.id, pendingQty);
                 router.push("/checkout");
               } catch {
@@ -158,7 +240,7 @@ export default function VariantPicker({ product, variants }) {
           </button>
         ) : null}
       </div>
-      {available >= 1 && available <= 5 ? (
+      {!multi && available >= 1 && available <= 5 ? (
         <div className="pdp-low-stock">Hurry — only {Math.floor(available)} left</div>
       ) : null}
 

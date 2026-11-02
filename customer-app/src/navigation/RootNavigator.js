@@ -1,11 +1,12 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../components/AppText";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import { useCart } from "../context/CartContext";
-import { colors, type } from "../theme";
+import { colors, fontFamily, type } from "../theme";
 
 import HomeScreen from "../screens/HomeScreen";
 import CategoriesScreen from "../screens/CategoriesScreen";
@@ -20,6 +21,8 @@ import OrderPlacedScreen from "../screens/OrderPlacedScreen";
 import AccountScreen from "../screens/AccountScreen";
 import LoginScreen from "../screens/LoginScreen";
 import LocationScreen from "../screens/LocationScreen";
+import NotificationsScreen from "../screens/NotificationsScreen";
+import EditProfileScreen from "../screens/EditProfileScreen";
 
 const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -61,6 +64,7 @@ function MainTabs() {
         tabBarInactiveTintColor: colors.textFaint,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
+        tabBarAllowFontScaling: false,
         headerStyle: { backgroundColor: colors.surface },
         headerTitleStyle: type.h2,
         headerShadowVisible: false,
@@ -94,6 +98,8 @@ export default function RootNavigator() {
         <Stack.Screen name="Search" component={SearchScreen} options={{ title: "Search" }} />
         <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ title: "Checkout" }} />
         <Stack.Screen name="OrderTrack" component={OrderTrackScreen} options={{ title: "Track order" }} />
+        <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit profile" }} />
         <Stack.Screen
           name="OrderPlaced"
           component={OrderPlacedScreen}
@@ -123,7 +129,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     paddingTop: 6,
   },
-  tabLabel: { fontSize: 11, fontWeight: "600" },
+  tabLabel: { fontSize: 11, fontFamily: fontFamily.semibold },
 
   tabIcon: { width: 32, alignItems: "center", justifyContent: "center" },
   badge: {

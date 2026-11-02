@@ -13,30 +13,67 @@ import { IconChevronDown, IconSearch } from "../../components/Icons";
 // that change how the engine treats its products, and the fields its products
 // get. Everything here is inherited by descendants unless they override it.
 
-function TreeNode({ node, selectedId, onSelect, depth = 0 }) {
+// Keeps the nodes whose name matches, plus the parents that lead to a match.
+function filterTree(nodes, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return nodes;
+  const out = [];
+  for (const node of nodes) {
+    const kids = filterTree(node.children || [], q);
+    if (node.name.toLowerCase().includes(q) || kids.length) {
+      out.push({ ...node, children: node.name.toLowerCase().includes(q) && !kids.length ? node.children : kids });
+    }
+  }
+  return out;
+}
+
+const AVATAR_TONES = ["green", "blue", "amber", "violet", "pink", "indigo"];
+const toneFor = (name = "") => AVATAR_TONES[[...name].reduce((n, ch) => n + ch.charCodeAt(0), 0) % AVATAR_TONES.length];
+
+function CatAvatar({ name, image, size = 30 }) {
+  return image ? (
+    <span className="cat-avatar" style={{ width: size, height: size, backgroundImage: `url(${image})` }} />
+  ) : (
+    <span className={`cat-avatar letter ${toneFor(name)}`} style={{ width: size, height: size }}>
+      {(name || "?").trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+function TreeNode({ node, selectedId, onSelect, depth = 0, forceOpen = false }) {
   const [open, setOpen] = useState(depth < 1);
   const hasChildren = node.children?.length > 0;
+  const expanded = forceOpen || open;
 
   return (
     <div className="tree-node">
       <div
         className={`tree-row${selectedId === node.id ? " selected" : ""}`}
-        onClick={() => onSelect(node)}
+        onClick={() => {
+          // Clicking the category itself works like the arrow: the first click
+          // opens it, and clicking it again while it is open closes it.
+          const isSelected = selectedId === node.id;
+          onSelect(node);
+          if (!hasChildren || forceOpen) return;
+          if (!isSelected) setOpen(true);
+          else setOpen(!open);
+        }}
       >
         <span
-          className="twisty"
+          className={`twisty${expanded ? " open" : ""}`}
           onClick={(e) => {
             e.stopPropagation();
             if (hasChildren) setOpen(!open);
           }}
         >
-          {hasChildren ? (open ? "▾" : "▸") : ""}
+          {hasChildren ? <IconChevronDown width="12" height="12" /> : null}
         </span>
-        <span>{node.name}</span>
+        <CatAvatar name={node.name} image={node.image} size={depth ? 24 : 30} />
+        <span className="tree-name">{node.name}</span>
         {node.status !== "active" && <Pill tone="warn">{node.status}</Pill>}
         <span className="count">{node.productCount || 0}</span>
       </div>
-      {open && hasChildren && (
+      {expanded && hasChildren && (
         <div className="tree-children">
           {node.children.map((child) => (
             <TreeNode
@@ -45,6 +82,7 @@ function TreeNode({ node, selectedId, onSelect, depth = 0 }) {
               selectedId={selectedId}
               onSelect={onSelect}
               depth={depth + 1}
+              forceOpen={forceOpen}
             />
           ))}
         </div>
@@ -188,6 +226,7 @@ export default function Categories() {
   const [error, setError] = useState("");
   const [blockingProducts, setBlockingProducts] = useState([]);
   const [notice, setNotice] = useState("");
+  const [treeQuery, setTreeQuery] = useState("");
   const navigate = useNavigate();
   // Phone only: false shows the list, true shows the editor for selectedId.
   // Desktop ignores it and always shows both side by side.
@@ -375,30 +414,53 @@ export default function Categories() {
           {detail && schema ? (
             <>
               <Card
+                className="cat-editor"
                 title={
-                  <div className="inline">
-                    <h2>{detail.name}</h2>
-                    <span className="tag">{detail.path}</span>
+                  <div className="cat-title">
+                    <CatAvatar name={detail.name} image={detail.image} size={44} />
+                    <div className="cat-title-text">
+                      <h2>{detail.name}</h2>
+                      <span className="cat-slug" title="Web address of this category">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>
+                        {detail.path}
+                      </span>
+                    </div>
                   </div>
                 }
                 actions={
                   editable && (
                     <div className="inline" style={{ gap: 8 }}>
-                      <button className="btn sm" onClick={() => navigate(`/catalog/categories/new?parent=${detail.id}`)}>
-                        + Subcategory
+                      <button
+                        type="button"
+                        className="icon-edit cat-icon-btn"
+                        title="Add subcategory"
+                        aria-label="Add subcategory"
+                        onClick={() => navigate(`/catalog/categories/new?parent=${detail.id}`)}
+                      >
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z" /><path d="M12 10v6" /><path d="M9 13h6" /></svg>
                       </button>
-                      <button className="btn sm danger" disabled={saving} onClick={() => removeCategory(detail)}>
-                        Delete
+                      <button
+                        type="button"
+                        className="icon-delete cat-icon-btn"
+                        title="Delete category"
+                        aria-label="Delete category"
+                        disabled={saving}
+                        onClick={() => removeCategory(detail)}
+                      >
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></svg>
                       </button>
                     </div>
                   )
                 }
               >
-                <div className="inline" style={{ marginBottom: 14, gap: 4 }}>
+                <div className="cat-tabs" role="tablist">
                   {["details", "features", "fields", "defaults"].map((key) => (
                     <button
                       key={key}
-                      className={`btn sm${tab === key ? " primary" : " ghost"}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === key}
+                      className={`cat-tab${tab === key ? " on" : ""}`}
                       onClick={() => setTab(key)}
                     >
                       {key[0].toUpperCase() + key.slice(1)}
@@ -449,15 +511,34 @@ export default function Categories() {
           )}
         </div>
 
-        <Card title="Tree" tight className="cats-tree-card">
-          <div className="tree" style={{ padding: 10 }}>
+        <Card title="All categories" tight className="cats-tree-card">
+          <div className="tree-search">
+            <IconSearch width="15" height="15" />
+            <input
+              type="search"
+              value={treeQuery}
+              onChange={(e) => setTreeQuery(e.target.value)}
+              placeholder="Search categories…"
+              aria-label="Search categories"
+            />
+          </div>
+          <div className="tree" style={{ padding: "4px 10px 12px" }}>
             {tree.length ? (
-              tree.map((node) => (
-                <TreeNode key={node.id} node={node} selectedId={selectedId} onSelect={(n) => setSelectedId(n.id)} />
+              filterTree(tree, treeQuery).map((node) => (
+                <TreeNode
+                  key={node.id}
+                  node={node}
+                  selectedId={selectedId}
+                  onSelect={(n) => setSelectedId(n.id)}
+                  forceOpen={Boolean(treeQuery.trim())}
+                />
               ))
             ) : (
               <Empty title="No categories yet" />
             )}
+            {tree.length > 0 && treeQuery.trim() && !filterTree(tree, treeQuery).length ? (
+              <Empty title="No match" hint="Try a different name." />
+            ) : null}
           </div>
         </Card>
       </div>
@@ -905,9 +986,82 @@ function flatten(nodes, depth = 0, out = []) {
   return out;
 }
 
+// Words that point at a department when no existing product matches the name.
+const DEPARTMENT_HINTS = [
+  { match: "fruit", words: ["mango", "apple", "banana", "orange", "grape", "papaya", "guava", "pomegranate", "pineapple", "watermelon", "melon", "lemon", "kiwi", "berry", "dragon", "fruit"] },
+  { match: "vegetable", words: ["tomato", "potato", "onion", "carrot", "cabbage", "cauliflower", "brinjal", "spinach", "beans", "peas", "capsicum", "cucumber", "broccoli", "zucchini", "leafy", "vegetable"] },
+  { match: "dairy", words: ["milk", "curd", "paneer", "butter", "cheese", "ghee", "yogurt", "cream", "dairy", "ice"] },
+  { match: "grocery", words: ["rice", "dal", "atta", "flour", "sugar", "salt", "oil", "spice", "masala", "pulses", "grocery", "seeds"] },
+  { match: "personal", words: ["soap", "shampoo", "lotion", "perfume", "cosmetic", "skin", "hair", "beauty", "gift"] },
+  { match: "household", words: ["detergent", "cleaner", "cleaning", "mop", "broom", "dish", "tissue"] },
+  { match: "general", words: ["pen", "notebook", "stationery", "pooja", "candle", "battery"] },
+];
+
 function NewCategoryModal({ parentId, tree, saving, onClose, onCreate }) {
   const [form, setForm] = useState({ name: "", icon: "", parent: parentId || "", status: "active" });
   const options = flatten(tree);
+  // What the typed name matched: { categoryId, categoryName, source, image }.
+  // The parent is filled in from it until the person picks one themselves.
+  const [match, setMatch] = useState(null);
+  const [parentTouched, setParentTouched] = useState(Boolean(parentId));
+  const [useImage, setUseImage] = useState(true);
+
+  useEffect(() => {
+    const term = form.name.trim();
+    if (term.length < 3) {
+      setMatch(null);
+      return undefined;
+    }
+    let live = true;
+    const timer = setTimeout(async () => {
+      let found = null;
+      try {
+        // 1. A product with this name already lives somewhere — that is the best clue.
+        const res = await api.get("/catalog/products", { search: term, limit: 8 });
+        const catId = (p) => p.category?.id || p.category?._id;
+        const items = (res.items || []).filter((p) => catId(p));
+        if (items.length) {
+          const tally = new Map();
+          for (const p of items) tally.set(catId(p), (tally.get(catId(p)) || 0) + 1);
+          const [categoryId] = [...tally.entries()].sort((a, b) => b[1] - a[1])[0];
+          const first = items.find((p) => catId(p) === categoryId);
+          const withPhoto = items.find((p) => p.media?.[0]?.url);
+          found = {
+            categoryId,
+            categoryName: first.category.name,
+            source: `product “${first.name}”`,
+            image: withPhoto?.media?.[0]?.url || "",
+          };
+        }
+      } catch {
+        // No product lookup — fall through to the word list.
+      }
+
+      // 2. Otherwise guess the department from the word itself.
+      if (!found) {
+        const word = term.toLowerCase();
+        const hint = DEPARTMENT_HINTS.find((h) => h.words.some((w) => word === w || word.includes(w)));
+        const option = hint && options.find((o) => o.depth === 0 && o.rawName.toLowerCase().includes(hint.match));
+        if (option) found = { categoryId: option.id, categoryName: option.rawName, source: "the name", image: "" };
+      }
+
+      if (live) setMatch(found);
+    }, 450);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.name]);
+
+  // Fill the Parent in for them, unless they have chosen one themselves.
+  useEffect(() => {
+    if (parentTouched) return;
+    setForm((f) => ({ ...f, parent: match?.categoryId || "" }));
+  }, [match, parentTouched]);
+
+  const autoParent = !parentTouched && match?.categoryId && form.parent === match.categoryId;
+  const previewImage = useImage && match?.image ? match.image : "";
 
   return (
     <Modal
@@ -921,41 +1075,78 @@ function NewCategoryModal({ parentId, tree, saving, onClose, onCreate }) {
           <button
             className="btn primary"
             disabled={!form.name.trim() || saving}
-            onClick={() => onCreate({ ...form, parent: form.parent || null })}
+            onClick={() => onCreate({ ...form, parent: form.parent || null, ...(previewImage ? { image: previewImage } : {}) })}
           >
             {saving ? "Creating…" : "Create"}
           </button>
         </>
       }
     >
-      <Field label="Name">
-        <input
-          type="text"
-          autoFocus
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="e.g. Electricals"
-        />
-      </Field>
-      <div className="grid cols-2">
-        <Field label="Parent">
-          <SelectMenu
-            value={form.parent}
-            onChange={(parent) => setForm({ ...form, parent })}
-            emptyLabel="Top level (a new department)"
-            searchable
-            options={options.map((option) => ({ value: option.id, label: option.rawName, depth: option.depth }))}
-          />
-        </Field>
-        <Field label="Icon">
-          <input
-            type="text"
-            maxLength={4}
-            value={form.icon}
-            onChange={(e) => setForm({ ...form, icon: e.target.value })}
-            placeholder=""
-          />
-        </Field>
+      <div className="newcat-layout">
+        <div className="newcat-fields">
+          <Field label="Name" help="What shoppers see on the store, e.g. Fresh Fruits.">
+            <input
+              type="text"
+              autoFocus
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Electricals"
+            />
+          </Field>
+          <div className="grid cols-2">
+            <Field
+              label="Parent"
+              help={
+                autoParent
+                  ? `Picked automatically from ${match.source}. Change it if it's wrong.`
+                  : "Leave empty to create a new department."
+              }
+            >
+              <SelectMenu
+                value={form.parent}
+                onChange={(parent) => {
+                  setParentTouched(true);
+                  setForm({ ...form, parent });
+                }}
+                emptyLabel="Top level (a new department)"
+                searchable
+                options={options.map((option) => ({ value: option.id, label: option.rawName, depth: option.depth }))}
+              />
+            </Field>
+            <Field label="Icon" help="Optional: one emoji, e.g. 🍎">
+              <input
+                type="text"
+                maxLength={4}
+                value={form.icon}
+                onChange={(e) => setForm({ ...form, icon: e.target.value })}
+                placeholder=""
+              />
+            </Field>
+          </div>
+        </div>
+
+        <aside className="newcat-preview" aria-label="Preview">
+          <span className="newcat-preview-label">Preview</span>
+          <div className="newcat-tile">
+            {previewImage ? (
+              <span className="newcat-badge has-image" style={{ backgroundImage: `url(${previewImage})` }} />
+            ) : (
+              <span className={`newcat-badge ${toneFor(form.name)}`}>
+                {form.icon.trim() || (form.name.trim().charAt(0) || "?").toUpperCase()}
+              </span>
+            )}
+            <strong>{form.name.trim() || "Category name"}</strong>
+            <span className="newcat-where">
+              {form.parent ? `Inside ${options.find((o) => o.id === form.parent)?.rawName || "…"}` : "New department"}
+            </span>
+          </div>
+          {match?.image ? (
+            <button type="button" className="newcat-photo-toggle" onClick={() => setUseImage((v) => !v)}>
+              {useImage ? "Photo found from a matching product · Remove" : "Use the matching product's photo"}
+            </button>
+          ) : null}
+          <p>You can add the tile photo, features and fields right after creating it.</p>
+        </aside>
       </div>
     </Modal>
   );

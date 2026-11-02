@@ -20,7 +20,9 @@ export default function TrustStrip({ prepTimeMinutes }) {
                 guessed "30 minutes" on a page that has no store to ask. */}
             <span>
               {prepTimeMinutes
-                ? `Out of the store in about ${prepTimeMinutes} minutes`
+                ? prepTimeMinutes >= 1440
+                  ? "Delivered the next day"
+                  : `Out of the store in about ${prepTimeMinutes} minutes`
                 : "Straight from your neighbourhood store"}
             </span>
           </span>

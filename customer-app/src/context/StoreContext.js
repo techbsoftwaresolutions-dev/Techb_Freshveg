@@ -4,6 +4,7 @@ import { api } from "../api/client";
 
 const StoreContext = createContext(null);
 const PINCODE_KEY = "commerce.pincode";
+const AREA_KEY = "commerce.area";
 
 // Which store is serving this shopper. Everything price- and stock-related
 // hangs off it, so it is resolved once at launch and passed down rather than
@@ -19,7 +20,18 @@ export function StoreProvider({ children }) {
     try {
       const data = await api.get("/storefront/serviceability", { pincode: code });
       setServiceable(data.serviceable);
-      setStore(data.serviceable ? { ...data.store, ...data } : null);
+      // Where a pincode has several named areas, the one this shopper picked
+      // before wins; otherwise the first.
+      let area = data.area || "";
+      if (data.serviceable && data.areas?.length) {
+        try {
+          const savedArea = await AsyncStorage.getItem(AREA_KEY);
+          if (savedArea && data.areas.includes(savedArea)) area = savedArea;
+        } catch {
+          // Not fatal.
+        }
+      }
+      setStore(data.serviceable ? { ...data.store, ...data, area } : null);
       return data;
     } catch {
       setServiceable(false);
@@ -73,9 +85,18 @@ export function StoreProvider({ children }) {
     })();
   }, [check]);
 
+  const setArea = useCallback(async (area) => {
+    setStore((current) => (current ? { ...current, area } : current));
+    try {
+      await AsyncStorage.setItem(AREA_KEY, area);
+    } catch {
+      // Not fatal.
+    }
+  }, []);
+
   const value = useMemo(
-    () => ({ pincode, store, storeId: store?.id || null, serviceable, checking, setPincode, check }),
-    [pincode, store, serviceable, checking, setPincode, check]
+    () => ({ pincode, store, storeId: store?.id || null, serviceable, checking, setPincode, setArea, check }),
+    [pincode, store, serviceable, checking, setPincode, setArea, check]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

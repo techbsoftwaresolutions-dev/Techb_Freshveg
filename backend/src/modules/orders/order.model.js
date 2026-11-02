@@ -195,6 +195,10 @@ const orderSchema = new mongoose.Schema(
       arrivedAt: Date,
       deliveredAt: Date,
       expectedBy: Date,
+      // The delivery time the admin told the customer: "15m" | "30m" | "1h" | "next_day".
+      etaOption: { type: String, default: "" },
+      etaLabel: { type: String, default: "" },
+      etaSetAt: Date,
 
       // Proof of delivery.
       otp: { type: String, default: "" },

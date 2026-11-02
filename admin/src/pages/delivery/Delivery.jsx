@@ -7,7 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import {
   Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
-import DateFilter from "../../components/DateFilter";
+import DateFilter, { todayRange } from "../../components/DateFilter";
 
 export default function Delivery() {
   // The tab lives in the URL, so coming back from a zone or slot page lands
@@ -45,7 +45,7 @@ export default function Delivery() {
 
 function Report() {
   const [data, setData] = useState({ items: [], meta: null, summary: {} });
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(todayRange);
   const [filters, setFilters] = useState({ status: "", pincode: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -175,7 +175,7 @@ function Report() {
 
 function Partners() {
   const [partners, setPartners] = useState([]);
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(todayRange);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

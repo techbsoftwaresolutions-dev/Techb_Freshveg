@@ -6,6 +6,7 @@ import { api } from "../api/client";
 import FormRoute from "../components/FormRoute";
 import { useAuth } from "../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, rupees } from "../components/ui";
+import { Affix, FormSection as OfferSection, Segmented, SwitchRow } from "../components/FormKit";
 
 // One screen covers both auto-applied offers and coupons, because the engine
 // treats them as one thing — the only difference is whether a code is needed.
@@ -49,12 +50,15 @@ export default function Offers() {
   const [items, setItems] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
+  const [status, setStatus] = useState("");
+  const [kind, setKind] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState("");
 
   const load = () =>
     api
-      .get("/marketing/offers", { limit: 20, page })
+      .get("/marketing/offers", { limit: 20, page, ...(status ? { status } : {}), ...(kind ? { kind } : {}) })
       .then((data) => {
         setItems(data.items);
         setMeta(data.meta);
@@ -66,12 +70,25 @@ export default function Offers() {
     setLoading(true);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, status, kind]);
 
-  if (loading) return <div className="page"><Loading /></div>;
+  async function toggle(offer) {
+    setBusyId(offer.id);
+    setError("");
+    try {
+      await api.patch(`/marketing/offers/${offer.id}`, { status: offer.status === "active" ? "paused" : "active" });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  if (loading && !items.length && !status && !kind) return <div className="page"><Loading /></div>;
 
   return (
-    <div className="page">
+    <div className="page products-page offers-page">
       <div className="page-head">
         <div>
           <h1>Offers & Coupons</h1>
@@ -85,6 +102,24 @@ export default function Offers() {
 
       <Banner tone="error">{error}</Banner>
 
+      <div className="toolbar products-filters">
+        <div className="chip-row offer-tabs" role="tablist" aria-label="Status">
+          {[["", "All"], ["active", "Active"], ["draft", "Draft"], ["paused", "Paused"]].map(([value, label]) => (
+            <button key={label} type="button" role="tab" aria-selected={status === value} className={`cat-chip${status === value ? " on" : ""}`} onClick={() => { setStatus(value); setPage(1); }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="spacer" />
+        <div className="chip-row offer-tabs" role="tablist" aria-label="Kind">
+          {[["", "Any type"], ["offer", "Auto offers"], ["coupon", "Coupons"]].map(([value, label]) => (
+            <button key={label} type="button" role="tab" aria-selected={kind === value} className={`cat-chip small${kind === value ? " on" : ""}`} onClick={() => { setKind(value); setPage(1); }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <Card tight>
         <Table
           title="Offers"
@@ -93,9 +128,15 @@ export default function Offers() {
               key: "title",
               label: "Offer",
               render: (row) => (
-                <div className="stack">
-                  <span className="row-title">{row.title}</span>
-                  <span className="row-sub">{row.description}</span>
+                <div className="offer-cell">
+                  <span className={`offer-icon ${row.type}`}>{OFFER_TYPES.find((t) => t.value === row.type)?.glyph || "%"}</span>
+                  <div className="stack">
+                    <span className="row-title">
+                      {row.title}
+                      {row.badge ? <span className="offer-mini-badge">{row.badge}</span> : null}
+                    </span>
+                    <span className="row-sub">{row.description}</span>
+                  </div>
                 </div>
               ),
             },
@@ -108,7 +149,7 @@ export default function Offers() {
             {
               key: "type",
               label: "Reward",
-              render: (row) => <span className="muted">{describeReward(row)}</span>,
+              render: (row) => <span className="reward-pill">{describeReward(row)}</span>,
             },
             {
               key: "conditions",
@@ -119,12 +160,21 @@ export default function Offers() {
               key: "used",
               label: "Used",
               align: "right",
-              render: (row) => (
-                <span className="muted">
-                  {row.limits?.usedCount || 0}
-                  {row.limits?.totalUses ? ` / ${row.limits.totalUses}` : ""}
-                </span>
-              ),
+              render: (row) => {
+                const used = row.limits?.usedCount || 0;
+                const cap = row.limits?.totalUses || 0;
+                return (
+                  <span className="used-cell">
+                    <strong>{used}</strong>
+                    {cap ? <span className="faint"> / {cap}</span> : null}
+                    {cap ? (
+                      <span className="level-bar" aria-hidden="true" style={{ width: 70, marginTop: 4 }}>
+                        <span className="level-fill" style={{ width: `${Math.min(100, Math.round((used / cap) * 100))}%` }} />
+                      </span>
+                    ) : null}
+                  </span>
+                );
+              },
             },
             {
               key: "status",
@@ -140,6 +190,31 @@ export default function Offers() {
                   <Pill tone="info">Scheduled</Pill>
                 ),
             },
+            ...(editable
+              ? [
+                  {
+                    key: "actions",
+                    label: "",
+                    align: "right",
+                    sortable: false,
+                    exportable: false,
+                    render: (row) =>
+                      row.status === "draft" ? null : (
+                        <button
+                          type="button"
+                          className="btn sm"
+                          disabled={busyId === row.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggle(row);
+                          }}
+                        >
+                          {busyId === row.id ? "…" : row.status === "active" ? "Pause" : "Activate"}
+                        </button>
+                      ),
+                  },
+                ]
+              : []),
           ]}
           rows={items}
           onRowClick={editable ? (row) => navigate(`/marketing/offers/${row.id}`) : undefined}
@@ -191,41 +266,45 @@ function OfferImageField({ value, onChange }) {
 
   return (
     <Field label="Image">
-      {value ? (
-        <div className="media-thumb" style={{ width: 96, marginBottom: 10 }}>
-          <img src={value} alt="" />
-        </div>
-      ) : null}
-      <div className="inline" style={{ gap: 10, alignItems: "center" }}>
-        <label className="btn sm" style={{ cursor: uploading ? "default" : "pointer", opacity: uploading ? 0.6 : 1 }}>
-          {uploading ? "Uploading…" : "Upload photo"}
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            style={{ display: "none" }}
-            disabled={uploading}
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (!file) return;
-              setUploading(true);
-              setUploadError("");
-              try {
-                const result = await api.upload(file, "offers");
-                onChange(result.url);
-              } catch (err) {
-                setUploadError(err.message);
-              } finally {
-                setUploading(false);
-              }
-            }}
-          />
-        </label>
+      <div className="offer-image-row">
         {value ? (
-          <button type="button" className="btn sm" onClick={() => onChange("")}>
-            Remove
-          </button>
-        ) : null}
+          <div className="media-thumb" style={{ width: 96, height: 96 }}>
+            <img src={value} alt="" />
+          </div>
+        ) : (
+          <span className="offer-image-empty" aria-hidden="true">No photo</span>
+        )}
+        <div className="inline" style={{ gap: 10, alignItems: "center" }}>
+          <label className="btn sm" style={{ cursor: uploading ? "default" : "pointer", opacity: uploading ? 0.6 : 1 }}>
+            {uploading ? "Uploading…" : value ? "Change photo" : "Upload photo"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              style={{ display: "none" }}
+              disabled={uploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                setUploading(true);
+                setUploadError("");
+                try {
+                  const result = await api.upload(file, "offers");
+                  onChange(result.url);
+                } catch (err) {
+                  setUploadError(err.message);
+                } finally {
+                  setUploading(false);
+                }
+              }}
+            />
+          </label>
+          {value ? (
+            <button type="button" className="btn sm" onClick={() => onChange("")}>
+              Remove
+            </button>
+          ) : null}
+        </div>
       </div>
       {uploadError ? <span className="field-error" style={{ color: "var(--danger)", fontSize: 12 }}>{uploadError}</span> : null}
     </Field>
@@ -260,6 +339,14 @@ function describeConditions(offer) {
   return parts.join(" · ") || "any cart";
 }
 
+const OFFER_TYPES = [
+  { value: "percentage", glyph: "%", label: "Percentage off" },
+  { value: "fixed", glyph: "₹", label: "Fixed amount" },
+  { value: "free_delivery", glyph: "→", label: "Free delivery" },
+  { value: "bogo", glyph: "2+1", label: "Buy X get Y" },
+  { value: "cashback", glyph: "↺", label: "Wallet cashback" },
+];
+
 function OfferModal({ value, categories, saving, onClose, onSave }) {
   const [form, setForm] = useState(value);
 
@@ -269,6 +356,21 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
   const setSchedule = (key, next) => setForm((f) => ({ ...f, schedule: { ...f.schedule, [key]: next } }));
 
   const selectedCategories = (form.conditions.categories || []).map((c) => c.id || c);
+  const toggleCategory = (id) =>
+    setCondition(
+      "categories",
+      selectedCategories.includes(id) ? selectedCategories.filter((x) => x !== id) : [...selectedCategories, id]
+    );
+
+  const rupeeValue = (paise) => (paise ? paise / 100 : "");
+  const toPaise = (text) => Math.round(Number(text || 0) * 100);
+  const rewardText = describeReward({ type: form.type, reward: form.reward });
+  const conditionText = describeConditions({
+    conditions: {
+      ...form.conditions,
+      categories: selectedCategories.map((id) => ({ name: categories.find((c) => c.id === id)?.rawName })),
+    },
+  });
 
   return (
     <Modal
@@ -292,196 +394,192 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
               })
             }
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : "Save offer"}
           </button>
         </>
       }
     >
-      <div className="grid cols-2">
-        <Field label="Title">
-          <input type="text" autoFocus value={form.title} onChange={(e) => set("title", e.target.value)} />
-        </Field>
-        <Field label="Badge">
-          <input type="text" value={form.badge} onChange={(e) => set("badge", e.target.value)} />
-        </Field>
-      </div>
+      <div className="offer-layout">
+        <div className="offer-main">
+          <OfferSection step="1" title="The basics">
+            <div className="grid cols-2">
+              <Field label="Title">
+                <input type="text" autoFocus value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Weekend Grocery Sale" />
+              </Field>
+              <Field label="Badge">
+                <input type="text" value={form.badge} onChange={(e) => set("badge", e.target.value)} placeholder="e.g. NEW" />
+              </Field>
+            </div>
+            <Field label="Description">
+              <input type="text" value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="One line about the offer" />
+            </Field>
+            <OfferImageField value={form.image || ""} onChange={(url) => set("image", url)} />
+          </OfferSection>
 
-      <Field label="Description">
-        <input type="text" value={form.description} onChange={(e) => set("description", e.target.value)} />
-      </Field>
-
-      <OfferImageField value={form.image || ""} onChange={(url) => set("image", url)} />
-
-      <div className="grid cols-2">
-        <Field label="How it applies">
-          <Select
-            value={form.requiresCode ? "coupon" : "auto"}
-            onChange={(e) => set("requiresCode", e.target.value === "coupon")}
-          >
-            <option value="auto">Automatically</option>
-            <option value="coupon">Customer enters a code</option>
-          </Select>
-        </Field>
-        {form.requiresCode && (
-          <Field label="Coupon code">
-            <input
-              type="text"
-              className="mono"
-              value={form.code}
-              onChange={(e) => set("code", e.target.value.toUpperCase().replace(/\s/g, ""))}
+          <OfferSection step="2" title="How it applies">
+            <Segmented
+              value={form.requiresCode ? "coupon" : "auto"}
+              onChange={(v) => set("requiresCode", v === "coupon")}
+              options={[
+                { value: "auto", label: "Automatically" },
+                { value: "coupon", label: "Customer enters a code" },
+              ]}
             />
-          </Field>
-        )}
-      </div>
+            {form.requiresCode ? (
+              <Field label="Coupon code">
+                <input
+                  type="text"
+                  className="mono coupon-input"
+                  value={form.code}
+                  placeholder="e.g. WELCOME50"
+                  onChange={(e) => set("code", e.target.value.toUpperCase().replace(/\s/g, ""))}
+                />
+              </Field>
+            ) : null}
+          </OfferSection>
 
-      <div className="section-label">Reward</div>
-      <div className="grid cols-3">
-        <Field label="Type">
-          <Select value={form.type} onChange={(e) => set("type", e.target.value)}>
-            <option value="percentage">Percentage off</option>
-            <option value="fixed">Fixed amount off</option>
-            <option value="free_delivery">Free delivery</option>
-            <option value="bogo">Buy X get Y</option>
-            <option value="cashback">Wallet cashback</option>
-          </Select>
-        </Field>
+          <OfferSection step="3" title="Reward">
+            <div className="type-grid" role="radiogroup" aria-label="Reward type">
+              {OFFER_TYPES.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.type === t.value}
+                  className={`type-tile${form.type === t.value ? " on" : ""}`}
+                  onClick={() => set("type", t.value)}
+                >
+                  <span className="type-glyph">{t.glyph}</span>
+                  <strong>{t.label}</strong>
+                </button>
+              ))}
+            </div>
 
-        {form.type === "percentage" && (
-          <>
-            <Field label="Discount %">
-              <input
-                type="number"
-                value={form.reward.discountPct || 0}
-                onChange={(e) => setReward("discountPct", Number(e.target.value))}
-              />
+            {form.type === "percentage" && (
+              <div className="grid cols-2">
+                <Field label="Discount">
+                  <Affix suffix="%">
+                    <input type="number" min="0" max="100" value={form.reward.discountPct || ""} onChange={(e) => setReward("discountPct", Number(e.target.value))} />
+                  </Affix>
+                </Field>
+                <Field label="Maximum discount">
+                  <Affix prefix="₹">
+                    <input type="number" min="0" value={rupeeValue(form.reward.maxDiscount)} onChange={(e) => setReward("maxDiscount", toPaise(e.target.value))} />
+                  </Affix>
+                </Field>
+              </div>
+            )}
+
+            {form.type === "fixed" && (
+              <Field label="Discount amount">
+                <Affix prefix="₹">
+                  <input type="number" min="0" value={rupeeValue(form.reward.discountAmount)} onChange={(e) => setReward("discountAmount", toPaise(e.target.value))} />
+                </Affix>
+              </Field>
+            )}
+
+            {form.type === "bogo" && (
+              <div className="grid cols-2">
+                <Field label="Buy quantity">
+                  <input type="number" min="1" value={form.reward.buyQuantity || 1} onChange={(e) => setReward("buyQuantity", Number(e.target.value))} />
+                </Field>
+                <Field label="Get free">
+                  <input type="number" min="1" value={form.reward.getQuantity || 1} onChange={(e) => setReward("getQuantity", Number(e.target.value))} />
+                </Field>
+              </div>
+            )}
+
+            {form.type === "cashback" && (
+              <div className="grid cols-2">
+                <Field label="Cashback">
+                  <Affix suffix="%">
+                    <input type="number" min="0" value={form.reward.cashbackPct || ""} onChange={(e) => setReward("cashbackPct", Number(e.target.value))} />
+                  </Affix>
+                </Field>
+                <Field label="Maximum cashback">
+                  <Affix prefix="₹">
+                    <input type="number" min="0" value={rupeeValue(form.reward.cashbackMax)} onChange={(e) => setReward("cashbackMax", toPaise(e.target.value))} />
+                  </Affix>
+                </Field>
+              </div>
+            )}
+          </OfferSection>
+
+          <OfferSection step="4" title="Conditions">
+            <Field label="Minimum cart value">
+              <Affix prefix="₹">
+                <input type="number" min="0" value={rupeeValue(form.conditions.minCartValue)} onChange={(e) => setCondition("minCartValue", toPaise(e.target.value))} placeholder="0" />
+              </Affix>
             </Field>
-            <Field label="Max discount ₹">
-              <input
-                type="number"
-                value={(form.reward.maxDiscount || 0) / 100}
-                onChange={(e) => setReward("maxDiscount", Math.round(Number(e.target.value) * 100))}
-              />
+            <Field label="Limit to categories">
+              <div className="pick-list">
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    aria-pressed={selectedCategories.includes(c.id)}
+                    className={`pick-chip${selectedCategories.includes(c.id) ? " on" : ""}${c.depth ? " sub" : ""}`}
+                    onClick={() => toggleCategory(c.id)}
+                  >
+                    {selectedCategories.includes(c.id) ? "✓ " : ""}
+                    {c.rawName}
+                  </button>
+                ))}
+              </div>
             </Field>
-          </>
-        )}
-
-        {form.type === "fixed" && (
-          <Field label="Discount ₹">
-            <input
-              type="number"
-              value={(form.reward.discountAmount || 0) / 100}
-              onChange={(e) => setReward("discountAmount", Math.round(Number(e.target.value) * 100))}
+            <SwitchRow
+              checked={Boolean(form.conditions.firstOrderOnly)}
+              onChange={(v) => setCondition("firstOrderOnly", v)}
+              title="First order only"
             />
-          </Field>
-        )}
+          </OfferSection>
 
-        {form.type === "bogo" && (
-          <>
-            <Field label="Buy quantity">
-              <input
-                type="number"
-                value={form.reward.buyQuantity || 1}
-                onChange={(e) => setReward("buyQuantity", Number(e.target.value))}
+          <OfferSection step="5" title="Publication">
+            <Field label="Status">
+              <Segmented
+                value={form.status}
+                onChange={(v) => set("status", v)}
+                options={[
+                  { value: "draft", label: "Draft" },
+                  { value: "active", label: "Active" },
+                  { value: "paused", label: "Paused" },
+                ]}
               />
             </Field>
-            <Field label="Get free">
-              <input
-                type="number"
-                value={form.reward.getQuantity || 1}
-                onChange={(e) => setReward("getQuantity", Number(e.target.value))}
-              />
-            </Field>
-          </>
-        )}
-
-        {form.type === "cashback" && (
-          <>
-            <Field label="Cashback %">
-              <input
-                type="number"
-                value={form.reward.cashbackPct || 0}
-                onChange={(e) => setReward("cashbackPct", Number(e.target.value))}
-              />
-            </Field>
-            <Field label="Max cashback ₹">
-              <input
-                type="number"
-                value={(form.reward.cashbackMax || 0) / 100}
-                onChange={(e) => setReward("cashbackMax", Math.round(Number(e.target.value) * 100))}
-              />
-            </Field>
-          </>
-        )}
-      </div>
-
-      <div className="section-label">Conditions</div>
-      <div className="grid cols-2">
-        <Field label="Minimum cart value ₹">
-          <input
-            type="number"
-            value={(form.conditions.minCartValue || 0) / 100}
-            onChange={(e) => setCondition("minCartValue", Math.round(Number(e.target.value) * 100))}
-          />
-        </Field>
-        <Field label="Limit to categories">
-          <Select
-            multiple
-            size={4}
-            value={selectedCategories}
-            onChange={(e) =>
-              setCondition("categories", [...e.target.selectedOptions].map((o) => o.value))
-            }
-          >
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
-
-      <label className="checkbox" style={{ marginBottom: 14 }}>
-        <input
-          type="checkbox"
-          checked={Boolean(form.conditions.firstOrderOnly)}
-          onChange={(e) => setCondition("firstOrderOnly", e.target.checked)}
-        />
-        First order only
-      </label>
-
-      <div className="section-label">Publication</div>
-      <Field
-        label="Flash sale ends at"
-        style={{ marginBottom: 14 }}
-      >
-        <DatePicker
-          withTime
-          value={toLocalInputValue(form.schedule?.endsAt)}
-          onChange={(next) => setSchedule("endsAt", next)}
-        />
-      </Field>
-      <div className="grid cols-3">
-        <Field label="Status">
-          <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
-            <option value="draft">Draft</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-          </Select>
-        </Field>
-        <Field label="Priority">
-          <input type="number" value={form.priority} onChange={(e) => set("priority", Number(e.target.value))} />
-        </Field>
-        <Field label="Stacking">
-          <label className="checkbox" style={{ marginTop: 7 }}>
-            <input
-              type="checkbox"
+            <div className="grid cols-2">
+              <Field label="Flash sale ends at">
+                <DatePicker withTime value={toLocalInputValue(form.schedule?.endsAt)} onChange={(next) => setSchedule("endsAt", next)} />
+              </Field>
+              <Field label="Priority">
+                <input type="number" value={form.priority} onChange={(e) => set("priority", Number(e.target.value))} />
+              </Field>
+            </div>
+            <SwitchRow
               checked={Boolean(form.combinable)}
-              onChange={(e) => set("combinable", e.target.checked)}
+              onChange={(v) => set("combinable", v)}
+              title="Can combine with other offers"
             />
-            Can combine with others
-          </label>
-        </Field>
+          </OfferSection>
+        </div>
+
+        <aside className="offer-preview" aria-label="Preview">
+          <span className="newcat-preview-label">Preview</span>
+          <div className="offer-card-preview">
+            {form.image ? <div className="offer-card-img" style={{ backgroundImage: `url(${form.image})` }} /> : null}
+            <div className="offer-card-body">
+              {form.badge ? <span className="offer-card-badge">{form.badge}</span> : null}
+              <strong>{form.title.trim() || "Offer title"}</strong>
+              <span className="offer-card-desc">{form.description.trim() || "A short line about the offer."}</span>
+              <span className="offer-card-reward">{rewardText}</span>
+              {form.requiresCode ? <span className="offer-card-code">Use code <b className="mono">{form.code || "CODE"}</b></span> : <span className="offer-card-code">Applied automatically</span>}
+            </div>
+          </div>
+          <ul className="offer-facts">
+            <li><span>Applies when</span><b>{conditionText}</b></li>
+            <li><span>Status</span><b>{form.status}</b></li>
+            <li><span>Stacking</span><b>{form.combinable ? "Combines with others" : "Stands alone"}</b></li>
+          </ul>
+        </aside>
       </div>
     </Modal>
   );
@@ -489,7 +587,7 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
 
 function flatten(nodes, depth = 0, out = []) {
   for (const node of nodes) {
-    out.push({ id: node.id, name: `${"— ".repeat(depth)}${node.name}` });
+    out.push({ id: node.id, name: `${"— ".repeat(depth)}${node.name}`, rawName: node.name, depth });
     if (node.children?.length) flatten(node.children, depth + 1, out);
   }
   return out;

@@ -15,6 +15,13 @@ const inventoryService = require("../inventory/inventory.service");
 const categoryService = require("./category.service");
 const { resolveCategorySchema } = require("./schema.service");
 
+const { infoFor: deliveryTimeInfo, afterHours } = require("../stores/deliveryTime");
+// What the apps show once the cut-off has passed: { message } or null.
+const afterHoursOf = (settings) => {
+  const info = afterHours(settings);
+  return info ? { when: info.when, message: info.reason } : null;
+};
+
 const router = express.Router();
 router.use(optionalAuth);
 
@@ -291,12 +298,18 @@ router.get(
       success: true,
       serviceable: true,
       store: { id: store.id, name: store.name, code: store.code },
+      // The area this pincode stands for, when the admin has named it.
+      areas: (store.pincodeAreas || []).filter((r) => r.pincode === pincode).map((r) => r.area),
+      area: (store.pincodeAreas || []).find((r) => r.pincode === pincode)?.area || "",
       isOpen: store.isOpenNow(),
       minOrderValue: store.settings.minOrderValue,
       freeDeliveryEnabled: store.settings.freeDeliveryEnabled !== false,
       freeDeliveryAbove: store.settings.freeDeliveryAbove,
       deliveryCharge: store.settings.deliveryCharge,
       prepTimeMinutes: store.settings.prepTimeMinutes,
+      deliveryTime: deliveryTimeInfo(store.settings).key,
+      deliveryTimeLabel: afterHoursOf(store.settings) ? "Tomorrow morning" : deliveryTimeInfo(store.settings).label,
+      afterHours: afterHoursOf(store.settings),
     });
   })
 );
@@ -460,6 +473,9 @@ router.get(
             freeDeliveryEnabled: store.settings.freeDeliveryEnabled !== false,
             freeDeliveryAbove: store.settings.freeDeliveryAbove,
             prepTimeMinutes: store.settings.prepTimeMinutes,
+            deliveryTime: deliveryTimeInfo(store.settings).key,
+            deliveryTimeLabel: afterHoursOf(store.settings) ? "Tomorrow morning" : deliveryTimeInfo(store.settings).label,
+      afterHours: afterHoursOf(store.settings),
           }
         : null,
       categories: tree.filter((c) => c.showInNav).map((c) => ({
