@@ -159,8 +159,9 @@ export default function OrderDetail() {
   );
   const exits = actions.filter((a) => a.kind === "danger");
 
-  // Items can be moved to a later delivery any time before the order closes.
-  const canDelay = can("orders.manage") && !["CANCELLED", "REJECTED", "REFUNDED"].includes(order.status);
+  // Items can be moved to a later delivery only until the order goes out: once it is
+  // delivered (or closed) everything on it has already reached the customer.
+  const canDelay = can("orders.manage") && !["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"].includes(order.status);
   const waitingItems = order.items.filter((i) => i.deferred?.expectedOn && !i.deferred.deliveredAt);
   const togglePick = (itemId) =>
     setPicked((list) => (list.includes(itemId) ? list.filter((x) => x !== itemId) : [...list, itemId]));

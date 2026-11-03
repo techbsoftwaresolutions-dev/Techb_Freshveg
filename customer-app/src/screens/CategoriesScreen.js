@@ -48,13 +48,20 @@ export default function CategoriesScreen({ navigation }) {
   const freeDeliveryOn = (store?.freeDeliveryEnabled ?? store?.settings?.freeDeliveryEnabled) !== false;
 
   return (
-    // One ScrollView for the whole screen — the left department list and the
-    // right subcategory panel used to scroll independently of each other,
-    // which felt like two separate screens glued together. Now a single
-    // swipe moves both at once, like any normal page.
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
+    // Two independent columns: the department list on the left scrolls on its
+    // own, and the right panel keeps its own scroll — swiping one never moves
+    // the other.
+    <View style={styles.screen}>
       {/* Departments */}
-      <View style={styles.rail}>
+      <ScrollView
+        style={styles.rail}
+        contentContainerStyle={{ paddingTop: spacing.sm, paddingBottom: 170 }}
+        showsVerticalScrollIndicator
+        persistentScrollbar
+        nestedScrollEnabled
+        overScrollMode="always"
+        alwaysBounceVertical
+      >
         {categories.map((category, index) => {
           const isActive = index === activeIndex;
           const tileColor = RAIL_COLORS[index % RAIL_COLORS.length];
@@ -76,10 +83,10 @@ export default function CategoriesScreen({ navigation }) {
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* Subcategories */}
-      <View style={styles.panel}>
+      <ScrollView style={styles.panel} contentContainerStyle={styles.panelContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.panelTitle} numberOfLines={1}>
           {active.name}
         </Text>
@@ -150,16 +157,15 @@ export default function CategoriesScreen({ navigation }) {
             </Text>
           </View>
         ) : null}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  screenContent: { flexDirection: "row", minHeight: "100%" },
+  screen: { flex: 1, flexDirection: "row", backgroundColor: colors.bg },
 
-  rail: { width: 84, flexGrow: 0, flexShrink: 0, backgroundColor: colors.surface, paddingVertical: spacing.sm, paddingBottom: spacing.xxl, borderRightWidth: 1, borderRightColor: colors.border },
+  rail: { width: 84, flexGrow: 0, flexShrink: 0, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border },
   railItem: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 4, gap: 6 },
   railItemActive: { backgroundColor: colors.primarySoft },
   railMarker: { position: "absolute", left: 0, top: 12, bottom: 12, width: 3.5, backgroundColor: colors.primary, borderTopRightRadius: 3, borderBottomRightRadius: 3 },
@@ -184,7 +190,8 @@ const styles = StyleSheet.create({
   railLabel: { fontSize: 10.5, lineHeight: 13, fontFamily: fontFamily.semibold, color: colors.textMuted, textAlign: "center" },
   railLabelActive: { color: colors.primaryDark, fontFamily: fontFamily.bold },
 
-  panel: { flex: 1, backgroundColor: colors.bg, padding: spacing.md, paddingBottom: spacing.xxl },
+  panel: { flex: 1, backgroundColor: colors.bg },
+  panelContent: { padding: spacing.md, paddingBottom: spacing.xxl },
   panelTitle: { fontSize: 17, fontFamily: fontFamily.extrabold, color: colors.text, marginBottom: spacing.sm },
 
   ctaCard: {

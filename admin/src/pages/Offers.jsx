@@ -129,7 +129,7 @@ export default function Offers() {
               label: "Offer",
               render: (row) => (
                 <div className="offer-cell">
-                  <span className={`offer-icon ${row.type}`}>{OFFER_TYPES.find((t) => t.value === row.type)?.glyph || "%"}</span>
+                  <OfferIcon row={row} />
                   <div className="stack">
                     <span className="row-title">
                       {row.title}
@@ -258,19 +258,36 @@ export function OfferFormPage() {
   );
 }
 
+// The tile at the start of an offer row: the offer's photo when it has one that
+// loads, otherwise the glyph for its type.
+function OfferIcon({ row }) {
+  const [broken, setBroken] = useState(false);
+  if (row.image && !broken) {
+    return (
+      <span className={`offer-icon ${row.type}`} style={{ padding: 0, overflow: "hidden" }}>
+        <img src={row.image} alt="" onError={() => setBroken(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </span>
+    );
+  }
+  return <span className={`offer-icon ${row.type}`}>{OFFER_TYPES.find((t) => t.value === row.type)?.glyph || "%"}</span>;
+}
+
 // The photo on the offer's card on the storefront homepage. Optional — without
 // one the card is text on its tint.
 function OfferImageField({ value, onChange }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [broken, setBroken] = useState(false);
 
   return (
     <Field label="Image">
       <div className="offer-image-row">
-        {value ? (
+        {value && !broken ? (
           <div className="media-thumb" style={{ width: 96, height: 96 }}>
-            <img src={value} alt="" />
+            <img key={value} src={value} alt="" onError={() => setBroken(true)} />
           </div>
+        ) : value ? (
+          <span className="offer-image-empty" title={value}>Link broken. Upload again</span>
         ) : (
           <span className="offer-image-empty" aria-hidden="true">No photo</span>
         )}
@@ -290,6 +307,7 @@ function OfferImageField({ value, onChange }) {
                 setUploadError("");
                 try {
                   const result = await api.upload(file, "offers");
+                  setBroken(false);
                   onChange(result.url);
                 } catch (err) {
                   setUploadError(err.message);

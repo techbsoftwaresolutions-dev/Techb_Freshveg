@@ -6,7 +6,7 @@ import { useCart } from "../context/CartContext";
 import { useStore } from "../context/StoreContext";
 import { colors, fontFamily, radius, shadow, spacing, type } from "../theme";
 import { EmptyState, Loading, Notice } from "../components/ui";
-import ProductCard from "../components/ProductCard";
+import ProductTile from "../components/ProductTile";
 
 const SORTS = [
   { key: "", label: "Relevance" },
@@ -125,10 +125,15 @@ export default function ProductListScreen({ route, navigation }) {
           <ScrollView
             ref={railRef}
             style={styles.rail}
-            contentContainerStyle={{ paddingVertical: spacing.sm, paddingBottom: spacing.xxl }}
+            // Always a little taller than the screen, so the rail can be dragged
+            // (and the last item lifted clear of the bottom edge) even when only a
+            // handful of subcategories are listed.
+            contentContainerStyle={{ paddingTop: spacing.sm, paddingBottom: 170 }}
             showsVerticalScrollIndicator
             persistentScrollbar
             nestedScrollEnabled
+            overScrollMode="always"
+            alwaysBounceVertical
             bounces
           >
             <RailItem
@@ -275,8 +280,8 @@ export default function ProductListScreen({ route, navigation }) {
               data={products}
               keyExtractor={(item) => item.id}
               numColumns={2}
-              columnWrapperStyle={{ gap: spacing.sm, paddingHorizontal: spacing.sm }}
-              contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.xs, paddingBottom: spacing.xxl }}
+              columnWrapperStyle={{ gap: 14, paddingHorizontal: 12 }}
+              contentContainerStyle={{ rowGap: 18, paddingTop: spacing.xs, paddingBottom: spacing.xxl }}
               showsVerticalScrollIndicator={false}
               onEndReached={loadMore}
               onEndReachedThreshold={0.4}
@@ -304,8 +309,7 @@ export default function ProductListScreen({ route, navigation }) {
                 const line = cart.items.find((i) => String(i.variant) === String(variantId));
                 return (
                   <View style={{ flex: 1 }}>
-                    <ProductCard
-                      fill
+                    <ProductTile
                       product={item}
                       variant={line}
                       quantity={line?.quantity || 0}
@@ -377,27 +381,27 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   body: { flex: 1, flexDirection: "row" },
 
-  rail: { width: 76, flexGrow: 0, backgroundColor: colors.surfaceAlt },
+  rail: { width: 88, flexGrow: 0, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: "#EEF0F2" },
   railItem: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 4, gap: 5 },
-  railItemActive: { backgroundColor: colors.surface },
+  railItemActive: { backgroundColor: "#fff" },
   railMarker: {
     position: "absolute",
-    left: 0,
-    top: 12,
-    bottom: 12,
-    width: 3.5,
+    right: 0,
+    top: 8,
+    bottom: 8,
+    width: 4,
     backgroundColor: colors.primary,
-    borderTopRightRadius: 3,
-    borderBottomRightRadius: 3,
+    borderTopLeftRadius: 4,
+    borderBottomLeftRadius: 4,
   },
-  railIcon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", overflow: "hidden", borderWidth: 2, borderColor: "transparent" },
+  railIcon: { width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center", overflow: "hidden", borderWidth: 2, borderColor: "transparent" },
   railIconActive: { borderColor: colors.primary },
   railImage: { width: "100%", height: "100%" },
   railGlyph: { fontSize: 20, color: colors.text },
-  railLabel: { fontSize: 10.5, lineHeight: 13, textAlign: "center", fontFamily: fontFamily.semibold, color: colors.textMuted },
-  railLabelActive: { color: colors.primaryDark, fontFamily: fontFamily.bold },
+  railLabel: { fontSize: 11.5, lineHeight: 14, textAlign: "center", fontFamily: fontFamily.semibold, color: colors.textMuted },
+  railLabelActive: { color: colors.text, fontFamily: fontFamily.extrabold },
 
-  panel: { flex: 1, backgroundColor: colors.bg },
+  panel: { flex: 1, backgroundColor: "#fff" },
 
   toolbarScroll: { flexGrow: 0, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   toolbar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 10 },
