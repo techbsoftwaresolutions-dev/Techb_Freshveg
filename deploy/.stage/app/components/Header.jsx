@@ -7,6 +7,8 @@ import { useAuth, useCart, useStore } from "./Providers";
 import { rupees } from "@/lib/format";
 import { FreeDeliveryNote } from "./FreeDeliveryProgress";
 
+const SEARCH_HINTS = ["fruits", "vegetables", "milk", "bread", "eggs", "rice", "snacks", "soap", "groceries"];
+
 export default function Header({ categories = [] }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -65,6 +67,54 @@ export default function Header({ categories = [] }) {
     const q = term.trim();
     if (onListing) tellListing(q);
     else if (q.length >= 2) router.push(`/search?q=${encodeURIComponent(q)}`);
+  };
+
+  // The empty search box cycles through suggestions ("milk", "bread"…), sliding
+  // up one at a time. Gone as soon as the shopper types.
+  const [hint, setHint] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return undefined;
+    const timer = setInterval(() => setHint((n) => (n + 1) % SEARCH_HINTS.length), 2600);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Voice search (browser speech recognition). The mic only appears where the
+  // browser supports it, so it never sits there doing nothing.
+  const [micOk, setMicOk] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognition = useRef(null);
+  useEffect(() => {
+    setMicOk(Boolean(window.SpeechRecognition || window.webkitSpeechRecognition));
+    return () => recognition.current?.abort?.();
+  }, []);
+
+  const toggleMic = () => {
+    if (listening) {
+      recognition.current?.stop();
+      return;
+    }
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Speech) return;
+    const rec = new Speech();
+    rec.lang = "en-IN";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onstart = () => setListening(true);
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    rec.onresult = (event) => {
+      const heard = (event.results?.[0]?.[0]?.transcript || "").replace(/[.?!]+$/, "").trim();
+      if (!heard) return;
+      setTerm(heard);
+      if (onListing) tellListing(heard);
+      else if (heard.length >= 2) router.push(`/search?q=${encodeURIComponent(heard)}`);
+    };
+    recognition.current = rec;
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+    }
   };
 
   // Track Order, Help Center, Terms, Cart, Account and Sign In are reading pages: no category bar
@@ -134,12 +184,27 @@ export default function Header({ categories = [] }) {
               setTerm(e.target.value);
               if (onListing) tellListing(e.target.value);
             }}
-            placeholder="Search for fruits, vegetables, groceries and more…"
-            aria-label="Search products"
+            placeholder=""
+            aria-label="Search for fruits, vegetables, groceries and more"
           />
-          <button type="submit" aria-label="Search">
-            <IconSearch className="search-form-submit-icon" />
-          </button>
+          {term ? null : (
+            <span className="search-hint" aria-hidden="true">
+              <span key={hint} className="search-hint-text">
+                Search for “{SEARCH_HINTS[hint]}”
+              </span>
+            </span>
+          )}
+          {micOk ? (
+            <button
+              type="button"
+              className={`search-mic${listening ? " listening" : ""}`}
+              onClick={toggleMic}
+              aria-label={listening ? "Stop voice search" : "Search by voice"}
+              aria-pressed={listening}
+            >
+              <IconMic className="search-form-submit-icon" />
+            </button>
+          ) : null}
         </form>
 
         <div className="header-actions">
@@ -330,6 +395,15 @@ function IconPin(props) {
     </svg>
   );
 }
+function IconMic(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" />
+    </svg>
+  );
+}
+
 function IconSearch(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
