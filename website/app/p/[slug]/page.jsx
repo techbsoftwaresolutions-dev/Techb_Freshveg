@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProduct, SITE_URL } from "@/lib/api";
+import { getHome, getProduct, getProducts, SITE_URL } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
 import VariantPicker from "@/components/VariantPicker";
 import ProductGallery from "@/components/ProductGallery";
 import ProductTabs from "@/components/ProductTabs";
 import ShareRow from "@/components/ShareRow";
+import PdpPromises from "@/components/PdpPromises";
 import { discountPct, offerLabel, productMedia, rupees } from "@/lib/format";
 
 export async function generateMetadata({ params }) {
@@ -42,6 +43,18 @@ export default async function ProductPage({ params }) {
 
   const { product, variants = [], specs = [], features = {}, related = [], breadcrumb = [] } = data;
   const media = productMedia(product);
+
+  // More to look at, without repeating anything: this category's best, then today's deals.
+  const category = breadcrumb[breadcrumb.length - 1];
+  const [home, inCategory, deals] = await Promise.all([
+    getHome(),
+    category ? getProducts({ category: category.slug, limit: 14 }) : null,
+    getProducts({ sort: "discount", limit: 14 }),
+  ]);
+  const seen = new Set([product.id, ...related.map((r) => r.id)]);
+  const fresh = (list) => (list?.items || []).filter((p) => p.inStock !== false && !seen.has(p.id) && seen.add(p.id)).slice(0, 10);
+  const topInCategory = fresh(inCategory);
+  const bestDeals = fresh(deals);
 
   const cheapest = variants.reduce(
     (low, v) => (!low || v.sellingPrice < low.sellingPrice ? v : low),
@@ -124,15 +137,23 @@ export default async function ProductPage({ params }) {
       {/* Columns set in CSS, not inline: an inline style outranks the media
           query that stacks them on a phone. */}
       <div className="split pdp">
-        <div className="sticky">
-          <ProductGallery
-            media={media}
-            name={product.name}
-            badge={off > 0 ? <span className="badge">{off}% OFF</span> : null}
-          />
+        {/* Left: photos, then the product information underneath them, so the column is
+            as long as the buy column beside it instead of leaving a blank gap. */}
+        <div className="pdp-left">
+          <div className="pdp-gallery-slot">
+            <ProductGallery
+              media={media}
+              name={product.name}
+              badge={off > 0 ? <span className="badge">{off}% OFF</span> : null}
+            />
+          </div>
+
+          <div className="panel pdp-tabs-panel pdp-details-slot">
+            <ProductTabs product={product} specs={specs} variants={variants} category={category} features={features} />
+          </div>
         </div>
 
-        <div className="pdp-info">
+        <div className="pdp-info pdp-info-sticky">
           {/* One card: pack picker, price and buttons together. */}
           <div className="panel pdp-buy">
             <div className="pdp-summary">
@@ -174,19 +195,46 @@ export default async function ProductPage({ params }) {
             <VariantPicker product={product} variants={variants} />
           </div>
 
-          <div className="panel pdp-tabs-panel">
-            <ProductTabs product={product} specs={specs} />
-          </div>
+          <PdpPromises />
+
         </div>
       </div>
 
       {related.length ? (
         <section className="section pdp-related">
           <div className="section-head">
-            <h2>You may also like</h2>
+            <h2>Similar products</h2>
           </div>
-          <Carousel label="You may also like">
+          <Carousel label="Similar products">
             {related.map((item) => (
+              <ProductCard key={item.id} product={item} />
+            ))}
+          </Carousel>
+        </section>
+      ) : null}
+
+      {topInCategory.length ? (
+        <section className="section pdp-related">
+          <div className="section-head">
+            <h2>Top picks in {category?.name || "this category"}</h2>
+            {category ? <Link className="section-link" href={`/c/${category.slug}`}>View all</Link> : null}
+          </div>
+          <Carousel label={`Top picks in ${category?.name || "this category"}`}>
+            {topInCategory.map((item) => (
+              <ProductCard key={item.id} product={item} />
+            ))}
+          </Carousel>
+        </section>
+      ) : null}
+
+      {bestDeals.length ? (
+        <section className="section pdp-related">
+          <div className="section-head">
+            <h2>Best deals today</h2>
+            <Link className="section-link" href="/c?sort=discount">View all</Link>
+          </div>
+          <Carousel label="Best deals today">
+            {bestDeals.map((item) => (
               <ProductCard key={item.id} product={item} />
             ))}
           </Carousel>

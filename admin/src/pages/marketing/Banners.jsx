@@ -6,8 +6,7 @@ import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import { FormSection, Segmented } from "../../components/FormKit";
 import {
-  Banner as Notice, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, useConfirm,
-} from "../../components/ui";
+  Banner as Notice, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, useConfirm, ChipDropdown, chipPairs } from "../../components/ui";
 
 const PLACEMENT_LABEL = {
   home_hero: "Home — hero",
@@ -110,22 +109,9 @@ export default function Banners() {
       ) : null}
 
       <div className="toolbar products-filters">
-        <div className="chip-row banner-tabs" role="tablist" aria-label="Placement">
-          <button type="button" role="tab" aria-selected={slot === ""} className={`cat-chip${slot === "" ? " on" : ""}`} onClick={() => setSlot("")}>All places</button>
-          {Object.entries(PLACEMENT_LABEL).map(([key, label]) => (
-            <button key={key} type="button" role="tab" aria-selected={slot === key} className={`cat-chip${slot === key ? " on" : ""}`} onClick={() => setSlot(key)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown ariaLabel="Placement" options={[{ value: "", label: "All places" }, ...Object.entries(PLACEMENT_LABEL).map(([value, label]) => ({ value, label }))]} value={slot} onChange={setSlot} />
         <span className="spacer" />
-        <div className="chip-row banner-tabs" role="tablist" aria-label="Status">
-          {[["", "Any status"], ["active", "Active"], ["draft", "Draft"], ["paused", "Paused"]].map(([value, label]) => (
-            <button key={label} type="button" role="tab" aria-selected={statusTab === value} className={`cat-chip small${statusTab === value ? " on" : ""}`} onClick={() => setStatusTab(value)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown small ariaLabel="Status" options={chipPairs([["", "Any status"], ["active", "Active"], ["draft", "Draft"], ["paused", "Paused"]])} value={statusTab} onChange={setStatusTab} />
       </div>
 
       <Card tight>

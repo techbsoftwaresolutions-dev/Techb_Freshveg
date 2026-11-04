@@ -4,14 +4,13 @@ import "dotenv/config";
 export default {
   expo: {
     // The name under the icon on the phone. The scheme and the iOS/Android
-    // IDs below still say "samagramart" on purpose: an ID is permanent once
-    // the app is in a store, and changing it ships a separate app.
+    // IDs below are permanent once the app is in a store.
     name: "Hosur Basket",
     slug: "commerce-customer-app",
     version: "0.1.0",
     orientation: "portrait",
     userInterfaceStyle: "light",
-    scheme: "samagramart",
+    scheme: "hosurbasket",
 
     // SDK 58 wants these listed ("expo install --fix" could not add them to a
     // dynamic config on its own).
@@ -26,11 +25,11 @@ export default {
 
     ios: {
       supportsTablet: false,
-      bundleIdentifier: "com.samagramart.customer",
+      bundleIdentifier: "com.hosurbasket.customer",
     },
 
     android: {
-      package: "com.samagramart.customer",
+      package: "com.hosurbasket.customer",
       adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#FFFDF6" },
     },
 

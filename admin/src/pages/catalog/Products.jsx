@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees, useConfirm } from "../../components/ui";
+import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees, useConfirm, ChipExpand } from "../../components/ui";
 
 const OFFER_LABEL = { discount: "Discount", special: "Special offer", combo: "Combo offer" };
 
@@ -145,23 +145,7 @@ export default function Products() {
 
       <Banner tone="error">{error}</Banner>
 
-      <div className="chip-row" role="tablist" aria-label="Category">
-        <button type="button" role="tab" aria-selected={tab === ""} className={`cat-chip${tab === "" ? " on" : ""}`} onClick={() => pickTab("")}>
-          All
-        </button>
-        {roots.map((root) => (
-          <button
-            key={root.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === root.id}
-            className={`cat-chip${tab === root.id ? " on" : ""}`}
-            onClick={() => pickTab(root.id)}
-          >
-            {root.name}
-          </button>
-        ))}
-      </div>
+      <ChipExpand ariaLabel="Category" options={[{ value: "", label: "All categories" }, ...roots.map((r) => ({ value: r.id, label: r.name }))]} value={tab} onChange={pickTab} />
 
       <div className="toolbar products-filters">
         <span className="search-field">

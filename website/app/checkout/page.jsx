@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { storeOpen } from "@/lib/launch";
+import ComingSoonPage from "@/components/ComingSoonPage";
 import { useAuth, useCart } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
@@ -10,6 +12,15 @@ import SavedAddresses from "@/components/SavedAddresses";
 import { useServiceability } from "@/lib/use-serviceability";
 
 export default function CheckoutPage() {
+  // Until the shop opens (13 November) /checkout shows the Coming soon banner.
+  const [gate, setGate] = useState("pending");
+  useEffect(() => { setGate(storeOpen() ? "open" : "locked"); }, []);
+  if (gate === "pending") return null;
+  if (gate === "locked") return <ComingSoonPage />;
+  return <CheckoutInner />;
+}
+
+function CheckoutInner() {
   const router = useRouter();
   const cart = useCart();
   const { user, ready, signedIn, refreshUser } = useAuth();

@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth, useCart } from "./Providers";
 import AddToCart from "./AddToCart";
 import FreeDeliveryProgress from "./FreeDeliveryProgress";
 import { rupees } from "@/lib/format";
+import { gateCheckout } from "@/lib/launch";
 
 export default function CartDrawer() {
   const dialog = useRef(null);
   const previousOverflow = useRef(null);
   const pathname = usePathname();
+  const router = useRouter();
   const cart = useCart();
   const { signedIn } = useAuth();
   const summary = cart.summary;
@@ -89,7 +91,7 @@ export default function CartDrawer() {
       </div>
       {cart.items.length && summary ? <div className="cart-drawer-foot">
         {!summary.meetsMinimum ? <p>Add {rupees(summary.shortfallToMinimum)} more to meet the minimum order.</p> : null}
-        {summary.meetsMinimum ? <Link className="btn primary block lg" href={signedIn ? "/checkout" : "/login?next=/checkout"} onClick={close}>{signedIn ? "Proceed to checkout" : "Sign in to checkout"} · {rupees(summary.total)}</Link> : <button className="btn primary block lg" disabled>Proceed to checkout</button>}
+        {summary.meetsMinimum ? <button type="button" className="btn primary block lg" onClick={() => { close(); if (gateCheckout()) return; router.push(signedIn ? "/checkout" : "/login?next=/checkout"); }}>{signedIn ? "Proceed to checkout" : "Sign in to checkout"} · {rupees(summary.total)}</button> : <button className="btn primary block lg" disabled>Proceed to checkout</button>}
       </div> : null}
     </dialog>
   );

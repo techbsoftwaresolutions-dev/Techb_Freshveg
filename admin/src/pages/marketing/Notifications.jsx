@@ -18,8 +18,7 @@ import {
   Stat,
   Table,
   Tabs,
-  when,
-} from "../../components/ui";
+  when, ChipDropdown, chipPairs } from "../../components/ui";
 
 const CHANNEL_LABEL = {
   push: "Push",
@@ -148,20 +147,8 @@ function Templates() {
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input type="search" placeholder="Search templates…" value={query} onChange={(e) => setQuery(e.target.value)} />
         </span>
-        <div className="chip-row notif-tabs" role="tablist" aria-label="Audience">
-          {[["", "Everyone"], ["customer", "Customers"], ["delivery_partner", "Delivery partners"], ["admin", "Staff"]].map(([value, label]) => (
-            <button key={label} type="button" role="tab" aria-selected={who === value} className={`cat-chip small${who === value ? " on" : ""}`} onClick={() => setWho(value)}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="chip-row notif-tabs" role="tablist" aria-label="State">
-          {[["", "Any"], ["on", "On"], ["off", "Off"]].map(([value, label]) => (
-            <button key={label} type="button" role="tab" aria-selected={state === value} className={`cat-chip small${state === value ? " on" : ""}`} onClick={() => setState(value)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown small ariaLabel="Audience" options={chipPairs([["", "Everyone"], ["customer", "Customers"], ["delivery_partner", "Delivery partners"], ["admin", "Staff"]])} value={who} onChange={setWho} />
+        <ChipDropdown small ariaLabel="State" options={chipPairs([["", "Any"], ["on", "On"], ["off", "Off"]])} value={state} onChange={setState} />
         <span className="spacer" />
         {canManage ? (
           <button className="btn primary" onClick={() => openTemplate(null)}>

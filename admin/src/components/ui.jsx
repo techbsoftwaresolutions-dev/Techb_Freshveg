@@ -571,6 +571,55 @@ export const when = (value) =>
       })
     : "—";
 
+// A filter that used to be a row of chips (All / Active / Hidden / Archived …),
+// folded into one dropdown that expands to show every choice. Options are
+// { value, label }; "" is the usual "All".
+export function ChipDropdown(props) {
+  return <ChipExpand {...props} />;
+}
+
+// Same idea, but the choices open sideways: click the selected chip and the
+// others slide out in a horizontal row next to it (scrolls if there are many).
+export function ChipExpand({ options, value, onChange, ariaLabel, small = false }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  const current = options.find((o) => String(o.value) === String(value ?? "")) || options[0];
+  return (
+    <div className={`chip-expand${open ? " open" : ""}`} ref={rootRef} role="group" aria-label={ariaLabel}>
+      <button type="button" className={`cat-chip on chip-expand-toggle${small ? " small" : ""}`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {current?.label}
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="chip-expand-arrow"><path d="m9 6 6 6-6 6" /></svg>
+      </button>
+      {open ? (
+        <div className="chip-expand-list" role="tablist">
+          {options.filter((o) => o !== current).map((o) => (
+            <button
+              key={String(o.value) || "all"}
+              type="button"
+              role="tab"
+              aria-selected={false}
+              className={`cat-chip${small ? " small" : ""}`}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+const pairs = (list) => list.map(([value, label]) => ({ value, label }));
+export { pairs as chipPairs };
+
 // Tabs that keep their state in the URL, so a filtered view is shareable and
 // the browser's back button does what it looks like it should.
 export function Tabs({ tabs, active, onChange }) {

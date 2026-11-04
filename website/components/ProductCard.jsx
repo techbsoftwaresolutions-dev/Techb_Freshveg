@@ -58,8 +58,10 @@ export default function ProductCard({ product }) {
           {product.name}
         </h3>
       </NameWrap>
-      <div className="card-pack">{size}</div>
-      {offerLabel(product.offer) ? <span className={`offer-tag ${product.offer.kind}`}>{offerLabel(product.offer)}</span> : null}
+      <div className="card-meta">
+        <span className="card-pack">{size}</span>
+        {offerLabel(product.offer) ? <span className={`offer-tag ${product.offer.kind}`}>{offerLabel(product.offer)}</span> : null}
+      </div>
 
       <div className="card-foot">
         <div>

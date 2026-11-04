@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import DateFilter, { todayRange } from "../../components/DateFilter";
-import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, rupees, when } from "../../components/ui";
+import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, rupees, when, ChipDropdown } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
 // stage added to the engine shows up here without a frontend change.
@@ -158,25 +158,17 @@ export default function Orders() {
       <Banner tone="ok">{notice}</Banner>
 
       <div className="toolbar products-filters">
-        <div className="chip-row order-tabs" role="tablist" aria-label="Order status">
-          {buckets.map((bucket) => (
-            <button
-              key={bucket.label}
-              type="button"
-              role="tab"
-              aria-selected={filters.status === bucket.value}
-              className={`cat-chip${filters.status === bucket.value ? " on" : ""}`}
-              onClick={() => {
-                // Pending orders are whatever is still open, however old, so
-                // that bucket (and All) looks across all time.
-                if (bucket.label === "Pending") setRange({ from: "", to: "" });
-                setFilters({ status: bucket.value, page: 1 });
-              }}
-            >
-              {bucket.label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown
+          ariaLabel="Order status"
+          options={buckets.map((b) => ({ value: b.value, label: b.label }))}
+          value={filters.status}
+          onChange={(value) => {
+            // Pending orders are whatever is still open, however old, so
+            // that bucket (and All) looks across all time.
+            if (value === buckets.find((b) => b.label === "Pending").value) setRange({ from: "", to: "" });
+            setFilters({ status: value, page: 1 });
+          }}
+        />
         <span className="spacer" />
         <DateFilter
           value={range}

@@ -68,7 +68,7 @@ module.exports = [
     // The one update worth an SMS: it is the message people actually act on.
     channels: ["push", "sms", "inapp"],
     default: t("Out for delivery 🛵", "{{partner}} is on the way with {{code}}. Expected by {{eta}}.", "order:{{orderId}}"),
-    sms: t("", "Your Samagra Mart order {{code}} is out for delivery. Share code {{otp}} at the door."),
+    sms: t("", "Your Hosur Basket order {{code}} is out for delivery. Share code {{otp}} at the door."),
   },
   {
     event: "ARRIVED",

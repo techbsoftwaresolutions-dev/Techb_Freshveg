@@ -3015,3 +3015,43 @@ input.switch:checked::after { transform: translateX(18px); }
 .pin-dd-add .pin-code-input { flex: 1; max-width: 150px; }
 .pin-area-remove { flex: none; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--text-muted); cursor: pointer; line-height: 1; font-size: 16px; }
 .pin-area-remove:hover { border-color: var(--danger); color: var(--danger); }
+
+/* Photos: drag to reorder */
+.media-item.draggable { cursor: grab; }
+.media-item.draggable:active { cursor: grabbing; }
+.media-item { transition: opacity .15s, transform .15s; }
+.media-item.is-dragging { opacity: .4; }
+.media-item.drop-target .media-thumb { outline: 2px dashed var(--accent); outline-offset: 3px; background: var(--accent-soft); }
+.media-item.drop-target { transform: scale(1.03); }
+.photo-hint { grid-column: 1 / -1; margin: 4px 0 0; font-size: 12px; color: var(--text-faint); }
+
+/* Photos: drop an image onto the Add tile */
+.photo-add-tile.drag-over { border-style: solid; border-color: var(--accent); color: var(--accent); background: var(--accent-soft); transform: scale(1.03); }
+
+/* Filter chips folded into one expandable dropdown (All / Active / Hidden / Archived …) */
+.select-menu.chip-dropdown { width: auto; min-width: 170px; flex: 0 0 auto; display: inline-block; vertical-align: middle; }
+.select-menu.chip-dropdown.small { min-width: 150px; }
+.chip-dropdown .select-menu-button {
+  width: 100%; min-height: 40px; padding: 7px 14px; border-radius: 999px;
+  border: 1.5px solid var(--border); background: var(--surface); color: var(--text);
+  font-size: 13px; font-weight: 600;
+}
+.chip-dropdown.small .select-menu-button { min-height: 34px; padding: 5px 12px; font-size: 12.5px; }
+.chip-dropdown .select-menu-button:hover:not(:disabled),
+.chip-dropdown.open .select-menu-button { border-color: var(--accent); color: var(--accent); }
+.chip-dropdown .select-menu-pop { min-width: 200px; right: auto; }
+.toolbar > .chip-dropdown { margin: 0; }
+.page > .chip-dropdown, .chip-dropdown + .toolbar { margin-bottom: 10px; }
+
+/* Category filter that opens sideways */
+.chip-expand { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; max-width: 100%; }
+.chip-expand-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.chip-expand-arrow { transition: transform .2s; }
+.chip-expand.open .chip-expand-arrow { transform: rotate(180deg); }
+.chip-expand-list { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; margin-bottom: -4px; scrollbar-width: none; animation: chip-expand-in .18s ease-out; min-width: 0; }
+.chip-expand-list::-webkit-scrollbar { display: none; }
+@keyframes chip-expand-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+
+.toolbar > .chip-expand { margin: 0; }
+.toolbar .chip-expand-list { margin-bottom: 0; padding-bottom: 2px; }
+.toolbar > .chip-expand { flex: 0 1 auto; min-width: 0; }

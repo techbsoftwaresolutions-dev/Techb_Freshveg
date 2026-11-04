@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "./Providers";
-import { rupees } from "@/lib/format";
 import { FreeDeliveryNote } from "./FreeDeliveryProgress";
 
 const SEARCH_HINTS = ["fruits", "vegetables", "milk", "bread", "eggs", "rice", "snacks", "soap", "groceries"];
@@ -286,37 +285,26 @@ export default function Header({ categories = [] }) {
         </form>
 
         <div className="header-actions">
-          <button className="header-btn" onClick={() => setPinOpen((v) => !v)} aria-expanded={pinOpen}>
+          {/* Icon only — the place name lives in the tooltip / screen-reader
+              label (read from localStorage, so only the client knows it). */}
+          <button
+            className="header-btn icon-only"
+            onClick={() => setPinOpen((v) => !v)}
+            aria-expanded={pinOpen}
+            aria-label={`Location: ${pincode || store?.address?.city || store?.address?.pincode || "set your location"}`}
+            title={pincode || store?.address?.city || store?.address?.pincode || "Set location"}
+            suppressHydrationWarning
+          >
             <IconPin className="header-btn-icon" />
-            <span>
-              <span className="sub">Location</span>
-              {/* Read from localStorage, so the server cannot know it and the
-                  two renders legitimately differ. suppressHydrationWarning is
-                  exactly for this — the alternative is rendering a placeholder
-                  and flashing, which is worse for the one thing a shopper
-                  checks first. */}
-              <span className="main" suppressHydrationWarning>
-                {pincode || store?.address?.city || store?.address?.pincode || "Set location"}
-                <IconCaret className="header-caret" aria-hidden="true" />
-              </span>
-            </span>
           </button>
 
           <span className="header-divider" aria-hidden="true" />
 
-          <button type="button" className="header-btn cart-btn" aria-haspopup="dialog" aria-controls="cart-drawer" onClick={() => window.dispatchEvent(new Event("open-cart"))}>
+          <button type="button" className="header-btn cart-btn icon-only" aria-label="Open cart" title="Cart" aria-haspopup="dialog" aria-controls="cart-drawer" onClick={() => window.dispatchEvent(new Event("open-cart"))}>
             <span className="cart-btn-icon">
               <IconCart className="header-btn-icon" />
               <span className="cart-badge" suppressHydrationWarning>
                 {cart.lineCount}
-              </span>
-            </span>
-            {/* Same story: the cart belongs to a device-scoped session the
-                server render knows nothing about. */}
-            <span>
-              <span className="sub">Cart</span>
-              <span className="main" suppressHydrationWarning>
-                {rupees(cart.summary?.total)}
               </span>
             </span>
           </button>

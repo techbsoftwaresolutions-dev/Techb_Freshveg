@@ -16,8 +16,7 @@ import {
   Pagination,
   Pill,
   Table,
-  when,
-} from "../../components/ui";
+  when, ChipDropdown, chipPairs } from "../../components/ui";
 
 // Staff accounts and their roles. Only a super admin opens this page — an
 // admin can run the shop but cannot create other admins.
@@ -151,21 +150,8 @@ export default function Users() {
             onChange={(e) => setFilter("search", e.target.value)}
           />
         </span>
-        <div className="chip-row user-tabs" role="tablist" aria-label="Role">
-          <button type="button" role="tab" aria-selected={filters.role === ""} className={`cat-chip small${filters.role === "" ? " on" : ""}`} onClick={() => setFilter("role", "")}>All roles</button>
-          {roles.map((r) => (
-            <button key={r.key} type="button" role="tab" aria-selected={filters.role === r.key} className={`cat-chip small${filters.role === r.key ? " on" : ""}`} onClick={() => setFilter("role", r.key)}>
-              {r.label}
-            </button>
-          ))}
-        </div>
-        <div className="chip-row user-tabs" role="tablist" aria-label="Status">
-          {[["", "Any status"], ["active", "Active"], ["blocked", "Blocked"]].map(([value, label]) => (
-            <button key={label} type="button" role="tab" aria-selected={filters.status === value} className={`cat-chip small${filters.status === value ? " on" : ""}`} onClick={() => setFilter("status", value)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown small ariaLabel="Role" options={[{ value: "", label: "All roles" }, ...roles.map((r) => ({ value: r.key, label: r.label }))]} value={filters.role} onChange={(v) => setFilter("role", v)} />
+        <ChipDropdown small ariaLabel="Status" options={chipPairs([["", "Any status"], ["active", "Active"], ["blocked", "Blocked"]])} value={filters.status} onChange={(v) => setFilter("status", v)} />
       </div>
 
       <Card tight>

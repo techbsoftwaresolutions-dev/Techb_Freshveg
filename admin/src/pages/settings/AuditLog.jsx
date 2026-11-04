@@ -3,8 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { Avatar } from "../orders/Orders";
 import {
-  Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, when,
-} from "../../components/ui";
+  Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, when, ChipDropdown, chipPairs } from "../../components/ui";
 import DateFilter, { todayRange } from "../../components/DateFilter";
 
 const ACTION_TONE = {
@@ -129,22 +128,10 @@ export default function AuditLog() {
       </div>
 
       <div className="toolbar products-filters audit-chips">
-        <div className="chip-row" role="tablist" aria-label="Record type">
-          {ENTITIES.map(([value, label]) => (
-            <button key={label} type="button" role="tab" aria-selected={filters.entity === value} className={`cat-chip small${filters.entity === value ? " on" : ""}`} onClick={() => set("entity", value)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown small ariaLabel="Record type" options={chipPairs(ENTITIES)} value={filters.entity} onChange={(v) => set("entity", v)} />
       </div>
       <div className="toolbar products-filters audit-chips">
-        <div className="chip-row" role="tablist" aria-label="Action">
-          {ACTIONS.map(([value, label]) => (
-            <button key={label} type="button" role="tab" aria-selected={filters.action === value} className={`cat-chip small${filters.action === value ? " on" : ""}`} onClick={() => set("action", value)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown small ariaLabel="Action" options={chipPairs(ACTIONS)} value={filters.action} onChange={(v) => set("action", v)} />
       </div>
 
       <Card tight>

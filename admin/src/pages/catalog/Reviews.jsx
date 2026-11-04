@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Loading, Modal, Pill, Table, when } from "../../components/ui";
+import { Banner, Card, Empty, Loading, Modal, Pill, Table, when, ChipDropdown } from "../../components/ui";
 
 const TABS = [
   { key: "pending", label: "Awaiting approval" },
@@ -385,39 +385,8 @@ export default function Reviews() {
       <Banner tone="ok">{notice}</Banner>
 
       <div className="toolbar products-filters">
-        <div className="chip-row review-tabs" role="tablist" aria-label="Status">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={status === tab.key}
-              className={`cat-chip${status === tab.key ? " on" : ""}`}
-              onClick={() => {
-                setStatus(tab.key);
-                setPage(1);
-              }}
-            >
-              {tab.label}
-              {counts[tab.key] !== undefined ? <span className="chip-count">{counts[tab.key]}</span> : null}
-            </button>
-          ))}
-        </div>
-        <div className="chip-row review-rating-filter" role="group" aria-label="Rating">
-          {RATING_FILTERS.map((value) => (
-            <button
-              key={value || "all"}
-              type="button"
-              className={`cat-chip small${rating === value ? " on" : ""}`}
-              onClick={() => {
-                setRating(value);
-                setPage(1);
-              }}
-            >
-              {value ? `${value} ★` : "All ratings"}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown ariaLabel="Status" options={TABS.map((t) => ({ value: t.key, label: counts[t.key] !== undefined ? `${t.label} (${counts[t.key]})` : t.label }))} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
+        <ChipDropdown small ariaLabel="Rating" options={RATING_FILTERS.map((v) => ({ value: v, label: v ? `${v} ★` : "All ratings" }))} value={rating} onChange={(v) => { setRating(v); setPage(1); }} />
         <span className="spacer" />
         <div className="view-toggle" role="group" aria-label="View">
           <button type="button" className={view === "cards" ? "on" : ""} onClick={() => setView("cards")} title="Cards" aria-label="Card view" aria-pressed={view === "cards"}>

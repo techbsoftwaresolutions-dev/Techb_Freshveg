@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import FormRoute from "../components/FormRoute";
 import { useAuth } from "../context/AuthContext";
-import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, rupees } from "../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, rupees, ChipDropdown, chipPairs } from "../components/ui";
 import { Affix, FormSection as OfferSection, Segmented, SwitchRow } from "../components/FormKit";
 
 // One screen covers both auto-applied offers and coupons, because the engine
@@ -103,21 +103,9 @@ export default function Offers() {
       <Banner tone="error">{error}</Banner>
 
       <div className="toolbar products-filters">
-        <div className="chip-row offer-tabs" role="tablist" aria-label="Status">
-          {[["", "All"], ["active", "Active"], ["draft", "Draft"], ["paused", "Paused"]].map(([value, label]) => (
-            <button key={label} type="button" role="tab" aria-selected={status === value} className={`cat-chip${status === value ? " on" : ""}`} onClick={() => { setStatus(value); setPage(1); }}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown ariaLabel="Status" options={chipPairs([["", "All"], ["active", "Active"], ["draft", "Draft"], ["paused", "Paused"]])} value={status} onChange={(v) => { setStatus(v); setPage(1); }} />
         <span className="spacer" />
-        <div className="chip-row offer-tabs" role="tablist" aria-label="Kind">
-          {[["", "Any type"], ["offer", "Auto offers"], ["coupon", "Coupons"]].map(([value, label]) => (
-            <button key={label} type="button" role="tab" aria-selected={kind === value} className={`cat-chip small${kind === value ? " on" : ""}`} onClick={() => { setKind(value); setPage(1); }}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown small ariaLabel="Kind" options={chipPairs([["", "Any type"], ["offer", "Auto offers"], ["coupon", "Coupons"]])} value={kind} onChange={(v) => { setKind(v); setPage(1); }} />
       </div>
 
       <Card tight>

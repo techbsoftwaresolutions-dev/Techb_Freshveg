@@ -6489,3 +6489,109 @@ body:has(.help-page) .search-form { display: none; }
 .home-main .promo p { font-size: 12px; margin: 6px 0 12px; }
 /* Product rows with fewer cards than columns keep the same card width, left-aligned. */
 .home-main .rail { justify-content: start; }
+
+
+/* Product cards, everywhere (listings, home rails, search): no reserved blank rows.
+   The photo, name, pack size and price now sit close together; the name takes only
+   the lines it needs and the price/add row stays pinned to the bottom. */
+.card { gap: 2px; }
+.card-media-wrap,
+.home-main .card-media-wrap,
+.split.cat-layout .card-media-wrap { margin-bottom: 6px; }
+.card-pack,
+.home-main .card-pack,
+.split.cat-layout .card-pack { margin: 1px 0 6px; }
+@media (min-width: 721px) {
+  .product-grid .card { gap: 2px; padding: 12px 14px 14px; }
+  .product-grid .card-media-wrap { margin-bottom: 6px; }
+  .product-grid .card-name { min-height: 0; }
+  .product-grid .card-pack { margin: 2px 0 8px; }
+  .product-grid .offer-tag { margin: 0 0 8px; }
+  .product-grid .card-foot { padding-top: 0; }
+  .product-grid, .product-grid.wide { gap: 22px 20px; }
+}
+
+
+/* Category page, left column: department list above the filters (no more empty column). */
+.cat-side { display: contents; }
+.dept-nav { display: none; }
+@media (min-width: 721px) {
+  .cat-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; align-self: start; }
+  .dept-nav { display: block; position: static; }
+  .cat-side .filters { position: static; max-height: none; overflow: visible; }
+  .aisles.dept-nav .aisles-group:not(.open) .aisles-head { opacity: .9; }
+  .aisles.dept-nav .aisles-head.current { color: var(--brand-deep, #1f5d2b); font-weight: 700; }
+}
+@media (min-width: 1081px) {
+  .split.cat-layout.has-rail > .cat-side { min-height: 0; max-height: 100%; overflow-y: auto; scrollbar-width: thin; align-self: stretch; }
+}
+
+
+/* "Coming soon" banner shown by checkout buttons until the shop opens. */
+dialog.coming-soon { border: 0; padding: 0; background: transparent; max-width: min(960px, 94vw); width: 100%; overflow: visible; }
+dialog.coming-soon::backdrop { background: rgba(10, 30, 15, .62); backdrop-filter: blur(3px); }
+dialog.coming-soon img { display: block; width: 100%; height: auto; border-radius: 18px; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); }
+.coming-soon-close { position: absolute; top: -14px; right: -14px; z-index: 2; width: 40px; height: 40px; border-radius: 50%; border: 0; background: #fff; color: #1f3d1f; font-size: 26px; line-height: 1; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, .3); }
+@media (max-width: 600px) { .coming-soon-close { top: 8px; right: 8px; } }
+.coming-soon-page { max-width: 960px; margin: 24px auto 40px; text-align: center; }
+.coming-soon-page img { width: 100%; height: auto; border-radius: 18px; }
+.coming-soon-page p { margin: 16px 0; color: var(--text-muted); }
+
+
+/* Product page: "why shop here" promises + room between the extra rails. */
+.pdp-promises { margin-top: 20px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--brand-mist, #f3f8ef); }
+.pdp-promises h2 { font-size: 15px; font-weight: 700; margin: 0 0 12px; color: var(--brand-deep, #1f5d2b); }
+.pdp-promises ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.pdp-promises li { display: flex; gap: 12px; align-items: flex-start; }
+.pdp-promise-icon { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: #fff; color: var(--brand); box-shadow: 0 1px 4px rgba(38, 55, 36, .08); }
+.pdp-promises strong { display: block; font-size: 13.5px; font-weight: 650; color: var(--text); }
+.pdp-promises small { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.45; color: var(--text-muted); }
+.pdp-related { margin-top: 36px; }
+.pdp-related .section-head { display: flex; align-items: baseline; justify-content: space-between; }
+
+
+/* Product page layout: photos + product information on the left, the buy box and promises on
+   the right (which stays in view while you read the details). Stacks on phones/tablets in the
+   order photos, buy box, details. */
+.pdp-left { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.pdp-left .pdp-tabs-panel { margin-top: 0; }
+.pdp-info .pdp-promises { margin-top: 20px; }
+@media (min-width: 1081px) and (min-height: 820px) {
+  .pdp-info-sticky { position: sticky; top: calc(var(--header-h) + 20px); align-self: start; }
+}
+@media (max-width: 1080px) {
+  .split.pdp { display: flex; flex-direction: column; }
+  .pdp-left { display: contents; }
+  .pdp-gallery-slot { order: 1; }
+  .pdp-info { order: 2; }
+  .pdp-details-slot { order: 3; }
+}
+
+
+/* Card: pack size and the offer tag share one line; the add / quantity buttons are a size smaller. */
+.card .card-meta { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 1px 0 6px; }
+.card .card-meta .card-pack { margin: 0; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .card-meta .offer-tag { margin: 0; flex: 0 0 auto; white-space: nowrap; }
+.card .card-foot .add-btn { height: 30px; min-width: 82px; padding: 0 11px 0 7px; gap: 5px; font-size: 12.5px; }
+.card .card-foot .add-btn::before { width: 17px; height: 17px; font-size: 14px; }
+.card .card-foot .qty { height: 30px; min-width: 86px; }
+.card .card-foot .qty button { width: 28px; }
+.card .card-foot .qty .value { font-size: 12.5px; }
+
+
+/* Cards, refined: offer tag at the right end of the pack-size line; price and MRP on one line;
+   a smaller add / quantity button. */
+.card .card-meta { justify-content: space-between; }
+.card .card-foot > div:first-child,
+.product-grid .card-foot > div:first-child { display: flex; flex-direction: row; align-items: baseline; flex-wrap: nowrap; gap: 6px; white-space: nowrap; }
+.card .card-foot .mrp,
+.product-grid .mrp { margin-left: 0; }
+.card .card-foot .add-btn { height: 28px; min-width: 74px; padding: 0 10px 0 6px; gap: 4px; font-size: 12px; }
+.card .card-foot .add-btn::before { width: 16px; height: 16px; font-size: 13px; }
+.card .card-foot .qty { height: 28px; min-width: 80px; }
+.card .card-foot .qty button { width: 26px; }
+.card .card-foot .qty .value { font-size: 12px; }
+
+/* Header: location and cart are icon-only */
+.header-btn.icon-only { padding: 10px; }
+.header-btn.icon-only .header-btn-icon { margin: 0; }
