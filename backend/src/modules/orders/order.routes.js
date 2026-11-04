@@ -261,6 +261,9 @@ router.post(
   asyncHandler(async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) throw ApiError.notFound("Order not found");
+    if (order.status === "DELIVERED") {
+      throw ApiError.badRequest("This order is already delivered — its items can't be delivered later");
+    }
     if (["CANCELLED", "REJECTED", "REFUNDED"].includes(order.status)) {
       throw ApiError.badRequest("This order is closed — nothing can be delayed");
     }

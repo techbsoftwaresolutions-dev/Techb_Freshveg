@@ -195,7 +195,7 @@ export default async function HomePage() {
             <section className="section">
               <SectionHead title="Explore Categories" href="/c" linkLabel="View All Categories" />
               <div className="shop-row">
-                {departments.slice(0, 5).map((department) => (
+                {departments.slice(0, 8).map((department) => (
                   <Link key={department.id} href={`/c/${department.slug}`} className="shop-card">
                     <span className="shop-card-media">
                       {department.image ? (

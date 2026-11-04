@@ -10,6 +10,14 @@ const STORIES = [
   { tag: "The home edit", title: "More time for you.", accent: "We’ll bring the basket.", description: "Household helpers, personal care and all the little things that keep your day moving.", cta: "Shop home essentials", match: /household|personal|home care/i, tone: "peach", label: "For your home", note: "A happy home starts here." },
 ];
 
+// Wide produce scenes from the Hosur Basket media library, used when a slide has no
+// banner uploaded. Category photos are product shots and don't suit a hero.
+const HERO_PHOTOS = [
+  "https://res.cloudinary.com/v5ymla7i/image/upload/v1791099800/Fresh_market/banners/ezzf3m9ac8ubuhjxlvt0.png",
+  "https://res.cloudinary.com/v5ymla7i/image/upload/v1791099793/Fresh_market/banners/uqxvstrqc37ji7gtpf4k.jpg",
+  "https://res.cloudinary.com/v5ymla7i/image/upload/v1791099791/Fresh_market/banners/rf8nlk2sppkhvkx3r3x3.png",
+];
+
 function hrefFor(target) {
   if (target?.kind === "category") return `/c/${target.value}`;
   if (target?.kind === "product") return `/p/${target.value}`;
@@ -54,7 +62,7 @@ export default function HeroCarousel({ banners = [], categories = [], storeName,
           const story = STORIES[i % STORIES.length];
           const banner = banners.length > 1 ? entry : (i === 0 ? banners[0] : null);
           const category = categories.find((cat) => story.match.test(cat.name));
-          const photo = banner?.image || category?.image;
+          const photo = banner?.image || HERO_PHOTOS[i % HERO_PHOTOS.length];
           const href = hrefFor(banner?.target) || (category ? `/c/${category.slug}` : "/c");
           return (
             <div key={banner?.id || i} hidden={i !== active} className={`market-slide market-${story.tone}`} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}`}>
@@ -62,7 +70,7 @@ export default function HeroCarousel({ banners = [], categories = [], storeName,
                 <h1>{banner?.title || story.title}<span>{story.accent}</span></h1>
                 <p>{story.description}</p>
                 <div className="market-actions"><Link href={href} className="market-shop">{story.cta}<span aria-hidden="true">↗</span></Link><Link href="/c" className="market-browse">All categories <span aria-hidden="true">→</span></Link></div>
-                <div className="market-signoff"><span aria-hidden="true">✦</span> Your neighbourhood basket <span>•</span> {storeName || "Hosur"}</div>
+                <div className="market-signoff">Your neighbourhood basket <span>•</span> {storeName || "Hosur"}</div>
               </div>
               <div className={`market-visual${photo ? " has-photo" : ""}`}>
                 <span className="market-orbit" aria-hidden="true" />
