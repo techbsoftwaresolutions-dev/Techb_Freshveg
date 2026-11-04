@@ -318,7 +318,23 @@ export default function General() {
               </div>
             </FormSection>
 
-            <FormSection step="3" title="Win back">
+            <FormSection step="3" title="Owner alerts">
+              <div style={{ maxWidth: 420 }}>
+                <Field label="Owner WhatsApp number (with country code)">
+                  <input
+                    type="tel"
+                    placeholder="+917010272131"
+                    value={draft.ownerWhatsApp || ""}
+                    onChange={set("ownerWhatsApp")}
+                  />
+                </Field>
+                <p className="muted" style={{ margin: "6px 0 0", fontSize: 12 }}>
+                  Order alerts include the product list, customer phone, and payment status.
+                </p>
+              </div>
+            </FormSection>
+
+            <FormSection step="4" title="Win back">
               {nestedFlag("winBack", "enabled", "Message customers who have not ordered in a while")}
               <div className="grid cols-3">
                 <Field label="Inactive for">
@@ -327,7 +343,7 @@ export default function General() {
               </div>
             </FormSection>
 
-            <FormSection step="4" title="Staff alerts">
+            <FormSection step="5" title="Staff alerts">
               {flag("lowStockAlerts", "Alert staff when stock runs low")}
             </FormSection>
           </>

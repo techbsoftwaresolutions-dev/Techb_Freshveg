@@ -37,7 +37,14 @@ function pickCopy(template, channel) {
  * unable to tell someone their delivery is late because they muted offers.
  */
 function allowed(user, channel, category, settings) {
-  if (!settings.notifications.channels[channel] && channel !== "inapp") {
+  // WhatsApp is always allowed when a real gateway key is configured or dry-run is on
+  const callmebotKey = process.env.CALLMEBOT_API_KEY || "";
+  const whatsappForced =
+    channel === "whatsapp" &&
+    (process.env.WHATSAPP_DRY_RUN === "true" ||
+      (callmebotKey.trim() !== "" && !callmebotKey.includes("←") && !callmebotKey.includes("paste")));
+
+  if (!whatsappForced && !settings.notifications.channels[channel] && channel !== "inapp") {
     return { ok: false, reason: `${channel} is turned off for the store` };
   }
 
@@ -93,13 +100,30 @@ async function notify(userId, event, context = {}, options = {}) {
       channels: [],
     });
 
-    // Local WhatsApp test (WHATSAPP_DRY_RUN=true): every order message is
-    // printed in the terminal whatever the template or store switch says.
-    const dryRun = process.env.WHATSAPP_DRY_RUN === "true" && template.category !== "marketing";
-    const sendOn = dryRun && !template.channels.includes("whatsapp") ? [...template.channels, "whatsapp"] : template.channels;
+    const activeChannels = [...(template.channels || [])];
+    const isOrderEvent = [
+      "ORDER_PLACED",
+      "ORDER_CONFIRMED",
+      "OUT_FOR_DELIVERY",
+      "ARRIVED",
+      "DELIVERED",
+      "DELIVERY_TIME_SET",
+    ].includes(event);
+    const dryRun = process.env.WHATSAPP_DRY_RUN === "true" && isOrderEvent;
 
-    for (const channel of sendOn) {
-      const permitted = dryRun && channel === "whatsapp" ? { ok: true } : allowed(user, channel, template.category, settings);
+    if (
+      (settings?.notifications?.channels?.whatsapp || dryRun) &&
+      isOrderEvent &&
+      !activeChannels.includes("whatsapp")
+    ) {
+      activeChannels.push("whatsapp");
+    }
+
+    for (const channel of activeChannels) {
+      const permitted =
+        dryRun && channel === "whatsapp"
+          ? { ok: true }
+          : allowed(user, channel, template.category, settings);
       if (!permitted.ok) {
         if (process.env.NODE_ENV !== "production") console.log(`[notify] ${event} → ${channel} skipped: ${permitted.reason}`);
         record.channels.push({ channel, status: "skipped", reason: permitted.reason });
@@ -108,6 +132,7 @@ async function notify(userId, event, context = {}, options = {}) {
 
       const copy = pickCopy(template, channel);
       const message = {
+        event,
         title: render(copy.title, context),
         body: render(copy.body, context),
         deeplink: render(copy.deeplink, context),

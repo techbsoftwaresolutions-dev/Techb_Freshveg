@@ -206,10 +206,6 @@ a.utility-item:hover { color: #fff; opacity: 0.85; }
 @media (max-width: 720px) {
   .pincode-inner { padding: 12px 16px; }
   .pincode-form { gap: 8px; }
-  .pincode-title { flex: 1; }
-  .pincode-input { width: calc(100% - 92px); }
-  .pincode-submit { flex: 1; }
-  .pincode-serving { flex-basis: 100%; padding-left: 46px; }
 }
 
 .header-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
@@ -474,7 +470,7 @@ a.utility-item:hover { color: #fff; opacity: 0.85; }
 /* Pin the photo to the card's own box. Without this, a broken image's alt
    text sizes itself by content and can grow past the square (seen live on
    several product cards), pushing into the name/price below it. */
-.card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-media img { width: 88%; height: 88%; object-fit: contain; padding: 6px; background: #fff; display: block; }
 
 .wishlist-btn {
   position: absolute;
@@ -528,6 +524,8 @@ a.utility-item:hover { color: #fff; opacity: 0.85; }
   justify-content: center;
   gap: 6px;
   padding: 0 13px 0 9px;
+  white-space: nowrap;
+  flex-shrink: 0;
   border-radius: 999px;
   box-shadow: 0 3px 9px rgba(63, 99, 20, 0.18);
   font-weight: 650;
@@ -1610,14 +1608,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 /* ------------------------------------------------------------- product gallery */
 
 .gallery { display: flex; flex-direction: column; gap: 12px; }
-.gallery-main { position: relative; overflow: hidden; cursor: zoom-in; }
+.gallery-main { position: relative; overflow: hidden; }
 /* Without an explicit size, a broken photo's alt text renders at normal
    font size and spills out of this small square box (as happened while a
-   stored image URL was briefly wrong). Sizing the img to fill the box
-   keeps a bad image contained instead of overflowing the layout. */
-.gallery-main img { width: 100%; height: 100%; object-fit: contain; display: block; transition: transform 0.18s ease-out; will-change: transform; }
-.gallery-main.zooming { cursor: zoom-out; }
-.gallery-main.zooming img { transform: scale(2); }
+   stored image URL was briefly wrong). The contained image stays within its
+   box while leaving a little breathing room around every product. */
+.gallery-main img { width: 88%; height: 88%; object-fit: contain; display: block; }
 .gallery-thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
 .gallery-thumb {
   width: 60px;
@@ -1629,7 +1625,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
   padding: 0;
   cursor: pointer;
 }
-.gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-thumb img { width: 88%; height: 88%; object-fit: contain; display: block; margin: auto; }
 .gallery-thumb:hover { border-color: var(--border-strong); }
 .gallery-thumb.on { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
 
