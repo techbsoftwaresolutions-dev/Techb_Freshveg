@@ -47,6 +47,13 @@ async function variantScope({ category, q } = {}) {
   return Variant.distinct("_id", match);
 }
 
+async function activeVariantScope(scope) {
+  const activeProducts = await Product.distinct("_id", { status: "active" });
+  const filter = { status: "active", product: { $in: activeProducts } };
+  if (scope) filter._id = { $in: scope };
+  return Variant.distinct("_id", filter);
+}
+
 router.get(
   "/",
   canView,
@@ -55,7 +62,7 @@ router.get(
     if (req.query.store) filter.store = req.query.store;
     if (req.query.product) filter.product = req.query.product;
     const inCategory = await variantScope(req.query);
-    if (inCategory) filter.variant = { $in: inCategory };
+    filter.variant = { $in: await activeVariantScope(inCategory) };
 
     const result = await paginate(Inventory, filter, req.query, {
       defaultSort: { updatedAt: -1 },
@@ -76,7 +83,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const filter = req.query.store ? { store: req.query.store } : {};
     const inCategory = await variantScope(req.query);
-    if (inCategory) filter.variant = { $in: inCategory };
+    filter.variant = { $in: await activeVariantScope(inCategory) };
     const rows = await Inventory.find(filter)
       .populate("variant", "sku name sellingPrice lowStockThreshold")
       .populate("product", "name slug media")
@@ -166,7 +173,7 @@ router.get(
     const filter = { "batches.expiresOn": { $lte: new Date(Date.now() + days * 86400000) } };
     if (req.query.store) filter.store = req.query.store;
     const inCategory = await variantScope(req.query);
-    if (inCategory) filter.variant = { $in: inCategory };
+    filter.variant = { $in: await activeVariantScope(inCategory) };
 
     const rows = await Inventory.find(filter)
       .populate("variant", "sku name sellingPrice")

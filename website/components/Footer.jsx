@@ -68,19 +68,19 @@ export default function Footer({ categories = [] }) {
               </li>
             </ul>
             <div className="footer-social" role="group" aria-label="Social media">
-              <a className="footer-social-icon" href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+              <a className="footer-social-icon" href="https://www.facebook.com/share/1CiLbxkfMn/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
                   <path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.6-1.5h1.6V4.4c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4.1v2.1H7.6v3h2.7V21h3.2z" />
                 </svg>
               </a>
-              <a className="footer-social-icon" href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+              <a className="footer-social-icon" href="https://www.instagram.com/hosurbasket23/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                   <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
                   <circle cx="12" cy="12" r="4" />
                   <circle cx="17.4" cy="6.6" r="1" fill="currentColor" stroke="none" />
                 </svg>
               </a>
-              <a className="footer-social-icon" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+              <a className="footer-social-icon" href="https://www.youtube.com/@Hosurbasket" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                   <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
                   <path d="m10 9.2 5 2.8-5 2.8z" fill="currentColor" stroke="none" />
