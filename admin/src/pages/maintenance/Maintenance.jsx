@@ -312,7 +312,7 @@ function AssetModal({ types, onClose, onSaved }) {
         </Field>
       </div>
 
-      <Field label="Service every (days)" help="The schedule is driven off this and the last service date.">
+      <Field label="Service every (days)">
         <input
           type="number"
           value={form.serviceIntervalDays}
@@ -636,7 +636,7 @@ function JobModal({ onClose, onSaved }) {
         <Field label="Labour cost (₹)">
           <input type="number" value={form.labourCost} onChange={(e) => setForm({ ...form, labourCost: Number(e.target.value) })} />
         </Field>
-        <Field label="Total" help="Parts plus labour — computed, not entered twice.">
+        <Field label="Total">
           <input type="text" value={`₹${(partsTotal + Number(form.labourCost)).toFixed(2)}`} disabled />
         </Field>
       </div>

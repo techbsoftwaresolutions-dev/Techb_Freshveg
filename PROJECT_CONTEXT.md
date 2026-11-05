@@ -9,7 +9,7 @@
 | Item | Value |
 | --- | --- |
 | Repo / folder name | `Techb_Freshveg` |
-| Brand names in code | **"Samagra Mart"** (backend settings default, customer app `app.config.js`, delivery app "Samagra Partner") and **"FreshMart"** (website: `website/app/layout.jsx`, `manifest.js`, `public/sw.js`). Inconsistent — see §25. |
+| Brand names in code | **"Hosur Basket"** (backend settings default, customer app `app.config.js`, delivery app "Hosur Basket Partner") and **"FreshMart"** (website: `website/app/layout.jsx`, `manifest.js`, `public/sw.js`). Inconsistent — see §25. |
 | Package names | `commerce-engine-api`, `commerce-admin`, `commerce-website`, `commerce-customer-app`, `commerce-delivery-app` |
 | What it is | A configurable **grocery / fresh-produce e-commerce "commerce engine"** (India-oriented: INR, paise, GST, 10-digit phone OTP login, pincode serviceability, COD). Sample data is a Hosur, Tamil Nadu store. |
 | Target users | Shoppers (website + mobile app), store staff / admins (admin panel), delivery riders (partner app). |
@@ -480,7 +480,7 @@ Only `*.env.example` files and `website/.env.local` (**tracked in git**, contain
 | Service | Where | Notes / failure behaviour |
 | --- | --- | --- |
 | MongoDB | `config/db.js` | 8 s server selection timeout; process exits if unreachable at boot. |
-| Razorpay | `payments/gateways.js` (REST, no SDK) | Unconfigured provider silently **falls back to `manual`** (instant success). `verify` checks HMAC then fetches the payment from Razorpay. Branding `name: "Samagra Mart"` hard-coded in checkout payload. |
+| Razorpay | `payments/gateways.js` (REST, no SDK) | Unconfigured provider silently **falls back to `manual`** (instant success). `verify` checks HMAC then fetches the payment from Razorpay. Branding `name` in the checkout payload is "Hosur Basket". |
 | Cloudinary | `storage/providers.js` (signed REST) | The only image store. Missing keys ⇒ `POST /uploads` 503 naming them, warning at boot, `GET /uploads/config` reports `configured`/`missing`. Legacy disk images: `npm run migrate:images [-- --dry-run]`. |
 | Redis | `core/cache.js` | Optional, lazy; degrades to in-memory with a warning. |
 | FCM / SMS / SMTP / WhatsApp | `notifications/channels.js` | **Stubs.** Return `skipped` (no key) or `failed: not implemented`. |
@@ -658,7 +658,7 @@ Note: `redis` is required lazily but **not declared** as a dependency; payment/s
 - `backend/package.json` — scripts: `start`, `dev` (nodemon), `seed`, `seed:reset`, `sync-indexes`, `smoke`, `demo`, `jobs:run`.
 - `admin/vite.config.js` — port **5180**, proxy `/api`→`http://localhost:5055`.
 - `website/next.config.mjs` — `/api/:path*` rewrite to `API_BASE_URL`; `website/jsconfig.json` — `@/*` alias; scripts run on port **3100**.
-- `customer-app|delivery-app/app.config.js` — Expo config (name, scheme `samagramart` / `samagrapartner`, bundle ids `com.samagramart.customer` / `com.samagramart.partner`, splash colours, `extra.apiBaseUrl`); delivery web script uses port 8082. `babel.config.js` with `babel-preset-expo`. **No `app.json`, no `eas.json`.**
+- `customer-app|delivery-app/app.config.js` — Expo config (name, scheme `hosurbasket` / `hosurpartner`, bundle ids `com.hosurbasket.customer` / `com.hosurbasket.partner`, splash colours, `extra.apiBaseUrl`); delivery web script uses port 8082. `babel.config.js` with `babel-preset-expo`. **No `app.json`, no `eas.json`.**
 - `.gitignore` — contains junk lines (`*.` and a trailing prose line `large images/videos`) and ignores `.env` but not `.env.local`.
 - No Docker, ESLint, Prettier, tsconfig, Tailwind, or CI files.
 
@@ -686,7 +686,7 @@ Note: `redis` is required lazily but **not declared** as a dependency; payment/s
 | `jobs:run` script quoting | `backend/package.json` | Low | Inner double quotes in the `node -e` string are unescaped → script likely broken. |
 | Stray text in env example | `backend/.env.example` (`ay`) | Low | Garbage line. |
 | `.gitignore` junk | `.gitignore` | Low | Invalid `*.` line / prose. `website/.env.local` is tracked. |
-| Brand inconsistency | website vs backend/apps | Low | "FreshMart" vs "Samagra Mart". |
+| Brand inconsistency | website vs backend/apps | Low | "FreshMart" vs "Hosur Basket". |
 | Customer uploads blocked | `storage.routes.js:75` | Medium (**Inferred**) | Comment says customers upload review photos/proof, but `requireAnyPermission` needs staff permissions; customers have none → 403. |
 | Redis undeclared | `core/cache.js` | Low | `REDIS_URL` set without `npm i redis` falls back with a warning. |
 | Redundant ternary | `order.service.js` (`payment.status`) | Trivial | `paymentMethod === "cod" ? "pending" : "pending"`. |

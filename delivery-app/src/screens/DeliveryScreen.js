@@ -8,6 +8,7 @@ import {
   Button, Card, Divider, EmptyState, Loading, Notice, Pill,
   callNumber, openMaps,
 } from "../components/ui";
+import { ItemThumb } from "../components/ItemThumb";
 
 // The customer-QR scan step is switched off: the rider only enters the 4-digit
 // handover code, and may add an optional delivery photo. Set to true to bring
@@ -58,6 +59,12 @@ const PREPARING_STEP = {
   action: null,
   waiting: true,
 };
+
+// Items the store held back to deliver on another day — the rider must not
+// hand these over (or count them) on this trip.
+const isLater = (item) => Boolean(item.deferred?.expectedOn && !item.deferred?.deliveredAt);
+const laterDate = (value) =>
+  new Date(value).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
 
 export default function DeliveryScreen({ route, navigation }) {
   const { orderId } = route.params;
@@ -237,13 +244,15 @@ export default function DeliveryScreen({ route, navigation }) {
         {/* Items — so a rider can check the bag at the counter */}
         <Card style={{ padding: spacing.md }}>
           <Text style={type.h3}>
-            {order.items.length} item{order.items.length === 1 ? "" : "s"}
+            {order.items.filter((i) => !isLater(i)).length} item
+            {order.items.filter((i) => !isLater(i)).length === 1 ? "" : "s"}
           </Text>
           <View style={{ marginTop: spacing.sm }}>
-            {order.items.map((item, index) => (
+            {order.items.filter((i) => !isLater(i)).map((item, index) => (
               <View key={item.id || item.sku}>
                 {index > 0 ? <Divider style={{ marginVertical: spacing.sm }} /> : null}
                 <View style={styles.itemRow}>
+                  <ItemThumb item={item} />
                   <Text style={[type.body, { flex: 1 }]} numberOfLines={2}>
                     {item.name}
                     {item.variantName ? ` · ${item.variantName}` : ""}
@@ -254,6 +263,28 @@ export default function DeliveryScreen({ route, navigation }) {
             ))}
           </View>
         </Card>
+
+        {order.items.some(isLater) ? (
+          <Card style={{ padding: spacing.md }}>
+            <Text style={type.h3}>Do not deliver today</Text>
+            <Text style={type.tiny}>These items come on another day.</Text>
+            <View style={{ marginTop: spacing.sm }}>
+              {order.items.filter(isLater).map((item, index) => (
+                <View key={item.id || item.sku}>
+                  {index > 0 ? <Divider style={{ marginVertical: spacing.sm }} /> : null}
+                  <View style={styles.itemRow}>
+                    <ItemThumb item={item} />
+                    <Text style={[type.body, { flex: 1 }]} numberOfLines={2}>
+                      {item.name}
+                      {item.variantName ? ` · ${item.variantName}` : ""}
+                    </Text>
+                    <Text style={type.tiny}>{laterDate(item.deferred.expectedOn)}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card>
+        ) : null}
 
         {/* Handover: 1) optional delivery photo, 2) the customer's OTP */}
         {order.status === "ARRIVED" ? (

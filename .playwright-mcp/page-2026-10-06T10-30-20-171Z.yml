@@ -13,7 +13,7 @@
           - heading "Fresh from the market, at your door" [level=1] [ref=f1e18]:
             - text: Fresh from the market,
             - generic [ref=f1e19]: at your door
-          - paragraph [ref=f1e20]: Fruit and vegetables picked today, groceries for the week, and everything else the house needs — from Samagra Mart — Hosur.
+          - paragraph [ref=f1e20]: Fruit and vegetables picked today, groceries for the week, and everything else the house needs — from Hosur Basket — Hosur.
           - generic [ref=f1e21]:
             - link "Shop Now" [ref=f1e22] [cursor=pointer]:
               - /url: /c

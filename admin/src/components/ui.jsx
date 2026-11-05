@@ -28,32 +28,39 @@ export function Stat({ label, value, foot, tone, icon: Icon, hue, trend, spark, 
   // the small caption underneath — the caption still renders (as plain
   // text, not its own link, so it doesn't nest an <a> inside this one).
   const Wrapper = to ? Link : "div";
-  const wrapperProps = to ? { to, className: "card stat-card" } : { className: "card" };
+  const className = `card stat-v2${to ? " stat-card" : ""}${hue ? ` hue-${hue}` : ""}${Icon ? "" : " stat-plain"}`;
   return (
-    <Wrapper {...wrapperProps}>
-      <div className="card-body stat">
-        <div className="stat-top">
-          <div className="stat-head">
-            {Icon ? (
-              <span className={`icon-chip${hue ? ` ${hue}` : ""}`}>
-                <Icon />
-              </span>
-            ) : null}
-            <div className="label">{label}</div>
-          </div>
-          {spark && spark.length > 1 ? <Sparkline points={spark} tone={trendUp ? "ok" : "danger"} /> : null}
-        </div>
-        <div className="value" style={tone ? { color: `var(--${tone})` } : undefined}>
-          {value}
-        </div>
+    <Wrapper {...(to ? { to } : {})} className={className}>
+      {Icon || hasTrend ? (
+      <div className="stat2-top">
+        {Icon ? (
+          <span className="stat2-icon">
+            <Icon />
+          </span>
+        ) : (
+          <span />
+        )}
         {hasTrend ? (
-          <div className={`stat-trend ${trendUp ? "up" : "down"}`}>
-            <span>{trendUp ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%</span>
-            <span className="stat-trend-note">vs last week</span>
-          </div>
+          <span className={`stat2-pill ${trendUp ? "up" : "down"}`} title="Compared with the previous 7 days">
+            {trendUp ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%
+          </span>
         ) : null}
-        {foot && <div className="foot">{foot}</div>}
       </div>
+      ) : null}
+
+      <div className="stat2-label">{label}</div>
+      <div className="stat2-value" style={tone ? { color: `var(--${tone})` } : undefined}>
+        {value}
+      </div>
+
+      {foot || (spark && spark.length > 1) ? (
+        <div className="stat2-foot">
+          <span>{foot}</span>
+          {spark && spark.length > 1 ? (
+            <Sparkline points={spark} tone={trendUp ? "ok" : "danger"} width={64} height={24} />
+          ) : null}
+        </div>
+      ) : null}
     </Wrapper>
   );
 }
@@ -450,8 +457,13 @@ function ExportMenu({ columns, rows, title }) {
 // but every page works without it (falls back to "export"), so adding
 // sorting and download buttons here reaches every list in the app without
 // having to touch each page's own columns.
-export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
+// `onReorder(fromIndex, toIndex)` turns on drag-to-reorder: each row gets a grip
+// handle in a leading column. Dragging is off while a column sort is active,
+// because the rows on screen are then not in their saved order.
+export function Table({ columns, rows, empty, onRowClick, keyOf, title, onReorder }) {
   const [sort, setSort] = useState({ key: null, dir: 1 });
+  const [drag, setDrag] = useState({ from: null, over: null });
+  const reorderable = Boolean(onReorder) && !sort.key;
 
   const sortedRows = useMemo(() => {
     if (!sort.key) return rows;
@@ -471,6 +483,7 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
       <table className="data">
         <thead>
           <tr>
+            {onReorder ? <th className="drag-th" aria-label="Reorder" /> : null}
             {columns.map((col, i) => {
               const sortable = col.sortable !== false;
               const last = i === columns.length - 1;
@@ -497,7 +510,18 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title }) {
               key={keyOf ? keyOf(row) : row.id || index}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               style={onRowClick ? { cursor: "pointer" } : undefined}
+              className={[drag.from === index ? "dragging" : "", drag.over === index && drag.from !== index ? "drop-target" : ""].filter(Boolean).join(" ") || undefined}
+              draggable={reorderable || undefined}
+              onDragStart={reorderable ? (e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(index)); setDrag({ from: index, over: index }); } : undefined}
+              onDragOver={reorderable ? (e) => { e.preventDefault(); if (drag.over !== index) setDrag((d) => ({ ...d, over: index })); } : undefined}
+              onDrop={reorderable ? (e) => { e.preventDefault(); if (drag.from !== null && drag.from !== index) onReorder(drag.from, index); setDrag({ from: null, over: null }); } : undefined}
+              onDragEnd={reorderable ? () => setDrag({ from: null, over: null }) : undefined}
             >
+              {onReorder ? (
+                <td className="drag-td" onClick={(e) => e.stopPropagation()}>
+                  <span className={`drag-handle${reorderable ? "" : " off"}`} title={reorderable ? "Drag to reorder" : "Clear the column sort to reorder"} aria-hidden="true">⋮⋮</span>
+                </td>
+              ) : null}
               {columns.map((col) => (
                 <td key={col.key} className={col.align === "right" ? "num" : ""}>
                   {col.render ? col.render(row) : row[col.key]}
@@ -547,21 +571,71 @@ export const when = (value) =>
       })
     : "—";
 
+// A filter that used to be a row of chips (All / Active / Hidden / Archived …),
+// folded into one dropdown that expands to show every choice. Options are
+// { value, label }; "" is the usual "All".
+export function ChipDropdown(props) {
+  return <ChipExpand {...props} />;
+}
+
+// Same idea, but the choices open sideways: click the selected chip and the
+// others slide out in a horizontal row next to it (scrolls if there are many).
+export function ChipExpand({ options, value, onChange, ariaLabel, small = false }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  const current = options.find((o) => String(o.value) === String(value ?? "")) || options[0];
+  return (
+    <div className={`chip-expand${open ? " open" : ""}`} ref={rootRef} role="group" aria-label={ariaLabel}>
+      <button type="button" className={`cat-chip on chip-expand-toggle${small ? " small" : ""}`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {current?.label}
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="chip-expand-arrow"><path d="m9 6 6 6-6 6" /></svg>
+      </button>
+      {open ? (
+        <div className="chip-expand-list" role="tablist">
+          {options.filter((o) => o !== current).map((o) => (
+            <button
+              key={String(o.value) || "all"}
+              type="button"
+              role="tab"
+              aria-selected={false}
+              className={`cat-chip${small ? " small" : ""}`}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+const pairs = (list) => list.map(([value, label]) => ({ value, label }));
+export { pairs as chipPairs };
+
 // Tabs that keep their state in the URL, so a filtered view is shareable and
 // the browser's back button does what it looks like it should.
 export function Tabs({ tabs, active, onChange }) {
   return (
-    <div className="inline" style={{ gap: 4, marginBottom: 16, flexWrap: "wrap" }}>
+    <div className="chip-row tabs-chips" role="tablist">
       {tabs.map((tab) => (
         <button
           key={tab.key}
-          className={`btn sm${active === tab.key ? " primary" : " ghost"}`}
+          type="button"
+          role="tab"
+          aria-selected={active === tab.key}
+          className={`cat-chip${active === tab.key ? " on" : ""}`}
           onClick={() => onChange(tab.key)}
         >
           {tab.label}
-          {tab.count !== undefined && tab.count !== null ? (
-            <span style={{ opacity: 0.7, marginLeft: 2 }}>({tab.count})</span>
-          ) : null}
+          {tab.count !== undefined && tab.count !== null ? <span className="chip-count">{tab.count}</span> : null}
         </button>
       ))}
     </div>

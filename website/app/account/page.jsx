@@ -89,7 +89,7 @@ export default function AccountPage() {
       </header>
 
       <section className="account-hero">
-        <span className="avatar" aria-hidden="true">{initials}</span>
+        <span className="avatar" aria-hidden="true">{user.avatar ? <img className="avatar-photo" src={user.avatar} alt="" /> : initials}</span>
         <div className="account-hero-copy">
           <strong>{user.name || "Add your name"}</strong>
           <span>

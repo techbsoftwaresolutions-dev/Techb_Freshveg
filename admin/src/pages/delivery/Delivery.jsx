@@ -5,8 +5,9 @@ import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import {
-  Banner, Card, DateRange, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
+  Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
+import DateFilter, { todayRange } from "../../components/DateFilter";
 
 export default function Delivery() {
   // The tab lives in the URL, so coming back from a zone or slot page lands
@@ -44,7 +45,7 @@ export default function Delivery() {
 
 function Report() {
   const [data, setData] = useState({ items: [], meta: null, summary: {} });
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(todayRange);
   const [filters, setFilters] = useState({ status: "", pincode: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -95,7 +96,7 @@ function Report() {
           <option value="CANCELLED,REJECTED">Cancelled</option>
         </Select>
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={setRange} />
       </div>
 
       <Card tight>
@@ -174,7 +175,7 @@ function Report() {
 
 function Partners() {
   const [partners, setPartners] = useState([]);
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(todayRange);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -190,7 +191,7 @@ function Partners() {
     <>
       <div className="toolbar">
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={setRange} />
       </div>
 
       <Card tight>
@@ -277,9 +278,6 @@ function Zones() {
       <Banner tone="error">{error}</Banner>
 
       <div className="toolbar">
-        <span className="muted" style={{ fontSize: 13 }}>
-          Zones override a store's flat delivery charge for particular pincodes.
-        </span>
         <span className="spacer" />
         {canManage ? (
           <button className="btn primary" onClick={() => navigate("/delivery/zones/new")}>+ New zone</button>
@@ -475,10 +473,10 @@ function ZoneModal({ zone, onClose, onSaved }) {
       </div>
 
       <div className="grid cols-3">
-        <Field label="Extra minutes" help="Added to the store's prep time.">
+        <Field label="Extra minutes">
           <input type="number" value={form.extraMinutes} onChange={(e) => setForm({ ...form, extraMinutes: Number(e.target.value) })} />
         </Field>
-        <Field label="Priority" help="Checked highest first, so a specific zone can sit inside a general one.">
+        <Field label="Priority">
           <input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} />
         </Field>
         <Field label="Status">
@@ -692,7 +690,7 @@ function SlotModal({ slot, onClose, onSaved }) {
         </Field>
       </div>
 
-      <Field label="Days" help="None selected means every day.">
+      <Field label="Days">
         <div className="inline" style={{ gap: 4 }}>
           {DAYS.map((name, day) => (
             <button
@@ -707,10 +705,10 @@ function SlotModal({ slot, onClose, onSaved }) {
       </Field>
 
       <div className="grid cols-3">
-        <Field label="Capacity" help="Orders this window can take.">
+        <Field label="Capacity">
           <input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} />
         </Field>
-        <Field label="Cut-off (minutes)" help="How long before it opens booking closes.">
+        <Field label="Cut-off (minutes)">
           <input type="number" value={form.cutoffMinutes} onChange={(e) => setForm({ ...form, cutoffMinutes: Number(e.target.value) })} />
         </Field>
         <Field label="Surcharge (₹)">

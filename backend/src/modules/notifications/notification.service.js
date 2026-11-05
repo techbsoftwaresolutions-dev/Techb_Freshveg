@@ -37,7 +37,14 @@ function pickCopy(template, channel) {
  * unable to tell someone their delivery is late because they muted offers.
  */
 function allowed(user, channel, category, settings) {
-  if (!settings.notifications.channels[channel] && channel !== "inapp") {
+  // WhatsApp is always allowed when a real gateway key is configured or dry-run is on
+  const callmebotKey = process.env.CALLMEBOT_API_KEY || "";
+  const whatsappForced =
+    channel === "whatsapp" &&
+    (process.env.WHATSAPP_DRY_RUN === "true" ||
+      (callmebotKey.trim() !== "" && !callmebotKey.includes("←") && !callmebotKey.includes("paste")));
+
+  if (!whatsappForced && !settings.notifications.channels[channel] && channel !== "inapp") {
     return { ok: false, reason: `${channel} is turned off for the store` };
   }
 
@@ -93,22 +100,52 @@ async function notify(userId, event, context = {}, options = {}) {
       channels: [],
     });
 
-    for (const channel of template.channels) {
-      const permitted = allowed(user, channel, template.category, settings);
+    const activeChannels = [...(template.channels || [])];
+    const isOrderEvent = [
+      "ORDER_PLACED",
+      "ORDER_CONFIRMED",
+      "OUT_FOR_DELIVERY",
+      "ARRIVED",
+      "DELIVERED",
+      "DELIVERY_TIME_SET",
+    ].includes(event);
+    const dryRun = process.env.WHATSAPP_DRY_RUN === "true" && isOrderEvent;
+
+    if (
+      (settings?.notifications?.channels?.whatsapp || dryRun) &&
+      isOrderEvent &&
+      !activeChannels.includes("whatsapp")
+    ) {
+      activeChannels.push("whatsapp");
+    }
+
+    for (const channel of activeChannels) {
+      const permitted =
+        dryRun && channel === "whatsapp"
+          ? { ok: true }
+          : allowed(user, channel, template.category, settings);
       if (!permitted.ok) {
+        if (process.env.NODE_ENV !== "production") console.log(`[notify] ${event} → ${channel} skipped: ${permitted.reason}`);
         record.channels.push({ channel, status: "skipped", reason: permitted.reason });
         continue;
       }
 
       const copy = pickCopy(template, channel);
       const message = {
+        event,
         title: render(copy.title, context),
         body: render(copy.body, context),
         deeplink: render(copy.deeplink, context),
       };
+      // WhatsApp has no order screen to look at, so name what was ordered unless
+      // the template already does.
+      const listed = context.items || context.orderItems;
+      if (channel === "whatsapp" && listed && !/\{\{\s*(items|orderItems)\s*\}\}/.test(copy.body || "")) {
+        message.body = `${message.body}\nItems: ${listed}`;
+      }
 
       try {
-        const result = await channels[channel](message, user);
+        const result = await channels[channel](message, user, { event, context });
         record.channels.push({
           channel,
           status: result.status,
@@ -144,13 +181,24 @@ async function broadcast(event, context = {}, { filter = {}, limit = 5000 } = {}
   return { audience: recipients.length, sent };
 }
 
+// A notification lives for three days, then it is deleted (see purgeOld).
+const KEEP_DAYS = 3;
+const keepSince = () => new Date(Date.now() - KEEP_DAYS * 86400000);
+
+async function purgeOld() {
+  const result = await Notification.deleteMany({ createdAt: { $lt: keepSince() } });
+  return { deleted: result.deletedCount || 0 };
+}
+
 async function feed(userId, { limit = 30, unreadOnly = false } = {}) {
-  const filter = { user: userId };
+  // The cut-off is applied here too, so a message past its three days is gone
+  // from the app at once, not only when the next sweep runs.
+  const filter = { user: userId, createdAt: { $gte: keepSince() } };
   if (unreadOnly) filter.readAt = null;
 
   const [items, unread] = await Promise.all([
     Notification.find(filter).sort({ createdAt: -1 }).limit(limit),
-    Notification.countDocuments({ user: userId, readAt: null }),
+    Notification.countDocuments({ user: userId, readAt: null, createdAt: { $gte: keepSince() } }),
   ]);
 
   return { items, unread };
@@ -163,4 +211,4 @@ async function markRead(userId, notificationId) {
   return { marked: result.modifiedCount };
 }
 
-module.exports = { notify, broadcast, feed, markRead, render };
+module.exports = { notify, broadcast, feed, markRead, render, purgeOld };

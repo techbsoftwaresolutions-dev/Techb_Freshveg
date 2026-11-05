@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import CallButton from "@/components/CallButton";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/Providers";
@@ -8,11 +9,40 @@ import { api } from "@/lib/client-api";
 import { rupees, when } from "@/lib/format";
 import { payWithRazorpay } from "@/lib/razorpay";
 import EmptyState from "@/components/EmptyState";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 // The customer's order QR is switched off: the delivery partner only needs the OTP.
 const SHOW_QR = false;
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+const ORDER_PROGRESS_STAGES = [
+  { label: "Order placed", statuses: ["ORDER_PLACED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED"] },
+  { label: "Order confirmed", statuses: ["ORDER_CONFIRMED"] },
+  { label: "Preparing your order", statuses: ["ORDER_ACCEPTED", "PICKING", "PACKING", "READY_FOR_PICKUP", "ASSIGNED_TO_DELIVERY", "PICKED_UP"] },
+  { label: "Out for delivery", statuses: ["OUT_FOR_DELIVERY"] },
+  { label: "Executive arrived at location", statuses: ["ARRIVED"] },
+  { label: "Delivered", statuses: ["DELIVERED"] },
+];
+
+function groupedProgress(timeline = [], currentStatus) {
+  const currentIndex = ORDER_PROGRESS_STAGES.findIndex((stage) => stage.statuses.includes(currentStatus))
+    ?? timeline.findIndex((step) => step.state === "active");
+  const activeIndex = currentIndex < 0 ? timeline.reduce((found, step) => {
+    if (step.state !== "active") return found;
+    return ORDER_PROGRESS_STAGES.findIndex((stage) => stage.statuses.includes(step.status));
+  }, -1) : currentIndex;
+
+  return ORDER_PROGRESS_STAGES.map((stage, index) => {
+    const events = timeline.filter((step) => stage.statuses.includes(step.status));
+    const reached = [...events].reverse().find((step) => step.at);
+    return {
+      status: stage.statuses[0],
+      label: stage.label,
+      at: reached?.at || null,
+      state: index === activeIndex ? "active" : activeIndex >= 0 && index < activeIndex ? "done" : "pending",
+    };
+  });
+}
 
 // Phone: a compact back-arrow header stands in for the site header (its search
 // bar, category bar and the footer step aside while this is on the page — see
@@ -29,6 +59,9 @@ function MobileHead() {
     </div>
   );
 }
+
+const laterDate = (value) =>
+  new Date(value).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
 
 export default function OrderPage() {
   return (
@@ -57,6 +90,7 @@ function OrderDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payMessage, setPayMessage] = useState(params.get("payerror") || "");
   const poller = useRef(null);
@@ -103,7 +137,6 @@ function OrderDetail() {
   }, [tracking?.status]);
 
   async function cancel() {
-    if (!confirm("Cancel this order? This cannot be undone.")) return;
     setCancelling(true);
     try {
       await api.post(`/orders/${id}/cancel`, { reason: "Cancelled from the website" });
@@ -112,6 +145,7 @@ function OrderDetail() {
       setError(err.message);
     } finally {
       setCancelling(false);
+      setCancelOpen(false);
     }
   }
 
@@ -149,6 +183,9 @@ function OrderDetail() {
     );
   }
 
+  // Items held back from this delivery and coming on a later day.
+  const waitingItems = (order?.items || []).filter((i) => i.deferred?.expectedOn && !i.deferred.deliveredAt);
+
   const canCancel =
     !CLOSED.includes(tracking.status) &&
     !["OUT_FOR_DELIVERY", "ARRIVED", "PICKED_UP"].includes(tracking.status);
@@ -156,6 +193,17 @@ function OrderDetail() {
   return (
     <div className="wrap orders-page">
       <MobileHead />
+      <ConfirmDialog
+        open={cancelOpen}
+        title="Cancel this order?"
+        message="Your order will be cancelled and this can't be undone."
+        confirmLabel="Yes, cancel order"
+        cancelLabel="Keep order"
+        busy={cancelling}
+        busyLabel="Cancelling…"
+        onConfirm={cancel}
+        onCancel={() => setCancelOpen(false)}
+      />
       {tracking.status === "PAYMENT_PENDING" && order?.payment?.method === "upi" ? (
         <div className="notice warn" role="status" style={{ marginBottom: 14 }}>
           <strong>Payment pending.</strong> Your order is saved but not confirmed until it is paid.
@@ -170,10 +218,29 @@ function OrderDetail() {
 
       {justPlaced && tracking.status !== "PAYMENT_PENDING" ? (
         <div className="placed-banner" role="status">
-          <strong>Thank you! Your order is placed.</strong>
-          <span>The store is preparing it now — you can follow every step below.</span>
+          <i aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></i>
+          <div>
+            <strong>Thank you! Your order is placed.</strong>
+            <span>The store is preparing it now — follow every step below.</span>
+          </div>
         </div>
       ) : null}
+
+      {tracking.status === "ARRIVED" ? (
+        <div className="notice warn" role="alert" style={{ marginBottom: 14, background: "#fff8e1", borderColor: "#ffe082", color: "#e65100", padding: "14px 18px", borderRadius: 8 }}>
+          <strong style={{ fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            <span>📍</span> Delivery Executive Arrived at Your Location!
+          </strong>
+          <p style={{ margin: "6px 0 0 0", fontSize: 14 }}>
+            Our delivery partner has arrived at your address with your fresh vegetables. Please share your handover code <strong>{tracking.otp}</strong> at the door to collect your package.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="order-wa">
+        <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M16.02 3.2A12.65 12.65 0 0 0 5.12 22.27L3.4 28.6l6.48-1.7a12.63 12.63 0 1 0 6.14-23.7Zm0 22.96c-1.91 0-3.78-.51-5.42-1.48l-.39-.23-3.85 1.01 1.03-3.75-.25-.4a10.26 10.26 0 1 1 8.88 4.85Zm5.63-7.69c-.31-.16-1.82-.9-2.1-1-.29-.1-.5-.15-.71.16-.21.32-.8 1-.98 1.21-.18.21-.36.24-.67.08-.31-.16-1.31-.48-2.5-1.52-.92-.82-1.54-1.83-1.72-2.14-.18-.32-.02-.49.14-.65.14-.14.31-.36.47-.53.16-.18.21-.31.31-.52.11-.21.06-.4-.03-.56-.08-.16-.71-1.71-.97-2.34-.25-.61-.51-.53-.7-.54h-.6c-.21 0-.55.08-.84.4-.29.32-1.1 1.06-1.1 2.59s1.12 3 1.28 3.21c.15.21 2.2 3.36 5.33 4.71.75.32 1.33.51 1.78.65.75.24 1.43.21 1.97.13.6-.09 1.82-.74 2.08-1.45.25-.71.25-1.32.18-1.45-.08-.13-.29-.21-.6-.37Z" /></svg>
+        <span><strong>WhatsApp updates on.</strong> Order, dispatch and arrival alerts are sent to your WhatsApp.</span>
+      </div>
 
       <nav className="crumbs">
         <Link href="/">Home</Link> › <Link href="/orders">My orders</Link> › <span>{tracking.code}</span>
@@ -251,9 +318,11 @@ function OrderDetail() {
                 <strong>{tracking.partner.name}</strong>
                 <span>Your delivery partner</span>
               </div>
-              <a href={`tel:${tracking.partner.phone}`} className="btn sm primary">
-                Call
-              </a>
+              <CallButton
+                phone={tracking.partner.phone}
+                name={tracking.partner.name}
+                title="Call your delivery partner"
+              />
             </div>
           ) : null}
 
@@ -262,8 +331,7 @@ function OrderDetail() {
             <ol className="timeline">
               {/* Steps the order skipped — a COD order never passes through
                   "payment received" — are left out, not shown as done. */}
-              {tracking.timeline
-                .filter((step) => step.state !== "skipped")
+              {groupedProgress(tracking.timeline, order?.status)
                 .map((step) => (
                   <li key={step.status} className={`timeline-step ${step.state}`}>
                     <span className="timeline-dot" aria-hidden="true">
@@ -287,10 +355,18 @@ function OrderDetail() {
           <div className="sticky">
             <div className="panel">
               <h3>
-                {order.items.length} item{order.items.length === 1 ? "" : "s"}
+                {order.items.length - waitingItems.length} item{order.items.length - waitingItems.length === 1 ? "" : "s"}
+                {waitingItems.length ? <small className="item-later-count"> · {waitingItems.length} arriving later</small> : null}
               </h3>
+              {waitingItems.length ? (
+                <p className="notice info" style={{ marginBottom: 12 }}>
+                  {waitingItems.length === 1 ? "1 item" : `${waitingItems.length} items`} from this order will be
+                  delivered separately on <strong>{laterDate(waitingItems[0].deferred.expectedOn)}</strong>
+                  {waitingItems[0].deferred.reason ? ` — ${waitingItems[0].deferred.reason}` : ""}. We're sorry for the wait.
+                </p>
+              ) : null}
               <div className="order-items">
-                {order.items.map((item) => (
+                {order.items.filter((i) => !waitingItems.includes(i)).map((item) => (
                   <div key={item.id || item.sku} className="order-item">
                     <span className="order-thumb">{item.image ? <img src={item.image} alt="" /> : item.name?.[0]}</span>
                     <span className="order-item-name">
@@ -298,11 +374,41 @@ function OrderDetail() {
                       <span>
                         {item.variantName ? `${item.variantName} · ` : ""}×{item.quantity}
                       </span>
+                      {item.deferred?.expectedOn ? (
+                        <span className={`item-later${item.deferred.deliveredAt ? " done" : ""}`}>
+                          {item.deferred.deliveredAt ? "Delivered later" : `Arriving ${laterDate(item.deferred.expectedOn)}`}
+                        </span>
+                      ) : null}
                     </span>
                     <strong>{rupees(item.payable)}</strong>
                   </div>
                 ))}
               </div>
+
+              {waitingItems.length ? (
+                <>
+                  <h4 className="items-later-head">Arriving later</h4>
+                  <div className="order-items">
+                    {waitingItems.map((item) => (
+                  <div key={item.id || item.sku} className="order-item">
+                    <span className="order-thumb">{item.image ? <img src={item.image} alt="" /> : item.name?.[0]}</span>
+                    <span className="order-item-name">
+                      {item.name}
+                      <span>
+                        {item.variantName ? `${item.variantName} · ` : ""}×{item.quantity}
+                      </span>
+                      {item.deferred?.expectedOn ? (
+                        <span className={`item-later${item.deferred.deliveredAt ? " done" : ""}`}>
+                          {item.deferred.deliveredAt ? "Delivered later" : `Arriving ${laterDate(item.deferred.expectedOn)}`}
+                        </span>
+                      ) : null}
+                    </span>
+                    <strong>{rupees(item.payable)}</strong>
+                  </div>
+                    ))}
+                  </div>
+                </>
+              ) : null}
 
               <div className="bill">
                 <div className="bill-row">
@@ -335,7 +441,7 @@ function OrderDetail() {
                 <button
                   className="btn block danger-outline"
                   style={{ marginTop: 14 }}
-                  onClick={cancel}
+                  onClick={() => setCancelOpen(true)}
                   disabled={cancelling}
                 >
                   {cancelling ? "Cancelling…" : "Cancel order"}

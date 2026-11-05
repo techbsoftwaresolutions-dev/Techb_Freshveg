@@ -1,0 +1,257 @@
+diff --git a/backend/src/seed/data.js b/backend/src/seed/data.js
+index 5b34e5c..8f1bb86 100644
+--- a/backend/src/seed/data.js
++++ b/backend/src/seed/data.js
+@@ -207,15 +207,15 @@ const attributes = [
+ // slug. Everything about how a department behaves is in `features`,
+ // `defaults` and `bind` — never in code.
+ const categories = [
+-  // ================= 1. Fruits & Vegetables =================
++  // ================= 1. Fruits =================
+   {
+-    slug: "fruits-vegetables",
+-    name: "Fruits & Vegetables",
+-    icon: "🥦",
+-    color: "#DCFCE7",
++    slug: "fruits",
++    name: "Fruits",
++    icon: "🍎",
++    color: "#FEE2E2",
+     seq: 1,
+     isFeatured: true,
+-    description: "Fresh produce, sourced daily from the local market.",
++    description: "Fresh seasonal fruit, sourced daily from the local market.",
+     features: {
+       perishable: true,
+       weightBased: true,
+@@ -243,35 +243,70 @@ const categories = [
+       { code: "storage_instructions", seq: 5 },
+     ],
+   },
+-  { slug: "fresh-fruits", name: "Fresh Fruits", parent: "fruits-vegetables", icon: "🍎", seq: 1 },
+-  { slug: "fresh-vegetables", name: "Fresh Vegetables", parent: "fruits-vegetables", icon: "🥕", seq: 2, description: "Farm-fresh greens and vegetables, picked for everyday meals." },
+-  {
+-    slug: "leafy-greens",
+-    name: "Leafy Greens",
+-    parent: "fruits-vegetables",
+-    icon: "🥬",
+-    seq: 3,
+-    // Greens wilt faster than the department default — one field restated,
+-    // everything else inherited.
+-    defaults: { shelfLifeDays: 2, stepQty: 1, minOrderQty: 1, unit: "bunch" },
+-  },
++  { slug: "fresh-fruits", name: "Fresh Fruits", parent: "fruits", icon: "🍎", seq: 1 },
+   {
+     slug: "exotic-produce",
+     name: "Exotic & Imported",
+-    parent: "fruits-vegetables",
++    parent: "fruits",
+     icon: "🥑",
+-    seq: 4,
++    seq: 2,
+     defaults: { taxRatePct: 5 },
+     bind: [{ code: "variety", required: true, defaultValue: "imported", seq: 1 }],
+   },
+ 
+-  // ================= 2. Grocery & Daily Needs =================
++  // ================= 2. Vegetables =================
++  {
++    slug: "vegetables",
++    name: "Vegetables",
++    icon: "🥦",
++    color: "#DCFCE7",
++    seq: 2,
++    isFeatured: true,
++    description: "Farm-fresh greens and vegetables, picked for everyday meals.",
++    features: {
++      perishable: true,
++      weightBased: true,
++      batchTracking: true,
++      expiryTracking: true,
++      allowSubstitution: true,
++      returnable: true,
++      fragile: true,
++    },
++    defaults: {
++      unit: "kg",
++      taxRatePct: 0,          // fresh produce is exempt
++      shelfLifeDays: 4,
++      returnWindowDays: 1,
++      lowStockThreshold: 10,
++      minOrderQty: 1,
++      stepQty: 1,             // cart quantities count packs, never kilos
++      maxOrderQty: 20,
++    },
++    bind: [
++      { code: "pack_size", isVariantAxis: true, seq: 1 },
++      { code: "variety", seq: 2 },
++      { code: "organic", seq: 3 },
++      { code: "origin", seq: 4 },
++      { code: "storage_instructions", seq: 5 },
++    ],
++  },
++  { slug: "fresh-vegetables", name: "Fresh Vegetables", parent: "vegetables", icon: "🥕", seq: 1, description: "Farm-fresh greens and vegetables, picked for everyday meals." },
++  {
++    slug: "leafy-greens",
++    name: "Leafy Greens",
++    parent: "vegetables",
++    icon: "🥬",
++    seq: 2,
++    defaults: { shelfLifeDays: 2, stepQty: 1, minOrderQty: 1, unit: "bunch" },
++  },
++
++  // ================= 3. Grocery & Daily Needs =================
+   {
+     slug: "grocery",
+     name: "Grocery & Daily Needs",
+     icon: "🛒",
+     color: "#FEF3C7",
+-    seq: 2,
++    seq: 3,
+     isFeatured: true,
+     description: "Staples, oils, spices and everything for the kitchen.",
+     features: {
+@@ -326,13 +361,13 @@ const categories = [
+   },
+   { slug: "snacks-beverages", name: "Snacks & Beverages", parent: "grocery", icon: "🍪", seq: 5 },
+ 
+-  // ================= 3. Fancy / Personal Care =================
++  // ================= 4. Fancy / Personal Care =================
+   {
+     slug: "fancy-personal-care",
+     name: "Fancy & Personal Care",
+     icon: "💄",
+     color: "#FCE7F3",
+-    seq: 3,
++    seq: 4,
+     isFeatured: true,
+     description: "Accessories, skin care and everyday beauty.",
+     features: {
+@@ -375,13 +410,13 @@ const categories = [
+   { slug: "hair-care", name: "Hair Care", parent: "fancy-personal-care", icon: "💇", seq: 3 },
+   { slug: "cosmetics", name: "Cosmetics", parent: "fancy-personal-care", icon: "💋", seq: 4 },
+ 
+-  // ================= 4. Household =================
++  // ================= 5. Household =================
+   {
+     slug: "household",
+     name: "Household",
+     icon: "🏠",
+     color: "#DBEAFE",
+-    seq: 4,
++    seq: 5,
+     description: "Cleaning, detergents and kitchen essentials.",
+     features: { returnable: true, batchTracking: false, ageRestricted: false },
+     defaults: { unit: "pcs", taxRatePct: 18, returnWindowDays: 7, lowStockThreshold: 8, stepQty: 1 },
+@@ -394,13 +429,13 @@ const categories = [
+   { slug: "detergents", name: "Detergents", parent: "household", icon: "🧼", seq: 2 },
+   { slug: "kitchen-essentials", name: "Kitchen Essentials", parent: "household", icon: "🍽️", seq: 3 },
+ 
+-  // ================= 5. General Store =================
++  // ================= 6. General Store =================
+   {
+     slug: "general-store",
+     name: "General Store",
+     icon: "🎁",
+     color: "#F3E8FF",
+-    seq: 5,
++    seq: 6,
+     description: "Stationery, pooja items and everything else.",
+     features: { returnable: true },
+     defaults: { unit: "pcs", taxRatePct: 12, returnWindowDays: 5, stepQty: 1 },
+@@ -418,7 +453,7 @@ const brands = [
+   { name: "Aashirvaad", slug: "aashirvaad", categories: ["atta-flour"] },
+   { name: "Fortune", slug: "fortune", categories: ["oils-ghee"] },
+   { name: "Amul", slug: "amul", categories: ["dairy"] },
+-  { name: "Farm Fresh", slug: "farm-fresh", categories: ["fruits-vegetables"], isFeatured: true },
++  { name: "Farm Fresh", slug: "farm-fresh", categories: ["fruits", "vegetables"], isFeatured: true },
+   { name: "Himalaya", slug: "himalaya", categories: ["skin-care"] },
+   { name: "Surf Excel", slug: "surf-excel", categories: ["detergents"] },
+ ];
+@@ -796,7 +831,7 @@ const banners = [
+     subtitle: "Fruit and vegetables sorted before the store opens.",
+     backgroundColor: "#10632f",
+     placement: "home_strip",
+-    target: { kind: "category", value: "fruits-vegetables" },
++    target: { kind: "category", value: "vegetables" },
+     status: "active",
+     seq: 1,
+   },
+diff --git a/website/app/globals.css b/website/app/globals.css
+index 40c9793..c9f6b64 100644
+--- a/website/app/globals.css
++++ b/website/app/globals.css
+@@ -6463,3 +6463,32 @@ body:has(.help-page) .search-form { display: none; }
+   .catbar-all-icon { width: 19px; height: 19px; }
+ }
+ 
++
++
++/* Hero alignment: copy sits on a solid panel at the left, the photo fills the right
++   and fades into it, so headlines never run over the picture. */
++@media (min-width: 601px) {
++  .market-photo { left: 34%; width: auto; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 22%); mask-image: linear-gradient(90deg, transparent 0, #000 22%); }
++  .market-photo > img { object-position: 60% 50%; }
++  .market-copy { width: min(50%, 640px); background: linear-gradient(90deg, #f3f3df 0%, #f3f3df 82%, rgba(243,243,223,0) 100%); }
++  .market-copy h1 { max-width: 13ch; }
++  .market-seal { right: 4%; bottom: 7%; }
++}
++
++
++/* Six departments now (Fruits and Vegetables are separate): rows stay one tidy line. */
++@media (min-width: 1081px) {
++  .home-main .shop-row { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px 14px; }
++  .home-main .top-cats { gap: 14px; }
++  .home-main .top-cats > .top-cat { flex: 1 1 0; min-width: 118px; }
++  .home-main .top-cat-name { font-size: 14px; }
++}
++/* Offer cards: one-line-friendlier headings, copy and photo evenly split, buttons on one baseline. */
++.home-main .promo { min-height: 172px; align-items: stretch; }
++.home-main .promo:has(.promo-image) .promo-copy { max-width: 56%; }
++.home-main .promo h3 { font-size: 18px; line-height: 1.22; }
++.home-main .promo-image { width: 46%; object-position: center; }
++.home-main .promo-badge { font-size: 14px; }
++.home-main .promo p { font-size: 12px; margin: 6px 0 12px; }
++/* Product rows with fewer cards than columns keep the same card width, left-aligned. */
++.home-main .rail { justify-content: start; }
+diff --git a/website/app/page.jsx b/website/app/page.jsx
+index 77ffa57..9018c4f 100644
+--- a/website/app/page.jsx
++++ b/website/app/page.jsx
+@@ -195,7 +195,7 @@ export default async function HomePage() {
+             <section className="section">
+               <SectionHead title="Explore Categories" href="/c" linkLabel="View All Categories" />
+               <div className="shop-row">
+-                {departments.slice(0, 5).map((department) => (
++                {departments.slice(0, 6).map((department) => (
+                   <Link key={department.id} href={`/c/${department.slug}`} className="shop-card">
+                     <span className="shop-card-media">
+                       {department.image ? (
+diff --git a/website/components/HeroCarousel.jsx b/website/components/HeroCarousel.jsx
+index 73188f4..780a0b6 100644
+--- a/website/components/HeroCarousel.jsx
++++ b/website/components/HeroCarousel.jsx
+@@ -10,6 +10,14 @@ const STORIES = [
+   { tag: "The home edit", title: "More time for you.", accent: "We’ll bring the basket.", description: "Household helpers, personal care and all the little things that keep your day moving.", cta: "Shop home essentials", match: /household|personal|home care/i, tone: "peach", label: "For your home", note: "A happy home starts here." },
+ ];
+ 
++// Wide produce scenes from the Hosur Basket media library, used when a slide has
++// no banner uploaded. Category photos are product shots and don't suit a hero.
++const HERO_PHOTOS = [
++  "https://res.cloudinary.com/v5ymla7i/image/upload/v1791099800/Fresh_market/banners/ezzf3m9ac8ubuhjxlvt0.png",
++  "https://res.cloudinary.com/v5ymla7i/image/upload/v1791099793/Fresh_market/banners/uqxvstrqc37ji7gtpf4k.jpg",
++  "https://res.cloudinary.com/v5ymla7i/image/upload/v1791099791/Fresh_market/banners/rf8nlk2sppkhvkx3r3x3.png",
++];
++
+ function hrefFor(target) {
+   if (target?.kind === "category") return `/c/${target.value}`;
+   if (target?.kind === "product") return `/p/${target.value}`;
+@@ -54,7 +62,7 @@ export default function HeroCarousel({ banners = [], categories = [], storeName,
+           const story = STORIES[i % STORIES.length];
+           const banner = banners.length > 1 ? entry : (i === 0 ? banners[0] : null);
+           const category = categories.find((cat) => story.match.test(cat.name));
+-          const photo = banner?.image || category?.image;
++          const photo = banner?.image || HERO_PHOTOS[i % HERO_PHOTOS.length];
+           const href = hrefFor(banner?.target) || (category ? `/c/${category.slug}` : "/c");
+           return (
+             <div key={banner?.id || i} hidden={i !== active} className={`market-slide market-${story.tone}`} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}`}>

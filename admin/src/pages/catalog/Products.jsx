@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees, useConfirm } from "../../components/ui";
+import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees, useConfirm, ChipExpand } from "../../components/ui";
+
+const OFFER_LABEL = { discount: "Discount", special: "Special offer", combo: "Combo offer" };
 
 export default function Products() {
   const [confirm, confirmDialog] = useConfirm();
@@ -28,6 +30,7 @@ export default function Products() {
   const [error, setError] = useState("");
   const [removingId, setRemovingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const canManage = can("catalog.manage");
 
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function Products() {
       filters.search ? 250 : 0
     );
     return () => clearTimeout(timer);
-  }, [filters]);
+  }, [filters, reloadKey]);
 
   const pickTab = (id) => {
     setTab(id);
@@ -70,12 +73,42 @@ export default function Products() {
     patchRow(change);
     try {
       const { product: fresh } = await api.patch(`/catalog/products/${product.id}/quick`, change);
-      patchRow({ status: fresh.status, soldOut: fresh.soldOut, inStock: fresh.inStock });
+      patchRow({ status: fresh.status, soldOut: fresh.soldOut, inStock: fresh.inStock, offer: fresh.offer });
     } catch (err) {
-      patchRow({ status: product.status, soldOut: product.soldOut, inStock: product.inStock });
+      patchRow({ status: product.status, soldOut: product.soldOut, inStock: product.inStock, offer: product.offer });
       setError(`${product.name}: ${err.message}`);
     } finally {
       setBusyId(null);
+    }
+  }
+
+  // Drag a row to a new place. The list moves at once; the server then stores
+  // the new order, and the list is put back if that fails.
+  async function reorder(from, to) {
+    const before = data.items;
+    const items = [...before];
+    const [moved] = items.splice(from, 1);
+    items.splice(to, 0, moved);
+    // The rows trade their position numbers along with their places.
+    const slots = before.map((p) => p.position);
+    setData((d) => ({ ...d, items: items.map((p, i) => ({ ...p, position: slots[i] })) }));
+    setError("");
+    try {
+      await api.post("/catalog/products/reorder", { ids: items.map((p) => p.id) });
+    } catch (err) {
+      setData((d) => ({ ...d, items: before }));
+      setError(`Could not save the new order: ${err.message}`);
+    }
+  }
+
+  // Typed position: the server moves the product there and the list reloads.
+  async function moveTo(product, position) {
+    setError("");
+    try {
+      await api.post(`/catalog/products/${product.id}/move`, { position });
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setError(`${product.name}: ${err.message}`);
     }
   }
 
@@ -97,7 +130,7 @@ export default function Products() {
   }
 
   return (
-    <div className="page">
+    <div className="page products-page">
       {confirmDialog}
       <div className="page-head">
         <div>
@@ -112,29 +145,18 @@ export default function Products() {
 
       <Banner tone="error">{error}</Banner>
 
-      <div className="toolbar">
-        <button className={`btn sm${tab === "" ? " primary" : ""}`} onClick={() => pickTab("")}>
-          All
-        </button>
-        {roots.map((root) => (
-          <button
-            key={root.id}
-            className={`btn sm${tab === root.id ? " primary" : ""}`}
-            onClick={() => pickTab(root.id)}
-          >
-            {root.name}
-          </button>
-        ))}
-      </div>
+      <ChipExpand ariaLabel="Category" options={[{ value: "", label: "All categories" }, ...roots.map((r) => ({ value: r.id, label: r.name }))]} value={tab} onChange={pickTab} />
 
-      <div className="toolbar">
-        <input
-          type="search"
-          placeholder="Search products…"
-          value={filters.search}
-          onChange={(e) => set("search", e.target.value)}
-          style={{ minWidth: 220 }}
-        />
+      <div className="toolbar products-filters">
+        <span className="search-field">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input
+            type="search"
+            placeholder="Search products…"
+            value={filters.search}
+            onChange={(e) => set("search", e.target.value)}
+          />
+        </span>
         <Select value={filters.category} onChange={(e) => set("category", e.target.value)}>
           <option value={tab}>{tab ? "All sub-categories" : "All categories"}</option>
           {subcategories.map((c) => (
@@ -160,6 +182,19 @@ export default function Products() {
             <Table
               title="Products"
               columns={[
+                ...(canManage
+                  ? [
+                      {
+                        key: "position",
+                        label: "#",
+                        sortable: false,
+                        exportable: false,
+                        width: 70,
+                        render: (row) =>
+                          row.position ? <PositionInput row={row} onMove={moveTo} /> : null,
+                      },
+                    ]
+                  : []),
                 {
                   key: "name",
                   label: "Product",
@@ -191,13 +226,41 @@ export default function Products() {
                   },
                 },
                 {
+                  key: "offer",
+                  label: "Offer",
+                  sortable: false,
+                  exportable: false,
+                  width: 170,
+                  render: (row) =>
+                    canManage && row.status !== "archived" ? (
+                      <div onClick={(e) => e.stopPropagation()} draggable={false}>
+                        <Select
+                          value={row.offer?.kind || ""}
+                          disabled={busyId === row.id}
+                          onChange={(e) => quickUpdate(row, { offer: { kind: e.target.value } })}
+                          aria-label={`Offer for ${row.name}`}
+                        >
+                          <option value="">No offer</option>
+                          <option value="discount">Discount</option>
+                          <option value="special">Special offer</option>
+                          <option value="combo">Combo offer</option>
+                        </Select>
+                      </div>
+                    ) : (
+                      OFFER_LABEL[row.offer?.kind] || "—"
+                    ),
+                },
+                {
                   key: "price",
                   label: "Price",
                   align: "right",
-                  render: (row) =>
-                    row.priceFrom === row.priceTo
-                      ? rupees(row.priceFrom)
-                      : `${rupees(row.priceFrom)} – ${rupees(row.priceTo)}`,
+                  render: (row) => (
+                    <strong className="price-cell">
+                      {row.priceFrom === row.priceTo
+                        ? rupees(row.priceFrom)
+                        : `${rupees(row.priceFrom)} – ${rupees(row.priceTo)}`}
+                    </strong>
+                  ),
                 },
                 {
                   key: "variantCount",
@@ -259,19 +322,29 @@ export default function Products() {
                   render: (row) =>
                     can("catalog.manage") && (
                       <button
-                        className="btn sm danger"
+                        type="button"
+                        className="icon-delete"
                         disabled={removingId === row.id}
+                        title={`Delete ${row.name}`}
+                        aria-label={`Delete ${row.name}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           removeProduct(row);
                         }}
                       >
-                        {removingId === row.id ? "Removing…" : "Delete"}
+                        {removingId === row.id ? (
+                          "…"
+                        ) : (
+                          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+                          </svg>
+                        )}
                       </button>
                     ),
                 },
               ]}
               rows={data.items}
+              onReorder={canManage && data.items.length > 1 ? reorder : undefined}
               onRowClick={(row) => navigate(`/catalog/products/${row.id}`)}
               empty={
                 <Empty
@@ -292,6 +365,35 @@ export default function Products() {
         )}
       </Card>
     </div>
+  );
+}
+
+// A small number box: type where the product should sit and press Enter (or
+// click away). Out-of-range numbers are clamped by the server.
+function PositionInput({ row, onMove }) {
+  const [value, setValue] = useState(String(row.position));
+  useEffect(() => setValue(String(row.position)), [row.position]);
+  const commit = () => {
+    const n = Math.floor(Number(value));
+    if (!Number.isFinite(n) || n < 1) return setValue(String(row.position));
+    if (n !== row.position) onMove(row, n);
+  };
+  return (
+    <input
+      className="position-input"
+      type="number"
+      min="1"
+      value={value}
+      draggable={false}
+      title="Type a position and press Enter"
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") setValue(String(row.position));
+      }}
+    />
   );
 }
 

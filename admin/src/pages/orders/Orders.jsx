@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, rupees, when } from "../../components/ui";
+import DateFilter, { todayRange } from "../../components/DateFilter";
+import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, rupees, when, ChipDropdown } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
 // stage added to the engine shows up here without a frontend change.
@@ -24,6 +25,16 @@ export function statusTone(status, statuses) {
 // Orders that are finished can no longer be handed to a rider.
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
 
+const AV_TONES = ["green", "blue", "amber", "violet", "pink", "indigo"];
+export function Avatar({ name = "", size = 34 }) {
+  const tone = AV_TONES[[...name].reduce((n, ch) => n + ch.charCodeAt(0), 0) % AV_TONES.length];
+  return (
+    <span className={`cat-avatar letter ${tone}`} style={{ width: size, height: size, borderRadius: size * 0.32, fontSize: size * 0.42 }}>
+      {(name || "?").trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
 export default function Orders() {
   const navigate = useNavigate();
   const { can, user } = useAuth();
@@ -43,6 +54,10 @@ export default function Orders() {
   // A dashboard card (e.g. "Pending Orders") links here with ?status=..., so
   // that lands on the matching bucket instead of always opening on "All".
   const [filters, setFilters] = useState({ status: searchParams.get("status") || "", page: 1 });
+  // The calendar button next to the status chips: { from, to } as yyyy-mm-dd.
+  // Arriving from a dashboard link (?status=...) means "show me all of these",
+  // so the day filter starts at All Time instead of hiding older orders.
+  const [range, setRange] = useState(() => (searchParams.get("status") ? { from: "", to: "" } : todayRange()));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -66,7 +81,7 @@ export default function Orders() {
 
   function load() {
     return api
-      .get("/orders", { ...filters, limit: 20 })
+      .get("/orders", { ...filters, ...range, limit: 20 })
       .then(setData)
       .catch((err) => setError(err.message));
   }
@@ -106,11 +121,11 @@ export default function Orders() {
   useEffect(() => {
     setLoading(true);
     api
-      .get("/orders", { ...filters, limit: 20 })
+      .get("/orders", { ...filters, ...range, limit: 20 })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [filters]);
+  }, [filters, range]);
 
   // A handful of useful buckets rather than all 19 statuses as chips. The
   // "Pending" value must match PENDING_ORDER_STATUSES in Dashboard.jsx
@@ -132,7 +147,7 @@ export default function Orders() {
   ];
 
   return (
-    <div className="page">
+    <div className="page products-page orders-page">
       <div className="page-head">
         <div>
           <h1>Orders</h1>
@@ -142,16 +157,26 @@ export default function Orders() {
       <Banner tone="error">{error}</Banner>
       <Banner tone="ok">{notice}</Banner>
 
-      <div className="toolbar">
-        {buckets.map((bucket) => (
-          <button
-            key={bucket.label}
-            className={`btn sm${filters.status === bucket.value ? " primary" : ""}`}
-            onClick={() => setFilters({ status: bucket.value, page: 1 })}
-          >
-            {bucket.label}
-          </button>
-        ))}
+      <div className="toolbar products-filters">
+        <ChipDropdown
+          ariaLabel="Order status"
+          options={buckets.map((b) => ({ value: b.value, label: b.label }))}
+          value={filters.status}
+          onChange={(value) => {
+            // Pending orders are whatever is still open, however old, so
+            // that bucket (and All) looks across all time.
+            if (value === buckets.find((b) => b.label === "Pending").value) setRange({ from: "", to: "" });
+            setFilters({ status: value, page: 1 });
+          }}
+        />
+        <span className="spacer" />
+        <DateFilter
+          value={range}
+          onChange={(next) => {
+            setRange(next);
+            setFilters((f) => ({ ...f, page: 1 }));
+          }}
+        />
       </div>
 
       <Card tight>
@@ -176,17 +201,20 @@ export default function Orders() {
                   key: "customer",
                   label: "Customer",
                   render: (row) => (
-                    <div className="stack">
-                      <span className="row-title">{row.customerSnapshot?.name || "—"}</span>
-                      <span className="row-sub">{row.customerSnapshot?.phone}</span>
-                    </div>
+                    <span className="person-cell">
+                      <Avatar name={row.customerSnapshot?.name} />
+                      <span className="stack">
+                        <span className="row-title">{row.customerSnapshot?.name || "—"}</span>
+                        <span className="row-sub">{row.customerSnapshot?.phone}</span>
+                      </span>
+                    </span>
                   ),
                 },
                 {
                   key: "items",
                   label: "Items",
                   align: "right",
-                  render: (row) => row.items?.length || 0,
+                  render: (row) => <span className="count-pill">{row.items?.length || 0}</span>,
                 },
                 {
                   key: "total",
@@ -199,7 +227,7 @@ export default function Orders() {
                   label: "Payment",
                   render: (row) => (
                     <div className="stack">
-                      <span className="nowrap">{row.payment?.method?.toUpperCase()}</span>
+                      <span className="nowrap pay-method">{row.payment?.method?.toUpperCase()}</span>
                       <Pill tone={row.payment?.status === "paid" ? "ok" : "warn"}>
                         {row.payment?.status}
                       </Pill>
@@ -226,7 +254,7 @@ export default function Orders() {
                     );
                     if (!canAssign || CLOSED.includes(row.status)) {
                       return row.delivery?.partnerName ? (
-                        <span className="muted">{row.delivery.partnerName}</span>
+                        <span className="person-cell"><Avatar name={row.delivery.partnerName} size={26} /><span>{row.delivery.partnerName}</span></span>
                       ) : (
                         <span className="faint">—</span>
                       );
@@ -235,7 +263,7 @@ export default function Orders() {
                       return (
                         <div className="row-actions" onClick={(e) => e.stopPropagation()}>
                           {row.delivery?.partnerName ? (
-                            <span className="muted">{row.delivery.partnerName}</span>
+                            <span className="person-cell"><Avatar name={row.delivery.partnerName} size={26} /><span>{row.delivery.partnerName}</span></span>
                           ) : (
                             <span className="faint">—</span>
                           )}
@@ -296,13 +324,18 @@ export default function Orders() {
                         sortable: false,
                         render: (row) => (
                           <button
-                            className="btn sm danger"
+                            type="button"
+                            className="icon-delete"
+                            title={`Delete ${row.code}`}
+                            aria-label={`Delete ${row.code}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               setConfirming(row);
                             }}
                           >
-                            Delete
+                            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+                            </svg>
                           </button>
                         ),
                       },

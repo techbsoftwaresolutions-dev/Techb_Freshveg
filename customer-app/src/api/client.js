@@ -96,9 +96,26 @@ async function refreshSession() {
   return refreshing;
 }
 
+// Where the shopper is (pincode + named area) — the server prices delivery per area.
+async function deliveryHeaders() {
+  try {
+    const [area, pincode] = await Promise.all([
+      AsyncStorage.getItem("commerce.area"),
+      AsyncStorage.getItem("commerce.pincode"),
+    ]);
+    return {
+      ...(area ? { "X-Delivery-Area": encodeURIComponent(area) } : {}),
+      ...(pincode ? { "X-Delivery-Pincode": pincode } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
+
 async function request(method, path, { body, query, retry = true } = {}) {
   const session = await loadSession();
   const guest = await guestId();
+  const where = await deliveryHeaders();
 
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(query || {})) {
@@ -115,6 +132,7 @@ async function request(method, path, { body, query, retry = true } = {}) {
         // The guest id travels on every request so the cart endpoints can
         // find an anonymous cart without the caller passing it each time.
         "X-Session-Id": guest,
+        ...where,
         ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
       },
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),

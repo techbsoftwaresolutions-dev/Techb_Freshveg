@@ -4,6 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../api/client";
 import { clockTime, colors, formatAddress, rupees, spacing, type } from "../theme";
 import { Card, EmptyState, Loading, Pill } from "../components/ui";
+import { ItemThumbs } from "../components/ItemThumb";
 
 export default function HistoryScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
@@ -94,6 +95,7 @@ export default function HistoryScreen({ navigation }) {
                 <Text style={type.small} numberOfLines={1}>
                   {formatAddress(order.delivery?.address)}
                 </Text>
+                <ItemThumbs items={(order.items || []).filter((i) => !(i.deferred?.expectedOn && !i.deferred?.deliveredAt))} />
               </View>
               <View style={{ alignItems: "flex-end", gap: 4 }}>
                 <Text style={styles.amount}>{rupees(order.pricing?.total)}</Text>

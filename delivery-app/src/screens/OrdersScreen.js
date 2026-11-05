@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import useQueue from "../hooks/useQueue";
@@ -8,8 +8,15 @@ import { LiveRunCard, UpcomingRunCard } from "../components/RunCards";
 import HistoryScreen from "./HistoryScreen";
 
 // Every order the rider has, in two views: what is still to do, and what is done.
-export default function OrdersScreen({ navigation }) {
-  const [tab, setTab] = useState("active");
+export default function OrdersScreen({ navigation, route }) {
+  const [tab, setTab] = useState(route?.params?.tab || "active");
+
+  // The Home cards open this screen on the view they stand for: "Delivered today"
+  // on Completed, "In hand" on Active. The tab stays mounted, so watch the params
+  // (the timestamp makes a repeat tap on the same card count as a change).
+  useEffect(() => {
+    if (route?.params?.tab) setTab(route.params.tab);
+  }, [route?.params?.tab, route?.params?.at]);
 
   return (
     <View style={styles.screen}>

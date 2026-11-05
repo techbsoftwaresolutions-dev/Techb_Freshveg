@@ -1,5 +1,6 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "./AppText";
 import { colors, fontFamily, radius, formatQty } from "../theme";
 
 // The stepper does not assume 1. Loose vegetables come back from the API with
@@ -13,6 +14,8 @@ export default function QtyStepper({
   unit = "",
   busy = false,
   compact = false,
+  // The flat product tile: an outlined "ADD" and a squarer stepper, 34px high.
+  tile = false,
   // A small floating circle meant to sit half on top of a product photo
   // (the quick-add button on a listing card), rather than the normal
   // rectangular control used on the product detail page.
@@ -60,6 +63,7 @@ export default function QtyStepper({
         style={({ pressed }) => [
           styles.addButton,
           compact && styles.addButtonCompact,
+          tile && styles.addButtonTile,
           pressed && { opacity: 0.8 },
         ]}
         accessibilityRole="button"
@@ -67,15 +71,20 @@ export default function QtyStepper({
       >
         {busy ? (
           <ActivityIndicator size="small" color={colors.primary} />
+        ) : tile ? (
+          <Text style={styles.addTextTile}>ADD</Text>
         ) : (
-          <Text style={styles.addText}>ADD</Text>
+          <View style={styles.addInner}>
+            <Text style={[styles.addText, compact && styles.addTextCompact]}>ADD</Text>
+            <Text style={[styles.addPlus, compact && styles.addPlusCompact]}>+</Text>
+          </View>
         )}
       </Pressable>
     );
   }
 
   return (
-    <View style={[styles.stepper, compact && styles.stepperCompact, overlay && styles.stepperOverlay]}>
+    <View style={[styles.stepper, compact && styles.stepperCompact, overlay && styles.stepperOverlay, tile && styles.stepperTile]}>
       <Pressable
         onPress={busy ? undefined : decrease}
         style={styles.stepButton}
@@ -110,18 +119,29 @@ export default function QtyStepper({
 }
 
 const styles = StyleSheet.create({
+  // A solid green pill: "ADD +". Once something is added it turns into the
+  // matching − 1 + pill below, so the swap does not move anything.
   addButton: {
-    minWidth: 78,
-    height: 34,
-    borderRadius: radius.sm,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
+    minWidth: 84,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  addButtonCompact: { minWidth: 64, height: 30 },
-  addText: { color: colors.primary, fontFamily: fontFamily.extrabold, fontSize: 13, letterSpacing: 0.4 },
+  addButtonCompact: { minWidth: 58, height: 28, borderRadius: 14 },
+  addButtonTile: { minWidth: 66, height: 30, borderRadius: 9, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.primary, shadowOpacity: 0, elevation: 0 },
+  addTextTile: { color: colors.primaryDark, fontFamily: fontFamily.extrabold, fontSize: 12.5, letterSpacing: 0.4 },
+  addInner: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 8 },
+  addText: { color: colors.onPrimary, fontFamily: fontFamily.extrabold, fontSize: 13, letterSpacing: 0.5 },
+  addTextCompact: { fontSize: 11.5, letterSpacing: 0.3 },
+  addPlusCompact: { fontSize: 14, lineHeight: 16 },
+  addPlus: { color: colors.onPrimary, fontFamily: fontFamily.extrabold, fontSize: 16, lineHeight: 18, includeFontPadding: false },
 
   // The floating circle on a product card's photo — half the button sits on
   // the image, half on the white card below it, so it needs its own shadow
@@ -150,15 +170,16 @@ const styles = StyleSheet.create({
   },
 
   stepper: {
-    minWidth: 78,
-    height: 34,
-    borderRadius: radius.sm,
+    minWidth: 84,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.primary,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
   },
-  stepperCompact: { minWidth: 64, height: 30 },
+  stepperCompact: { minWidth: 62, height: 28, borderRadius: 14 },
+  stepperTile: { minWidth: 74, height: 30, borderRadius: 9 },
   stepperOverlay: {
     minWidth: 64,
     height: 28,

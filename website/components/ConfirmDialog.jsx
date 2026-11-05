@@ -11,6 +11,7 @@ export default function ConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   busy = false,
+  busyLabel = "Removing…",
   onConfirm,
   onCancel,
 }) {
@@ -38,7 +39,7 @@ export default function ConfirmDialog({
             {cancelLabel}
           </button>
           <button type="button" className="confirm-btn danger" onClick={onConfirm} disabled={busy} autoFocus>
-            {busy ? "Removing…" : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>

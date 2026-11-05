@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../components/AppText";
 import { api } from "../api/client";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
 
 // The order QR is switched off: the delivery partner only needs the OTP.
 const SHOW_QR = false;
+
+const laterDate = (value) =>
+  new Date(value).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
 
@@ -73,6 +77,7 @@ export default function OrderTrackScreen({ route, navigation }) {
   if (loading) return <Loading />;
   if (!tracking) return <EmptyState title="Couldn't load this order" hint={error} />;
 
+  const waitingItems = (order?.items || []).filter((i) => i.deferred?.expectedOn && !i.deferred.deliveredAt);
   const isClosed = CLOSED.includes(tracking.status);
   const canCancel = !isClosed && !["OUT_FOR_DELIVERY", "ARRIVED", "PICKED_UP"].includes(tracking.status);
 
@@ -140,6 +145,21 @@ export default function OrderTrackScreen({ route, navigation }) {
           </Text>
         ) : null}
       </Card>
+
+      {/* The delivery time the shop promised (15 min / 30 min / 1 hour / next day). */}
+      {tracking.etaLabel && !isClosed ? (
+        <Card style={styles.etaCard}>
+          <Text style={styles.etaLabel}>Delivery time</Text>
+          <Text style={styles.etaValue}>{tracking.etaLabel}</Text>
+          {tracking.expectedBy ? (
+            <Text style={type.small}>
+              {tracking.etaOption === "next_day" || new Date(tracking.expectedBy).toDateString() !== new Date().toDateString()
+                ? `Arriving ${laterDate(tracking.expectedBy)}`
+                : `Expected by ${new Date(tracking.expectedBy).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}
+            </Text>
+          ) : null}
+        </Card>
+      ) : null}
 
       {/* The handover code. Only shown while it is actually needed. */}
       {tracking.otp ? (
@@ -231,14 +251,29 @@ export default function OrderTrackScreen({ route, navigation }) {
       {/* Items and bill */}
       {order ? (
         <Card style={{ padding: spacing.md }}>
-          <Text style={type.h3}>{order.items.length} items</Text>
+          <Text style={type.h3}>
+            {order.items.length - waitingItems.length} items
+            {waitingItems.length ? ` · ${waitingItems.length} arriving later` : ""}
+          </Text>
+          {waitingItems.length ? (
+            <Notice tone="warn" style={{ marginTop: spacing.sm }}>
+              {`${waitingItems.length === 1 ? "1 item" : `${waitingItems.length} items`} will be delivered separately on ${laterDate(waitingItems[0].deferred.expectedOn)}${waitingItems[0].deferred.reason ? ` — ${waitingItems[0].deferred.reason}` : ""}. We're sorry for the wait.`}
+            </Notice>
+          ) : null}
           <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
-            {order.items.map((item) => (
+            {[...order.items.filter((i) => !waitingItems.includes(i)), ...waitingItems].map((item) => (
               <Pressable key={item.id || item.sku} style={styles.itemRow} onPress={() => openProduct(item)}>
                 <Thumb item={item} size={44} />
-                <Text style={[type.small, { flex: 1 }]} numberOfLines={2}>
-                  {item.name} {item.variantName ? `· ${item.variantName}` : ""}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={type.small} numberOfLines={2}>
+                    {item.name} {item.variantName ? `· ${item.variantName}` : ""}
+                  </Text>
+                  {item.deferred?.expectedOn ? (
+                    <Text style={[type.tiny, { color: item.deferred.deliveredAt ? colors.save : colors.warn, fontWeight: "700" }]}>
+                      {item.deferred.deliveredAt ? "Delivered later" : `Arriving ${laterDate(item.deferred.expectedOn)}`}
+                    </Text>
+                  ) : null}
+                </View>
                 <Text style={type.tiny}>×{item.quantity}</Text>
                 <Text style={styles.itemPrice}>{rupees(item.payable)}</Text>
               </Pressable>
@@ -301,6 +336,12 @@ export default function OrderTrackScreen({ route, navigation }) {
           }
         />
       ) : null}
+
+      <Button
+        title="Need help with this order?"
+        variant="outline"
+        onPress={() => navigation.navigate("NewTicket", { orderId: order.id, category: "order_issue" })}
+      />
     </ScrollView>
   );
 }
@@ -351,6 +392,9 @@ function Row({ label, value, tone, bold }) {
 }
 
 const styles = StyleSheet.create({
+  etaCard: { padding: spacing.lg, alignItems: "center", backgroundColor: colors.primarySoft, borderColor: colors.primary, borderWidth: 1 },
+  etaLabel: { ...type.small, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
+  etaValue: { fontSize: 26, fontWeight: "800", color: colors.primaryDark, marginVertical: 2 },
   screen: { flex: 1, backgroundColor: colors.bg },
   statusLabel: { fontSize: 19, fontWeight: "800", color: colors.text, textAlign: "center" },
 

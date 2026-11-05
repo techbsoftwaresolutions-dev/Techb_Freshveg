@@ -79,7 +79,7 @@ export default function QueueScreen({ navigation }) {
           soft={colors.successSoft}
           value={stats?.deliveredToday ?? 0}
           label="Delivered today"
-          onPress={() => navigation.navigate("Orders")}
+          onPress={() => navigation.navigate("Orders", { tab: "done", at: Date.now() })}
         />
         <StatCard
           icon="package-variant-closed"
@@ -87,7 +87,7 @@ export default function QueueScreen({ navigation }) {
           soft={colors.blueSoft}
           value={stats?.pending ?? 0}
           label="In hand"
-          onPress={() => navigation.navigate("Orders")}
+          onPress={() => navigation.navigate("Orders", { tab: "active", at: Date.now() })}
         />
       </View>
 

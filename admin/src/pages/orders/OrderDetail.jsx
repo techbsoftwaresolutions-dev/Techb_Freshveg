@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Loading, Modal, Pill, rupees, when } from "../../components/ui";
-import { statusTone } from "./Orders";
+import { Banner, Card, Empty, Field, Loading, Modal, Pill, rupees, useConfirm, when } from "../../components/ui";
+import SelectMenu from "../../components/SelectMenu";
+import { Avatar, statusTone } from "./Orders";
 
 export default function OrderDetail() {
+  const [confirm, confirmDialog] = useConfirm();
   const { id } = useParams();
   const navigate = useNavigate();
   const { can } = useAuth();
@@ -21,12 +23,18 @@ export default function OrderDetail() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [assigning, setAssigning] = useState(false);
+  // Items ticked for "Deliver later", and the popup that asks for the date.
+  const [picked, setPicked] = useState([]);
+  const [delaying, setDelaying] = useState(false);
+  const [ownerNotified, setOwnerNotified] = useState(false);
+  const [deliveryTimes, setDeliveryTimes] = useState([]);
 
   const load = useCallback(async () => {
     const data = await api.get(`/orders/${id}`);
     setOrder(data.order);
     setTimeline(data.timeline);
     setActions(data.actions);
+    setDeliveryTimes(data.deliveryTimes || []);
   }, [id]);
 
   useEffect(() => {
@@ -36,12 +44,51 @@ export default function OrderDetail() {
       .finally(() => setLoading(false));
   }, [load]);
 
+  // Picks (or adds) the delivery time and tells the customer straight away.
+  async function sendDeliveryTime(body) {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api.post(`/orders/${id}/delivery-time`, body);
+      if (res.deliveryTimes) setDeliveryTimes(res.deliveryTimes);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function advance(status) {
     setBusy(true);
     setError("");
     try {
       await api.post(`/orders/${id}/status`, { status });
       await load();
+    } catch (err) {
+      // Usually the order moved on while this page was open (the delivery
+      // partner finished it in the app, or this was clicked twice). Show the
+      // order as it really is now instead of leaving the old status on screen.
+      await load().catch(() => {});
+      setError(
+        err.status === 409
+          ? "This order was just updated by someone else — it now shows its latest status."
+          : err.message
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
+
+  async function notifyOwner() {
+    setBusy(true);
+    setError("");
+    try {
+      await api.post(`/orders/${id}/notify-owner`);
+      setOwnerNotified(true);
+      setTimeout(() => setOwnerNotified(false), 3000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -76,8 +123,56 @@ export default function OrderDetail() {
     }
   }
 
+
+
+  async function delayItems({ expectedOn, reason }) {
+    setBusy(true);
+    setError("");
+    try {
+      await api.post(`/orders/${id}/delay-items`, { items: picked, expectedOn, reason });
+      setDelaying(false);
+      setPicked([]);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
+
+  async function delayedArrived(...items) {
+    setBusy(true);
+    setError("");
+    try {
+      await api.post(`/orders/${id}/delayed-items/delivered`, { items: items.map((i) => i.id) });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
+
   if (loading) return <div className="page"><Loading /></div>;
-  if (!order) return <div className="page"><Banner tone="error">{error || "Order not found"}</Banner></div>;
+  if (!order) {
+    return (
+      <div className="page">
+        <Card>
+          <Empty
+            title="This order no longer exists"
+            hint="It was probably deleted. Any refund already made is still kept on record under Payments → Refunds."
+          />
+          <div style={{ textAlign: "center", paddingBottom: 20 }}>
+            <button className="btn primary" onClick={() => navigate("/orders")}>Back to orders</button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   // The way forward, and the ways out, kept apart so "Cancel order" is never
   // the button sitting where "Start packing" was a second ago. Assigning a
@@ -87,6 +182,13 @@ export default function OrderDetail() {
   );
   const exits = actions.filter((a) => a.kind === "danger");
 
+  // Items can be moved to a later delivery only until the order goes out: once it is
+  // delivered (or closed) everything on it has already reached the customer.
+  const canDelay = can("orders.manage") && !["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"].includes(order.status);
+  const waitingItems = order.items.filter((i) => i.deferred?.expectedOn && !i.deferred.deliveredAt);
+  const togglePick = (itemId) =>
+    setPicked((list) => (list.includes(itemId) ? list.filter((x) => x !== itemId) : [...list, itemId]));
+
   const address = order.delivery?.address || {};
   // weightGrams is per the same reference unit unitPrice is quoted against,
   // so it multiplies by quantity exactly like unitPrice does. Lines whose
@@ -94,9 +196,13 @@ export default function OrderDetail() {
   const totalWeightGrams = order.items.reduce((sum, item) => sum + (item.weightGrams || 0) * item.quantity, 0);
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className="page products-page order-page">
+      {confirmDialog}
+      <div className="page-head order-head">
         <div>
+          <button type="button" className="form-page-back order-back" onClick={() => navigate("/orders")}>
+            ← All orders
+          </button>
           <h1 className="mono">{order.code}</h1>
           <p>
             Placed {when(order.placedAt)} · {order.source} ·{" "}
@@ -106,13 +212,40 @@ export default function OrderDetail() {
           </p>
         </div>
         <div className="inline">
-          <button className="btn" onClick={() => navigate("/orders")}>
-            All orders
+          <button className="btn" onClick={() => window.print()}>
+            Print
           </button>
         </div>
       </div>
 
       <Banner tone="error">{error}</Banner>
+
+      <div className="order-summary">
+        <div className="order-sum-tile">
+          <span className="order-sum-label">Order total</span>
+          <strong>{rupees(order.pricing.total)}</strong>
+          <span className="order-sum-foot">{order.items.length} item{order.items.length === 1 ? "" : "s"}{totalWeightGrams > 0 ? ` · ${(totalWeightGrams / 1000).toFixed(2)} kg` : ""}</span>
+        </div>
+        <div className="order-sum-tile">
+          <span className="order-sum-label">Payment</span>
+          <strong>{(order.payment?.method || "cod").toUpperCase()}</strong>
+          <span className="order-sum-foot">
+            <Pill tone={order.payment?.status === "paid" ? "ok" : "warn"}>{order.payment?.status || "pending"}</Pill>
+          </span>
+        </div>
+        <div className="order-sum-tile">
+          <span className="order-sum-label">Customer</span>
+          <strong>{order.customerSnapshot?.name || "—"}</strong>
+          <span className="order-sum-foot">{order.customerSnapshot?.phone || ""}</span>
+        </div>
+        <div className="order-sum-tile">
+          <span className="order-sum-label">Delivery</span>
+          <strong>{order.delivery?.partnerName || "Not assigned"}</strong>
+          <span className="order-sum-foot">
+            {order.delivery?.partnerName ? order.delivery.partnerPhone : "Waiting for a partner"}
+          </span>
+        </div>
+      </div>
 
       {/* Where the order is on its way from "placed" to "delivered", at a
           glance — the same steps the customer sees on their tracker. */}
@@ -123,6 +256,17 @@ export default function OrderDetail() {
           <div className="next-step-copy">
             <span className="section-label">Next step</span>
             <strong>{nextStepHint(order)}</strong>
+          </div>
+          <div className="next-step-time">
+            <SelectMenu
+              value={order.delivery?.etaOption || ""}
+              placeholder="Delivery time"
+              ariaLabel="Delivery time"
+              options={deliveryTimes.map((o) => ({ value: o.key, label: o.label }))}
+              onChange={(key) => sendDeliveryTime({ option: key })}
+              onAdd={(text) => sendDeliveryTime({ add: text })}
+              addPlaceholder="Add new… e.g. Next morning"
+            />
           </div>
           <div className="next-step-actions">
             {forward.map((action) => (
@@ -144,13 +288,28 @@ export default function OrderDetail() {
                 key={action.status}
                 className="btn danger"
                 disabled={busy}
-                onClick={() => {
-                  if (window.confirm(`${action.label} ${order.code}? The customer will be told.`)) advance(action.status);
+                onClick={async () => {
+                  const yes = await confirm({
+                    title: `${action.label}?`,
+                    message: `${action.label} ${order.code}? The customer will be told.`,
+                    confirmLabel: `Yes, ${action.label.toLowerCase()}`,
+                    cancelLabel: "No, keep it",
+                  });
+                  if (yes) advance(action.status);
                 }}
               >
                 {action.label}
               </button>
             ))}
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={busy}
+              onClick={notifyOwner}
+              title="Send or resend owner WhatsApp alert for current status"
+            >
+              {ownerNotified ? "✓ Owner Alert Sent!" : "📲 Send WhatsApp to Owner"}
+            </button>
           </div>
         </div>
       ) : null}
@@ -166,6 +325,17 @@ export default function OrderDetail() {
             tight
             actions={
               <>
+                {canDelay ? (
+                  <button className="btn sm" disabled={!picked.length || busy} onClick={() => setDelaying(true)}>
+                    Deliver later{picked.length ? ` (${picked.length})` : ""}
+                  </button>
+                ) : null}
+                {waitingItems.length ? <Pill tone="warn">{waitingItems.length} arriving later</Pill> : null}
+                {waitingItems.length > 1 && can("orders.manage") ? (
+                  <button className="btn sm primary" disabled={busy} onClick={() => delayedArrived(...waitingItems)}>
+                    Mark all {waitingItems.length} delivered
+                  </button>
+                ) : null}
                 <Pill>
                   <IconBoxSm /> {order.items.length} item{order.items.length === 1 ? "" : "s"}
                 </Pill>
@@ -183,10 +353,30 @@ export default function OrderDetail() {
               </>
             }
           >
+            {canDelay ? (
+              <div className={`delay-bar${picked.length ? " active" : ""}`}>
+                {picked.length ? (
+                  <>
+                    <strong>{picked.length} of {order.items.length} items selected</strong>
+                    <span className="muted">— they will not go out today. The other {order.items.length - picked.length} are delivered now.</span>
+                    <span className="spacer" />
+                    <button className="btn sm primary" disabled={busy} onClick={() => setDelaying(true)}>
+                      Deliver these later…
+                    </button>
+                    <button className="btn sm" disabled={busy} onClick={() => setPicked([])}>Clear</button>
+                  </>
+                ) : (
+                  <span className="muted">
+                    Some items can't go out today? Tick them below, then choose a later delivery date.
+                  </span>
+                )}
+              </div>
+            ) : null}
             <div className="table-wrap">
               <table className="data">
                 <thead>
                   <tr>
+                    {canDelay ? <th style={{ width: 28 }} aria-label="Select" /> : null}
                     <th style={{ width: 32 }}>#</th>
                     <th>Item</th>
                     <th className="num">Qty</th>
@@ -197,6 +387,17 @@ export default function OrderDetail() {
                 <tbody>
                   {order.items.map((item, itemIndex) => (
                     <tr key={item.id || item.sku}>
+                      {canDelay ? (
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={picked.includes(item.id)}
+                            disabled={Boolean(item.deferred?.deliveredAt)}
+                            onChange={() => togglePick(item.id)}
+                            aria-label={`Deliver ${item.name} later`}
+                          />
+                        </td>
+                      ) : null}
                       <td className="muted">{itemIndex + 1}</td>
                       <td>
                         <div className="row-with-media">
@@ -213,6 +414,25 @@ export default function OrderDetail() {
                               {item.variantName ? ` · ${item.variantName}` : ""}
                             </span>
                             <span className="tag tag-plain">{item.sku}</span>
+                            {item.deferred?.expectedOn ? (
+                              <span className="inline" style={{ gap: 8, marginTop: 4 }}>
+                                {item.deferred.deliveredAt ? (
+                                  <Pill tone="ok">Delivered later · {when(item.deferred.deliveredAt)}</Pill>
+                                ) : (
+                                  <>
+                                    <Pill tone="warn">
+                                      Arriving {new Date(item.deferred.expectedOn).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}
+                                    </Pill>
+                                    {can("orders.manage") ? (
+                                      <button className="btn sm" disabled={busy} onClick={() => delayedArrived(item)}>
+                                        Mark delivered
+                                      </button>
+                                    ) : null}
+                                  </>
+                                )}
+                                {item.deferred.reason ? <span className="row-sub">{item.deferred.reason}</span> : null}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       </td>
@@ -233,7 +453,7 @@ export default function OrderDetail() {
             </div>
           </Card>
 
-          <Card title="Payment summary">
+          <Card title="Payment summary" className="pay-card">
             <table className="data">
               <tbody>
                 <Row label="Subtotal" value={rupees(order.pricing.subtotal)} />
@@ -263,16 +483,26 @@ export default function OrderDetail() {
                 {order.pricing.roundOff !== 0 && (
                   <Row label="Round off" value={rupees(order.pricing.roundOff, { decimals: true })} />
                 )}
-                <tr>
+                <tr className="total-row">
                   <td>
                     <strong>Total</strong>
                   </td>
                   <td className="num">
-                    <strong style={{ fontSize: 15 }}>{rupees(order.pricing.total)}</strong>
+                    <strong style={{ fontSize: 17 }}>{rupees(order.pricing.total)}</strong>
                   </td>
                 </tr>
               </tbody>
             </table>
+            <div className="pay-foot">
+              <span>
+                Paid by <strong>{(order.payment?.method || "cod").toUpperCase()}</strong>
+                {order.payment?.provider ? ` · ${order.payment.provider}` : ""}
+              </span>
+              <Pill tone={order.payment?.status === "paid" ? "ok" : "warn"}>{order.payment?.status || "pending"}</Pill>
+              {order.payment?.transactionId ? <span className="mono faint">{order.payment.transactionId}</span> : null}
+              {order.payment?.amountRefunded > 0 ? <span className="faint">Refunded {rupees(order.payment.amountRefunded)}</span> : null}
+            </div>
+            {order.note ? <div className="order-note"><span className="section-label">Customer note</span>{order.note}</div> : null}
           </Card>
         </div>
 
@@ -281,7 +511,7 @@ export default function OrderDetail() {
             <ul className="timeline">
               {/* Steps this order skipped (a COD order never passes through
                   "payment received") are left out rather than shown as done. */}
-              {timeline
+              {deliveryStages(timeline, order.status)
                 .filter((step) => step.state !== "skipped")
                 .map((step) => (
                   <li key={step.status} className={step.state}>
@@ -296,9 +526,15 @@ export default function OrderDetail() {
           </Card>
 
           <Card title="Customer">
-            <div className="stack">
-              <strong>{order.customerSnapshot?.name || "—"}</strong>
-              <span className="muted">{order.customerSnapshot?.phone}</span>
+            <div className="person-cell person-big">
+              <Avatar name={order.customerSnapshot?.name} size={44} />
+              <div className="stack">
+                <strong>{order.customerSnapshot?.name || "—"}</strong>
+                <span className="muted">{order.customerSnapshot?.phone}</span>
+              </div>
+              {order.customerSnapshot?.phone ? (
+                <a className="btn sm person-call" href={`tel:${order.customerSnapshot.phone}`}>Call</a>
+              ) : null}
             </div>
             <div className="divider" />
             <div className="section-label">Delivery address</div>
@@ -317,14 +553,21 @@ export default function OrderDetail() {
             )}
           </Card>
 
+
           <Card title="Delivery">
             {order.delivery?.partnerName ? (
-              <div className="stack">
-                <strong>{order.delivery.partnerName}</strong>
-                <span className="muted">{order.delivery.partnerPhone}</span>
-                <span className="faint" style={{ fontSize: 12 }}>
-                  Assigned {when(order.delivery.assignedAt)}
-                </span>
+              <div className="person-cell person-big">
+                <Avatar name={order.delivery.partnerName} size={44} />
+                <div className="stack">
+                  <strong>{order.delivery.partnerName}</strong>
+                  <span className="muted">{order.delivery.partnerPhone}</span>
+                  <span className="faint" style={{ fontSize: 12 }}>
+                    Assigned {when(order.delivery.assignedAt)}
+                  </span>
+                </div>
+                {order.delivery.partnerPhone ? (
+                  <a className="btn sm person-call" href={`tel:${order.delivery.partnerPhone}`}>Call</a>
+                ) : null}
               </div>
             ) : (
               <p className="muted" style={{ margin: 0, fontSize: 13 }}>
@@ -361,6 +604,15 @@ export default function OrderDetail() {
           )}
         </div>
       </div>
+
+      {delaying && (
+        <DelayModal
+          busy={busy}
+          items={order.items.filter((i) => picked.includes(i.id))}
+          onClose={() => setDelaying(false)}
+          onSave={delayItems}
+        />
+      )}
 
       {assigning && (
         <AssignModal
@@ -407,9 +659,32 @@ function nextStepHint(order) {
 // The order's journey as a row of numbered steps: done ones ticked, the
 // current one highlighted, the rest waiting. Off-path states (cancelled,
 // rejected, returns) replace the row with a single line saying so.
+const DELIVERY_STAGES = [
+  { label: "Order placed", statuses: ["ORDER_PLACED", "PAYMENT_PENDING"] },
+  { label: "Order confirmed", statuses: ["ORDER_CONFIRMED"] },
+  { label: "Preparing order", statuses: ["ORDER_ACCEPTED", "PICKING", "PACKING", "READY_FOR_PICKUP", "ASSIGNED_TO_DELIVERY", "PICKED_UP"] },
+  { label: "Out for delivery", statuses: ["OUT_FOR_DELIVERY"] },
+  { label: "Arrived at address", statuses: ["ARRIVED"] },
+  { label: "Delivered", statuses: ["DELIVERED"] },
+];
+
+function deliveryStages(timeline, status) {
+  const current = DELIVERY_STAGES.findIndex((stage) => stage.statuses.includes(status));
+  return DELIVERY_STAGES.map((stage, index) => {
+    const events = timeline.filter((step) => stage.statuses.includes(step.status));
+    const reached = events.find((step) => step.at);
+    return {
+      status: stage.statuses[0],
+      label: stage.label,
+      at: reached?.at || null,
+      state: index === current ? "active" : (current >= 0 && index < current) || events.some((step) => step.state === "done") ? "done" : "pending",
+    };
+  });
+}
+
 function StageTracker({ timeline, status, statuses }) {
-  const steps = timeline.filter((step) => step.state !== "skipped");
-  const offPath = !steps.some((step) => step.status === status) && status !== "ORDER_PLACED";
+  const steps = deliveryStages(timeline, status);
+  const offPath = !DELIVERY_STAGES.some((stage) => stage.statuses.includes(status));
 
   if (offPath && ["CANCELLED", "REJECTED", "REFUNDED"].includes(status)) {
     return (
@@ -423,13 +698,13 @@ function StageTracker({ timeline, status, statuses }) {
   return (
     <ol className="stage-tracker" aria-label="Order progress">
       {steps.map((step, index) => {
-        const state = step.status === status ? "current" : step.state === "done" ? "done" : "pending";
+        const state = step.state === "active" ? "current" : step.state === "done" ? "done" : "pending";
         return (
           <li key={step.status} className={`stage ${state}`}>
             <span className="stage-dot" aria-hidden="true">
               {state === "done" ? "✓" : index + 1}
             </span>
-            <span className="stage-label">{statuses[step.status]?.label || step.label}</span>
+            <span className="stage-label">{step.label}</span>
             {step.at ? <span className="stage-time">{when(step.at)}</span> : null}
           </li>
         );
@@ -522,6 +797,44 @@ function Row({ label, value, tone }) {
         {value}
       </td>
     </tr>
+  );
+}
+
+// Asks when the chosen items will arrive. Saving tells the customer straight
+// away (push, SMS and in the app) and marks the lines on their order page.
+function DelayModal({ busy, items, onClose, onSave }) {
+  const today = new Date().toLocaleDateString("en-CA");
+  const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString("en-CA");
+  const [expectedOn, setExpectedOn] = useState(tomorrow);
+  const [reason, setReason] = useState("");
+
+  return (
+    <Modal
+      title="Deliver these items later"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn primary" disabled={!expectedOn || busy} onClick={() => onSave({ expectedOn, reason })}>
+            {busy ? "Saving…" : "Save & notify customer"}
+          </button>
+        </>
+      }
+    >
+      <ul className="muted" style={{ margin: "0 0 14px", paddingLeft: 18 }}>
+        {items.map((i) => (
+          <li key={i.id}>{i.name}{i.variantName ? ` · ${i.variantName}` : ""} × {i.quantity}</li>
+        ))}
+      </ul>
+      <div className="grid cols-2">
+        <Field label="New delivery date">
+          <input type="date" min={today} value={expectedOn} onChange={(e) => setExpectedOn(e.target.value)} />
+        </Field>
+        <Field label="Reason (shown to the customer)">
+          <input type="text" maxLength={120} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Out of stock today" />
+        </Field>
+      </div>
+    </Modal>
   );
 }
 
