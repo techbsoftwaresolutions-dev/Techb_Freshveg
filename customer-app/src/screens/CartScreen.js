@@ -6,6 +6,8 @@ import { useAuth } from "../context/AuthContext";
 import { colors, radius, rupees, spacing, type, unitSuffix } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
 import QtyStepper from "../components/QtyStepper";
+import { storeOpen } from "../launch";
+import ComingSoonModal from "../components/ComingSoonModal";
 
 export default function CartScreen({ navigation }) {
   const cart = useCart();
@@ -13,6 +15,7 @@ export default function CartScreen({ navigation }) {
   const [code, setCode] = useState("");
   const [couponError, setCouponError] = useState("");
   const [applying, setApplying] = useState(false);
+  const [comingSoon, setComingSoon] = useState(false);
 
   const summary = cart.summary;
 
@@ -45,6 +48,7 @@ export default function CartScreen({ navigation }) {
 
   return (
     <View style={styles.screen}>
+      <ComingSoonModal visible={comingSoon} onClose={() => setComingSoon(false)} />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140, gap: spacing.md }}>
         {/* Free delivery nudge */}
         {summary?.amountToFreeDelivery > 0 ? (
@@ -200,7 +204,10 @@ export default function CartScreen({ navigation }) {
         <Button
           title={signedIn ? "Checkout" : "Sign in to checkout"}
           disabled={!summary.meetsMinimum}
-          onPress={() => navigation.navigate(signedIn ? "Checkout" : "Login")}
+          onPress={() => {
+            if (!storeOpen()) return setComingSoon(true);
+            navigation.navigate(signedIn ? "Checkout" : "Login");
+          }}
         />
       </View>
     </View>

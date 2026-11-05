@@ -82,6 +82,20 @@ async function refreshSession() {
   return refreshing;
 }
 
+// Where the shopper is (pincode + named area) — the server prices delivery per area.
+function deliveryHeaders() {
+  try {
+    const area = localStorage.getItem("commerce.web.area");
+    const pincode = localStorage.getItem("commerce.web.pincode");
+    return {
+      ...(area ? { "X-Delivery-Area": encodeURIComponent(area) } : {}),
+      ...(pincode ? { "X-Delivery-Pincode": pincode } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
+
 async function call(method, path, { body, query, retry = true } = {}) {
   const session = loadSession();
 
@@ -95,6 +109,7 @@ async function call(method, path, { body, query, retry = true } = {}) {
     headers: {
       "Content-Type": "application/json",
       "X-Session-Id": guestId(),
+      ...deliveryHeaders(),
       ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),

@@ -38,7 +38,12 @@ const storeSchema = new mongoose.Schema(
     // refine this; a pincode list is what a small operation actually maintains.
     servicePincodes: { type: [String], default: [], index: true },
     // The area each pincode covers, by name: [{ pincode: "635109", area: "NGGO Colony" }].
-    pincodeAreas: { type: [{ _id: false, pincode: String, area: String }], default: [] },
+    // deliveryCharge (paise) is optional: unset = the store's normal charge, 0 = free delivery to that area.
+    // freeAbove (paise) is optional too: an order at or above it gets free delivery to that area; below it pays the area's charge.
+    pincodeAreas: { type: [{ _id: false, pincode: String, area: String, deliveryCharge: { type: Number, min: 0, default: undefined }, freeAbove: { type: Number, min: 0, default: undefined } }], default: [] },
+    // The named area whose delivery charge applies to a shopper who has not given
+    // an area of their own. Empty = the store's normal charge.
+    defaultArea: { type: String, default: "", trim: true },
     serviceRadiusKm: { type: Number, default: 0 },
 
     timings: {
@@ -67,6 +72,12 @@ const storeSchema = new mongoose.Schema(
       freeDeliveryAbove: money(0),
       deliveryCharge: money(0),
       packagingCharge: money(0),
+      // Brand-wise packaging: a brand listed here is packed at its own charge
+      // instead of the store's normal one. Brands not listed use the normal charge.
+      brandPackaging: {
+        type: [{ _id: false, brand: { type: mongoose.Schema.Types.ObjectId, ref: "Brand" }, charge: money(0) }],
+        default: [],
+      },
       maxCodValue: money(500000), // ₹5,000
       codEnabled: { type: Boolean, default: true },
       prepTimeMinutes: { type: Number, default: 30 },

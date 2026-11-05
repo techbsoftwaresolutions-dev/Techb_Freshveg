@@ -18,6 +18,23 @@ export default function Header({ categories = [] }) {
 
   const [term, setTerm] = useState(params.get("q") || "");
   const [pinOpen, setPinOpen] = useState(false);
+  // The named area inside the pincode ("Hosur Bastand"), picked in the
+  // location bar and remembered on this device.
+  const [area, setAreaState] = useState("");
+  useEffect(() => {
+    const read = () => { try { setAreaState(localStorage.getItem("commerce.web.area") || ""); } catch { /* ignore */ } };
+    read();
+    // Checkout can change the area too.
+    window.addEventListener("commerce-area", read);
+    return () => window.removeEventListener("commerce-area", read);
+  }, []);
+  const setArea = (name) => {
+    setAreaState(name);
+    try { localStorage.setItem("commerce.web.area", name); } catch { /* ignore */ }
+    // Delivery can be priced per area, so re-price the cart for the new one.
+    setTimeout(() => cart.refresh?.(), 0);
+  };
+  const placeLabel = [pincode, area].filter(Boolean).join(" · ") || store?.address?.city || "Set location";
   const [openCategory, setOpenCategory] = useState(null);
   // Hover opens and closes a dropdown as the pointer moves through it, which
   // breaks the instant the pointer leaves the page to do anything else — to
@@ -291,12 +308,15 @@ export default function Header({ categories = [] }) {
             className="header-btn icon-only"
             onClick={() => setPinOpen((v) => !v)}
             aria-expanded={pinOpen}
-            aria-label={`Location: ${pincode || store?.address?.city || store?.address?.pincode || "set your location"}`}
-            title={pincode || store?.address?.city || store?.address?.pincode || "Set location"}
+            aria-label={`Location: ${placeLabel}`}
+            title={placeLabel}
             suppressHydrationWarning
           >
             <IconPin className="header-btn-icon" />
           </button>
+
+          {/* The location card floats under the pin icon, so it takes no space in the page. */}
+          {pinOpen ? <PincodeBar onDone={() => setPinOpen(false)} setPincode={setPincode} store={store} pincode={pincode} area={area} setArea={setArea} /> : null}
 
           <span className="header-divider" aria-hidden="true" />
 
@@ -310,8 +330,6 @@ export default function Header({ categories = [] }) {
           </button>
         </div>
       </div>
-
-      {pinOpen ? <PincodeBar onDone={() => setPinOpen(false)} setPincode={setPincode} store={store} /> : null}
 
       <nav className="catbar" aria-label="Categories" ref={catbarRef}>
         <div className="wrap catbar-layout">
@@ -408,7 +426,7 @@ export default function Header({ categories = [] }) {
   );
 }
 
-function PincodeBar({ onDone, setPincode, store }) {
+function PincodeBar({ onDone, setPincode, store, pincode, area, setArea }) {
   const [value, setValue] = useState("");
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -419,7 +437,13 @@ function PincodeBar({ onDone, setPincode, store }) {
     try {
       const data = await setPincode(value);
       setResult(data);
-      if (data.serviceable) setTimeout(onDone, 900);
+      if (data.serviceable) {
+        const areas = data.areas || [];
+        // One named area: use it. Several: the shopper picks theirs below.
+        if (areas.length === 1) setArea(areas[0]);
+        else if (areas.length > 1 && !areas.includes(area)) setArea("");
+        if (areas.length <= 1) setTimeout(onDone, 900);
+      }
     } catch {
       setResult({ serviceable: false, message: "Could not check that pincode." });
     } finally {
@@ -431,30 +455,55 @@ function PincodeBar({ onDone, setPincode, store }) {
     <div className="pincode-bar">
       <div className="wrap pincode-inner">
         <form onSubmit={check} className="pincode-form">
-          <span className="pincode-pin" aria-hidden="true"><IconPin /></span>
-          <strong className="pincode-title">Check delivery</strong>
-          <input
-            className="pincode-input"
-            type="tel"
-            value={value}
-            onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="6-digit pincode"
-            aria-label="Pincode"
-          />
-          <button className="btn primary pincode-submit" disabled={value.length !== 6 || busy}>
-            {busy ? "Checking…" : "Check"}
-          </button>
-          {store ? (
-            <span className="pincode-serving">
-              Currently serving from <strong>{store.name}</strong>
-            </span>
-          ) : null}
+          <div className="pincode-head">
+            <span className="pincode-pin" aria-hidden="true"><IconPin /></span>
+            <div className="pincode-head-text">
+              <strong className="pincode-title">Check delivery</strong>
+              {store ? (
+                <span className="pincode-serving">
+                  Serving from <strong>{store.name}</strong>
+                </span>
+              ) : null}
+            </div>
+            <button type="button" className="pincode-close" aria-label="Close" onClick={onDone}>×</button>
+          </div>
+          <div className="pincode-row">
+            <input
+              className="pincode-input"
+              type="tel"
+              inputMode="numeric"
+              value={value}
+              onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="Enter 6-digit pincode"
+              aria-label="Pincode"
+              autoFocus
+            />
+            <button className="btn primary pincode-submit" disabled={value.length !== 6 || busy}>
+              {busy ? "Checking…" : "Check"}
+            </button>
+          </div>
         </form>
+
+        {result?.serviceable && result.areas?.length > 1 ? (
+          <div className="pincode-areas" role="group" aria-label="Choose your area">
+            <strong>Choose your area</strong>
+            {result.areas.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className={`pincode-area${area === name ? " on" : ""}`}
+                onClick={() => { setArea(name); setTimeout(onDone, 300); }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {result ? (
           <p className={`notice ${result.serviceable ? "save" : "error"} pincode-result`}>
             {result.serviceable
-              ? `We deliver here — ${result.store.name}, about ${result.prepTimeMinutes} minutes.`
+              ? `We deliver to ${result.pincode || value}${area ? ` · ${area}` : ""} — ${result.store.name}, about ${result.prepTimeMinutes} minutes.`
               : result.message || "We don't deliver to this pincode yet."}
           </p>
         ) : null}

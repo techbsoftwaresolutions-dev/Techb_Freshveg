@@ -336,6 +336,12 @@ export default function OrderTrackScreen({ route, navigation }) {
           }
         />
       ) : null}
+
+      <Button
+        title="Need help with this order?"
+        variant="outline"
+        onPress={() => navigation.navigate("NewTicket", { orderId: order.id, category: "order_issue" })}
+      />
     </ScrollView>
   );
 }

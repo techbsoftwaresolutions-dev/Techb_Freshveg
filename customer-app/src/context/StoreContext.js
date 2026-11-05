@@ -31,6 +31,8 @@ export function StoreProvider({ children }) {
           // Not fatal.
         }
       }
+      // Remember the area in use so delivery is priced for it on every request.
+      if (data.serviceable && area) AsyncStorage.setItem(AREA_KEY, area).catch(() => {});
       setStore(data.serviceable ? { ...data.store, ...data, area } : null);
       return data;
     } catch {

@@ -493,11 +493,11 @@ export default function Dashboard() {
               </div>
             </div>
             {periodRevenue > 0 || periodOrders > 0 ? (
-              <div style={{ width: "100%", flex: 1, minHeight: 240 }}>
-                <ResponsiveContainer>
+              <div className="sales-chart">
+                <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={chart}
-                    margin={{ top: 4, right: 4, bottom: 0, left: -18 }}
+                    margin={{ top: 4, right: 8, bottom: 4, left: -18 }}
                   >
                     <defs>
                       <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
@@ -513,6 +513,8 @@ export default function Dashboard() {
                       style={{ fontSize: 12 }}
                       interval="preserveStartEnd"
                       minTickGap={18}
+                      height={26}
+                      tickMargin={6}
                     />
                     <YAxis
                       allowDecimals={false}

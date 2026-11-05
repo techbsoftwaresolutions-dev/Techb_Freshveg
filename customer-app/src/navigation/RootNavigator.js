@@ -23,6 +23,11 @@ import LoginScreen from "../screens/LoginScreen";
 import LocationScreen from "../screens/LocationScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import EditProfileScreen from "../screens/EditProfileScreen";
+import WishlistScreen from "../screens/WishlistScreen";
+import AddressesScreen from "../screens/AddressesScreen";
+import SupportScreen from "../screens/SupportScreen";
+import NewTicketScreen from "../screens/NewTicketScreen";
+import TicketScreen from "../screens/TicketScreen";
 
 const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -100,6 +105,11 @@ export default function RootNavigator() {
         <Stack.Screen name="OrderTrack" component={OrderTrackScreen} options={{ title: "Track order" }} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit profile" }} />
+        <Stack.Screen name="Wishlist" component={WishlistScreen} options={{ title: "Saved items" }} />
+        <Stack.Screen name="Addresses" component={AddressesScreen} options={{ title: "Saved addresses" }} />
+        <Stack.Screen name="Support" component={SupportScreen} options={{ title: "Help & support" }} />
+        <Stack.Screen name="NewTicket" component={NewTicketScreen} options={{ title: "New ticket" }} />
+        <Stack.Screen name="Ticket" component={TicketScreen} options={{ title: "Ticket" }} />
         <Stack.Screen
           name="OrderPlaced"
           component={OrderPlacedScreen}
