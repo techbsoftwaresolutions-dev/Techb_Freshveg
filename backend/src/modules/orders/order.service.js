@@ -319,6 +319,16 @@ async function transition(order, to, actor = {}, note = "") {
       // Points and wallet spent on this order go back before the refund, so a
       // customer is never left out of pocket on both.
       await reverseCredits(order, actor);
+      // A cancelled order gives its coupon use back, so a limited coupon is
+      // not burned by orders that never happened.
+      for (const applied of order.appliedOffers || []) {
+        if (applied.offer) {
+          await Offer.updateOne(
+            { _id: applied.offer, "limits.usedCount": { $gt: 0 } },
+            { $inc: { "limits.usedCount": -1 } }
+          );
+        }
+      }
       if (order.payment.status === "paid") {
         await paymentService.refund(order, {
           reason: note || `Order ${to.toLowerCase()}`,
