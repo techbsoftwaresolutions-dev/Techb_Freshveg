@@ -16,6 +16,7 @@ import {
   IconWallet,
 } from "./AccountIcons";
 import SavedAddresses from "@/components/SavedAddresses";
+import ReferralPanel from "@/components/ReferralPanel";
 import { StatusBadge } from "./OrderCard";
 
 // The account screen as a phone sees it. It is only a different arrangement of
@@ -109,6 +110,8 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
           note={store?.name}
         />
       </div>
+
+      {user.referralCode ? <ReferralPanel code={user.referralCode} /> : null}
 
       <section className="am-card">
         <div className="am-card-head">

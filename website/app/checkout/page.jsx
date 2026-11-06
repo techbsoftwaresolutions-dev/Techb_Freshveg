@@ -35,6 +35,13 @@ function CheckoutInner() {
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState("");
 
+  // Coupon: a folded "Have a coupon code?" row; opens to a code box with the
+  // Apply button on its right.
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
+
   useEffect(() => {
     if (ready && !signedIn) router.replace("/login?next=/checkout");
   }, [ready, signedIn, router]);
@@ -70,6 +77,29 @@ function CheckoutInner() {
   }, [storeId, cartTotal]);
 
   const summary = cart.summary;
+  const appliedCoupon = (cart.offers?.applied || []).find((offer) => offer.code) || null;
+  const couponSaving = appliedCoupon?.discount || 0;
+  // Automatic offers keep their own row so the rows still add up to the total.
+  const otherOfferSaving = Math.max(0, (summary?.offerDiscount || 0) - couponSaving);
+
+  async function applyCoupon(event) {
+    event.preventDefault();
+    const value = couponCode.trim();
+    if (!value) return;
+    setCouponBusy(true);
+    setCouponError("");
+    try {
+      await cart.applyCoupon(value);
+      setCouponCode("");
+      setCouponOpen(false);
+    } catch (err) {
+      // The engine says why ("Add ₹120 more to use this"), which is more
+      // useful than a flat "invalid".
+      setCouponError(err.message);
+    } finally {
+      setCouponBusy(false);
+    }
+  }
 
   if (!ready || !summary) {
     return (
@@ -336,10 +366,16 @@ function CheckoutInner() {
                 </span>
                 <span>{rupees(summary.subtotal)}</span>
               </div>
-              {summary.offerDiscount > 0 ? (
+              {couponSaving > 0 ? (
+                <div className="bill-row save-row">
+                  <span className="label">Coupon ({appliedCoupon.code})</span>
+                  <span>− {rupees(couponSaving)}</span>
+                </div>
+              ) : null}
+              {otherOfferSaving > 0 ? (
                 <div className="bill-row save-row">
                   <span className="label">Offers</span>
-                  <span>− {rupees(summary.offerDiscount)}</span>
+                  <span>− {rupees(otherOfferSaving)}</span>
                 </div>
               ) : null}
               <div className={`bill-row${summary.deliveryFree ? " save-row" : ""}`}>
@@ -359,10 +395,60 @@ function CheckoutInner() {
                   <span>{rupees(summary.roundOff, { decimals: true })}</span>
                 </div>
               ) : null}
+              <div className="co-coupon">
+                {appliedCoupon ? (
+                  <div className="co-coupon-applied">
+                    <span className="co-coupon-icon" aria-hidden="true">%</span>
+                    <span className="co-coupon-text">
+                      <strong>{appliedCoupon.code}</strong> applied
+                      {appliedCoupon.discount ? <em> · you save {rupees(appliedCoupon.discount)}</em> : null}
+                    </span>
+                    <button type="button" className="co-coupon-remove" onClick={() => cart.removeCoupon().catch(() => {})}>
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="co-coupon-toggle"
+                      aria-expanded={couponOpen}
+                      onClick={() => setCouponOpen((open) => !open)}
+                    >
+                      <span className="co-coupon-icon" aria-hidden="true">%</span>
+                      <span>Have a coupon code?</span>
+                      <svg className="co-coupon-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                    {couponOpen ? (
+                      <form className="co-coupon-form" onSubmit={applyCoupon}>
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase().replace(/\s/g, ""))}
+                          placeholder="Enter coupon code"
+                          aria-label="Coupon code"
+                          autoComplete="off"
+                          spellCheck={false}
+                          autoFocus
+                        />
+                        <button className="co-coupon-apply" disabled={!couponCode.trim() || couponBusy}>
+                          {couponBusy ? "…" : "Apply"}
+                        </button>
+                      </form>
+                    ) : null}
+                    {couponError ? <p className="co-coupon-error" role="alert">{couponError}</p> : null}
+                  </>
+                )}
+              </div>
               <div className="bill-row total">
                 <span>{method === "cod" ? "Pay on delivery" : "To pay"}</span>
                 <span>{rupees(summary.total)}</span>
               </div>
+              {couponSaving > 0 ? (
+                <p className="co-saved">You saved {rupees(couponSaving)} with {appliedCoupon.code}</p>
+              ) : null}
             </div>
 
             {summary.cashbackEarned > 0 ? (

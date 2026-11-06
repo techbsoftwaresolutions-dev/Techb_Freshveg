@@ -24,6 +24,13 @@ export const metadata = {
   alternates: { canonical: "/" },
 };
 
+// Hand-made art for the launch coupons; any other offer shows the image the
+// admin uploaded for it.
+const PROMO_ART = {
+  WEEKEND100: "/promo-weekend-grocery.jpg",
+  FIRST30: "/promo-fresh-vegetables-replacement.jpg",
+};
+
 // Sold-out products sink to the end of a row rather than leading it — a shelf
 // that opens on "Sold out" reads as an empty store.
 const inStockFirst = (products) =>
@@ -99,11 +106,11 @@ export default async function HomePage() {
 
           {offers.length ? (
             <div className="promo-row" id="offers">
-              {offers.slice(0, 3).map((offer, index) => (
+              {offers.slice(0, 6).map((offer, index) => (
                 <article key={offer.id} className={`promo tone-${index % 3}`}>
                   {offer.image ? (
                     <img
-                      src={index === 0 ? "/promo-weekend-grocery.jpg" : index === 1 ? "/promo-fresh-vegetables-replacement.jpg" : index === 2 ? "/promo-first-order-basket.jpg" : img(offer.image, 600)}
+                      src={PROMO_ART[offer.code] || img(offer.image, 600)}
                       alt=""
                       className="promo-image"
                     />

@@ -25,6 +25,7 @@ const blank = {
   status: "draft",
   combinable: false,
   priority: 0,
+  limits: { perCustomer: 0, totalUses: 0 },
 };
 
 // The date-time picker works in "YYYY-MM-DDTHH:mm" in local time, not
@@ -558,6 +559,26 @@ function OfferModal({ value, categories, saving, onClose, onSave }) {
               </Field>
               <Field label="Priority">
                 <input type="number" value={form.priority} onChange={(e) => set("priority", Number(e.target.value))} />
+              </Field>
+            </div>
+            <div className="grid cols-2">
+              <Field label="Uses per customer" help="Coupons default to 1. Enter a higher number to allow repeat use.">
+                <input
+                  type="number"
+                  min="0"
+                  value={form.limits?.perCustomer || ""}
+                  placeholder="1"
+                  onChange={(e) => setForm((f) => ({ ...f, limits: { ...f.limits, perCustomer: Math.max(0, Number(e.target.value) || 0) } }))}
+                />
+              </Field>
+              <Field label="Total uses" help="Leave empty for unlimited.">
+                <input
+                  type="number"
+                  min="0"
+                  value={form.limits?.totalUses || ""}
+                  placeholder="Unlimited"
+                  onChange={(e) => setForm((f) => ({ ...f, limits: { ...f.limits, totalUses: Math.max(0, Number(e.target.value) || 0) } }))}
+                />
               </Field>
             </div>
             <SwitchRow

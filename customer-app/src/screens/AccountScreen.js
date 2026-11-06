@@ -183,7 +183,7 @@ function ReferralCard({ code }) {
 
   const share = async () => {
     const reward = info && running ? ` We both get a reward: you get ${give} on your first order and I earn ${earn}.` : "";
-    const message = `Shop fresh groceries on Hosur Basket! Use my referral code ${code} when you sign up.${reward}\n${WEB_BASE_URL}`;
+    const message = `Shop fresh groceries on Hosur Basket! Use my referral code ${code} when you sign up.${reward}\n${WEB_BASE_URL}/login?ref=${code}`;
     try {
       await Share.share({ message });
     } catch {

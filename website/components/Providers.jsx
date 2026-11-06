@@ -82,8 +82,8 @@ export function Providers({ children }) {
 
   const requestOtp = useCallback((phone) => api.post("/auth/otp/request", { phone }), []);
 
-  const verifyOtp = useCallback(async (phone, code, name) => {
-    const data = await api.post("/auth/otp/verify", { phone, code, name });
+  const verifyOtp = useCallback(async (phone, code, name, referralCode) => {
+    const data = await api.post("/auth/otp/verify", { phone, code, name, ...(referralCode ? { referralCode } : {}) });
     saveSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     setUser(data.user);
     return data;

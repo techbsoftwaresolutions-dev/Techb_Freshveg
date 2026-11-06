@@ -365,7 +365,13 @@ router.get(
 
     const [tree, offers, featured, topCategories] = await Promise.all([
       categoryService.buildTree({ status: "active", maxDepth: 1 }),
-      Offer.find({ status: "active", isFeatured: true }).limit(8),
+      // Every offer the admin has switched on, strongest first. This used to
+      // need a hidden "featured" flag the admin form never offered, so a new
+      // offer was running but never reached the home page.
+      Offer.find({ status: "active" })
+        .sort({ priority: -1, createdAt: -1 })
+        .limit(12)
+        .then((rows) => rows.filter((o) => o.isLive())),
       Product.find({ status: "active", isFeatured: true })
         .select(PRODUCT_CARD_FIELDS)
         .limit(12)
