@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CallButton from "@/components/CallButton";
 
 export const metadata = {
   title: "Help Center",
@@ -36,7 +37,7 @@ const TOPICS = [
 
 export default function HelpPage() {
   return (
-    <div className="wrap wrap-narrow">
+    <div className="wrap wrap-narrow help-page">
       <header className="page-title">
         <h1>Help Center</h1>
         <p>Pick what you need, or call us.</p>
@@ -57,9 +58,9 @@ export default function HelpPage() {
       <section className="panel help-card help-call">
         <h2>Talk to us</h2>
         <p>Call and we will help with an order, a payment or anything else.</p>
-        <a href="tel:+919003597158" className="btn primary">
+        <CallButton phone="+919003597158" label="+91 90035 97158" title="Call Hosur Basket" className="btn primary">
           Call +91 90035 97158
-        </a>
+        </CallButton>
         <p className="help-terms">
           <Link href="/terms">Terms &amp; Conditions</Link>
         </p>

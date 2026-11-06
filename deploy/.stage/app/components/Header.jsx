@@ -7,12 +7,14 @@ import { useAuth, useCart, useStore } from "./Providers";
 import { rupees } from "@/lib/format";
 import { FreeDeliveryNote } from "./FreeDeliveryProgress";
 
+const SEARCH_HINTS = ["fruits", "vegetables", "milk", "bread", "eggs", "rice", "snacks", "soap", "groceries"];
+
 export default function Header({ categories = [] }) {
   const router = useRouter();
   const params = useSearchParams();
   const pathname = usePathname();
   const cart = useCart();
-  const { user, signedIn } = useAuth();
+  const { user, signedIn, signOut } = useAuth();
   const { store, pincode, setPincode } = useStore();
 
   const [term, setTerm] = useState(params.get("q") || "");
@@ -25,6 +27,52 @@ export default function Header({ categories = [] }) {
   // clicked, or the route changes.
   const [pinnedCategory, setPinnedCategory] = useState(null);
   const catbarRef = useRef(null);
+  const catScrollRef = useRef(null);
+  const [catEdge, setCatEdge] = useState({ start: true, end: true });
+
+  // The category strip scrolls sideways without a visible scrollbar; the
+  // round arrows below it take over, and hide themselves at either end.
+  useEffect(() => {
+    const el = catScrollRef.current;
+    if (!el) return undefined;
+    const measure = () =>
+      setCatEdge({
+        start: el.scrollLeft <= 1,
+        end: el.scrollLeft >= el.scrollWidth - el.clientWidth - 1,
+      });
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      observer.disconnect();
+    };
+  }, [categories]);
+
+  const scrollCats = (direction) => {
+    const el = catScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * Math.max(el.clientWidth * 0.6, 240), behavior: "smooth" });
+  };
+
+  // The "My Account" dropdown in the top strip.
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef(null);
+  useEffect(() => setAccountOpen(false), [pathname]);
+  useEffect(() => {
+    if (!accountOpen) return undefined;
+    const onDown = (event) => {
+      if (accountRef.current && !accountRef.current.contains(event.target)) setAccountOpen(false);
+    };
+    const onKey = (event) => event.key === "Escape" && setAccountOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [accountOpen]);
 
   // Commented out for now — the department flyout menus (Fresh Vegetables /
   // Fresh Fruits etc. opening a submenu of their subcategories) are disabled
@@ -47,7 +95,9 @@ export default function Header({ categories = [] }) {
       }
     };
     document.addEventListener("mousedown", onDocPointerDown);
-    return () => document.removeEventListener("mousedown", onDocPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocPointerDown);
+    };
   }, []);
 
   // Keep the box in step when the user lands on /search?q= from elsewhere.
@@ -65,6 +115,54 @@ export default function Header({ categories = [] }) {
     const q = term.trim();
     if (onListing) tellListing(q);
     else if (q.length >= 2) router.push(`/search?q=${encodeURIComponent(q)}`);
+  };
+
+  // The empty search box cycles through suggestions ("milk", "bread"…), sliding
+  // up one at a time. Gone as soon as the shopper types.
+  const [hint, setHint] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return undefined;
+    const timer = setInterval(() => setHint((n) => (n + 1) % SEARCH_HINTS.length), 2600);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Voice search (browser speech recognition). The mic only appears where the
+  // browser supports it, so it never sits there doing nothing.
+  const [micOk, setMicOk] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognition = useRef(null);
+  useEffect(() => {
+    setMicOk(Boolean(window.SpeechRecognition || window.webkitSpeechRecognition));
+    return () => recognition.current?.abort?.();
+  }, []);
+
+  const toggleMic = () => {
+    if (listening) {
+      recognition.current?.stop();
+      return;
+    }
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Speech) return;
+    const rec = new Speech();
+    rec.lang = "en-IN";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onstart = () => setListening(true);
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    rec.onresult = (event) => {
+      const heard = (event.results?.[0]?.[0]?.transcript || "").replace(/[.?!]+$/, "").trim();
+      if (!heard) return;
+      setTerm(heard);
+      if (onListing) tellListing(heard);
+      else if (heard.length >= 2) router.push(`/search?q=${encodeURIComponent(heard)}`);
+    };
+    recognition.current = rec;
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+    }
   };
 
   // Track Order, Help Center, Terms, Cart, Account and Sign In are reading pages: no category bar
@@ -90,29 +188,59 @@ export default function Header({ categories = [] }) {
           <span className="utility-item utility-wide">Freshness You Can Trust</span>
           <FreeDeliveryNote className="utility-item utility-promo" withSeparator />
           <span className="utility-spacer" />
-          <Link href="/orders" className="utility-item">
-            <IconTruck className="utility-icon" />
-            Track Order
-          </Link>
           <Link href="/help" className="utility-item utility-wide">
             <IconHelp className="utility-icon" />
             Help Center
           </Link>
-          {/* Always /account, even signed out: the destination must not depend
-              on client-only state, or the server and client render different
-              hrefs and hydration fails. /account redirects to /login by
-              itself, so the behaviour is identical either way. */}
-          <Link href="/account" className="utility-item">
-            <IconUser className="utility-icon" />
-            {/* The label depends on the stored session, which the server
-                render cannot see — suppressHydrationWarning sits on the
-                element whose own text varies, because React only suppresses
-                a mismatch for the element that carries it. */}
-            <span suppressHydrationWarning>
-              {signedIn ? user.name?.split(" ")[0] || "My Account" : "My Account"}
-            </span>
-            <IconCaret className="utility-caret" aria-hidden="true" />
-          </Link>
+          {/* The label depends on the stored session, which the server render
+              cannot see — suppressHydrationWarning sits on the element whose
+              own text varies. The menu itself only renders once opened, which
+              is always after hydration, so it can freely depend on signedIn. */}
+          <div className="account-menu" ref={accountRef}>
+            <button
+              type="button"
+              className="utility-item account-menu-btn"
+              aria-haspopup="menu"
+              aria-expanded={accountOpen}
+              onClick={() => setAccountOpen((open) => !open)}
+            >
+              <IconUser className="utility-icon" />
+              <span suppressHydrationWarning>
+                {signedIn ? user.name?.split(" ")[0] || "My Account" : "My Account"}
+              </span>
+              <IconCaret className={`utility-caret${accountOpen ? " open" : ""}`} aria-hidden="true" />
+            </button>
+
+            {accountOpen ? (
+              <div className="account-menu-pop" role="menu">
+                {signedIn ? (
+                  <>
+                    <Link href="/account" role="menuitem">My Account</Link>
+                    <Link href="/orders" role="menuitem">My Orders</Link>
+                    <Link href="/account/edit" role="menuitem">Edit Profile</Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="account-menu-out"
+                      onClick={() => {
+                        setAccountOpen(false);
+                        signOut();
+                        router.push("/");
+                      }}
+                    >
+                      Sign out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login" role="menuitem" className="account-menu-primary">Sign in / Sign up</Link>
+                    <Link href="/orders" role="menuitem">Track Order</Link>
+                    <Link href="/help" role="menuitem">Help Center</Link>
+                  </>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -134,12 +262,27 @@ export default function Header({ categories = [] }) {
               setTerm(e.target.value);
               if (onListing) tellListing(e.target.value);
             }}
-            placeholder="Search for fruits, vegetables, groceries and more…"
-            aria-label="Search products"
+            placeholder=""
+            aria-label="Search for fruits, vegetables, groceries and more"
           />
-          <button type="submit" aria-label="Search">
-            <IconSearch className="search-form-submit-icon" />
-          </button>
+          {term ? null : (
+            <span className="search-hint" aria-hidden="true">
+              <span key={hint} className="search-hint-text">
+                Search for “{SEARCH_HINTS[hint]}”
+              </span>
+            </span>
+          )}
+          {micOk ? (
+            <button
+              type="button"
+              className={`search-mic${listening ? " listening" : ""}`}
+              onClick={toggleMic}
+              aria-label={listening ? "Stop voice search" : "Search by voice"}
+              aria-pressed={listening}
+            >
+              <IconMic className="search-form-submit-icon" />
+            </button>
+          ) : null}
         </form>
 
         <div className="header-actions">
@@ -161,7 +304,7 @@ export default function Header({ categories = [] }) {
 
           <span className="header-divider" aria-hidden="true" />
 
-          <Link href="/cart" className="header-btn cart-btn">
+          <button type="button" className="header-btn cart-btn" aria-haspopup="dialog" aria-controls="cart-drawer" onClick={() => window.dispatchEvent(new Event("open-cart"))}>
             <span className="cart-btn-icon">
               <IconCart className="header-btn-icon" />
               <span className="cart-badge" suppressHydrationWarning>
@@ -176,16 +319,31 @@ export default function Header({ categories = [] }) {
                 {rupees(cart.summary?.total)}
               </span>
             </span>
-          </Link>
+          </button>
         </div>
       </div>
 
       {pinOpen ? <PincodeBar onDone={() => setPinOpen(false)} setPincode={setPincode} store={store} /> : null}
 
       <nav className="catbar" aria-label="Categories" ref={catbarRef}>
-        <div className="wrap catbar-inner">
+        <div className="wrap catbar-layout">
+          <div className="catbar-scroll" ref={catScrollRef}>
+            <button
+              type="button"
+              className="catbar-arrow prev"
+              onClick={() => scrollCats(-1)}
+              hidden={catEdge.start}
+              aria-label="Scroll categories left"
+            >‹</button>
+            <button
+              type="button"
+              className="catbar-arrow next"
+              onClick={() => scrollCats(1)}
+              hidden={catEdge.end}
+              aria-label="Scroll categories right"
+            >›</button>
+            <div className="catbar-inner">
           <Link href="/c" className="catbar-all">
-            <IconMenu className="catbar-all-icon" />
             All Categories
           </Link>
           {categories.map((category) => {
@@ -253,10 +411,9 @@ export default function Header({ categories = [] }) {
               </div>
             );
           })}
-          <span className="catbar-spacer" />
-          <Link href="/c?sort=discount" className="catbar-offers">
-            Offers
-          </Link>
+          <Link href="/c?sort=discount" className="catbar-offers">Offers</Link>
+            </div>
+          </div>
         </div>
       </nav>
     </header>
@@ -283,33 +440,31 @@ function PincodeBar({ onDone, setPincode, store }) {
   };
 
   return (
-    <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg-alt)" }}>
-      <div className="wrap" style={{ padding: "14px 20px" }}>
-        <form onSubmit={check} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <strong style={{ fontSize: 14 }}>Check delivery:</strong>
+    <div className="pincode-bar">
+      <div className="wrap pincode-inner">
+        <form onSubmit={check} className="pincode-form">
+          <span className="pincode-pin" aria-hidden="true"><IconPin /></span>
+          <strong className="pincode-title">Check delivery</strong>
           <input
+            className="pincode-input"
             type="tel"
             value={value}
             onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
             placeholder="6-digit pincode"
-            style={{ width: 170 }}
             aria-label="Pincode"
           />
-          <button className="btn primary" disabled={value.length !== 6 || busy}>
+          <button className="btn primary pincode-submit" disabled={value.length !== 6 || busy}>
             {busy ? "Checking…" : "Check"}
           </button>
           {store ? (
-            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            <span className="pincode-serving">
               Currently serving from <strong>{store.name}</strong>
             </span>
           ) : null}
         </form>
 
         {result ? (
-          <p
-            className={`notice ${result.serviceable ? "save" : "error"}`}
-            style={{ marginTop: 12, marginBottom: 0 }}
-          >
+          <p className={`notice ${result.serviceable ? "save" : "error"} pincode-result`}>
             {result.serviceable
               ? `We deliver here — ${result.store.name}, about ${result.prepTimeMinutes} minutes.`
               : result.message || "We don't deliver to this pincode yet."}
@@ -330,6 +485,15 @@ function IconPin(props) {
     </svg>
   );
 }
+function IconMic(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" />
+    </svg>
+  );
+}
+
 function IconSearch(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>

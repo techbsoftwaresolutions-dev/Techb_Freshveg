@@ -118,7 +118,30 @@ async function call(method, path, { body, query, retry = true } = {}) {
   return payload;
 }
 
+// Sends one image as the raw request body (what the upload routes expect).
+async function uploadImage(path, blob, retry = true) {
+  const session = loadSession();
+  const response = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": blob.type || "image/jpeg",
+      ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+    },
+    body: blob,
+  });
+  if (response.status === 401 && retry && session?.refreshToken) {
+    const renewed = await refreshSession();
+    if (renewed) return uploadImage(path, blob, false);
+  }
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.success === false) {
+    throw new ApiError(response.status, payload.error?.message || "Upload failed", payload.error?.details);
+  }
+  return payload;
+}
+
 export const api = {
+  upload: uploadImage,
   get: (path, query) => call("GET", path, { query }),
   post: (path, body) => call("POST", path, { body }),
   patch: (path, body) => call("PATCH", path, { body }),

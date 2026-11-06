@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export const metadata = {
   title: "Terms & Conditions",
   description: "The terms and conditions for shopping on Hosur Basket.",
@@ -12,9 +10,6 @@ export default function TermsPage() {
   return (
     <div className="wrap">
       <header className="page-title">
-        <Link href="/account" className="section-link">
-          ← Back to account
-        </Link>
         <h1>Terms &amp; Conditions</h1>
         <p>Effective {EFFECTIVE_DATE}</p>
       </header>

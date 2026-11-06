@@ -104,13 +104,26 @@ variantSchema.virtual("unitPrice").get(function unitPrice() {
   };
 });
 
-variantSchema.pre("validate", function buildAxisKey(next) {
+// What makes one variant different from its siblings. Normally that is its axis
+// values (size=500ml). A category with no variant axis has none, so two packs of
+// the same product ("500 ml" and "1 L") would both fingerprint as "" and
+// collide on the unique index — or silently overwrite each other when saved.
+// For those, the pack's own name tells them apart. A single unnamed variant
+// keeps the empty key it has always had.
+function keyFor(axisValues, name) {
   // Sorted by code so { colour, size } and { size, colour } fingerprint the
   // same — otherwise the uniqueness index would let a duplicate through.
-  this.axisKey = (this.axisValues || [])
+  const axis = (axisValues || [])
     .map((a) => `${a.code}=${a.value}`)
     .sort()
     .join("|");
+  if (axis) return axis;
+  const label = String(name || "").trim().toLowerCase();
+  return label ? `name=${label}` : "";
+}
+
+variantSchema.pre("validate", function buildAxisKey(next) {
+  this.axisKey = keyFor(this.axisValues, this.name);
 
   if (!this.name && this.axisValues?.length) {
     this.name = this.axisValues.map((a) => a.label || a.value).join(" / ");
@@ -122,4 +135,6 @@ variantSchema.pre("validate", function buildAxisKey(next) {
   return next();
 });
 
-module.exports = mongoose.model("Variant", variantSchema);
+const Variant = mongoose.model("Variant", variantSchema);
+Variant.keyFor = keyFor;
+module.exports = Variant;

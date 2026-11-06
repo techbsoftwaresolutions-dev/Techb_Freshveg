@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { discountPct, img, rupees } from "@/lib/format";
+import { discountPct, img, offerLabel, productMedia, rupees } from "@/lib/format";
 import AddToCart from "./AddToCart";
 import WishlistButton from "./WishlistButton";
 
@@ -9,7 +9,7 @@ export default function ProductCard({ product }) {
   const price = product.priceFrom;
   const mrp = product.mrpFrom;
   const off = discountPct(mrp, price);
-  const primaryMedia = product.media?.[0];
+  const primaryMedia = productMedia(product)[0];
   const image = primaryMedia?.url;
   // Falls back to dead-center for older photos saved before this existed.
   const focalX = primaryMedia?.focalX ?? 50;
@@ -59,6 +59,7 @@ export default function ProductCard({ product }) {
         </h3>
       </NameWrap>
       <div className="card-pack">{size}</div>
+      {offerLabel(product.offer) ? <span className={`offer-tag ${product.offer.kind}`}>{offerLabel(product.offer)}</span> : null}
 
       <div className="card-foot">
         <div>

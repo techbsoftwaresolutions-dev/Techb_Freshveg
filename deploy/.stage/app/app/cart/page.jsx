@@ -9,6 +9,7 @@ import { useAuth, useCart, useStore } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import AddToCart from "@/components/AddToCart";
 import EmptyState from "@/components/EmptyState";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { rupees } from "@/lib/format";
 
 export default function CartPage() {
@@ -23,6 +24,8 @@ export default function CartPage() {
   const [code, setCode] = useState("");
   const [couponError, setCouponError] = useState("");
   const [applying, setApplying] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const summary = cart.summary;
 
@@ -53,13 +56,15 @@ export default function CartPage() {
 
   // Empties the cart through the API's own "clear" and re-reads it.
   async function clearCart() {
-    if (!window.confirm("Remove all items from your cart?")) return;
+    setClearing(true);
     try {
       await api.del("/cart", { store: store?.id });
     } catch {
       // fall through — the refresh below shows what the cart really holds
     }
     await cart.refresh();
+    setClearing(false);
+    setClearOpen(false);
   }
 
   const checkout = () => router.push(signedIn ? "/checkout" : "/login?next=/checkout");
@@ -90,7 +95,7 @@ export default function CartPage() {
             {itemCount} item{itemCount === 1 ? "" : "s"}
           </p>
         </div>
-        <button type="button" className="cart-clear" onClick={clearCart}>
+        <button type="button" className="cart-clear" onClick={() => setClearOpen(true)}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5" />
           </svg>
@@ -279,6 +284,16 @@ export default function CartPage() {
           </svg>
         </button>
       </div>
+      <ConfirmDialog
+        open={clearOpen}
+        title="Clear your cart?"
+        message="All items will be removed from your cart. This can't be undone."
+        confirmLabel="Yes, clear cart"
+        cancelLabel="Keep items"
+        busy={clearing}
+        onConfirm={clearCart}
+        onCancel={() => setClearOpen(false)}
+      />
     </div>
   );
 }

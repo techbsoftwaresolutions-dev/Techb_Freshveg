@@ -10,6 +10,7 @@ const User = require("../auth/user.model");
 const Payment = require("../payments/payment.model");
 const Category = require("../catalog/category.model");
 const cache = require("../../core/cache");
+const { dateBounds } = require("../../core/dateRange");
 
 const router = express.Router();
 router.use(requireAuth, requirePermission("reports.view"));
@@ -22,13 +23,15 @@ const CLOSED_SALE = ["DELIVERED"];
 const LIVE = { $nin: ["CANCELLED", "REJECTED"] };
 
 function range(query) {
-  const to = query.to ? new Date(query.to) : new Date();
-  to.setHours(23, 59, 59, 999);
-
-  const from = query.from ? new Date(query.from) : new Date(to);
-  if (!query.from) from.setDate(from.getDate() - 29);
-  from.setHours(0, 0, 0, 0);
-
+  // A plain day (2026-10-26) is a whole IST day — see core/dateRange.js.
+  const bounds = dateBounds(query.from, query.to) || {};
+  const to = bounds.$lte || (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d; })();
+  const from = bounds.$gte || (() => {
+    const d = new Date(to);
+    d.setDate(d.getDate() - 29);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
   return { from, to };
 }
 

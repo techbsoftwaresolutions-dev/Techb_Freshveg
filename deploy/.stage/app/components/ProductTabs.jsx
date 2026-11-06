@@ -1,52 +1,51 @@
 "use client";
 
-import { useState } from "react";
 import ReviewsPanel from "./ReviewsPanel";
 
-// Description / Ingredients / Reviews, switched client-side. Ingredients
-// only appears when the product actually has that text — the field exists
-// on every product, but nothing is seeded with it yet, so most products
-// simply won't show the tab rather than showing an empty one.
-export default function ProductTabs({ product }) {
-  const tabs = [
-    { key: "description", label: "Description" },
-    ...(product.ingredients ? [{ key: "ingredients", label: "Ingredients" }] : []),
-    { key: "reviews", label: product.rating?.count ? `Reviews (${product.rating.count})` : "Reviews" },
-  ];
-  const [active, setActive] = useState(tabs[0].key);
-
+// Product information stays together in compact, expandable rows.
+export default function ProductTabs({ product, specs = [] }) {
   return (
-    <section className="pdp-tabs">
-      <div className="pdp-tab-list" role="tablist">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={active === tab.key}
-            className={`pdp-tab${active === tab.key ? " on" : ""}`}
-            onClick={() => setActive(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="pdp-tab-body" role="tabpanel">
-        {active === "description" ? (
-          product.description ? (
-            <p style={{ color: "var(--text-muted)" }}>{product.description}</p>
+    <section className="pdp-accordions" aria-label="Product information">
+      <details className="pdp-accordion">
+        <summary>Description</summary>
+        <div className="pdp-accordion-body">
+          {product.description ? (
+            <p>{product.description}</p>
           ) : (
-            <p style={{ color: "var(--text-faint)" }}>No description yet.</p>
-          )
-        ) : null}
+            <p className="muted">No description yet.</p>
+          )}
+          {product.ingredients ? <p><strong>Ingredients:</strong> {product.ingredients}</p> : null}
+        </div>
+      </details>
 
-        {active === "ingredients" ? (
-          <p style={{ color: "var(--text-muted)", whiteSpace: "pre-line" }}>{product.ingredients}</p>
-        ) : null}
+      <details className="pdp-accordion">
+        <summary>Product Details</summary>
+        {specs.length ? (
+          <dl className="pdp-accordion-specs">
+            {specs.map((spec) => (
+              <div key={spec.label}>
+                <dt>{spec.label}</dt>
+                <dd>{formatSpec(spec.value)}{spec.unit ? ` ${spec.unit}` : ""}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <div className="pdp-accordion-body"><p className="muted">No product details available.</p></div>
+        )}
+      </details>
 
-        {active === "reviews" ? <ReviewsPanel productId={product.id} rating={product.rating} /> : null}
-      </div>
+      <details className="pdp-accordion">
+        <summary>{product.rating?.count ? `Reviews (${product.rating.count})` : "Reviews"}</summary>
+        <div className="pdp-accordion-body">
+          <ReviewsPanel productId={product.id} rating={product.rating} />
+        </div>
+      </details>
     </section>
   );
+}
+
+function formatSpec(value) {
+  if (Array.isArray(value)) return value.join(", ");
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value);
 }
