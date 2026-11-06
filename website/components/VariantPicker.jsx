@@ -1,5 +1,6 @@
 "use client";
 
+import { gateCheckout } from "@/lib/launch";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AddToCart from "./AddToCart";
@@ -224,11 +225,11 @@ export default function VariantPicker({ product, variants }) {
               setBuying(true);
               try {
                 if (multi) {
-                  if (await addAll()) router.push("/checkout");
+                  if (await addAll()) { if (!gateCheckout()) router.push("/checkout"); };
                   return;
                 }
                 if (cart.quantityOf(variant.id) <= 0) await cart.add(variant.id, pendingQty);
-                router.push("/checkout");
+                { if (!gateCheckout()) router.push("/checkout"); };
               } catch {
                 // The cart's error toast already says what went wrong.
               } finally {

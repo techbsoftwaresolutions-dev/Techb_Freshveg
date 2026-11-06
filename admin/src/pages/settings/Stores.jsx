@@ -1,5 +1,5 @@
 import Select from "../../components/Select";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
@@ -260,6 +260,11 @@ export function StoreFormPage() {
                 name: draft.name,
                 status: draft.status,
                 servicePincodes: draft.servicePincodes,
+                // The named areas inside each pincode — they were never sent, so
+                // they vanished on reload.
+                pincodeAreas: draft.pincodeAreas || [],
+                // The area the website prices for shoppers who have not given one.
+                defaultArea: draft.defaultArea || "",
                 settings: draft.settings,
               });
               return `/settings/stores?saved=${encodeURIComponent(draft.name)}`;
@@ -335,10 +340,41 @@ function StoreModal({ value, saving, onClose, onSave }) {
   const [pinOpen, setPinOpen] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [areaInput, setAreaInput] = useState("");
+  // Which area is in focus: null = all of them, otherwise an index into
+  // form.pincodeAreas (an index, so renaming the area does not lose the focus).
+  // It opens on the store's saved default area, if it has one.
+  const [focusArea, setFocusArea] = useState(() => {
+    const i = (value.pincodeAreas || []).findIndex((r) => r.area && r.area === value.defaultArea);
+    return i >= 0 ? i : null;
+  });
+  const areaListRef = useRef(null);
+  // Brand-wise packaging: the brand list loads the first time the panel opens.
+  const [brandsOpen, setBrandsOpen] = useState(false);
+  const [brandList, setBrandList] = useState(null);
+  const [brandSearch, setBrandSearch] = useState("");
+  useEffect(() => {
+    if (!brandsOpen || brandList) return;
+    api
+      .get("/catalog/brands", { limit: 100 })
+      .then((res) => setBrandList(res.items || []))
+      .catch(() => setBrandList([]));
+  }, [brandsOpen, brandList]);
   const badPincodes = parsePincodes(pinInput).invalid;
   // An area is a named place inside a pincode ("NGGO Colony" in 635109);
   // several areas can share one pincode.
   const areaEntries = form.pincodeAreas || [];
+  // The area picked in the pincode box (null = All areas). While one is picked,
+  // the Delivery charge field below shows and edits that area's own charge.
+  const focusEntry = focusArea !== null ? areaEntries[focusArea] || null : null;
+  const storeCharge = form.settings?.deliveryCharge || 0;
+  // The area chosen here is the one the website prices for shoppers who have not
+  // given an area of their own (see pricing.service). "All areas" = none: the
+  // store's normal charge. It is saved with the rest of the store.
+  const chosenArea = focusEntry?.area || "";
+  useEffect(() => {
+    setForm((f) => ((f.defaultArea || "") === chosenArea ? f : { ...f, defaultArea: chosenArea }));
+  }, [chosenArea]);
+  const shownCharge = focusEntry && Number.isFinite(focusEntry.deliveryCharge) ? focusEntry.deliveryCharge : storeCharge;
   const areasOf = (code) => areaEntries.filter((r) => r.pincode === code).map((r) => r.area);
   function addPincodes() {
     const { valid, invalid } = parsePincodes(pinInput);
@@ -360,17 +396,53 @@ function StoreModal({ value, saving, onClose, onSave }) {
     // Anything that was not a 6-digit pincode stays in the box to be fixed.
     setPinInput(invalid.join(", "));
     setAreaInput("");
+    // Show every area again (a single-area filter would hide the new one) and
+    // bring the newly added row, at the bottom of the list, into view.
+    setFocusArea(null);
+    setTimeout(() => {
+      const list = areaListRef.current;
+      if (list && list.lastElementChild) list.lastElementChild.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 60);
   }
   const removePincode = (code) =>
+    setFocusArea(null) ||
     setForm((f) => ({
       ...f,
       servicePincodes: f.servicePincodes.filter((c) => c !== code),
       pincodeAreas: (f.pincodeAreas || []).filter((r) => r.pincode !== code),
     }));
   const removeArea = (entry) =>
+    setFocusArea(null) ||
     setForm((f) => ({
       ...f,
       pincodeAreas: (f.pincodeAreas || []).filter((r) => !(r.pincode === entry.pincode && r.area === entry.area)),
+    }));
+  const setAreaCharge = (index, text) =>
+    setForm((f) => ({
+      ...f,
+      pincodeAreas: (f.pincodeAreas || []).map((r, i) => {
+        if (i !== index) return r;
+        const { deliveryCharge, ...rest } = r;
+        const rupees = text === "" ? null : Math.max(0, Math.round(Number(text)));
+        return rupees === null || Number.isNaN(rupees) ? rest : { ...rest, deliveryCharge: rupees * 100 };
+      }),
+    }));
+  // "Free above ₹X" for one area: an order at or above it gets free delivery to
+  // that area; below it pays the area's charge. Blank = no area rule.
+  const setAreaFreeAbove = (index, text) =>
+    setForm((f) => ({
+      ...f,
+      pincodeAreas: (f.pincodeAreas || []).map((r, i) => {
+        if (i !== index) return r;
+        const { freeAbove, ...rest } = r;
+        const rupees = text === "" ? null : Math.max(0, Math.round(Number(text)));
+        return rupees === null || Number.isNaN(rupees) || rupees === 0 ? rest : { ...rest, freeAbove: rupees * 100 };
+      }),
+    }));
+  const renameArea = (index, name) =>
+    setForm((f) => ({
+      ...f,
+      pincodeAreas: (f.pincodeAreas || []).map((r, i) => (i === index ? { ...r, area: name } : r)),
     }));
   const setSetting = (key, next) =>
     setForm((f) => ({ ...f, settings: { ...f.settings, [key]: next } }));
@@ -508,8 +580,8 @@ function StoreModal({ value, saving, onClose, onSave }) {
               <div className={`pin-dd${pinOpen ? " open" : ""}`}>
                 <button type="button" className="pin-dd-trigger" aria-expanded={pinOpen} onClick={() => setPinOpen((o) => !o)}>
                   <span className="pin-dd-value">
-                    {form.servicePincodes.length
-                      ? form.servicePincodes.map((c) => (areasOf(c).length ? `${c} (${areasOf(c).join(", ")})` : c)).join(", ")
+                    {areaEntries.length || form.servicePincodes.length
+                      ? `${areaEntries.length ? `${areaEntries.length} ${areaEntries.length === 1 ? "area" : "areas"} · ` : ""}${form.servicePincodes.length} ${form.servicePincodes.length === 1 ? "pincode" : "pincodes"}`
                       : "No pincodes yet"}
                   </span>
                   <svg className="pin-dd-chevron" viewBox="0 0 10 10" width="12" height="12" fill="none" aria-hidden="true">
@@ -556,13 +628,75 @@ function StoreModal({ value, saving, onClose, onSave }) {
                     {badPincodes.length ? (
                       <span className="error">Not 6-digit pincodes: {badPincodes.join(", ")}</span>
                     ) : null}
+                    {areaEntries.length > 1 ? (
+                      <div className="pin-focus" role="tablist" aria-label="Show area">
+                        <button type="button" role="tab" aria-selected={focusArea === null} className={`pin-focus-chip${focusArea === null ? " on" : ""}`} onClick={() => setFocusArea(null)}>
+                          All areas
+                        </button>
+                        {areaEntries.map((entry, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            role="tab"
+                            aria-selected={focusArea === index}
+                            className={`pin-focus-chip${focusArea === index ? " on" : ""}`}
+                            onClick={() => setFocusArea(index)}
+                          >
+                            {entry.area || "—"}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                     {form.servicePincodes.length ? (
-                      <div className="pin-areas">
+                      <div className="pin-areas" ref={areaListRef}>
                         {areaEntries
-                          .filter((r) => form.servicePincodes.includes(r.pincode))
-                          .map((entry) => (
-                            <div key={`${entry.pincode}:${entry.area}`} className="pin-area-row">
-                              <strong className="pin-area-name">{entry.area}</strong>
+                          .map((entry, index) => ({ entry, index }))
+                          .filter(({ entry, index }) => form.servicePincodes.includes(entry.pincode) && (focusArea === null || focusArea === index))
+                          .map(({ entry, index }) => (
+                            <div key={index} className="pin-area-row">
+                              {/* Click the name to rename it (fix a spelling, say). */}
+                              <input
+                                className="pin-area-edit"
+                                value={entry.area}
+                                maxLength={40}
+                                aria-label={`Area name for ${entry.pincode}`}
+                                title="Click to rename"
+                                onChange={(e) => renameArea(index, e.target.value)}
+                                onBlur={(e) => renameArea(index, e.target.value.trim())}
+                              />
+                              {/* Delivery charge for this area alone. Blank = the store's
+                                  normal charge; 0 = free delivery to this area. */}
+                              <label className={`pin-area-fee${entry.deliveryCharge === 0 ? " free" : ""}`} title="Delivery charge for this area. Blank = store charge · 0 = always free">
+                                <small className="pin-fee-label">Charge</small>
+                                <span>₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  inputMode="numeric"
+                                  placeholder={String(Math.round((form.settings?.deliveryCharge || 0) / 100))}
+                                  value={entry.deliveryCharge === undefined || entry.deliveryCharge === null ? "" : entry.deliveryCharge / 100}
+                                  onChange={(e) => setAreaCharge(index, e.target.value)}
+                                  aria-label={`Delivery charge for ${entry.area}`}
+                                />
+                                {entry.deliveryCharge === 0 ? <b>Free</b> : null}
+                              </label>
+                              {/* Orders at or above this value get free delivery to this area;
+                                  smaller orders pay the charge. Blank = no area rule. */}
+                              <label className={`pin-area-fee${entry.freeAbove > 0 ? " free" : ""}`} title="Orders at or above this amount get free delivery here; below it they pay the charge">
+                                <small className="pin-fee-label">Free above</small>
+                                <span>₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  inputMode="numeric"
+                                  placeholder="—"
+                                  value={entry.freeAbove > 0 ? entry.freeAbove / 100 : ""}
+                                  onChange={(e) => setAreaFreeAbove(index, e.target.value)}
+                                  aria-label={`Free delivery above, for ${entry.area}`}
+                                />
+                              </label>
                               <span className="pick-chip on static pin-chip">{entry.pincode}</span>
                               <button type="button" className="pin-area-remove" aria-label={`Remove ${entry.area}`} onClick={() => removeArea(entry)}>
                                 ×
@@ -570,7 +704,7 @@ function StoreModal({ value, saving, onClose, onSave }) {
                             </div>
                           ))}
                         {form.servicePincodes
-                          .filter((code) => !areasOf(code).length)
+                          .filter((code) => focusArea === null && !areasOf(code).length)
                           .map((code) => (
                             <div key={code} className="pin-area-row">
                               <span className="pin-area-name muted">Whole pincode</span>
@@ -595,16 +729,88 @@ function StoreModal({ value, saving, onClose, onSave }) {
                   <input type="number" min="0" value={(form.settings?.minOrderValue || 0) / 100} onChange={money("minOrderValue")} />
                 </Affix>
               </Field>
-              <Field label="Delivery charge">
+              <Field label={focusEntry ? `Delivery charge · ${focusEntry.area}` : "Delivery charge"}>
                 <Affix prefix="₹">
-                  <input type="number" min="0" value={(form.settings?.deliveryCharge || 0) / 100} onChange={money("deliveryCharge")} />
+                  <input
+                    type="number"
+                    min="0"
+                    value={shownCharge / 100}
+                    onChange={(e) => (focusEntry ? setAreaCharge(focusArea, e.target.value === "" ? "0" : e.target.value) : money("deliveryCharge")(e))}
+                  />
                 </Affix>
               </Field>
               <Field label="Packaging charge">
-                <Affix prefix="₹">
-                  <input type="number" min="0" value={(form.settings?.packagingCharge || 0) / 100} onChange={money("packagingCharge")} />
-                </Affix>
+                <div className="pack-row">
+                  <Affix prefix="₹">
+                    <input type="number" min="0" value={(form.settings?.packagingCharge || 0) / 100} onChange={money("packagingCharge")} />
+                  </Affix>
+                  <button
+                    type="button"
+                    className={`pack-brand-toggle${brandsOpen ? " open" : ""}`}
+                    aria-expanded={brandsOpen}
+                    onClick={() => setBrandsOpen((o) => !o)}
+                    title="Set a different packaging charge for particular brands"
+                  >
+                    By brand
+                    {(form.settings?.brandPackaging || []).length ? <b>{(form.settings.brandPackaging || []).length}</b> : null}
+                    <svg viewBox="0 0 10 10" width="11" height="11" fill="none" aria-hidden="true">
+                      <path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
               </Field>
+              {brandsOpen ? (
+                <div className="pack-brands" style={{ gridColumn: "1 / -1" }}>
+                  <div className="pack-brands-head">
+                    <strong>Packaging charge by brand</strong>
+                    <input
+                      type="search"
+                      className="pack-brands-search"
+                      placeholder="Search brands"
+                      value={brandSearch}
+                      onChange={(e) => setBrandSearch(e.target.value)}
+                    />
+                  </div>
+                  {brandList === null ? (
+                    <p className="muted">Loading brands…</p>
+                  ) : !brandList.length ? (
+                    <p className="muted">No brands yet.</p>
+                  ) : (
+                    <div className="pack-brands-grid">
+                      {brandList
+                        .filter((b) => b.name.toLowerCase().includes(brandSearch.trim().toLowerCase()))
+                        .map((b) => {
+                          const rule = (form.settings?.brandPackaging || []).find((r) => String(r.brand) === String(b.id));
+                          return (
+                            <label key={b.id} className={`pack-brand${rule ? " set" : ""}`}>
+                              <span className="pack-brand-name">{b.name}</span>
+                              <span className="pack-brand-fee">
+                                <span>₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  inputMode="numeric"
+                                  placeholder={String(Math.round((form.settings?.packagingCharge || 0) / 100))}
+                                  value={rule ? rule.charge / 100 : ""}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    setForm((f) => {
+                                      const others = (f.settings?.brandPackaging || []).filter((r) => String(r.brand) !== String(b.id));
+                                      const next = raw === "" ? others : [...others, { brand: b.id, charge: Math.max(0, Math.round(Number(raw) * 100)) }];
+                                      return { ...f, settings: { ...f.settings, brandPackaging: next } };
+                                    });
+                                  }}
+                                  aria-label={`Packaging charge for ${b.name}`}
+                                />
+                              </span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              ) : null}
               <Field label="Max COD value">
                 <Affix prefix="₹">
                   <input type="number" min="0" value={(form.settings?.maxCodValue || 0) / 100} onChange={money("maxCodValue")} />
@@ -715,7 +921,7 @@ function StoreModal({ value, saving, onClose, onSave }) {
           <ul className="offer-facts">
             <li><span>Delivers to</span><b>{form.servicePincodes.length} pincodes</b></li>
             <li><span>Minimum order</span><b>{rupees(form.settings?.minOrderValue || 0)}</b></li>
-            <li><span>Delivery charge</span><b>{rupees(form.settings?.deliveryCharge || 0)}</b></li>
+            <li><span>{focusEntry ? `Delivery · ${focusEntry.area}` : "Delivery charge"}</span><b>{rupees(shownCharge)}</b></li>
             <li><span>Delivery time</span><b>{deliveryOptions(form.settings).find((o) => o.value === deliveryTimeOf(form.settings))?.label}</b></li>
             <li><span>After-hours orders</span><b>After {clock12(form.settings?.orderCutoff || "19:00")} → {clock12(form.settings?.morningDelivery || "07:00")}</b></li>
             <li><span>Free delivery</span><b>{freeOn && freeAmount > 0 ? `Above ₹${freeAmount}` : "Off"}</b></li>

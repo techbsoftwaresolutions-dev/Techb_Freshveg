@@ -75,7 +75,7 @@ module.exports = [
     // The one update worth an SMS/WhatsApp: it is the message people actually act on.
     channels: ["push", "sms", "inapp", "whatsapp"],
     default: t("Out for delivery 🛵", "{{partner}} is on the way with {{code}}. Expected by {{eta}}. Track: http://localhost:3100/orders/{{orderId}}", "order:{{orderId}}"),
-    sms: t("", "Your Samagra Mart order {{code}} is out for delivery. Share code {{otp}} at the door."),
+    sms: t("", "Your Hosur Basket order {{code}} is out for delivery. Share code {{otp}} at the door."),
     whatsapp: t("Out for delivery 🛵", "Your order {{code}} is out for delivery with {{partner}}! Expected by {{eta}}. Share handover OTP {{otp}} at the door. Track live: http://localhost:3100/orders/{{orderId}}"),
   },
   {

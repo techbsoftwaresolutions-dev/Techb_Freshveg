@@ -95,12 +95,24 @@ export default function ProductForm() {
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // State updates are not instant, so a quick double-click (or Save draft then
+  // Publish) used to fire two requests and create the product twice. The ref
+  // blocks the second one immediately; savedId makes any later save of a
+  // brand-new product update it instead of creating another.
+  const savingRef = useRef(false);
+  const savedIdRef = useRef(null);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [notice, setNotice] = useState("");
   // Flipped on the first failed save; from then on the checklist is re-run on
   // every edit, so each message disappears as soon as its field is filled in.
   const [submitted, setSubmitted] = useState(false);
+
+  // A different route (new → saved product, or another product) starts clean.
+  useEffect(() => {
+    savingRef.current = false;
+    savedIdRef.current = null;
+  }, [id, isNew, fromId]);
 
   useEffect(() => {
     Promise.all([
@@ -202,6 +214,7 @@ export default function ProductForm() {
   const formErrors = submitted ? validate() : { variants: {}, attributes: {} };
 
   async function save({ publish } = {}) {
+    if (savingRef.current) return;
     const errs = validate();
     if (hasErrors(errs)) {
       setSubmitted(true);
@@ -217,6 +230,7 @@ export default function ProductForm() {
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     setError("");
     setFieldErrors({});
@@ -269,13 +283,18 @@ export default function ProductForm() {
     };
 
     try {
-      const result = isNew
-        ? await api.post("/catalog/products", payload)
-        : await api.patch(`/catalog/products/${id}`, payload);
+      const existingId = isNew ? savedIdRef.current : id;
+      const result = existingId
+        ? await api.patch(`/catalog/products/${existingId}`, payload)
+        : await api.post("/catalog/products", payload);
 
       setNotice("Saved.");
-      if (isNew) navigate(`/catalog/products/${result.product.id}`, { replace: true });
-      else {
+      if (isNew) {
+        // Stay locked: we are about to leave this page for the saved product.
+        savedIdRef.current = result.product.id;
+        navigate(`/catalog/products/${result.product.id}`, { replace: true });
+        return;
+      } else {
         setProduct((p) => ({ ...p, ...result.product, category: product.category, brand: product.brand }));
         setVariants(result.variants);
       }
@@ -285,6 +304,8 @@ export default function ProductForm() {
       // render against the right inputs.
       if (err.details) setFieldErrors(err.details);
     } finally {
+      // After creating a product we leave this page; keep the lock until then.
+      if (!(isNew && savedIdRef.current)) savingRef.current = false;
       setSaving(false);
     }
   }
@@ -852,7 +873,27 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
   // Index of the photo whose options popup is open, or null.
   const [picked, setPicked] = useState(null);
   const [dragging, setDragging] = useState(false);
+  // Drag-to-reorder: which thumbnail is being dragged, and which one it is over.
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
+  // An image is being dragged over the "Add" tile itself.
+  const [addOver, setAddOver] = useState(false);
   const pickedItem = picked !== null ? media[picked] : null;
+
+  // A file dropped slightly outside the zone would make the browser navigate
+  // to the image and lose the unsaved form — swallow those drops.
+  useEffect(() => {
+    if (!editable) return undefined;
+    const stop = (e) => {
+      if (Array.from(e.dataTransfer?.types || []).includes("Files")) e.preventDefault();
+    };
+    window.addEventListener("dragover", stop);
+    window.addEventListener("drop", stop);
+    return () => {
+      window.removeEventListener("dragover", stop);
+      window.removeEventListener("drop", stop);
+    };
+  }, [editable]);
 
   useEffect(() => {
     if (picked === null) return undefined;
@@ -907,6 +948,37 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
     next.unshift(picked);
     onChange(next);
   };
+
+  // Move a photo to a new position (drop it onto another thumbnail). Dropping
+  // on the first slot makes it the primary photo.
+  const moveTo = (from, to) => {
+    if (from === null || to === null || from === to) return;
+    const next = [...media];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onChange(next);
+  };
+  const endReorder = () => { setDragIndex(null); setOverIndex(null); setAddOver(false); };
+  // An outside drop: image files from the computer, or an image dragged from
+  // another web page (arrives as a URL, which we fetch and upload).
+  const hasOutsideImage = (e) => {
+    if (dragIndex !== null) return false;
+    const types = Array.from(e.dataTransfer?.types || []);
+    return types.includes("Files") || types.includes("text/uri-list");
+  };
+  async function dropImages(dt) {
+    if (dt.files && dt.files.length) return handleFiles(dt.files);
+    const url = (dt.getData("text/uri-list") || dt.getData("text/plain") || "").split("\n")[0].trim();
+    if (!/^https?:\/\//i.test(url)) return undefined;
+    try {
+      const blob = await (await fetch(url)).blob();
+      const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+      return handleFiles([new File([blob], `image.${ext}`, { type: blob.type })]);
+    } catch {
+      setError("Couldn't read that image from the other page — save it to your computer and drop the file instead.");
+      return undefined;
+    }
+  }
 
   return (
     <Card
@@ -979,23 +1051,52 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
 
       <div
         className={`photo-zone${dragging ? " dragging" : ""}`}
-        onDragOver={(e) => {
-          if (!editable) return;
+        onDragEnter={(e) => {
+          if (!editable || !hasOutsideImage(e)) return;
           e.preventDefault();
           setDragging(true);
         }}
-        onDragLeave={() => setDragging(false)}
+        onDragOver={(e) => {
+          if (!editable || !hasOutsideImage(e)) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => { setDragging(false); setAddOver(false); }}
         onDrop={(e) => {
-          if (!editable) return;
+          if (!editable || !hasOutsideImage(e)) return;
           e.preventDefault();
           setDragging(false);
-          handleFiles(e.dataTransfer.files);
+          setAddOver(false);
+          dropImages(e.dataTransfer);
         }}
       >
       {media.length ? (
         <div className="media-grid">
           {media.map((item, index) => (
-            <div key={`${item.url}-${index}`} className="media-item">
+            <div
+              key={`${item.url}-${index}`}
+              className={`media-item${editable ? " draggable" : ""}${dragIndex === index ? " is-dragging" : ""}${overIndex === index && dragIndex !== null && dragIndex !== index ? " drop-target" : ""}`}
+              draggable={editable && !uploading}
+              onDragStart={(e) => {
+                setDragIndex(index);
+                e.dataTransfer.effectAllowed = "move";
+                try { e.dataTransfer.setData("text/plain", String(index)); } catch { /* ignore */ }
+              }}
+              onDragOver={(e) => {
+                if (dragIndex === null) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (overIndex !== index) setOverIndex(index);
+              }}
+              onDrop={(e) => {
+                if (dragIndex === null) return;
+                e.preventDefault();
+                e.stopPropagation();
+                moveTo(dragIndex, index);
+                endReorder();
+              }}
+              onDragEnd={endReorder}
+            >
               {/* Click a photo to open its options: make it the main photo,
                   remove it, or choose where its crop is centred. */}
               <button
@@ -1008,6 +1109,7 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
                 <img
                   src={item.url}
                   alt={item.alt || ""}
+                  draggable={false}
                   style={{ objectPosition: `${item.focalX ?? 50}% ${item.focalY ?? 50}%` }}
                 />
                 {index === 0 ? <span className="media-primary">Primary</span> : null}
@@ -1015,9 +1117,37 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
             </div>
           ))}
           {editable ? (
-            <label className="photo-add-tile" title="Add more photos">
-              <span>＋</span>
-              Add
+            <label
+              className={`photo-add-tile${addOver ? " drag-over" : ""}`}
+              title="Add more photos — or drop an image here"
+              onDragEnter={(e) => {
+                if (dragIndex === null && !hasOutsideImage(e)) return;
+                e.preventDefault();
+                setAddOver(true);
+              }}
+              onDragOver={(e) => {
+                if (dragIndex === null && !hasOutsideImage(e)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = dragIndex !== null ? "move" : "copy";
+                setAddOver(true);
+              }}
+              onDragLeave={() => setAddOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setAddOver(false);
+                setDragging(false);
+                if (dragIndex !== null) {
+                  // A photo from the row dropped on Add: send it to the end.
+                  moveTo(dragIndex, media.length - 1);
+                  endReorder();
+                } else if (hasOutsideImage(e)) {
+                  dropImages(e.dataTransfer);
+                }
+              }}
+            >
+              <span>{uploading ? "…" : addOver ? "⤓" : "＋"}</span>
+              {uploading ? "Uploading" : addOver ? (dragIndex !== null ? "Move to end" : "Drop to add") : "Add"}
               <input
                 type="file"
                 accept={ACCEPTED_IMAGE_TYPES.join(",")}

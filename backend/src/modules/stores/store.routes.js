@@ -42,12 +42,29 @@ function syncAreas(body) {
   const served = Array.isArray(body.servicePincodes) ? body.servicePincodes.map(String) : null;
   const seen = new Set();
   body.pincodeAreas = (Array.isArray(body.pincodeAreas) ? body.pincodeAreas : [])
-    .map((r) => ({ pincode: String(r?.pincode || ""), area: String(r?.area || "").trim().slice(0, 40) }))
+    .map((r) => {
+      const charge = r?.deliveryCharge === null || r?.deliveryCharge === "" || r?.deliveryCharge === undefined ? null : Number(r.deliveryCharge);
+      const above = r?.freeAbove === null || r?.freeAbove === "" || r?.freeAbove === undefined ? null : Number(r.freeAbove);
+      return {
+        pincode: String(r?.pincode || ""),
+        area: String(r?.area || "").trim().slice(0, 40),
+        // Whole paise, never negative; anything else means "use the store's charge".
+        ...(Number.isInteger(charge) && charge >= 0 ? { deliveryCharge: charge } : {}),
+        // Order value from which delivery to this area is free (whole paise, above zero).
+        ...(Number.isInteger(above) && above > 0 ? { freeAbove: above } : {}),
+      };
+    })
     .filter((r) => /^\d{6}$/.test(r.pincode) && r.area && (!served || served.includes(r.pincode)))
     .filter((r) => {
       const key = `${r.pincode}:${r.area.toLowerCase()}`;
       return !seen.has(key) && seen.add(key);
     });
+  // The default area has to be one of the areas that survived.
+  if ("defaultArea" in body) {
+    const wanted = String(body.defaultArea || "").trim().toLowerCase();
+    const real = body.pincodeAreas.find((r) => r.area.toLowerCase() === wanted);
+    body.defaultArea = real ? real.area : "";
+  }
 }
 
 function syncDeliveryTime(body) {
@@ -84,6 +101,8 @@ router.get(
       stores: stores.map((s) => ({
         id: s.id, name: s.name, code: s.code, type: s.type,
         address: s.address, isOpen: s.isOpenNow(), settings: s.settings,
+        // Lets a shopper who never typed a pincode still be asked which area they are in.
+        servicePincodes: s.servicePincodes || [],
       })),
     });
   })

@@ -14,6 +14,7 @@ export default function ProductCard({ product }) {
   // Falls back to dead-center for older photos saved before this existed.
   const focalX = primaryMedia?.focalX ?? 50;
   const focalY = primaryMedia?.focalY ?? 50;
+  const objectPosition = product.slug === "pencil-sharpener" ? "53% 50%" : `${focalX}% ${focalY}%`;
   const outOfStock = product.inStock === false;
 
   const multi = product.variantCount > 1;
@@ -40,7 +41,7 @@ export default function ProductCard({ product }) {
               alt={product.name}
               loading="lazy"
               decoding="async"
-              style={{ objectPosition: `${focalX}% ${focalY}%` }}
+              style={{ objectPosition }}
             />
           ) : null}
           {off > 0 && !outOfStock ? <span className="badge">{off}% OFF</span> : null}
@@ -58,8 +59,10 @@ export default function ProductCard({ product }) {
           {product.name}
         </h3>
       </NameWrap>
-      <div className="card-pack">{size}</div>
-      {offerLabel(product.offer) ? <span className={`offer-tag ${product.offer.kind}`}>{offerLabel(product.offer)}</span> : null}
+      <div className="card-meta">
+        <span className="card-pack">{size}</span>
+        {offerLabel(product.offer) ? <span className={`offer-tag ${product.offer.kind}`}>{offerLabel(product.offer)}</span> : null}
+      </div>
 
       <div className="card-foot">
         <div>

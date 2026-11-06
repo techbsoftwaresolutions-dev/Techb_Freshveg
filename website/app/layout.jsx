@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import ComingSoonModal from "@/components/ComingSoonModal";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FooterGate from "@/components/FooterGate";
@@ -99,6 +100,7 @@ export default async function RootLayout({ children }) {
 
           <main>{children}</main>
           <CartDrawer />
+          <ComingSoonModal />
 
           <FooterGate>
             <Footer categories={categories} />

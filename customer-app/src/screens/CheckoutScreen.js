@@ -6,6 +6,8 @@ import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, Loading, Notice, Pill } from "../components/ui";
+import { storeOpen } from "../launch";
+import ComingSoonModal from "../components/ComingSoonModal";
 
 export default function CheckoutScreen({ navigation }) {
   const { user, refreshUser } = useAuth();
@@ -20,6 +22,7 @@ export default function CheckoutScreen({ navigation }) {
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState("");
   const [addingAddress, setAddingAddress] = useState(false);
+  const [comingSoon, setComingSoon] = useState(false);
 
   const addresses = user?.addresses || [];
   const summary = cart.summary;
@@ -59,6 +62,7 @@ export default function CheckoutScreen({ navigation }) {
   );
 
   async function placeOrder() {
+    if (!storeOpen()) return setComingSoon(true);
     setPlacing(true);
     setError("");
     try {
@@ -83,6 +87,7 @@ export default function CheckoutScreen({ navigation }) {
 
   return (
     <View style={styles.screen}>
+      <ComingSoonModal visible={comingSoon} onClose={() => setComingSoon(false)} />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 130, gap: spacing.md }}>
         {error ? <Notice tone="error">{error}</Notice> : null}
 

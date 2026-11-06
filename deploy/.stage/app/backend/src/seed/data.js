@@ -686,7 +686,7 @@ const offers = [
 const stores = [
   {
     code: "HSR01",
-    name: "Samagra Mart — Hosur",
+    name: "Hosur Basket — Hosur",
     type: "store",
     address: { line1: "12, Bazaar Street", city: "Hosur", state: "Tamil Nadu", pincode: "635109" },
     location: { type: "Point", coordinates: [77.8253, 12.7409] },
@@ -708,7 +708,7 @@ const stores = [
   },
   {
     code: "BLR01",
-    name: "Samagra Mart — Bangalore",
+    name: "Hosur Basket — Bangalore",
     type: "dark_store",
     address: { line1: "Unit 4, Electronic City", city: "Bengaluru", state: "Karnataka", pincode: "560100" },
     location: { type: "Point", coordinates: [77.6603, 12.8452] },
@@ -732,7 +732,7 @@ const users = [
   {
     name: "Super Admin",
     phone: "9000000000",
-    email: "superadmin@samagramart.local",
+    email: "superadmin@hosurbasket.local",
     role: "super_admin",
     password: "superadmin123",
     status: "active",
@@ -740,7 +740,7 @@ const users = [
   {
     name: "Store Admin",
     phone: "9000000001",
-    email: "admin@samagramart.local",
+    email: "admin@hosurbasket.local",
     role: "admin",
     password: "admin123",
     status: "active",
@@ -755,7 +755,7 @@ const users = [
   {
     name: "Kumar (Delivery)",
     phone: "9000000003",
-    email: "kumar@samagramart.local",
+    email: "kumar@hosurbasket.local",
     role: "delivery_partner",
     password: "delivery123",
     status: "active",
@@ -763,7 +763,7 @@ const users = [
   {
     name: "Ravi (Delivery)",
     phone: "9000000004",
-    email: "ravi@samagramart.local",
+    email: "ravi@hosurbasket.local",
     role: "delivery_partner",
     password: "delivery123",
     status: "active",

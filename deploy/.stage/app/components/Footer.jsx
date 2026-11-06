@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ContactUs from "./ContactUs";
 
 // Only pages that exist are linked. About, careers and FAQs have no route
 // yet — they join these lists when they do, rather than sitting here as
@@ -35,7 +36,7 @@ export default function Footer({ categories = [] }) {
               <li><Link href="/help">Help Center</Link></li>
               <li><Link href="/orders">Track Order</Link></li>
               <li><Link href="/orders">Returns &amp; Refunds</Link></li>
-              <li><a href="tel:+919003597158">Contact Us</a></li>
+              <li><ContactUs /></li>
               <li><Link href="/terms">Terms &amp; Conditions</Link></li>
             </ul>
           </div>

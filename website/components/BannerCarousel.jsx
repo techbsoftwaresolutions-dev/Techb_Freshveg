@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { categoryImage, img } from "@/lib/format";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const ROTATE_MS = 4500;
@@ -55,8 +55,8 @@ export default function BannerCarousel({ banners = [], categories = [] }) {
   const banner = banners[index];
   const href = hrefFor(banner.target);
   const produce = categories
-    .filter((category) => category.image && /fruit|vegetable|produce|grocery/i.test(category.name))
-    .concat(categories.filter((category) => category.image))
+    .filter((category) => categoryImage(category) && /fruit|vegetable|produce|grocery/i.test(category.name))
+    .concat(categories.filter((category) => categoryImage(category)))
     .filter((category, i, all) => all.findIndex((item) =>
       (item.id && item.id === category.id) ||
       (item.slug && item.slug === category.slug) ||
@@ -79,7 +79,7 @@ export default function BannerCarousel({ banners = [], categories = [] }) {
   // slide uses the bundled basket pictures in /public/banner-art, one per slide.
   const photo = banner.image
     ? img(banner.image, 1400)
-    : BUNDLED_ART[index % BUNDLED_ART.length] || (featuredProduce ? img(featuredProduce.image, 1000) : "");
+    : BUNDLED_ART[index % BUNDLED_ART.length] || (featuredProduce ? img(categoryImage(featuredProduce), 1000) : "");
 
   const content = (
     <div className="bn-slide">

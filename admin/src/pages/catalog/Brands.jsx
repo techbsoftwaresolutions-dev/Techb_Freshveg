@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import FormRoute from "../../components/FormRoute";
-import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, useConfirm } from "../../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table, useConfirm, ChipDropdown } from "../../components/ui";
 
 const TONES = ["green", "blue", "amber", "violet", "pink", "indigo"];
 const toneFor = (name = "") => TONES[[...name].reduce((n, ch) => n + ch.charCodeAt(0), 0) % TONES.length];
@@ -101,20 +101,7 @@ export default function Brands() {
             onChange={(e) => set("search", e.target.value)}
           />
         </span>
-        <div className="chip-row brand-tabs" role="tablist" aria-label="Status">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.value || "all"}
-              type="button"
-              role="tab"
-              aria-selected={filters.status === tab.value}
-              className={`cat-chip${filters.status === tab.value ? " on" : ""}`}
-              onClick={() => set("status", tab.value)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown ariaLabel="Status" options={STATUS_TABS} value={filters.status} onChange={(v) => set("status", v)} />
       </div>
 
       <Card tight>

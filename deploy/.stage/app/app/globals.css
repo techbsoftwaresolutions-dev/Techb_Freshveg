@@ -4746,3 +4746,383 @@ body:has(.cart-page) .logo-img { height: 32px; }
   .legal-page h2 { font-size: 16px; }
   .legal-page p { font-size: 14px; }
 }
+
+/* Search box: no filled button; a plain mic at the right (voice search) */
+.search-form button.search-mic,
+.search-form button.search-mic:hover {
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+}
+.search-form button.search-mic:hover { background: var(--bg-alt); }
+.search-form button.search-mic.listening { color: var(--btn); background: var(--btn-soft); animation: mic-pulse 1.2s ease-in-out infinite; }
+.search-form button.search-mic .search-form-submit-icon { width: 22px; height: 22px; }
+.search-form input[type="search"] { padding-right: 54px; }
+@keyframes mic-pulse { 50% { box-shadow: 0 0 0 6px rgba(84, 127, 26, 0.15); } }
+@media (max-width: 720px) {
+  .search-form button.search-mic,
+  .search-form button.search-mic:hover { width: 36px; height: 36px; right: 6px; }
+  .search-form input[type="search"] { padding-right: 48px; }
+}
+
+/* Phone browse header, reference style: round back · title + "Delivering to"
+   pill · round search · round share. Search text stays hidden until the
+   search icon is tapped. */
+@media (max-width: 720px) {
+  .cat-mobile-head.ref { gap: 6px; padding: 5px 8px; margin: 0 -6px 4px; border-bottom: 1px solid var(--border); }
+  .cat-mobile-head.ref .cat-mobile-btn.round {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface, #fff);
+  }
+  .cat-mobile-head.ref.searching .cat-mobile-btn.round { border: none; background: none; }
+  .cat-mobile-pill {
+    flex: 1;
+    min-width: 0;
+    height: 38px;
+    padding: 0 13px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface, #fff);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.2;
+  }
+  .cat-mobile-pill strong {
+    font-size: 13.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cat-mobile-pill span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--brand-dark, #2f5d17);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cat-mobile-pill span b { font-weight: 500; }
+  .cat-mobile-pill svg { flex: 0 0 auto; width: 11px; height: 11px; color: var(--text); }
+  .cat-mobile-head.ref .cat-mobile-btn.round svg { width: 18px; height: 18px; }
+}
+
+/* Phone browse header: search row under the title bar */
+@media (max-width: 720px) {
+  .cat-mobile-head.ref { flex-wrap: wrap; }
+  .cat-search-row {
+    flex: 1 0 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin: 2px 0 0;
+  }
+  .cat-search-row input[type="search"] {
+    width: 100%;
+    height: 40px;
+    padding: 0 44px 0 38px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface, #fff);
+    font-size: 13.5px;
+    color: var(--text);
+  }
+  .cat-search-row input[type="search"]:focus { outline: none; border-color: var(--btn, #547f1a); box-shadow: 0 0 0 3px var(--btn-soft, #eef5e1); }
+  .cat-search-lead { position: absolute; left: 12px; width: 17px; height: 17px; color: var(--text-muted); pointer-events: none; }
+  .cat-search-tail {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .cat-search-tail svg { width: 19px; height: 19px; }
+  .cat-search-tail.listening { color: var(--btn, #547f1a); background: var(--btn-soft, #eef5e1); animation: mic-pulse 1.2s ease-in-out infinite; }
+}
+
+/* search lives in the title bar again (icon opens it); the extra row is gone */
+@media (max-width: 720px) {
+  .cat-mobile-head.ref { flex-wrap: nowrap; }
+  .cat-search-row { display: none; }
+  .cat-mobile-head.ref.searching .cat-search-field { height: 38px; }
+  .cat-mobile-btn.round.listening { color: var(--btn, #547f1a); background: var(--btn-soft, #eef5e1); }
+}
+
+/* title pill removed: back on the left, search + share on the right */
+.cat-mobile-spacer { flex: 1; }
+
+/* the empty middle is a larger pill that opens search when tapped */
+@media (max-width: 720px) {
+  .cat-mobile-head.ref { gap: 8px; padding: 7px 8px; }
+  .cat-mobile-head.ref .cat-mobile-btn.round { flex: 0 0 42px; width: 42px; height: 42px; }
+  .cat-mobile-head.ref .cat-mobile-btn.round svg { width: 20px; height: 20px; }
+  .cat-mobile-pill.cat-mobile-pill-btn { height: 46px; padding: 0; cursor: text; }
+  .cat-mobile-head.ref.searching .cat-search-field { height: 46px; }
+}
+
+/* open search: one full-width field between back and the edge, with the mic
+   and ✕ inside it */
+@media (max-width: 720px) {
+  .cat-mobile-head.ref.searching { gap: 8px; }
+  .cat-mobile-head.ref.searching .cat-search-field {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 46px;
+    padding: 0 6px 0 18px;
+    gap: 2px;
+    animation: none;
+  }
+  .cat-mobile-head.ref.searching .cat-search-field input { font-size: 15px; }
+  .cat-field-btn {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .cat-field-btn svg { width: 19px; height: 19px; }
+  .cat-field-btn.listening { color: var(--btn, #547f1a); background: var(--btn-soft, #eef5e1); }
+}
+
+/* open search, final sizing: a slimmer single field; the inner input carries
+   no border/ring of its own (only the outer field does) */
+@media (max-width: 720px) {
+  .cat-mobile-head.ref.searching { padding: 6px 8px; gap: 6px; }
+  .cat-mobile-head.ref.searching .cat-search-field {
+    height: 38px;
+    padding: 0 4px 0 14px;
+    box-shadow: none;
+  }
+  .cat-mobile-head.ref.searching .cat-search-field:focus-within { box-shadow: 0 0 0 2px var(--btn-soft, #eef5e1); border-color: var(--btn, #547f1a); }
+  .cat-search-field input[type="search"],
+  .cat-search-field input[type="search"]:focus {
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+  }
+  .cat-mobile-head.ref.searching .cat-mobile-btn.round { flex: 0 0 36px; width: 36px; height: 36px; }
+  .cat-field-btn { flex: 0 0 30px; width: 30px; height: 30px; }
+  .cat-field-btn svg { width: 18px; height: 18px; }
+}
+
+/* phone browse header: smaller back / search / share buttons */
+@media (max-width: 720px) {
+  .cat-mobile-head.ref { gap: 6px; padding: 5px 8px; }
+  .cat-mobile-head.ref .cat-mobile-btn.round { flex: 0 0 34px; width: 34px; height: 34px; }
+  .cat-mobile-head.ref .cat-mobile-btn.round svg { width: 17px; height: 17px; }
+  .cat-mobile-pill.cat-mobile-pill-btn { height: 38px; }
+  .cat-mobile-head.ref.searching .cat-mobile-btn.round { flex: 0 0 34px; width: 34px; height: 34px; }
+}
+
+/* Product page, phone: no site footer */
+@media (max-width: 720px) {
+  body:has(.split.pdp) .footer { display: none; }
+}
+
+/* phone browse header: compact */
+@media (max-width: 720px) {
+  .cat-mobile-head.ref { gap: 6px; padding: 3px 8px; margin-bottom: 2px; }
+  .cat-mobile-head.ref .cat-mobile-btn.round,
+  .cat-mobile-head.ref.searching .cat-mobile-btn.round { flex: 0 0 30px; width: 30px; height: 30px; }
+  .cat-mobile-head.ref .cat-mobile-btn.round svg { width: 15px; height: 15px; }
+  .cat-mobile-pill.cat-mobile-pill-btn { height: 32px; }
+  .cat-mobile-head.ref.searching .cat-search-field { height: 34px; }
+  .cat-mobile-head.ref.searching .cat-search-field input[type="search"] { font-size: 13.5px; }
+  .cat-field-btn { flex: 0 0 28px; width: 28px; height: 28px; }
+}
+
+/* phone browse header: a little room above */
+@media (max-width: 720px) {
+  .cat-mobile-head.ref { padding-top: 12px; padding-bottom: 6px; }
+}
+
+/* Cart, phone: smaller title with the item count on the same line */
+@media (max-width: 720px) {
+  .cart-title { align-items: center; }
+  .cart-title > div { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .cart-title h1 { font-size: 20px; white-space: nowrap; }
+  .cart-title p { margin: 0; white-space: nowrap; }
+}
+
+/* Terms & Conditions: no search bar in the header */
+body:has(.legal-page) .search-form { display: none; }
+
+/* Help Center: no search bar in the header */
+body:has(.help-page) .search-form { display: none; }
+
+/* ------------------------------------------------------------ confirm popup */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(10, 30, 20, 0.5);
+  animation: review-fade 0.16s ease-out;
+}
+.confirm-dialog {
+  width: min(360px, 100%);
+  padding: 24px 22px 20px;
+  text-align: center;
+  background: var(--surface, #fff);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(10, 30, 20, 0.3);
+  animation: review-rise 0.2s ease-out;
+}
+.confirm-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fdecea;
+  color: #d93a2f;
+}
+.confirm-dialog h2 { margin: 0 0 6px; font-size: 18px; font-weight: 700; }
+.confirm-dialog p { margin: 0 0 20px; font-size: 14px; line-height: 1.5; color: var(--text-muted); }
+.confirm-actions { display: flex; gap: 10px; }
+.confirm-btn {
+  flex: 1;
+  height: 44px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  color: var(--text);
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.confirm-btn:hover:not(:disabled) { background: var(--bg-alt); }
+.confirm-btn.danger { border-color: #d93a2f; background: #d93a2f; color: #fff; }
+.confirm-btn.danger:hover:not(:disabled) { background: #bf2f25; }
+.confirm-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* Search box: suggestions scroll up inside the empty field */
+.search-hint {
+  position: absolute;
+  left: 46px;
+  right: 60px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  font-size: 14px;
+  color: var(--text-faint);
+}
+.search-hint-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: hint-up 0.45s ease-out;
+}
+@keyframes hint-up { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 720px) {
+  .search-hint { left: 42px; right: 52px; font-size: 13.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .search-hint-text { animation: none; } }
+
+/* Footer "Contact Us" opens a popup; the button reads like the other links */
+.footer-link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.78);
+  text-align: left;
+  cursor: pointer;
+}
+.footer-link-btn:hover { color: #fff; }
+
+.contact-dialog { position: relative; text-align: center; }
+.contact-icon { background: var(--btn-soft, #eef5e1); color: var(--btn, #547f1a); }
+.contact-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.contact-close:hover { background: var(--bg-alt); color: var(--text); }
+.contact-list { list-style: none; margin: 0 0 18px; padding: 0; text-align: left; }
+.contact-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+.contact-list li:first-child { border-top: 0; }
+.contact-list span { color: var(--text-muted); }
+.contact-list strong { font-weight: 600; text-align: right; }
+.confirm-btn.contact-call {
+  display: grid;
+  place-items: center;
+  border-color: var(--btn, #547f1a);
+  background: var(--btn, #547f1a);
+  color: #fff;
+  text-decoration: none;
+}
+.confirm-btn.contact-call:hover { background: var(--btn-dark, #3f6314); }
+/* the popup sits inside the dark footer: keep its own text colours */
+.contact-dialog { color: var(--text); }
+.contact-dialog h2 { color: var(--text); }
+.contact-dialog .contact-list strong { color: var(--text); }
+.confirm-btn.contact-call { font-size: 14.5px; font-weight: 600; }
+
+/* Top strip and footer use the same green as the website's buttons */
+.utility,
+.footer { background: var(--btn, #547f1a); }
+.footer a,
+.footer-link-btn { color: rgba(255, 255, 255, 0.92); }
+.footer a:hover,
+.footer-link-btn:hover { color: #fff; }
+.footer-base { color: rgba(255, 255, 255, 0.85); border-top-color: rgba(255, 255, 255, 0.22); }
+.footer-logo-tag { color: rgba(255, 255, 255, 0.85); }

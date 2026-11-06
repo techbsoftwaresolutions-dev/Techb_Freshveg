@@ -75,7 +75,7 @@ export default function AccountScreen({ navigation }) {
       {user.referralCode ? <ReferralCard code={user.referralCode} /> : null}
 
       {/* Addresses */}
-      <Card style={{ padding: spacing.md }}>
+      <Card style={{ padding: spacing.md }} onPress={() => navigation.navigate("Addresses")}>
         <Text style={type.h3}>Saved addresses</Text>
         {user.addresses?.length ? (
           user.addresses.map((address, index) => (
@@ -94,7 +94,7 @@ export default function AccountScreen({ navigation }) {
           ))
         ) : (
           <Text style={[type.small, { marginTop: spacing.sm }]}>
-            No addresses saved. You can add one at checkout.
+            No addresses saved. Tap to add one.
           </Text>
         )}
       </Card>
@@ -116,7 +116,9 @@ export default function AccountScreen({ navigation }) {
       <Card style={{ padding: 0 }}>
         {[
           { label: "My orders", onPress: () => navigation.navigate("OrdersTab") },
-          { label: "Help & support", onPress: () => Alert.alert("Support", "Support tickets are not built yet.") },
+          { label: "Saved items", onPress: () => navigation.navigate("Wishlist") },
+          { label: "Saved addresses", onPress: () => navigation.navigate("Addresses") },
+          { label: "Help & support", onPress: () => navigation.navigate("Support") },
           { label: unread ? `Notifications (${unread} new)` : "Notifications", onPress: () => navigation.navigate("Notifications") },
         ].map((item, index) => (
           <View key={item.label}>

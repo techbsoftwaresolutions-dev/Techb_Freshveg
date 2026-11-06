@@ -12,7 +12,7 @@ const settingsSchema = new mongoose.Schema(
     key: { type: String, default: "global", unique: true },
 
     company: {
-      name: { type: String, default: "Samagra Mart" },
+      name: { type: String, default: "Hosur Basket" },
       legalName: { type: String, default: "" },
       gstin: { type: String, default: "" },
       fssai: { type: String, default: "" },
@@ -103,7 +103,7 @@ const settingsSchema = new mongoose.Schema(
     },
 
     website: {
-      title: { type: String, default: "Samagra Mart" },
+      title: { type: String, default: "Hosur Basket" },
       tagline: { type: String, default: "Fresh from the market, at your door" },
       metaDescription: { type: String, default: "" },
       socialLinks: { type: mongoose.Schema.Types.Mixed, default: {} },

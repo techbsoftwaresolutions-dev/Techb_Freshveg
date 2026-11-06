@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text, TextInput } from "../components/AppText";
 import { useStore } from "../context/StoreContext";
+import { useCart } from "../context/CartContext";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Notice, Pill } from "../components/ui";
 
@@ -9,6 +10,7 @@ import { Button, Card, Notice, Pill } from "../components/ui";
 // stock and delivery charges, so it is asked once and remembered.
 export default function LocationScreen({ navigation }) {
   const { pincode, store, setPincode, setArea } = useStore();
+  const cart = useCart();
   const [value, setValue] = useState(pincode || "");
   const [result, setResult] = useState(null);
   const [checking, setChecking] = useState(false);
@@ -67,6 +69,8 @@ export default function LocationScreen({ navigation }) {
                   key={name}
                   onPress={async () => {
                     await setArea(name);
+                    // Delivery can be priced per area — re-price the cart.
+                    cart.refresh?.();
                     navigation.goBack();
                   }}
                   style={{

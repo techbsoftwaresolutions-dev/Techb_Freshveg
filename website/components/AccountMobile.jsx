@@ -71,13 +71,18 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
         <div className="am-profile-copy">
           <strong>{user.name || "Add your name"}</strong>
           <span>+91 {user.phone}</span>
-          <Link href="/account/edit" className="am-edit">
-            Edit profile
-          </Link>
         </div>
-        <button type="button" className="am-signout" onClick={onSignOut}>
-          Sign out
-        </button>
+        <div className="am-actions">
+          <Link href="/account/edit" className="am-edit-btn" aria-label="Edit profile" title="Edit profile">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </Link>
+          <button type="button" className="am-signout" onClick={onSignOut}>
+            Sign out
+          </button>
+        </div>
       </section>
 
       <div className="am-tiles">
@@ -122,18 +127,19 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
             return (
               <Link key={order.id} href={`/orders/${order.id}`} className="am-order">
                 <span className="am-order-thumb">{image ? <img src={image} alt="" loading="lazy" /> : items[0]?.name?.[0]}</span>
-                <span className="am-order-main">
-                  <strong className="tabular">{order.code}</strong>
-                  <span>{when(order.placedAt)}</span>
-                  <span>
-                    {items.length} item{items.length === 1 ? "" : "s"}
+                <span className="am-order-body">
+                  <span className="am-order-r1">
+                    <strong className="tabular am-order-code">{order.code}</strong>
+                    <strong className="am-order-total">{rupees(order.pricing?.total)}</strong>
+                  </span>
+                  <span className="am-order-r2">
+                    <span className="am-order-meta">
+                      {when(order.placedAt)} · {items.length} item{items.length === 1 ? "" : "s"}
+                    </span>
+                    <StatusBadge status={order.status} />
                   </span>
                 </span>
-                <span className="am-order-side">
-                  <strong>{rupees(order.pricing?.total)}</strong>
-                  <StatusBadge status={order.status} />
-                </span>
-                <IconChevron className="am-chev" width={16} height={16} />
+                <IconChevron className="am-chev" width={14} height={14} />
               </Link>
             );
           })

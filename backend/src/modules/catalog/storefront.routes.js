@@ -301,6 +301,18 @@ router.get(
       // The area this pincode stands for, when the admin has named it.
       areas: (store.pincodeAreas || []).filter((r) => r.pincode === pincode).map((r) => r.area),
       area: (store.pincodeAreas || []).find((r) => r.pincode === pincode)?.area || "",
+      // Per-area delivery charge where the admin set one (paise; 0 = free).
+      areaCharges: Object.fromEntries(
+        (store.pincodeAreas || [])
+          .filter((r) => r.pincode === pincode && Number.isFinite(r.deliveryCharge))
+          .map((r) => [r.area, r.deliveryCharge])
+      ),
+      // Per-area "free above" order value (paise), where the admin set one.
+      areaFreeAbove: Object.fromEntries(
+        (store.pincodeAreas || [])
+          .filter((r) => r.pincode === pincode && Number.isFinite(r.freeAbove) && r.freeAbove > 0)
+          .map((r) => [r.area, r.freeAbove])
+      ),
       isOpen: store.isOpenNow(),
       minOrderValue: store.settings.minOrderValue,
       freeDeliveryEnabled: store.settings.freeDeliveryEnabled !== false,

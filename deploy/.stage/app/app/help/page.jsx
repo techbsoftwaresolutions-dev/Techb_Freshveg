@@ -36,7 +36,7 @@ const TOPICS = [
 
 export default function HelpPage() {
   return (
-    <div className="wrap wrap-narrow">
+    <div className="wrap wrap-narrow help-page">
       <header className="page-title">
         <h1>Help Center</h1>
         <p>Pick what you need, or call us.</p>

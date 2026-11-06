@@ -50,3 +50,7 @@ const CATS = {
   console.log(`\nDone: ${p} products, ${c} categories updated. Refresh the website (cache is ~30s).`);
   await mongoose.disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });
+
+
+
+

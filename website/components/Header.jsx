@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "./Providers";
-import { rupees } from "@/lib/format";
 import { FreeDeliveryNote } from "./FreeDeliveryProgress";
 
 const SEARCH_HINTS = ["fruits", "vegetables", "milk", "bread", "eggs", "rice", "snacks", "soap", "groceries"];
@@ -19,6 +18,24 @@ export default function Header({ categories = [] }) {
 
   const [term, setTerm] = useState(params.get("q") || "");
   const [pinOpen, setPinOpen] = useState(false);
+  // The named area inside the pincode ("Hosur Bastand"), picked in the
+  // location bar and remembered on this device.
+  const [area, setAreaState] = useState("");
+  useEffect(() => {
+    const read = () => { try { setAreaState(localStorage.getItem("commerce.web.area") || ""); } catch { /* ignore */ } };
+    read();
+    // Checkout can change the area too.
+    window.addEventListener("commerce-area", read);
+    return () => window.removeEventListener("commerce-area", read);
+  }, []);
+  const setArea = (name) => {
+    setAreaState(name);
+    try { localStorage.setItem("commerce.web.area", name); } catch { /* ignore */ }
+    // Delivery can be priced per area, so re-price the cart for the new one.
+    setTimeout(() => cart.refresh?.(), 0);
+  };
+  const placeLabel = [pincode, area].filter(Boolean).join(" · ") || store?.address?.city || "Set location";
+  const placeName = area || store?.address?.city || pincode || "Set location";
   const [openCategory, setOpenCategory] = useState(null);
   // Hover opens and closes a dropdown as the pointer moves through it, which
   // breaks the instant the pointer leaves the page to do anything else — to
@@ -286,44 +303,37 @@ export default function Header({ categories = [] }) {
         </form>
 
         <div className="header-actions">
-          <button className="header-btn" onClick={() => setPinOpen((v) => !v)} aria-expanded={pinOpen}>
+          <button
+            className="header-btn location-btn"
+            onClick={() => setPinOpen((v) => !v)}
+            aria-expanded={pinOpen}
+            aria-label={`Location: ${placeLabel}`}
+            title={placeLabel}
+            suppressHydrationWarning
+          >
             <IconPin className="header-btn-icon" />
-            <span>
-              <span className="sub">Location</span>
-              {/* Read from localStorage, so the server cannot know it and the
-                  two renders legitimately differ. suppressHydrationWarning is
-                  exactly for this — the alternative is rendering a placeholder
-                  and flashing, which is worse for the one thing a shopper
-                  checks first. */}
-              <span className="main" suppressHydrationWarning>
-                {pincode || store?.address?.city || store?.address?.pincode || "Set location"}
-                <IconCaret className="header-caret" aria-hidden="true" />
-              </span>
+            <span className="location-copy">
+              <span className="location-label">Location</span>
+              <span className="location-name">{placeName}</span>
             </span>
+            <IconCaret className="location-caret" />
           </button>
+
+          {/* The location card floats under the pin icon, so it takes no space in the page. */}
+          {pinOpen ? <PincodeBar onDone={() => setPinOpen(false)} setPincode={setPincode} store={store} pincode={pincode} area={area} setArea={setArea} /> : null}
 
           <span className="header-divider" aria-hidden="true" />
 
-          <button type="button" className="header-btn cart-btn" aria-haspopup="dialog" aria-controls="cart-drawer" onClick={() => window.dispatchEvent(new Event("open-cart"))}>
+          <button type="button" className="header-btn cart-btn icon-only" aria-label="Open cart" title="Cart" aria-haspopup="dialog" aria-controls="cart-drawer" onClick={() => window.dispatchEvent(new Event("open-cart"))}>
             <span className="cart-btn-icon">
               <IconCart className="header-btn-icon" />
               <span className="cart-badge" suppressHydrationWarning>
                 {cart.lineCount}
               </span>
             </span>
-            {/* Same story: the cart belongs to a device-scoped session the
-                server render knows nothing about. */}
-            <span>
-              <span className="sub">Cart</span>
-              <span className="main" suppressHydrationWarning>
-                {rupees(cart.summary?.total)}
-              </span>
-            </span>
           </button>
         </div>
       </div>
-
-      {pinOpen ? <PincodeBar onDone={() => setPinOpen(false)} setPincode={setPincode} store={store} /> : null}
 
       <nav className="catbar" aria-label="Categories" ref={catbarRef}>
         <div className="wrap catbar-layout">
@@ -420,7 +430,7 @@ export default function Header({ categories = [] }) {
   );
 }
 
-function PincodeBar({ onDone, setPincode, store }) {
+function PincodeBar({ onDone, setPincode, store, pincode, area, setArea }) {
   const [value, setValue] = useState("");
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -431,7 +441,13 @@ function PincodeBar({ onDone, setPincode, store }) {
     try {
       const data = await setPincode(value);
       setResult(data);
-      if (data.serviceable) setTimeout(onDone, 900);
+      if (data.serviceable) {
+        const areas = data.areas || [];
+        // One named area: use it. Several: the shopper picks theirs below.
+        if (areas.length === 1) setArea(areas[0]);
+        else if (areas.length > 1 && !areas.includes(area)) setArea("");
+        if (areas.length <= 1) setTimeout(onDone, 900);
+      }
     } catch {
       setResult({ serviceable: false, message: "Could not check that pincode." });
     } finally {
@@ -443,30 +459,55 @@ function PincodeBar({ onDone, setPincode, store }) {
     <div className="pincode-bar">
       <div className="wrap pincode-inner">
         <form onSubmit={check} className="pincode-form">
-          <span className="pincode-pin" aria-hidden="true"><IconPin /></span>
-          <strong className="pincode-title">Check delivery</strong>
-          <input
-            className="pincode-input"
-            type="tel"
-            value={value}
-            onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="6-digit pincode"
-            aria-label="Pincode"
-          />
-          <button className="btn primary pincode-submit" disabled={value.length !== 6 || busy}>
-            {busy ? "Checking…" : "Check"}
-          </button>
-          {store ? (
-            <span className="pincode-serving">
-              Currently serving from <strong>{store.name}</strong>
-            </span>
-          ) : null}
+          <div className="pincode-head">
+            <span className="pincode-pin" aria-hidden="true"><IconPin /></span>
+            <div className="pincode-head-text">
+              <strong className="pincode-title">Check delivery</strong>
+              {store ? (
+                <span className="pincode-serving">
+                  Serving from <strong>{store.name}</strong>
+                </span>
+              ) : null}
+            </div>
+            <button type="button" className="pincode-close" aria-label="Close" onClick={onDone}>×</button>
+          </div>
+          <div className="pincode-row">
+            <input
+              className="pincode-input"
+              type="tel"
+              inputMode="numeric"
+              value={value}
+              onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="Enter 6-digit pincode"
+              aria-label="Pincode"
+              autoFocus
+            />
+            <button className="btn primary pincode-submit" disabled={value.length !== 6 || busy}>
+              {busy ? "Checking…" : "Check"}
+            </button>
+          </div>
         </form>
+
+        {result?.serviceable && result.areas?.length > 1 ? (
+          <div className="pincode-areas" role="group" aria-label="Choose your area">
+            <strong>Choose your area</strong>
+            {result.areas.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className={`pincode-area${area === name ? " on" : ""}`}
+                onClick={() => { setArea(name); setTimeout(onDone, 300); }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {result ? (
           <p className={`notice ${result.serviceable ? "save" : "error"} pincode-result`}>
             {result.serviceable
-              ? `We deliver here — ${result.store.name}, about ${result.prepTimeMinutes} minutes.`
+              ? `We deliver to ${result.pincode || value}${area ? ` · ${area}` : ""} — ${result.store.name}, about ${result.prepTimeMinutes} minutes.`
               : result.message || "We don't deliver to this pincode yet."}
           </p>
         ) : null}

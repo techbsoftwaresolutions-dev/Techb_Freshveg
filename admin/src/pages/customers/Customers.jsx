@@ -7,8 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Avatar } from "../orders/Orders";
 import { IconCustomers, IconOrders, IconWallet, IconOffers } from "../../components/Icons";
 import {
-  Banner, Card, Divider, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
-} from "../../components/ui";
+  Banner, Card, Divider, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when, ChipDropdown } from "../../components/ui";
 
 export default function Customers() {
   const { can } = useAuth();
@@ -57,20 +56,7 @@ export default function Customers() {
             onChange={(e) => set("search", e.target.value)}
           />
         </span>
-        <div className="chip-row cust-tabs" role="tablist" aria-label="Status">
-          {[["", "All"], ["active", "Active"], ["blocked", "Blocked"]].map(([value, label]) => (
-            <button
-              key={label}
-              type="button"
-              role="tab"
-              aria-selected={filters.status === value}
-              className={`cat-chip${filters.status === value ? " on" : ""}`}
-              onClick={() => set("status", value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <ChipDropdown ariaLabel="Status" options={[{ value: "", label: "All" }, { value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }]} value={filters.status} onChange={(v) => set("status", v)} />
       </div>
 
       <Card tight>

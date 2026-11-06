@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { categoryImage, img } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getCategories, getCategory, getProducts, SITE_URL } from "@/lib/api";
@@ -8,6 +8,7 @@ import Filters, { ActiveFilters, SortBar } from "@/components/Filters";
 import { DeliveryBar, MobileChips, MobileRail } from "@/components/MobileBrowse";
 import { SearchHead, SearchProvider, SearchSwap } from "@/components/ListingSearch";
 import CategoryIcon from "@/components/CategoryIcon";
+import DepartmentNav from "@/components/DepartmentNav";
 import EmptyState from "@/components/EmptyState";
 import InfiniteProducts from "@/components/InfiniteProducts";
 import TrustStrip from "@/components/TrustStrip";
@@ -96,8 +97,8 @@ export default async function CategoryPage({ params, searchParams }) {
           {children.map((child) => (
             <Link key={child.id} href={`/c/${child.slug}`} className="top-cat">
               <span className="top-cat-icon">
-                {child.image ? (
-                  <img src={img(child.image, 160)} alt="" className="top-cat-photo" />
+                {categoryImage(child) ? (
+                  <img src={img(categoryImage(child), 160)} alt="" className="top-cat-photo" />
                 ) : (
                   <CategoryIcon name={child.name} />
                 )}
@@ -111,9 +112,12 @@ export default async function CategoryPage({ params, searchParams }) {
       <div className="split browse cat-layout has-rail">
         <MobileRail departments={departments} activeSlug={slug} />
 
-        <Suspense fallback={<aside />}>
-          <Filters filters={filters} brands={brands} priceBands={priceBands} availability={availability} />
-        </Suspense>
+        <div className="cat-side">
+          <DepartmentNav departments={departments} activeSlug={slug} />
+          <Suspense fallback={<aside />}>
+            <Filters filters={filters} brands={brands} priceBands={priceBands} availability={availability} />
+          </Suspense>
+        </div>
 
         <div>
           <MobileChips facets={{ filters, brands, priceBands, availability }} />

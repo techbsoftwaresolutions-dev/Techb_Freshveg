@@ -126,7 +126,7 @@ function Phone({ className, tiles, labelled = false }) {
     <div className={className}>
       <div className="app-phone-screen">
         <span className="app-phone-notch" />
-        {labelled ? <span className="app-phone-title">Fresh Market</span> : null}
+        {labelled ? <span className="app-phone-title">Hosur Basket</span> : null}
         <div className="app-phone-grid">
           {tiles.map((tile, i) => (
             <span key={`${tile}${i}`} className="app-phone-tile">

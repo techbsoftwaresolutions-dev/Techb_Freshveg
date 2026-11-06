@@ -145,12 +145,12 @@ const styles = StyleSheet.create({
   packText: { fontSize: 11, fontFamily: fontFamily.bold, color: colors.text, flexShrink: 1 },
   timeDot: { color: colors.textFaint, fontSize: 11 },
 
-  priceRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+  priceRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
   priceTag: { backgroundColor: colors.primarySoft, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
   price: { fontSize: 15, lineHeight: 20, fontFamily: fontFamily.extrabold, color: colors.text },
   mrp: { fontSize: 11, color: colors.textFaint, textDecorationLine: "line-through" },
 
-  name: { ...type.body, fontFamily: fontFamily.semibold, fontSize: 12.5, lineHeight: 16, marginTop: 3, minHeight: 32 },
+  name: { ...type.body, fontFamily: fontFamily.semibold, fontSize: 12.5, lineHeight: 16, marginTop: 3 },
   timeRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3, flexWrap: "nowrap" },
   timeGlyph: { fontSize: 11, color: colors.textMuted },
   timeText: { fontSize: 11, fontFamily: fontFamily.semibold, color: colors.textMuted, flexShrink: 0 },
