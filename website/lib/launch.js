@@ -4,8 +4,9 @@
 export const OPENS_ON = "2026-11-13T00:00:00+05:30";
 
 // ---- Launch switch ----------------------------------------------------------
-// true  = the "Coming soon" banner shows instead of checkout until OPENS_ON.
 // false = the lock is OFF (checkout works now, for testing).
+// true  = the "Coming soon" banner shows instead of checkout until OPENS_ON.
+// Keep this true until launch; set it to false only to test checkout.
 const LAUNCH_LOCK = true;
 
 export function storeOpen() {
