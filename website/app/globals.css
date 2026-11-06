@@ -7311,3 +7311,132 @@ dialog.coming-soon img { display: block; width: 100%; height: auto; border-radiu
   }
   .cat-rail-icon.cat-rail-mix img { width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: cover; border-radius: 6px; }
 }
+
+/* ------------------------------------------------------------------
+   Referrals: sign-up code field and the "Refer & earn" panel.
+   ------------------------------------------------------------------ */
+.ref-field { margin: 4px 0 14px; display: grid; gap: 6px; }
+.ref-field label { font-size: 13px; font-weight: 600; color: var(--text); }
+.ref-field label span { font-weight: 400; color: var(--text-faint); }
+.ref-field input {
+  height: 44px; padding: 0 14px; border: 1.5px solid var(--border); border-radius: 12px; background: #fff;
+  font: inherit; font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+}
+.ref-field input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.ref-field .link-btn { justify-self: start; font-size: 13px; }
+.ref-ok { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--brand-soft); color: var(--brand-dark); font-size: 12.5px; line-height: 1.4; }
+.ref-bad { margin: 0; color: var(--danger, #c0392b); font-size: 12.5px; }
+
+.ref-panel {
+  margin: 14px 0; padding: 16px; border: 1px solid #e0ebe0; border-radius: 16px;
+  background: linear-gradient(135deg, #f3faf4, #ffffff); box-shadow: 0 1px 2px rgba(15,40,25,.05);
+  display: grid; gap: 12px;
+}
+.ref-head h3 { margin: 0 0 4px; font-size: 16px; font-weight: 800; }
+.ref-head p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.ref-head strong { color: var(--brand-dark); }
+.ref-code-row { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
+.ref-code {
+  flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 8px 12px; border: 1.5px dashed var(--brand); border-radius: 12px; background: #fff; cursor: pointer; font: inherit; text-align: left;
+}
+.ref-code span { font-size: 11px; color: var(--text-muted); }
+.ref-code strong { font-size: 18px; letter-spacing: .1em; color: var(--brand-dark); }
+.ref-btn {
+  height: 44px; padding: 0 16px; border: 1.5px solid var(--border); border-radius: 12px; background: #fff;
+  font: inherit; font-size: 13.5px; font-weight: 700; color: var(--text); cursor: pointer;
+}
+.ref-btn:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+.ref-btn.primary { background: var(--btn, #547f1a); border-color: var(--btn, #547f1a); color: #fff; }
+.ref-btn.primary:hover:not(:disabled) { background: var(--btn-dark, #3f6314); color: #fff; }
+.ref-btn:disabled { opacity: .55; cursor: not-allowed; }
+.ref-link { margin: -4px 0 0; font-size: 11.5px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ref-note { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--brand-dark); }
+.ref-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ref-stats div { padding: 10px 8px; border-radius: 12px; background: #fff; border: 1px solid #e8eee8; text-align: center; display: grid; gap: 2px; }
+.ref-stats strong { font-size: 17px; font-weight: 800; }
+.ref-stats span { font-size: 11px; color: var(--text-muted); }
+.ref-friends { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ref-friends li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: #fff; border: 1px solid #eef2ee; font-size: 13px; font-weight: 600; }
+.ref-friends em { font-style: normal; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #fff3d6; color: #8a5a00; white-space: nowrap; }
+.ref-friends em.rewarded { background: var(--brand-soft); color: var(--brand-dark); }
+.ref-friends em.void { background: #f3f3f3; color: #777; }
+.ref-by { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+.ref-claim { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid #e8eee8; }
+.ref-claim label { font-size: 13px; font-weight: 700; }
+.ref-claim > div { display: flex; gap: 8px; }
+.ref-claim input { flex: 1; min-width: 0; height: 44px; padding: 0 14px; border: 1.5px solid var(--border); border-radius: 12px; font: inherit; font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ref-claim input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+@media (max-width: 720px) {
+  .ref-panel { margin: 10px 0; padding: 12px; border-radius: 14px; gap: 10px; }
+  .ref-head h3 { font-size: 14px; }
+  .ref-head p { font-size: 12px; }
+  .ref-code { flex-basis: 100%; padding: 7px 12px; }
+  .ref-code strong { font-size: 16px; }
+  .ref-code-row .ref-btn { flex: 1; height: 38px; font-size: 12.5px; }
+  .ref-stats strong { font-size: 15px; }
+  .ref-btn, .ref-claim input, .ref-field input { height: 40px; }
+  .ref-friends li { font-size: 12px; padding: 7px 10px; }
+}
+
+/* Checkout: collapsible coupon row in the order summary. */
+.co-coupon { margin: 2px 0; display: grid; gap: 8px; }
+.co-coupon-toggle {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 0;
+  border: 0; border-radius: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 700; color: var(--brand-dark); text-align: left;
+}
+.co-coupon-toggle:hover { background: transparent; opacity: .8; }
+.co-coupon-toggle .co-coupon-icon { display: none; }
+.co-coupon-toggle > span:nth-child(2) { flex: 1; }
+.co-coupon-chev { transition: transform .18s ease; color: var(--brand); }
+.co-coupon-toggle[aria-expanded="true"] .co-coupon-chev { transform: rotate(180deg); }
+.co-coupon-icon {
+  width: 24px; height: 24px; flex: 0 0 24px; border-radius: 50%; display: inline-grid; place-items: center;
+  background: var(--brand); color: #fff; font-size: 12px; font-weight: 800;
+}
+.co-coupon-form { display: flex; align-items: stretch; gap: 8px; }
+.co-coupon-form input {
+  flex: 1 1 auto; min-width: 0; height: 42px; padding: 0 12px; border: 1.5px solid var(--border); border-radius: 10px; background: #fff;
+  font: inherit; font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+}
+.co-coupon-form input::placeholder { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-faint); }
+.co-coupon-form input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.co-coupon-apply {
+  flex: none; height: 42px; padding: 0 20px; border: 0; border-radius: 10px; cursor: pointer;
+  background: var(--btn, #547f1a); color: #fff; font: inherit; font-size: 14px; font-weight: 800;
+}
+.co-coupon-apply:hover:not(:disabled) { background: var(--btn-dark, #3f6314); }
+.co-coupon-apply:disabled { opacity: .5; cursor: not-allowed; }
+.co-coupon-error { margin: 0; padding: 7px 10px; border-radius: 8px; background: #fdeeee; color: #a33; font-size: 12.5px; line-height: 1.4; }
+.co-coupon-applied { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; background: var(--brand-soft); border: 0; }
+.co-coupon-text { flex: 1; min-width: 0; font-size: 13px; color: var(--brand-dark); }
+.co-coupon-text em { font-style: normal; color: var(--text-muted); }
+.co-coupon-remove { border: 0; background: none; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700; color: #b3433f; padding: 4px 2px; }
+.co-coupon-remove:hover { text-decoration: underline; }
+@media (max-width: 720px) {
+  .co-coupon-toggle { padding: 7px 0; font-size: 12.5px; }
+  .co-coupon-icon { width: 22px; height: 22px; flex-basis: 22px; font-size: 11px; }
+  .co-coupon-form input, .co-coupon-apply { height: 38px; font-size: 13px; }
+  .co-coupon-apply { padding: 0 16px; }
+  .co-coupon-text { font-size: 12px; }
+}
+
+/* Coupon saving line under the total */
+.co-saved{margin:8px 0 0;padding:7px 10px;border-radius:10px;background:#eaf5e1;color:#2f6a12;font-size:12.5px;font-weight:600;text-align:center}
+
+/* Smaller "% OFF" ribbon on product cards so it no longer covers the product. */
+@media (max-width: 720px) {
+  .card .badge {
+    width: 22px !important;
+    height: 19px !important;
+    padding: 2px 1px 4px !important;
+    font-size: 5.5px !important;
+    line-height: 1.05 !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+  }
+}
+@media (min-width: 721px) {
+  .card .badge { width: 28px; height: 25px; font-size: 7px; }
+}

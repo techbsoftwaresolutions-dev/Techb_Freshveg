@@ -28,10 +28,33 @@ function lineMatchesOffer(line, offer) {
   return true;
 }
 
-function offerApplies(offer, context) {
-  const { lines, subtotal, customer, store, paymentMethod, at } = context;
+// Why an offer is not live, in words a customer can act on.
+function notLiveReason(offer, at) {
+  const { startsAt, endsAt } = offer.schedule || {};
+  const { totalUses, usedCount } = offer.limits || {};
+  if (offer.status !== "active") return "This coupon is not active";
+  if (endsAt && at > endsAt) return "This coupon has expired";
+  if (startsAt && at < startsAt) return "This coupon is not active yet";
+  if (totalUses && usedCount >= totalUses) return "This coupon has reached its usage limit";
+  return "This coupon is not available right now";
+}
 
-  if (!offer.isLive(at)) return { ok: false, reason: "Offer is not running right now" };
+function offerApplies(offer, context) {
+  const { lines, subtotal, customer, store, paymentMethod, at, usage } = context;
+
+  if (!offer.isLive(at)) return { ok: false, reason: notLiveReason(offer, at) };
+
+  // One use per customer unless the admin allows more: a typed coupon is a
+  // one-time gift, not a standing discount.
+  const perCustomerLimit = offer.limits?.perCustomer > 0 ? offer.limits.perCustomer : offer.requiresCode ? 1 : 0;
+  if (perCustomerLimit && customer?.id && (usage?.get(String(offer._id)) || 0) >= perCustomerLimit) {
+    return {
+      ok: false,
+      reason: perCustomerLimit === 1
+        ? "You have already used this coupon"
+        : `You have already used this coupon ${perCustomerLimit} times`,
+    };
+  }
 
   const c = offer.conditions || {};
 
@@ -220,7 +243,26 @@ async function priceCart(context) {
     // On equal priority a coupon the customer typed beats an automatic offer.
   }).sort({ priority: -1, requiresCode: -1 });
 
-  const evalContext = { lines, subtotal, customer, store, paymentMethod, at };
+  // How many times this customer has already had each candidate on an order
+  // (cancelled and rejected orders give the use back).
+  const usage = new Map();
+  if (customer?.id && candidates.length) {
+    const Order = require("../orders/order.model");
+    const rows = await Order.aggregate([
+      {
+        $match: {
+          customer: new (require("mongoose").Types.ObjectId)(String(customer.id)),
+          status: { $nin: ["CANCELLED", "REJECTED"] },
+          "appliedOffers.offer": { $in: candidates.map((o) => o._id) },
+        },
+      },
+      { $unwind: "$appliedOffers" },
+      { $group: { _id: "$appliedOffers.offer", count: { $sum: 1 } } },
+    ]);
+    for (const row of rows) usage.set(String(row._id), row.count);
+  }
+
+  const evalContext = { lines, subtotal, customer, store, paymentMethod, at, usage };
 
   const applied = [];
   const rejected = [];

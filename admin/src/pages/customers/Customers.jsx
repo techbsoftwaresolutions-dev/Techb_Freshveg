@@ -82,6 +82,20 @@ export default function Customers() {
                 },
                 { key: "orders", label: "Orders", align: "right", render: (row) => <span className="count-pill">{row.orders || 0}</span> },
                 {
+                  key: "referralCount",
+                  label: "Referrals",
+                  align: "right",
+                  render: (row) =>
+                    row.referralCount ? (
+                      <span className="stack" style={{ alignItems: "flex-end" }} title={`${row.referralRewarded || 0} rewarded`}>
+                        <span className="count-pill">{row.referralCount}</span>
+                        <span className="row-sub">{row.referralRewarded || 0} rewarded</span>
+                      </span>
+                    ) : (
+                      <span className="faint">0</span>
+                    ),
+                },
+                {
                   key: "totalSpend",
                   label: "Spend",
                   align: "right",
@@ -210,7 +224,7 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
     return <Modal title="Customer" onClose={onClose} wide><Loading /></Modal>;
   }
 
-  const { customer, orders, wallet, loyalty, stats } = data;
+  const { customer, orders, wallet, loyalty, stats, referral } = data;
 
   return (
     <Modal
@@ -238,6 +252,17 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
             {customer.createdAt ? <span>Joined {when(customer.createdAt)}</span> : null}
             <span>{stats.lastOrderAt || orders[0]?.placedAt ? `Last order ${when(stats.lastOrderAt || orders[0].placedAt)}` : "No orders yet"}</span>
             {customer.referralCode ? <span>Referral code <b className="mono">{customer.referralCode}</b></span> : null}
+            <span>
+              Referred <b>{referral?.invited || 0}</b> {referral?.invited === 1 ? "person" : "people"}
+              {referral?.invited ? ` (${referral.rewarded} rewarded)` : ""}
+            </span>
+            {referral?.referredBy ? (
+              <span>
+                Joined with{" "}
+                <Link to={`/customers/${referral.referredBy.id}`}>{referral.referredBy.name || referral.referredBy.phone}</Link>
+                &apos;s code
+              </span>
+            ) : null}
           </div>
         </div>
         <div className="cust-profile-actions">
@@ -271,6 +296,7 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
           { key: "wallet", label: "Wallet", count: wallet.length },
           { key: "loyalty", label: "Points", count: loyalty.length },
           { key: "addresses", label: "Addresses", count: customer.addresses?.length },
+          { key: "referrals", label: "Referrals", count: referral?.invited || 0 },
         ]}
         active={tab}
         onChange={setTab}
@@ -352,6 +378,44 @@ function CustomerDrawer({ id, canManage, onClose, onChanged }) {
           ]}
           rows={loyalty}
           empty={<Empty title="No points activity" />}
+        />
+      ) : null}
+
+      {tab === "referrals" ? (
+        <Table
+          title="People referred"
+          columns={[
+            {
+              key: "name",
+              label: "Friend",
+              render: (row) => (
+                <span className="stack">
+                  <span className="row-title">{row.name || "—"}</span>
+                  <span className="row-sub">{row.phone}</span>
+                </span>
+              ),
+            },
+            { key: "joinedAt", label: "Joined", render: (row) => <span className="muted">{when(row.joinedAt)}</span> },
+            {
+              key: "status",
+              label: "Status",
+              render: (row) => (
+                <Pill tone={row.status === "rewarded" ? "ok" : row.status === "pending" ? "warn" : undefined}>
+                  {row.status === "pending" ? "waiting for first order" : row.status}
+                </Pill>
+              ),
+            },
+            { key: "qualifyingOrderCode", label: "First order", render: (row) => <span className="mono row-sub">{row.qualifyingOrderCode || "—"}</span> },
+            {
+              key: "reward",
+              label: "Reward",
+              align: "right",
+              render: (row) => (row.status === "rewarded" ? <strong>{rupees(row.reward)}</strong> : <span className="faint">—</span>),
+            },
+          ]}
+          rows={referral?.friends || []}
+          onRowClick={(row) => row.customerId && navigate(`/customers/${row.customerId}`)}
+          empty={<Empty title="No referrals yet" hint={`Nobody has signed up with ${customer.referralCode || "this customer's"} code.`} />}
         />
       ) : null}
 

@@ -3,10 +3,10 @@
 // itself; to open early, set NEXT_PUBLIC_STORE_OPEN=true in website/.env.local and restart.
 export const OPENS_ON = "2026-11-13T00:00:00+05:30";
 
-// ---- Testing switch ---------------------------------------------------------
-// false = the "Coming soon" lock is OFF (checkout works now, for testing).
-// Set it to true to turn the lock back on until the opening date.
-const LAUNCH_LOCK = false;
+// ---- Launch switch ----------------------------------------------------------
+// true  = the "Coming soon" banner shows instead of checkout until OPENS_ON.
+// false = the lock is OFF (checkout works now, for testing).
+const LAUNCH_LOCK = true;
 
 export function storeOpen() {
   if (!LAUNCH_LOCK) return true;
