@@ -1,6 +1,7 @@
 import Link from "next/link";
 import ContactUs from "./ContactUs";
 import CallButton from "./CallButton";
+import OpenCartLink from "./OpenCartLink";
 
 // Only pages that exist are linked. About, careers and FAQs have no route
 // yet — they join these lists when they do, rather than sitting here as
@@ -35,8 +36,8 @@ export default function Footer({ categories = [] }) {
             <h4>Customer Care</h4>
             <ul>
               <li><Link href="/help">Help Center</Link></li>
-              <li><Link href="/orders">Track Order</Link></li>
-              <li><Link href="/orders">Returns &amp; Refunds</Link></li>
+              <li><Link href="/track-order">Track Order</Link></li>
+              <li><Link href="/returns">Returns &amp; Refunds</Link></li>
               <li><ContactUs /></li>
               <li><Link href="/terms">Terms &amp; Conditions</Link></li>
             </ul>
@@ -47,7 +48,7 @@ export default function Footer({ categories = [] }) {
             <ul>
               <li><Link href="/account">Account</Link></li>
               <li><Link href="/orders">My Orders</Link></li>
-              <li><Link href="/cart">Cart</Link></li>
+              <li><OpenCartLink>Cart</OpenCartLink></li>
               <li><Link href="/login">Sign In</Link></li>
             </ul>
           </div>

@@ -43,7 +43,7 @@ export default function ProductCard({ product }) {
               style={{ objectPosition: `${focalX}% ${focalY}%` }}
             />
           ) : null}
-          {off > 0 && !outOfStock ? <span className="badge">{off}% OFF</span> : null}
+          {off > 0 && !outOfStock ? <span className="badge">{off}%<br />OFF</span> : null}
           {outOfStock ? (
             <span className="out-overlay">
               <span className="pill danger">Out of stock</span>

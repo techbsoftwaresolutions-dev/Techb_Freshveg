@@ -242,12 +242,13 @@ export function useConfirm() {
   return [confirm, dialog];
 }
 
-export function Field({ label, help, error, children, inherited }) {
+export function Field({ label, help, error, children, inherited, required }) {
   return (
     <div className="field">
       {label && (
         <label>
           {label}
+          {required && <span className="req" aria-hidden="true"> *</span>}
           {inherited && <span className="inherited"> · from {inherited}</span>}
         </label>
       )}

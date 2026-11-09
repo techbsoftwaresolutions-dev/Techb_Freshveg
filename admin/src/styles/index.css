@@ -752,6 +752,7 @@ table.data th.export-th { position: relative; padding-right: 44px; }
 .media-thumb:hover .media-focal-hint,
 .media-thumb:focus-within .media-focal-hint { opacity: 1; }
 .field .error { font-size: 12px; color: var(--danger); }
+.field label .req { color: var(--danger, #d93025); font-weight: 700; }
 .field .inherited {
   font-size: 11px;
   color: var(--text-faint);
@@ -3111,3 +3112,26 @@ input.switch:checked::after { transform: translateX(18px); }
 .pin-area-row .pin-area-edit { flex: 1 1 140px; }
 
 .pack-hint { display: block; margin-top: 4px; font-size: 11.5px; color: var(--text-muted); }
+
+/* Toasts */
+.toaster { position: fixed; top: 18px; right: 18px; z-index: 1000; display: flex; flex-direction: column; gap: 12px; width: min(400px, calc(100vw - 32px)); pointer-events: none; }
+.toast {
+  --tone: var(--brand, #1b7a3a); --tone-soft: rgba(27, 122, 58, .12);
+  pointer-events: auto; position: relative; overflow: hidden;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 12px;
+  padding: 14px 14px 16px 14px; border-radius: 16px; background: #fff; color: var(--text, #1c2a22);
+  border: 1px solid var(--tone-soft); box-shadow: 0 18px 40px rgba(15, 40, 25, .18), 0 2px 6px rgba(15, 40, 25, .06);
+  animation: toast-in .28s cubic-bezier(.2, .9, .3, 1.2);
+}
+.toast.error { --tone: #e5484d; --tone-soft: rgba(229, 72, 77, .14); }
+.toast.info { --tone: #2f6fe4; --tone-soft: rgba(47, 111, 228, .14); }
+.toast-ico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--tone); color: #fff; box-shadow: 0 0 0 5px var(--tone-soft); }
+.toast-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-top: 1px; }
+.toast-title { font-size: 14px; font-weight: 700; color: var(--text, #1c2a22); }
+.toast-msg { font-size: 13px; line-height: 1.45; color: var(--text-muted, #5b6b62); overflow-wrap: anywhere; }
+.toast-x { border: 0; background: transparent; color: var(--text-muted, #7b887f); cursor: pointer; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; }
+.toast-x:hover { background: rgba(0, 0, 0, .06); }
+.toast-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--tone); transform-origin: left; animation-name: toast-bar; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translateX(24px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes toast-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }

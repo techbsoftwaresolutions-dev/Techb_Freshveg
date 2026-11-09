@@ -5,8 +5,9 @@ import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import {
-  Banner, Card, Divider, Empty, Field, Loading, Modal, Pagination, Pill, Table, Tabs, rupees, when,
+  Banner, Card, Divider, Empty, Field, Loading, Modal, Pagination, Pill, Table, Tabs, rupees, useConfirm, when,
 } from "../../components/ui";
+import { toast } from "../../components/Toaster";
 
 const PRIORITY_TONE = { urgent: "danger", high: "danger", normal: undefined, low: undefined };
 const STATUS_TONE = {
@@ -27,6 +28,23 @@ export default function Support() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const [confirm, confirmDialog] = useConfirm();
+  const [removingId, setRemovingId] = useState(null);
+
+  async function removeTicket(row) {
+    if (!(await confirm({ title: "Delete ticket?", message: `Delete ${row.code} "${row.subject}" and its whole conversation? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
+    setRemovingId(row.id);
+    try {
+      await api.delete(`/support/${row.id}`);
+      setData((d) => ({ ...d, items: d.items.filter((t) => t.id !== row.id) }));
+      toast.success(`Ticket ${row.code} deleted`);
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
   const load = useCallback(() => {
     setLoading(true);
@@ -49,6 +67,7 @@ export default function Support() {
 
   return (
     <div className="page">
+      {confirmDialog}
       <div className="page-head">
         <div>
           <h1>Support</h1>
@@ -138,6 +157,35 @@ export default function Support() {
                     </div>
                   ),
                 },
+                {
+                  key: "actions",
+                  label: "",
+                  align: "right",
+                  sortable: false,
+                  exportable: false,
+                  render: (row) =>
+                    canManage && (
+                      <button
+                        type="button"
+                        className="icon-delete"
+                        disabled={removingId === row.id}
+                        title={`Delete ${row.code}`}
+                        aria-label={`Delete ${row.code}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeTicket(row);
+                        }}
+                      >
+                        {removingId === row.id ? (
+                          "…"
+                        ) : (
+                          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+                          </svg>
+                        )}
+                      </button>
+                    ),
+                },
               ]}
               rows={data.items}
               onRowClick={(row) => navigate(`/support/${row.id}`)}
@@ -180,6 +228,22 @@ function TicketDrawer({ id, canManage, me, onClose, onChanged }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [resolving, setResolving] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
+
+  async function remove() {
+    if (!(await confirm({ title: "Delete ticket?", message: `Delete ${ticket.code} and its whole conversation? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
+    setBusy(true);
+    try {
+      await api.delete(`/support/${id}`);
+      toast.success(`Ticket ${ticket.code} deleted`);
+      onChanged();
+      onClose();
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message);
+      setBusy(false);
+    }
+  }
 
   const load = useCallback(() => {
     api
@@ -244,18 +308,22 @@ function TicketDrawer({ id, canManage, me, onClose, onChanged }) {
       onClose={onClose}
       wide
       footer={
-        canManage && !closed ? (
-          <>
-            <button className="btn" onClick={onClose}>Close</button>
+        <>
+          {canManage ? (
+            <button className="btn danger" style={{ marginRight: "auto" }} disabled={busy} onClick={remove}>
+              Delete ticket
+            </button>
+          ) : null}
+          <button className="btn" onClick={onClose}>Close</button>
+          {canManage && !closed ? (
             <button className="btn primary" onClick={() => setResolving(true)}>
               Resolve ticket
             </button>
-          </>
-        ) : (
-          <button className="btn" onClick={onClose}>Close</button>
-        )
+          ) : null}
+        </>
       }
     >
+      {confirmDialog}
       <Banner tone="error">{error}</Banner>
 
       <div className="grid cols-3" style={{ marginBottom: 14 }}>
@@ -359,7 +427,14 @@ function ResolveModal({ ticket, busy, onClose, onResolve }) {
   const [amount, setAmount] = useState(0);
   const [note, setNote] = useState("");
 
-  const maxRefund = ticket.order?.pricing?.total || 0;
+  // What can still go back to the customer: what they paid minus what has
+  // already been refunded (both in paise). Not the order total — a partly
+  // refunded or unpaid order has less than that left.
+  const pay = ticket.order?.payment;
+  const maxRefund = pay
+    ? Math.max(0, (pay.amountPaid || 0) - (pay.amountRefunded || 0))
+    : ticket.order?.pricing?.total || 0;
+  const tooMuch = Math.round(amount * 100) > maxRefund;
 
   return (
     <Modal
@@ -370,7 +445,7 @@ function ResolveModal({ ticket, busy, onClose, onResolve }) {
           <button className="btn" onClick={onClose}>Cancel</button>
           <button
             className="btn primary"
-            disabled={busy || (type === "refund" && (!amount || amount > maxRefund))}
+            disabled={busy || (type === "refund" && (!amount || tooMuch))}
             onClick={() => onResolve({ type, amount: Math.round(amount * 100), note })}
           >
             {busy ? "Resolving…" : "Resolve"}
@@ -392,8 +467,8 @@ function ResolveModal({ ticket, busy, onClose, onResolve }) {
           label="Refund amount (₹)"
           help={
             maxRefund
-              ? `Up to ${rupees(maxRefund)} — goes straight to the customer's wallet.`
-              : "This ticket has no order attached, so there is nothing to refund."
+              ? `Up to ${rupees(maxRefund)} can still be refunded — it goes straight to the customer's wallet.`
+              : "Nothing left to refund — there is no order attached, or it is already fully refunded."
           }
         >
           <input

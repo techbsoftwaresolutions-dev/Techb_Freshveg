@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/client-api";
+import { IconBack, IconUser } from "@/components/AccountIcons";
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -159,14 +160,28 @@ export default function EditProfilePage() {
   if (!ready || !user) {
     return (
       <div className="wrap">
+        <div className="cat-mobile-head acct-head">
+          <Link href="/account" aria-label="Back" className="cat-mobile-btn">
+            <IconBack width={22} height={22} strokeWidth={2} />
+          </Link>
+          <h1 className="cat-mobile-title">Edit profile</h1>
+        </div>
         <div className="page-loading"><MorphingSquare message="Loading…" /></div>
       </div>
     );
   }
 
   return (
-    <div className="wrap wrap-narrow">
-      <header className="page-title">
+    <div className="wrap wrap-narrow edit-page">
+      {/* Phone: app-style bar instead of the site header and search. */}
+      <div className="cat-mobile-head acct-head">
+        <Link href="/account" aria-label="Back" className="cat-mobile-btn">
+          <IconBack width={22} height={22} strokeWidth={2} />
+        </Link>
+        <h1 className="cat-mobile-title">Edit profile</h1>
+      </div>
+
+      <header className="page-title edit-title-desktop">
         <Link href="/account" className="section-link">
           ← Back to account
         </Link>
@@ -184,7 +199,7 @@ export default function EditProfilePage() {
               aria-label="Change profile photo"
             >
               <span className="photo-face">
-                {photo ? <img src={photo} alt="" /> : (form.name || user.name || "?").trim().charAt(0)}
+                {photo ? <img src={photo} alt="" /> : (form.name || user.name || "").trim() ? (form.name || user.name).trim().charAt(0) : <IconUser width={40} height={40} />}
               </span>
               <span className="photo-cam" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -225,7 +240,7 @@ export default function EditProfilePage() {
           {saved ? <p className="notice save">Saved.</p> : null}
 
           <div className="field">
-            <label htmlFor="name">Full name</label>
+            <label htmlFor="name">Full name<b className="req"> *</b></label>
             <input id="name" type="text" value={form.name} onChange={set("name")} required />
           </div>
 
