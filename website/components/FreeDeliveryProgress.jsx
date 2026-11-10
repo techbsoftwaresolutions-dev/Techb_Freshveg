@@ -83,8 +83,15 @@ export default function FreeDeliveryProgress({ variant = "inline" }) {
   const fd = useFreeDelivery();
   // The side-panel card can be folded down to its title row with the chevron.
   const [open, setOpen] = useState(true);
+  // Once "Free delivery unlocked", the card can be dismissed with a cross. It
+  // comes back by itself if the cart later drops below the threshold.
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    if (!fd.unlocked) setDismissed(false);
+  }, [fd.unlocked]);
   if (!fd.show) return null;
   const foldable = variant === "compact";
+  if (foldable && fd.unlocked && dismissed) return null;
 
   // Folded away: the whole card disappears, leaving one small ">" to bring it back.
   if (foldable && !open) {
@@ -122,7 +129,13 @@ export default function FreeDeliveryProgress({ variant = "inline" }) {
         <span className="fd-title">{title}</span>
       </div>
 
-      {foldable ? (
+      {foldable && fd.unlocked ? (
+        <button type="button" className="fd-toggle fd-cancel" aria-label="Dismiss" title="Dismiss" onClick={() => setDismissed(true)}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      ) : foldable ? (
         <button
           type="button"
           className="fd-toggle"

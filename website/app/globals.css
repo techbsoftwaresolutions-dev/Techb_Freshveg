@@ -8046,3 +8046,6 @@ body:has(.auth-page) .crumbs { display: none !important; }
 .cart-drawer .cart-drawer-empty .empty-hero-title { font-size: 28px; margin-top: 6px; }
 .cart-drawer .cart-drawer-empty .empty-hero-text { font-size: 14.5px; max-width: 300px; margin-top: 18px; }
 .cart-drawer .cart-drawer-empty .empty-hero-btn { height: 52px; font-size: 16px; margin-top: 22px; }
+
+/* Unlocked card: a plain cross, no turning chevron */
+.cart-drawer .fd.is-open .fd-cancel svg { transform: none; }
