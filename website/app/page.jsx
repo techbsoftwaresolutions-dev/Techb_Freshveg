@@ -7,6 +7,9 @@ import BannerCarousel from "@/components/BannerCarousel";
 import CategoryIcon from "@/components/CategoryIcon";
 import HomeSidebar from "@/components/HomeSidebar";
 import HeroCarousel from "@/components/HeroCarousel";
+import HomeWishlist from "@/components/HomeWishlist";
+import PromoRow from "@/components/PromoRow";
+import PromoShopLink from "@/components/PromoShopLink";
 import FlashDeal from "@/components/FlashDeal";
 import TrustStrip from "@/components/TrustStrip";
 import AppDownload from "@/components/AppDownload";
@@ -22,6 +25,13 @@ export const metadata = {
   description:
     "Same-day delivery on fresh produce, groceries, personal care and household essentials from your neighbourhood Hosur Basket store.",
   alternates: { canonical: "/" },
+};
+
+// Hand-made art for the launch coupons; any other offer shows the image the
+// admin uploaded for it.
+const PROMO_ART = {
+  WEEKEND100: "/promo-weekend-grocery.jpg",
+  FIRST30: "/promo-fresh-vegetables-replacement.jpg",
 };
 
 // Sold-out products sink to the end of a row rather than leading it — a shelf
@@ -98,12 +108,12 @@ export default async function HomePage() {
           ) : null}
 
           {offers.length ? (
-            <div className="promo-row" id="offers">
-              {offers.slice(0, 3).map((offer, index) => (
+            <PromoRow count={Math.min(offers.length, 6)}>
+              {offers.slice(0, 6).map((offer, index) => (
                 <article key={offer.id} className={`promo tone-${index % 3}`}>
                   {offer.image ? (
                     <img
-                      src={index === 0 ? "/promo-weekend-grocery.jpg" : index === 1 ? "/promo-fresh-vegetables-replacement.jpg" : index === 2 ? "/promo-first-order-basket.jpg" : img(offer.image, 600)}
+                      src={PROMO_ART[offer.code] || img(offer.image, 600)}
                       alt=""
                       className="promo-image"
                     />
@@ -119,18 +129,21 @@ export default async function HomePage() {
                         </>
                       ) : null}
                     </p>
-                    <Link
+                    <PromoShopLink
                       href={offer.categorySlug ? `/c/${offer.categorySlug}` : "/c?sort=discount"}
+                      code={offer.code}
                       className="pill-btn"
                     >
                       Shop Now
                       <IconArrow />
-                    </Link>
+                    </PromoShopLink>
                   </div>
                 </article>
               ))}
-            </div>
+            </PromoRow>
           ) : null}
+
+          <HomeWishlist />
 
           {bestSellers.length ? (
             <section className="section">

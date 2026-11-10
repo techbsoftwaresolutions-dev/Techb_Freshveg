@@ -11,6 +11,7 @@ const sms = require("./sms.service");
 const { issueTokens, verifyRefreshToken } = require("./token.service");
 const { requireAuth } = require("../../middleware/auth");
 const { ROLES, STAFF_ROLES, PERMISSIONS } = require("./roles");
+const referralService = require("../referrals/referral.service");
 
 const router = express.Router();
 
@@ -167,7 +168,19 @@ router.post(
     user.lastLoginAt = new Date();
     await user.save();
 
-    res.json({ success: true, isNewUser: isNew, user: publicUser(user), ...issueTokens(user) });
+    // A friend's code (from an invite link or typed at sign-up) is applied
+    // once, when the account is first created. A bad code never blocks login.
+    const referral = isNew && role === "customer"
+      ? await referralService.applyOnSignup(user._id, req.body.referralCode)
+      : null;
+
+    res.json({
+      success: true,
+      isNewUser: isNew,
+      ...(referral ? { referral } : {}),
+      user: publicUser(user),
+      ...issueTokens(user),
+    });
   })
 );
 

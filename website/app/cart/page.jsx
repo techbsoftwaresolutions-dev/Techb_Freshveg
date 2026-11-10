@@ -9,7 +9,7 @@ import { useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import AddToCart from "@/components/AddToCart";
-import EmptyState from "@/components/EmptyState";
+import EmptyHero from "@/components/EmptyHero";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { rupees } from "@/lib/format";
 
@@ -41,16 +41,7 @@ export default function CartPage() {
   if (!cart.items.length) {
     return (
       <div className="wrap">
-        <EmptyState
-          icon="cart"
-          title="Your cart is empty"
-          actions={[
-            { href: "/", label: "Start shopping" },
-            { href: "/c", label: "Browse categories" },
-          ]}
-        >
-          Fresh fruit, vegetables and the weekly shop are a few taps away.
-        </EmptyState>
+        <EmptyHero before="Your" word="cart" after="is empty" />
       </div>
     );
   }

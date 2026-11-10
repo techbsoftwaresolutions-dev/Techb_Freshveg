@@ -1,5 +1,6 @@
 "use client";
 
+import EmptyHero from "./EmptyHero";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -158,25 +159,5 @@ export function OrderSkeletons({ count = 3 }) {
 }
 
 export function OrdersEmpty() {
-  return (
-    <div className="orders-empty">
-      <svg viewBox="0 0 120 120" width="112" height="112" fill="none" aria-hidden="true">
-        <circle cx="60" cy="60" r="54" fill="var(--brand-soft)" />
-        <path
-          d="M36 48h48l-4 38a6 6 0 0 1-6 5.4H46a6 6 0 0 1-6-5.4L36 48Z"
-          fill="#fff"
-          stroke="var(--brand)"
-          strokeWidth="3"
-          strokeLinejoin="round"
-        />
-        <path d="M48 48v-6a12 12 0 0 1 24 0v6" stroke="var(--brand)" strokeWidth="3" strokeLinecap="round" />
-        <path d="m51 71 6 6 12-13" stroke="var(--brand)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <h2>No orders yet</h2>
-      <p>Your orders will appear here once you make your first purchase.</p>
-      <Link href="/" className="oc-btn primary">
-        Start Shopping
-      </Link>
-    </div>
-  );
+  return <EmptyHero word="orders" />;
 }

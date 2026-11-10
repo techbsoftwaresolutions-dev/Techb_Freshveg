@@ -7,7 +7,6 @@ import {
   IconChevron,
   IconCrown,
   IconFile,
-  IconGear,
   IconGift,
   IconHeadset,
   IconPin,
@@ -32,83 +31,129 @@ export function AccountHead({ settings = true }) {
         <IconBack width={22} height={22} strokeWidth={2} />
       </Link>
       <h1 className="cat-mobile-title">My Account</h1>
-      {settings ? (
-        <Link href="/account/edit" aria-label="Account settings" className="cat-mobile-btn">
-          <IconGear width={22} height={22} />
-        </Link>
-      ) : null}
+      {settings ? <span className="cat-mobile-btn" aria-hidden="true" style={{ visibility: "hidden" }} /> : null}
     </div>
   );
 }
 
-function Tile({ icon: Icon, title, value, note, children }) {
-  return (
-    <div className="am-tile">
-      <span className="am-tile-icon">
-        <Icon width={18} height={18} />
+const IconBag = (props) => (
+  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <path d="M5 8h14l-1 12H6L5 8Z" />
+    <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
+  </svg>
+);
+const IconHeart = (props) => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <path d="M12 20.5s-7.5-4.6-10-9.3C.6 8 1.8 4.5 5 3.4c2.1-.7 4.2 0 5.6 1.8l1.4 1.8 1.4-1.8c1.4-1.8 3.5-2.5 5.6-1.8 3.2 1.1 4.4 4.6 3 7.8-2.5 4.7-10 9.3-10 9.3Z" />
+  </svg>
+);
+const IconTruck = (props) => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <path d="M3 6h11v9H3zM14 9h4l3 3v3h-7" />
+    <circle cx="7" cy="17" r="1.8" />
+    <circle cx="17" cy="17" r="1.8" />
+  </svg>
+);
+const IconReturn = (props) => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
+  </svg>
+);
+const IconLogout = (props) => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+    <path d="M10 8l-4 4 4 4M6 12h10" />
+  </svg>
+);
+
+function Row({ href, icon: Icon, title, note, value, onClick, tone }) {
+  const inner = (
+    <>
+      <span className="ah-row-icon">
+        <Icon width={20} height={20} />
       </span>
-      <span className="am-tile-title">{title}</span>
-      <div className="am-tile-value">{value}</div>
-      {note ? <span className="am-tile-note">{note}</span> : null}
-      {children}
-    </div>
+      <span className="ah-row-copy">
+        <strong>{title}</strong>
+        {note ? <span>{note}</span> : null}
+      </span>
+      {value !== undefined && value !== null && value !== "" ? <span className="ah-row-value">{value}</span> : null}
+      {href || onClick ? <IconChevron className="ah-chev" width={16} height={16} /> : null}
+    </>
+  );
+  if (!href && !onClick) return <div className="ah-row static">{inner}</div>;
+  return href ? (
+    <Link href={href} className={`ah-row${tone ? ` ${tone}` : ""}`}>
+      {inner}
+    </Link>
+  ) : (
+    <button type="button" className={`ah-row${tone ? ` ${tone}` : ""}`} onClick={onClick}>
+      {inner}
+    </button>
   );
 }
 
 export default function AccountMobile({ user, initials, store, pincode, recentOrders, shared, onShare, onSignOut }) {
   return (
     <div className="acct-m">
-      <AccountHead />
-
-      <section className="am-profile">
-        <svg className="am-leaf" viewBox="0 0 120 120" aria-hidden="true">
-          <path d="M20 100C20 50 55 15 105 12c3 48-28 86-85 88Z" fill="currentColor" />
-          <path d="M20 100C45 70 70 48 98 24" stroke="var(--brand)" strokeWidth="3" fill="none" strokeLinecap="round" />
-        </svg>
-        <span className="am-avatar" aria-hidden="true">
-          {initials}
-        </span>
-        <div className="am-profile-copy">
-          <strong>{user.name || "Add your name"}</strong>
-          <span>+91 {user.phone}</span>
+      <div className="ah-hero">
+        {/* Having .cat-mobile-head on the page steps the site header and footer aside on phones. */}
+        <div className="cat-mobile-head acct-head ah-top">
+          <Link href="/" aria-label="Back" className="ah-back">
+            <IconBack width={20} height={20} strokeWidth={2} />
+          </Link>
         </div>
-        <div className="am-actions">
-          <Link href="/account/edit" className="am-edit-btn" aria-label="Edit profile" title="Edit profile">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 20h9" />
+
+        <span className="ah-avatar-wrap">
+          <span className="ah-avatar" aria-hidden="true">
+            {user.avatar ? <img className="avatar-photo" src={user.avatar} alt="" /> : user.name ? initials : <IconUser width={44} height={44} />}
+          </span>
+          <Link href="/account/edit" className="ah-avatar-edit" aria-label="Edit profile" title="Edit profile">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
             </svg>
           </Link>
-          <button type="button" className="am-signout" onClick={onSignOut}>
-            Sign out
-          </button>
+        </span>
+        <h1 className="ah-name">{user.name || "Your account"}</h1>
+        <p className="ah-phone">+91 {user.phone}</p>
+      </div>
+
+      <div className="ah-quick">
+        <Link href="/orders" className="ah-quick-tile">
+          <IconBag />
+          <span>Your orders</span>
+        </Link>
+        <div className="ah-quick-tile">
+          <IconWallet width={26} height={26} />
+          <span>Wallet {rupees(user.walletBalance)}</span>
         </div>
+        <Link href="/help" className="ah-quick-tile">
+          <IconHeadset width={26} height={26} />
+          <span>Need help?</span>
+        </Link>
+      </div>
+
+      <section className="ah-card">
+        <h2 className="ah-card-title">Your information</h2>
+        <Row href="/account/edit" icon={IconUser} title="Edit profile" note="Update your name and email" />
+        <Row href="/wishlist" icon={IconHeart} title="Your wishlist" />
+        <Row href="/track-order" icon={IconTruck} title="Track order" />
+        <Row href="/returns" icon={IconReturn} title="Returns & refunds" />
       </section>
 
-      <div className="am-tiles">
-        <Tile icon={IconWallet} title="Wallet balance" value={rupees(user.walletBalance)} />
-        <Tile icon={IconCrown} title="Loyalty points" value={user.loyaltyPoints ?? 0} note="100 points = ₹10 off" />
+      <section className="ah-card">
+        <h2 className="ah-card-title">Rewards</h2>
+        <Row icon={IconCrown} title="Loyalty points" note="100 points = ₹10 off" value={user.loyaltyPoints ?? 0} />
         {user.referralCode ? (
-          <div className="am-tile">
-            <span className="am-tile-icon">
-              <IconGift width={18} height={18} />
-            </span>
-            <span className="am-tile-title">Refer a friend</span>
-            <div className="am-tile-row">
-              <strong className="am-code">{user.referralCode}</strong>
-              <button type="button" className="am-share" onClick={() => onShare(user.referralCode)} aria-label="Share referral code">
-                {shared ? "Copied!" : <IconShare width={18} height={18} />}
-              </button>
-            </div>
-          </div>
+          <Row
+            icon={IconGift}
+            title="Refer code"
+            note={shared ? "Copied!" : "Tap to share"}
+            onClick={() => onShare(user.referralCode)}
+          />
         ) : null}
-        <Tile
-          icon={IconPin}
-          title="Delivery location"
-          value={pincode || store?.address?.city || "Not set"}
-          note={store?.name}
-        />
-      </div>
+        <Row icon={IconPin} title="Delivery location" note={store?.name} value={pincode || store?.address?.city || "Not set"} />
+      </section>
 
       <section className="am-card">
         <div className="am-card-head">
@@ -144,7 +189,7 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
             );
           })
         ) : (
-          <p className="am-empty">No orders yet — when you place one it will show up here.</p>
+          null
         )}
       </section>
 
@@ -158,36 +203,12 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
         <SavedAddresses />
       </section>
 
-      <nav className="am-card am-menu" aria-label="Account">
-        <Link href="/account/edit" className="am-menu-row">
-          <span className="am-menu-icon">
-            <IconUser width={19} height={19} />
-          </span>
-          <span className="am-menu-copy">
-            <strong>Edit profile</strong>
-            <span>Update your name and email</span>
-          </span>
-          <IconChevron className="am-chev" width={16} height={16} />
-        </Link>
-        <Link href="/terms" className="am-menu-row">
-          <span className="am-menu-icon">
-            <IconFile width={19} height={19} />
-          </span>
-          <span className="am-menu-copy">
-            <strong>Terms &amp; Conditions</strong>
-          </span>
-          <IconChevron className="am-chev" width={16} height={16} />
-        </Link>
-        <Link href="/help" className="am-menu-row">
-          <span className="am-menu-icon">
-            <IconHeadset width={19} height={19} />
-          </span>
-          <span className="am-menu-copy">
-            <strong>Help Center</strong>
-          </span>
-          <IconChevron className="am-chev" width={16} height={16} />
-        </Link>
-      </nav>
+      <section className="ah-card">
+        <h2 className="ah-card-title">Help and legal</h2>
+        <Row href="/help" icon={IconHeadset} title="Help Center" />
+        <Row href="/terms" icon={IconFile} title="Terms & Conditions" />
+        <Row icon={IconLogout} title="Log out" onClick={onSignOut} tone="danger" />
+      </section>
     </div>
   );
 }

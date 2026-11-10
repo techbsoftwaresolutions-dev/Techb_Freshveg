@@ -7324,3 +7324,738 @@ dialog.coming-soon img { display: block; width: 100%; height: auto; border-radiu
   }
   .cat-rail-icon.cat-rail-mix img { width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: cover; border-radius: 6px; }
 }
+
+/* ------------------------------------------------------------------
+   Referrals: sign-up code field and the "Refer & earn" panel.
+   ------------------------------------------------------------------ */
+.ref-field { margin: 4px 0 14px; display: grid; gap: 6px; }
+.ref-field label { font-size: 13px; font-weight: 600; color: var(--text); }
+.ref-field label span { font-weight: 400; color: var(--text-faint); }
+.ref-field input {
+  height: 44px; padding: 0 14px; border: 1.5px solid var(--border); border-radius: 12px; background: #fff;
+  font: inherit; font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+}
+.ref-field input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.ref-field .link-btn { justify-self: start; font-size: 13px; }
+.ref-ok { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--brand-soft); color: var(--brand-dark); font-size: 12.5px; line-height: 1.4; }
+.ref-bad { margin: 0; color: var(--danger, #c0392b); font-size: 12.5px; }
+
+.ref-panel {
+  margin: 14px 0; padding: 16px; border: 1px solid #e0ebe0; border-radius: 16px;
+  background: linear-gradient(135deg, #f3faf4, #ffffff); box-shadow: 0 1px 2px rgba(15,40,25,.05);
+  display: grid; gap: 12px;
+}
+.ref-head h3 { margin: 0 0 4px; font-size: 16px; font-weight: 800; }
+.ref-head p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.ref-head strong { color: var(--brand-dark); }
+.ref-code-row { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
+.ref-code {
+  flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 8px 12px; border: 1.5px dashed var(--brand); border-radius: 12px; background: #fff; cursor: pointer; font: inherit; text-align: left;
+}
+.ref-code span { font-size: 11px; color: var(--text-muted); }
+.ref-code strong { font-size: 18px; letter-spacing: .1em; color: var(--brand-dark); }
+.ref-btn {
+  height: 44px; padding: 0 16px; border: 1.5px solid var(--border); border-radius: 12px; background: #fff;
+  font: inherit; font-size: 13.5px; font-weight: 700; color: var(--text); cursor: pointer;
+}
+.ref-btn:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+.ref-btn.primary { background: var(--btn, #547f1a); border-color: var(--btn, #547f1a); color: #fff; }
+.ref-btn.primary:hover:not(:disabled) { background: var(--btn-dark, #3f6314); color: #fff; }
+.ref-btn:disabled { opacity: .55; cursor: not-allowed; }
+.ref-link { margin: -4px 0 0; font-size: 11.5px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ref-note { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--brand-dark); }
+.ref-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ref-stats div { padding: 10px 8px; border-radius: 12px; background: #fff; border: 1px solid #e8eee8; text-align: center; display: grid; gap: 2px; }
+.ref-stats strong { font-size: 17px; font-weight: 800; }
+.ref-stats span { font-size: 11px; color: var(--text-muted); }
+.ref-friends { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ref-friends li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: #fff; border: 1px solid #eef2ee; font-size: 13px; font-weight: 600; }
+.ref-friends em { font-style: normal; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #fff3d6; color: #8a5a00; white-space: nowrap; }
+.ref-friends em.rewarded { background: var(--brand-soft); color: var(--brand-dark); }
+.ref-friends em.void { background: #f3f3f3; color: #777; }
+.ref-by { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+.ref-claim { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid #e8eee8; }
+.ref-claim label { font-size: 13px; font-weight: 700; }
+.ref-claim > div { display: flex; gap: 8px; }
+.ref-claim input { flex: 1; min-width: 0; height: 44px; padding: 0 14px; border: 1.5px solid var(--border); border-radius: 12px; font: inherit; font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ref-claim input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+@media (max-width: 720px) {
+  .ref-panel { margin: 10px 0; padding: 12px; border-radius: 14px; gap: 10px; }
+  .ref-head h3 { font-size: 14px; }
+  .ref-head p { font-size: 12px; }
+  .ref-code { flex-basis: 100%; padding: 7px 12px; }
+  .ref-code strong { font-size: 16px; }
+  .ref-code-row .ref-btn { flex: 1; height: 38px; font-size: 12.5px; }
+  .ref-stats strong { font-size: 15px; }
+  .ref-btn, .ref-claim input, .ref-field input { height: 40px; }
+  .ref-friends li { font-size: 12px; padding: 7px 10px; }
+}
+
+/* Checkout: collapsible coupon row in the order summary. */
+.co-coupon { margin: 2px 0; display: grid; gap: 8px; }
+.co-coupon-toggle {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 0;
+  border: 0; border-radius: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 700; color: var(--brand-dark); text-align: left;
+}
+.co-coupon-toggle:hover { background: transparent; opacity: .8; }
+.co-coupon-toggle .co-coupon-icon { display: none; }
+.co-coupon-toggle > span:nth-child(2) { flex: 1; }
+.co-coupon-chev { transition: transform .18s ease; color: var(--brand); }
+.co-coupon-toggle[aria-expanded="true"] .co-coupon-chev { transform: rotate(180deg); }
+.co-coupon-icon {
+  width: 24px; height: 24px; flex: 0 0 24px; border-radius: 50%; display: inline-grid; place-items: center;
+  background: var(--brand); color: #fff; font-size: 12px; font-weight: 800;
+}
+.co-coupon-form { display: flex; align-items: stretch; gap: 8px; }
+.co-coupon-form input {
+  flex: 1 1 auto; min-width: 0; height: 42px; padding: 0 12px; border: 1.5px solid var(--border); border-radius: 10px; background: #fff;
+  font: inherit; font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+}
+.co-coupon-form input::placeholder { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-faint); }
+.co-coupon-form input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.co-coupon-apply {
+  flex: none; height: 42px; padding: 0 20px; border: 0; border-radius: 10px; cursor: pointer;
+  background: var(--btn, #547f1a); color: #fff; font: inherit; font-size: 14px; font-weight: 800;
+}
+.co-coupon-apply:hover:not(:disabled) { background: var(--btn-dark, #3f6314); }
+.co-coupon-apply:disabled { opacity: .5; cursor: not-allowed; }
+.co-coupon-error { margin: 0; padding: 7px 10px; border-radius: 8px; background: #fdeeee; color: #a33; font-size: 12.5px; line-height: 1.4; }
+.co-coupon-applied { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; background: var(--brand-soft); border: 0; }
+.co-coupon-text { flex: 1; min-width: 0; font-size: 13px; color: var(--brand-dark); }
+.co-coupon-text em { font-style: normal; color: var(--text-muted); }
+.co-coupon-remove { border: 0; background: none; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700; color: #b3433f; padding: 4px 2px; }
+.co-coupon-remove:hover { text-decoration: underline; }
+@media (max-width: 720px) {
+  .co-coupon-toggle { padding: 7px 0; font-size: 12.5px; }
+  .co-coupon-icon { width: 22px; height: 22px; flex-basis: 22px; font-size: 11px; }
+  .co-coupon-form input, .co-coupon-apply { height: 38px; font-size: 13px; }
+  .co-coupon-apply { padding: 0 16px; }
+  .co-coupon-text { font-size: 12px; }
+}
+
+/* Coupon saving line under the total */
+.co-saved{margin:8px 0 0;padding:7px 10px;border-radius:10px;background:#eaf5e1;color:#2f6a12;font-size:12.5px;font-weight:600;text-align:center}
+
+/* "% OFF" ribbon on product cards: the corner ribbon, two lines ("40%" over "OFF"). */
+.card .badge {
+  width: 28px !important;
+  height: 26px !important;
+  min-width: 0;
+  display: block !important;
+  padding: 4px 1px 0 !important;
+  font-size: 7.2px !important;
+  line-height: 1.05 !important;
+  font-weight: 700 !important;
+  white-space: normal !important;
+  text-align: center !important;
+  box-shadow: none !important;
+}
+@media (min-width: 721px) {
+  .card .badge { width: 34px !important; height: 31px !important; font-size: 8.6px !important; padding: 5px 1px 0 !important; }
+}
+
+/* ---- Sign in: app-style screen */
+.auth-hero { display: none; }
+/* A sign-in screen needs no store header (top bar, search, menu) on any screen size. */
+body:has(.auth-page) .header,
+body:has(.auth-page) .footer,
+body:has(.auth-page) .crumbs { display: none !important; }
+.auth-page { min-height: 100vh; }
+.auth-terms { margin: 12px 0 0; text-align: center; font-size: 11.5px; color: var(--text-faint); }
+.auth-terms a { color: var(--brand); font-weight: 600; text-decoration: none; }
+
+@media (max-width: 720px) {
+
+  .auth-page {
+    display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+    min-height: calc(100dvh - 64px); padding: 0; margin: 0;
+    background: linear-gradient(170deg, #3c6212 0%, #567f1b 55%, #6f9a25 100%) !important;
+  }
+  .auth-hero {
+    display: block; position: relative; text-align: center; color: #fff;
+    padding: calc(22px + env(safe-area-inset-top, 0px)) 24px 42px;
+  }
+  .auth-back {
+    position: absolute; left: 14px; top: calc(14px + env(safe-area-inset-top, 0px));
+    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(255,255,255,.18); color: #fff;
+  }
+  .auth-hero-logo {
+    display: inline-grid; place-items: center; width: 84px; height: 84px; border-radius: 24px;
+    background: #fff; box-shadow: 0 10px 24px rgba(0,0,0,.18); margin-bottom: 14px;
+  }
+  .auth-hero-logo img { width: 58px; height: auto; object-fit: contain; }
+  .auth-hero h2 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -.01em; color: #fff; }
+  .auth-hero p { margin: 5px 0 0; font-size: 13px; color: rgba(255,255,255,.85); }
+
+  .auth-page > .auth-card {
+    flex: 1; max-width: none; width: 100%; margin: 0; border: 0; box-shadow: none;
+    border-radius: 26px 26px 0 0; padding: 26px 20px calc(28px + env(safe-area-inset-bottom, 0px));
+    background: #fff;
+  }
+  .auth-card .auth-head { display: none; }
+  .auth-card .field > label { font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
+  .auth-card .phone-input > span { padding: 0 13px; font-size: 14px; background: #f3f7ee; border-color: #d7e3c8; }
+  .auth-card .phone-input input { height: 48px; font-size: 16px; border-color: #d7e3c8; }
+  .auth-card .btn.block.lg { height: 48px; font-size: 15px; border-radius: 14px; }
+  .auth-card .ref-field { margin: 4px 0 16px; }
+  .auth-card .link-btn { font-size: 13px; }
+}
+
+/* ---- Home hero on phones: same look as desktop — words on the left over a
+   photo that fades in from the right, instead of words stacked above a photo. */
+@media (max-width: 720px) {
+  .market-carousel { border-radius: 18px !important; margin: 12px 0 8px !important; }
+  .market-slide {
+    display: block !important; position: relative !important;
+    height: 200px !important; min-height: 0 !important; overflow: hidden;
+  }
+  .market-slide[hidden] { display: none !important; }
+  .market-visual { position: absolute !important; inset: 0 !important; top: 0 !important; padding: 0 !important; height: auto !important; }
+  .market-photo {
+    position: absolute !important; top: 0; bottom: 0; right: 0; left: 30% !important; width: auto !important;
+    height: auto !important; min-height: 0 !important; transform: none !important; border-radius: 0 !important;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 34%); mask-image: linear-gradient(90deg, transparent 0, #000 34%);
+  }
+  .market-photo > img { object-fit: cover !important; object-position: 62% 50% !important; }
+  .market-copy {
+    position: relative; z-index: 1; width: 66% !important; height: 100%; box-sizing: border-box;
+    padding: 18px 0 16px 16px !important; display: flex; flex-direction: column; justify-content: center;
+    background: none !important;
+  }
+  .market-copy h1 { font-size: 12px !important; font-weight: 600 !important; line-height: 1.3 !important; max-width: 20ch !important; margin: 0 0 8px !important; letter-spacing: -.03em; }
+  .market-copy h1 > span { display: block !important; margin-top: 3px !important; }
+  .market-copy p, .market-signoff, .market-browse { display: none !important; }
+  .market-actions { margin-top: 0 !important; gap: 12px !important; flex-wrap: wrap !important; }
+  .market-shop { padding: 5px 10px !important; font-size: 10px !important; border-radius: 8px !important; gap: 5px !important; white-space: nowrap; width: auto; align-self: flex-start; }
+  .market-shop > span { font-size: 11px !important; }
+    .market-seal { right: 10px !important; bottom: 8px !important; left: auto !important; width: 74px !important; height: 74px !important; transform: none !important; border-width: 3px !important; gap: 3px !important; }
+  .market-seal strong { font-size: 10px !important; }
+  .market-seal > span { font-size: 3.5px !important; }
+  .market-orbit, .market-caption, .market-edge-arrow { display: none !important; }
+}
+
+/* ---- Offer cards: one at a time on a phone, with dots. */
+.promo-wrap { position: relative; }
+.promo-dots { display: none; }
+@media (max-width: 720px) {
+  .promo-row { grid-auto-columns: 100% !important; gap: 10px !important; padding-left: 0 !important; padding-right: 0 !important; margin-left: 0 !important; margin-right: 0 !important; scroll-padding: 0 !important; }
+  .promo-row > * { scroll-snap-stop: always; }
+  .promo-dots { display: flex; justify-content: center; gap: 6px; margin: 2px 0 6px; }
+  .promo-dots button { width: 6px; height: 6px; padding: 0; border: 0; border-radius: 999px; background: #c9d8bd; transition: width .2s ease, background .2s ease; cursor: pointer; }
+  .promo-dots button.current { width: 18px; background: var(--btn, #547f1a); }
+}
+
+/* ---- Product page: "Why Hosur Basket?" icons in colour, and full-width info card on phones. */
+.pdp-promise-icon.tone-0 { background: #e4f4df; color: #2f8a2a; }
+.pdp-promise-icon.tone-1 { background: #fdebd9; color: #d9731a; }
+.pdp-promise-icon.tone-2 { background: #e3ecfb; color: #3566c9; }
+.pdp-promise-icon { box-shadow: none; }
+.pdp-promises li { align-items: center; }
+.pdp-promises strong { font-size: 13.5px; }
+.pdp-promises small { margin-top: 1px; font-size: 12px; }
+@media (max-width: 720px) {
+  /* The details / description / reviews card shrank to its content; make it the full width of the page. */
+  .split.pdp > .pdp-left > *,
+  .split.pdp > .pdp-info { align-self: stretch; }
+  .pdp-details-slot { width: 100%; box-sizing: border-box; }
+  .pdp-promises { padding: 16px 16px; }
+  .pdp-promises ul { gap: 12px; }
+}
+
+/* ---- Product page: a compact buy box wherever the page is a single column (phones and small windows). */
+@media (max-width: 1080px) {
+  .pdp-buy { padding: 12px !important; }
+  .pdp-summary { margin-bottom: 12px !important; padding: 0 36px 12px 0 !important; }
+  .pdp-share-trigger { width: 32px !important; height: 32px !important; }
+  .pdp-share-trigger svg { width: 15px !important; height: 15px !important; }
+  .pdp-title { font-size: 17px !important; margin-top: 2px !important; line-height: 1.25 !important; }
+  .pdp-similar-link { font-size: 12px !important; margin-top: 6px !important; }
+  .pdp-lede { font-size: 12.5px !important; margin-top: 5px !important; line-height: 1.4 !important; }
+  .pdp-tags { margin-top: 8px !important; }
+  .pdp-tags .pill { font-size: 10.5px !important; padding: 2px 8px !important; }
+
+  .pack-picker { margin-bottom: 12px !important; padding-bottom: 12px !important; }
+  .pack-picker h3 { font-size: 12.5px !important; margin-bottom: 8px !important; }
+  .pack-options { gap: 8px !important; }
+  .pack-option { padding: 7px 12px !important; border-radius: 10px !important; }
+  .pack-option strong { font-size: 12.5px !important; }
+  .pack-option span { font-size: 11px !important; }
+
+  .pdp-qty { margin-bottom: 10px !important; gap: 10px !important; }
+  .pdp-qty > span { font-size: 12px !important; }
+  .pdp-qty .qty { height: 30px !important; min-width: 92px !important; }
+  .pdp-qty .qty button { width: 26px !important; font-size: 14px !important; }
+  .pdp-qty .qty .value { font-size: 12px !important; }
+  .pdp-pack { font-size: 11.5px !important; }
+  .pdp-pack strong { font-size: 11.5px !important; }
+
+  .pdp-price-row { gap: 7px !important; }
+  .pdp-price-now { font-size: 20px !important; }
+  .pdp-price .mrp { font-size: 12px !important; }
+  .pdp-price .pill.save { font-size: 10px !important; padding: 2px 8px !important; }
+  .pdp-price-note { font-size: 11px !important; }
+
+  .pdp-actions { gap: 8px !important; margin-top: 10px !important; }
+  .pdp-actions .add-btn { height: 34px !important; min-height: 34px !important; font-size: 12px !important; border-radius: 9px !important; padding: 0 10px !important; }
+  .pdp-actions .qty { height: 34px !important; min-width: 0 !important; }
+  .pdp-actions .qty button { width: 30px !important; font-size: 14px !important; }
+  .pdp-actions .btn, .pdp-buy-now { height: 34px !important; min-height: 34px !important; font-size: 12px !important; padding: 0 10px !important; border-radius: 9px !important; }
+  .pdp-low-stock { font-size: 11px !important; margin-top: 8px !important; }
+}
+
+@media (max-width: 720px) {
+  .pdp-promises { padding: 12px 14px !important; margin-top: 12px !important; }
+  .pdp-promises h2 { font-size: 13px !important; margin-bottom: 8px !important; }
+  .pdp-promises ul { gap: 9px !important; }
+  .pdp-promises li { gap: 10px !important; }
+  .pdp-promise-icon { flex: 0 0 32px !important; width: 32px !important; height: 32px !important; border-radius: 10px !important; }
+  .pdp-promise-icon svg { width: 18px !important; height: 18px !important; }
+  .pdp-promises strong { font-size: 12.5px !important; }
+  .pdp-promises small { font-size: 11px !important; }
+  .pdp-accordion > summary { font-size: 13px !important; padding-top: 13px !important; padding-bottom: 13px !important; }
+  .pdp-accordion-specs > div, .pdp-accordion-body { font-size: 12.5px !important; }
+}
+
+/* Cart drawer free-delivery card: ">" fold button */
+.cart-drawer .fd { position: relative; }
+.cart-drawer .fd-toggle {
+  position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; padding: 0;
+  display: grid; place-items: center; border: 0; border-radius: 50%;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.cart-drawer .fd-toggle:hover { background: rgba(27,122,58,.1); color: var(--brand-dark); }
+.cart-drawer .fd-toggle svg { width: 16px; height: 16px; transition: transform .2s ease; }
+.cart-drawer .fd.is-open .fd-toggle svg { transform: rotate(90deg); }
+.cart-drawer .fd.is-closed .fd-bar,
+.cart-drawer .fd.is-closed .fd-foot { display: none; }
+.cart-drawer .fd.is-open { padding-right: 38px; }
+.cart-drawer .fd.unlocked .fd-toggle { top: 50%; transform: translateY(-50%); }
+.cart-drawer .fd.is-closed { padding-right: 38px; }
+
+.cart-drawer .fd-reopen { display: flex; justify-content: flex-end; }
+.cart-drawer .fd-reopen .fd-toggle { position: static; width: 26px; height: 26px; background: #eef5ef; color: var(--brand-dark); }
+.cart-drawer .fd-reopen .fd-toggle svg { transform: none; }
+
+@media (max-width: 720px) { .am-avatar { overflow: hidden; } .am-avatar .avatar-photo { width: 100%; height: 100%; } }
+
+@media (max-width: 720px) {
+  .am-avatar-wrap { position: relative; display: inline-flex; flex: 0 0 auto; }
+  .am-avatar-edit {
+    position: absolute; right: -3px; bottom: -3px; width: 20px; height: 20px; border-radius: 50%;
+    display: grid; place-items: center; background: #fff; color: var(--brand-dark);
+    border: 1px solid rgba(0,0,0,.08); box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+}
+
+@media (max-width: 720px) {
+  .edit-page .edit-title-desktop { display: none; }
+  .edit-page .cat-mobile-head { margin-left: -6px; margin-right: -6px; }
+}
+
+@media (max-width: 720px) { .edit-page .edit-profile-head { display: none; } }
+
+/* Phone product page: no search box or category bar under the logo. */
+@media (max-width: 720px) {
+  body:has(.split.pdp) .header .search-form,
+  body:has(.split.pdp) .header .catbar { display: none !important; }
+}
+
+/* Phone product page: the whole site header (offer strip + logo row) is hidden. */
+@media (max-width: 720px) {
+  body:has(.split.pdp) .header { display: none !important; }
+  body:has(.split.pdp) { --header-total: 0px; }
+}
+
+/* Phone product page: edge-to-edge photo with a round back button on it. */
+.pdp-back { display: none; }
+@media (max-width: 720px) {
+  body:has(.split.pdp) main > .wrap, body:has(.split.pdp) .wrap:has(.split.pdp) { padding-top: 0 !important; }
+  .pdp-gallery-slot { position: relative; width: 100vw; margin-left: calc(50% - 50vw); margin-top: 0; }
+  .pdp-gallery-slot .gallery-main {
+    border-radius: 0 !important; box-shadow: none !important; border: 0 !important;
+    width: 100%; aspect-ratio: 1 / 0.95; background: #fff;
+    display: grid; place-items: center;
+  }
+  .pdp-gallery-slot .gallery-main img { width: 100%; height: 100%; object-fit: contain; }
+  .pdp-gallery-slot .gallery-main::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 56px; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), #fff);
+  }
+  .pdp-gallery-slot .gallery { gap: 8px; }
+  .pdp-gallery-slot .gallery-thumbs { padding: 0 16px; }
+  .pdp-back {
+    display: grid; place-items: center; position: absolute; z-index: 5; top: 12px; left: 12px;
+    width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%;
+    background: #fff; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.18); cursor: pointer;
+  }
+  .pdp-gallery-slot .badge { top: 12px; right: 12px; left: auto; }
+}
+
+/* Phone product page: smaller back button, heart beside the % OFF ribbon. */
+.pdp-wish { display: none; }
+@media (max-width: 720px) {
+  .pdp-back { width: 32px; height: 32px; top: 10px; left: 10px; }
+  .pdp-back svg { width: 18px; height: 18px; }
+  .pdp-wish { display: block; position: absolute; z-index: 5; top: 10px; right: 60px; }
+  .pdp-wish .wishlist-btn {
+    position: static !important; width: 32px !important; height: 32px !important; margin: 0;
+    display: grid; place-items: center; border: 0; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  }
+  .pdp-wish .wishlist-btn svg { width: 17px !important; height: 17px !important; }
+}
+
+/* Wishlist: bottom popup (one line) and the wishlist page */
+.wishlist-toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  z-index: 100; display: flex; align-items: center; gap: 14px; white-space: nowrap;
+  max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 10px;
+  background: #1f2a24; color: #fff; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+.wishlist-toast a { color: #8be0a4; font-weight: 700; text-decoration: none; }
+.wishlist-empty { text-align: center; padding: 48px 16px; color: var(--text-muted); display: grid; gap: 14px; justify-items: center; }
+@media (max-width: 720px) {
+  .wishlist-toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .wishlist-page .wishlist-title { display: none; }
+}
+
+.wishlist-art { width: min(240px, 70vw); height: auto; margin-bottom: -6px; }
+
+/* Shared empty screen (My Orders, Your wishlist) */
+.empty-hero {
+  position: relative; isolation: isolate; text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 28px 20px 120px;
+  background:
+    radial-gradient(120% 55% at 50% 0%, #eaf7e4 0%, rgba(234,247,228,0) 70%),
+    linear-gradient(#fff, #f6fcf4);
+}
+.empty-hero::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 110px; z-index: -1;
+  background:
+    radial-gradient(90% 100% at 20% 120%, #8fd46a 0%, rgba(143,212,106,0) 60%),
+    radial-gradient(80% 90% at 85% 130%, #45b04a 0%, rgba(69,176,74,0) 62%);
+  opacity: .55;
+}
+.empty-hero-art { width: min(360px, 88%); height: auto; }
+.empty-hero-title { margin: 6px 0 0; font-size: 34px; line-height: 1.1; font-weight: 800; letter-spacing: -.02em; color: #0f4a22; }
+.empty-hero-title span {
+  color: #1aa231; position: relative; display: inline-block;
+}
+.empty-hero-title span::after {
+  content: ""; position: absolute; left: -6%; right: -6%; bottom: -10px; height: 8px;
+  background: radial-gradient(60% 100% at 50% 0%, #1aa231 0 55%, transparent 58%);
+  clip-path: ellipse(50% 40% at 50% 0%); transform: rotate(-2deg);
+}
+.empty-hero-text { margin: 22px 0 0; max-width: 300px; font-size: 14.5px; line-height: 1.5; color: #555e5a; }
+.empty-hero-btn {
+  margin-top: 22px; display: inline-flex; align-items: center; gap: 12px;
+  height: 52px; padding: 0 12px 0 22px; border-radius: 999px; color: #fff; font-weight: 700; font-size: 16px;
+  background: linear-gradient(180deg, #1f9a2b, #0f6a1f); text-decoration: none;
+  box-shadow: 0 10px 22px rgba(20,120,40,.3), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.empty-hero-btn:hover { color: #fff; filter: brightness(1.05); }
+.empty-hero-btn i { width: 28px; height: 28px; border-radius: 50%; background: #fff; color: #0f6a1f; display: grid; place-items: center; }
+@media (max-width: 720px) {
+  .empty-hero { width: 100vw; margin-left: calc(50% - 50vw); min-height: calc(100dvh - 70px); justify-content: flex-start; padding-top: 36px; }
+  .empty-hero-title { font-size: 30px; }
+}
+@media (min-width: 721px) {
+  .empty-hero { border-radius: 20px; margin: 20px auto; max-width: 560px; padding-bottom: 80px; overflow: hidden; }
+}
+
+/* Empty screen, desktop */
+@media (min-width: 721px) {
+  .empty-hero { max-width: 880px; margin: 28px auto 40px; padding: 48px 32px 150px; border-radius: 28px; border: 1px solid #e3f1df; box-shadow: 0 10px 40px rgba(30, 110, 50, .08); }
+  .empty-hero::after { height: 150px; }
+  .empty-hero-art { width: min(500px, 80%); }
+  .empty-hero-title { font-size: 46px; margin-top: 10px; }
+  .empty-hero-text { font-size: 17px; max-width: 420px; margin-top: 26px; }
+  .empty-hero-btn { height: 58px; font-size: 17px; padding: 0 14px 0 28px; margin-top: 28px; }
+  .empty-hero-btn i { width: 32px; height: 32px; }
+}
+
+/* ------------------------------------------------ offer banner on phones: same design as desktop */
+@media (max-width: 700px) {
+  .bn { margin: 18px 0; }
+  .bn-slide { flex-direction: row !important; align-items: stretch !important; height: auto !important; min-height: 0 !important; border-radius: 22px !important; }
+  .bn-copy { width: 64% !important; padding: 12px 0 12px 14px !important; gap: 0; }
+  .bn-kicker { font-size: 8.5px !important; padding: 4px 10px !important; gap: 6px; }
+  .bn-sep { height: 10px; }
+  .bn-title { margin-top: 8px !important; gap: 0 6px; }
+  .bn-title-lead, .bn-title-lead.bn-plain { font-size: 19px !important; line-height: 1.12 !important; }
+  .bn-script, .bn-hl, .bn-title .bn-hl { font-size: 1.02em !important; }
+  .bn-title .bn-hl { font-size: 21px !important; padding-bottom: 6px; white-space: nowrap; flex-basis: 100%; }
+  .bn-title-lead:not(.bn-plain) { font-size: 17px !important; }
+  .bn-sub { margin-top: 6px !important; font-size: 9.5px !important; line-height: 1.35; }
+  .bn-actions { margin-top: 9px !important; gap: 8px 0 !important; flex-direction: column; align-items: flex-start; }
+  .bn-cta { padding: 7px 14px !important; font-size: 11px !important; margin-right: 0 !important; gap: 4px; }
+  .bn-cta svg { width: 12px; height: 12px; }
+  .bn-trust { display: flex !important; margin: 0 !important; }
+  .bn-trust li { flex-direction: row; gap: 4px !important; padding: 0 7px !important; font-size: 7.5px !important; line-height: 1.1 !important; border-left-width: 1px !important; text-align: left; }
+  .bn-trust li:first-child { padding-left: 0 !important; border-left: 0 !important; }
+  .bn-ico svg { width: 15px !important; height: 15px !important; }
+  .bn-wave { display: block !important; left: 50%; width: 50%; }
+  .bn-wave-rim { stroke-width: 8px; }
+  .bn-wave-glow { stroke-width: 20px; }
+  .bn .bn-visual { position: absolute !important; left: 50%; right: 0; top: 0; bottom: 0; width: auto !important; height: auto !important; border-radius: 0 !important; box-shadow: none !important; clip-path: url(#bnWave) !important; }
+  .bn-photo { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; max-height: none !important; max-width: none !important; padding: 10px 8px 22px 18% !important; object-fit: contain !important; }
+  .bn-dots { left: 80% !important; bottom: 8px !important; gap: 5px; }
+  .bn-dot { width: 7px; height: 7px; }
+}
+
+/* Offer banner on phones: a size smaller */
+@media (max-width: 700px) {
+  .bn { margin: 14px 0; }
+  .bn-slide { border-radius: 18px !important; }
+  .bn-copy { width: 62% !important; padding: 9px 0 9px 11px !important; }
+  .bn-kicker { font-size: 7.5px !important; padding: 3px 8px !important; gap: 5px; }
+  .bn-title { margin-top: 6px !important; }
+  .bn-title-lead, .bn-title-lead.bn-plain { font-size: 13.5px !important; line-height: 1.12 !important; }
+  .bn-title-lead:not(.bn-plain) { font-size: 14px !important; }
+  .bn-title .bn-hl { font-size: 17px !important; padding-bottom: 4px; }
+  .bn-sub { margin-top: 4px !important; font-size: 8px !important; line-height: 1.3; max-width: 92%; }
+  .bn-actions { margin-top: 7px !important; gap: 6px 0 !important; }
+  .bn-cta { padding: 5px 11px !important; font-size: 9.5px !important; }
+  .bn-cta svg { width: 10px; height: 10px; }
+  .bn-trust li { font-size: 6.5px !important; padding: 0 5px !important; gap: 3px !important; }
+  .bn-ico svg { width: 12px !important; height: 12px !important; }
+  .bn-wave { left: 54%; width: 46%; }
+  .bn .bn-visual { left: 54%; }
+  .bn-photo { padding: 6px 6px 16px 14% !important; }
+  .bn-dots { left: 82% !important; bottom: 6px !important; gap: 4px; }
+  .bn-dot { width: 6px; height: 6px; }
+}
+
+/* ------------------------------ offer banner on phones: matches the new reference design */
+.bn .bn-ic, .bn-sparkle, .bn-topleaf { display: none; }
+@media (max-width: 700px) {
+  .bn { margin: 16px 0; }
+  .bn-slide { aspect-ratio: 1672 / 900; height: auto !important; border-radius: 26px !important; overflow: hidden;
+    background:
+      radial-gradient(60% 90% at 8% 0%, rgba(255,255,255,.14), transparent 60%),
+      linear-gradient(110deg, #0f7a1e 0%, #1c9a24 55%, #35b32a 100%) !important; }
+  .bn-copy { width: 60% !important; height: 100%; padding: 4.5% 0 4.5% 6% !important; justify-content: space-between; }
+  .bn .bn-ic { display: inline-block; flex: 0 0 auto; }
+  .bn-kicker { background: rgba(255,255,255,.92) !important; color: #1b3d1f !important; border: 0 !important; font-size: 6.8px !important; padding: 3px 8px 3px 5px !important; gap: 4px !important; border-radius: 999px; }
+  .bn-kicker b { color: #1b3d1f; }
+  .bn-sep { background: #1b3d1f !important; opacity: .6; height: 11px; width: 1px; }
+  .bn-pin { color: #2fbf3f; width: 10px; height: 10px; }
+  .bn-leafic { color: #2fbf3f; width: 10px; height: 10px; }
+  .bn-title { margin-top: 0 !important; gap: 0 5px !important; }
+  .bn-title-lead.bn-plain, .bn-title-lead, .bn-title-lead:not(.bn-plain) { font-size: 20px !important; line-height: 1.04 !important; font-weight: 800; }
+  .bn-script { font-size: 1.12em !important; padding-bottom: .12em; }
+  .bn-title .bn-hl { font-size: 24px !important; }
+  .bn-sub { margin-top: 0 !important; font-size: 7.6px !important; gap: 5px !important; align-items: center !important; }
+  .bn-sub-ic { width: 14px; height: 14px; color: #8fe39a; }
+  .bn-actions { margin-top: 0 !important; flex-direction: column; gap: 6px !important; align-items: flex-start; }
+  .bn-cta { background: linear-gradient(180deg, #ffe94a, #ffc91a) !important; color: #14501c !important; padding: 6px 12px !important; font-size: 10.5px !important; border-radius: 999px; gap: 5px !important; box-shadow: 0 3px 8px rgba(0,0,0,.2); }
+  .bn-cart { width: 13px; height: 13px; }
+  .bn-cta svg:not(.bn-cart) { width: 10px; height: 10px; }
+  .bn-trust li { font-size: 6px !important; padding: 0 6px !important; gap: 3px !important; }
+  .bn-ico svg { width: 13px !important; height: 13px !important; }
+  .bn-wave { left: 52% !important; width: 48% !important; }
+  .bn-wave-rim { stroke-width: 7px; }
+  .bn .bn-visual { left: 52% !important; background: radial-gradient(circle at 80% 20%, #e8f7dd 0, #fff 60%) !important; }
+  .bn-photo { padding: 5px 4px 12px 14% !important; }
+  .bn-sparkle { display: block; position: absolute; z-index: 3; width: 14px; height: 14px; left: 50%; top: 29%; }
+  .bn-topleaf { display: block; position: absolute; z-index: 3; width: 22px; height: 15px; left: 47%; top: 1.5%; }
+  .bn-dots { left: 87% !important; bottom: 5px !important; gap: 4px; }
+  .bn-dot { width: 6px; height: 6px; }
+}
+
+/* Phone banner picture: the lush basket photo from the design (a photo uploaded in the admin still wins). */
+@media (max-width: 700px) {
+  .bn-slide[data-custom="0"] .bn-photo { display: none; }
+  .bn-slide[data-custom="0"] ~ .bn-visual, .bn .bn-visual { background-color: #f4fbee; }
+  .bn-slide[data-custom="0"] .bn-visual { background: url(/banner-art/mobile-visual.webp) 40% 55% / cover no-repeat !important; }
+}
+
+/* Phone banner: every size scales with the banner's own width, so a narrower phone
+   shrinks the whole banner instead of pushing the button and icons out of it. */
+@media (max-width: 700px) {
+  .bn-slide { container-type: inline-size; }
+  .bn-copy { width: 58% !important; padding: 4% 0 4% 5.5% !important; }
+  .bn-kicker { font-size: 1.85cqw !important; padding: .9cqw 2.2cqw .9cqw 1.4cqw !important; gap: 1.1cqw !important; }
+  .bn-pin, .bn-leafic { width: 2.9cqw !important; height: 2.9cqw !important; }
+  .bn-sep { height: 3cqw !important; }
+  .bn-title-lead, .bn-title-lead.bn-plain, .bn-title-lead:not(.bn-plain) { font-size: 5cqw !important; line-height: 1.05 !important; }
+  .bn-title .bn-hl { font-size: 5.8cqw !important; }
+  .bn-title { gap: 0 1.2cqw !important; }
+  .bn-sub { font-size: 2.1cqw !important; line-height: 1.3 !important; gap: 1.3cqw !important; max-width: 100% !important; }
+  .bn-sub-ic { width: 3.6cqw !important; height: 3.6cqw !important; }
+  .bn-cta { font-size: 2.8cqw !important; padding: 1.5cqw 3.2cqw !important; gap: 1.3cqw !important; }
+  .bn-cart { width: 3.4cqw !important; height: 3.4cqw !important; }
+  .bn-cta svg:not(.bn-cart) { width: 2.6cqw !important; height: 2.6cqw !important; }
+  .bn-trust li { font-size: 1.65cqw !important; padding: 0 1.5cqw !important; gap: .8cqw !important; }
+  .bn-ico svg { width: 3.4cqw !important; height: 3.4cqw !important; }
+  .bn-actions { gap: 1.5cqw !important; }
+  .bn-sparkle { width: 3.6cqw; height: 3.6cqw; }
+  .bn-topleaf { width: 6cqw; height: 4.2cqw; }
+}
+
+@media (max-width: 700px) { .bn-sub > span { font-size: 2.5cqw !important; line-height: 1.3 !important; } }
+
+/* Help Center: the full page width, four topics in a row on large screens */
+@media (min-width: 1000px) { .help-page .help-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.help-page .help-call { max-width: none; }
+
+.returns-note { padding: 16px 18px; margin: 0 0 16px; }
+.returns-note h2 { margin: 0 0 6px; font-size: 16px; }
+.returns-note p { margin: 0; color: var(--text-muted); font-size: 14px; line-height: 1.55; }
+
+/* Mandatory fields: a red asterisk after the label */
+.req { color: #d43b3b; font-weight: 700; }
+
+/* ----------------------------------------------- My Account on phones: centred profile + list menu */
+@media (max-width: 720px) {
+  body:has(.acct-m) { background: #f4f6f5; }
+  body .wrap.acct-page { padding-left: 0; padding-right: 0; }
+  .ah-hero {
+    position: relative; display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 0 16px 22px; background: linear-gradient(180deg, #cfe9c4 0%, #e6f3e0 55%, #f4f6f5 100%);
+  }
+  .acct-page .cat-mobile-head.ah-top { position: relative; align-self: stretch; margin: 0 -16px; padding: 12px 14px 0; background: transparent; justify-content: flex-start; }
+  .ah-back { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: #fff; color: var(--text); box-shadow: 0 1px 6px rgba(15,40,25,.14); }
+  .ah-avatar-wrap { position: relative; margin-top: 4px; }
+  .ah-avatar { display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%; overflow: hidden; background: #fff; color: #2b3a32; font-size: 30px; font-weight: 700; box-shadow: 0 2px 10px rgba(15,40,25,.12); }
+  .ah-avatar .avatar-photo { width: 100%; height: 100%; object-fit: cover; }
+  .ah-avatar-edit { position: absolute; right: -2px; bottom: 2px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: #fff; border: 2px solid #fff; }
+  .ah-name { margin: 12px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -.01em; color: #14281b; }
+  .ah-phone { margin: 2px 0 0; font-size: 13.5px; color: #5d6b63; }
+
+  .ah-quick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 0 12px; margin-top: -4px; }
+  .ah-quick-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 92px; padding: 12px 6px; border-radius: 16px; background: #fff; color: var(--brand-dark, #135c2b); text-align: center; text-decoration: none; box-shadow: 0 1px 4px rgba(15,40,25,.05); }
+  .ah-quick-tile span { font-size: 13px; font-weight: 600; color: #2b3a32; line-height: 1.2; }
+
+  .ah-card { margin: 14px 12px 0; border-radius: 16px; background: #fff; overflow: hidden; box-shadow: 0 1px 4px rgba(15,40,25,.05); }
+  .ah-card-title { margin: 0; padding: 16px 16px 12px; font-size: 18px; font-weight: 800; color: #14281b; border-bottom: 1px solid #eef1ef; }
+  .ah-row { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; border: 0; border-bottom: 1px solid #f1f3f2; background: none; color: inherit; text-align: left; text-decoration: none; font: inherit; cursor: pointer; }
+  .ah-row:last-child { border-bottom: 0; }
+  .ah-row.static { cursor: default; }
+  .ah-row-icon { display: grid; place-items: center; flex: 0 0 auto; width: 24px; color: #2b3a32; }
+  .ah-row-copy { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .ah-row-copy strong { font-size: 15px; font-weight: 600; color: #1d2a23; }
+  .ah-row-copy span { margin-top: 1px; font-size: 12.5px; color: #7a8780; }
+  .ah-row-value { font-size: 14px; font-weight: 700; color: #1d2a23; }
+  .ah-chev { color: #9aa6a0; flex: 0 0 auto; }
+  .ah-row.danger .ah-row-copy strong, .ah-row.danger .ah-row-icon { color: #d43b3b; }
+
+  .acct-m > .am-card { margin: 14px 12px 0; }
+}
+
+@media (max-width: 720px) { .acct-page .cat-mobile-head.ah-top { border: 0 !important; box-shadow: none !important; } }
+
+.empty-hero-title + .empty-hero-btn { margin-top: 26px; }
+
+/* Product page: pack buttons, a size smaller */
+@media (max-width: 1080px) {
+  .pack-picker h3 { font-size: 12px !important; margin-bottom: 6px !important; }
+  .pack-options { gap: 6px !important; }
+  .pack-option { min-width: 0 !important; padding: 5px 11px !important; gap: 0 !important; border-radius: 8px !important; border-width: 1.2px !important; }
+  .pack-option strong { font-size: 11.5px !important; line-height: 1.25; }
+  .pack-option span { font-size: 10px !important; line-height: 1.25; }
+}
+
+/* Product page: quantity stepper and Add to Cart / Buy now, another size smaller */
+@media (max-width: 1080px) {
+  .pdp-qty { margin-bottom: 8px !important; gap: 8px !important; }
+  .pdp-qty > span { font-size: 11.5px !important; }
+  .pdp-qty .qty { height: 24px !important; min-width: 76px !important; border-radius: 8px !important; }
+  .pdp-qty .qty button { width: 22px !important; font-size: 12px !important; }
+  .pdp-qty .qty .value { font-size: 11px !important; min-width: 20px; }
+  .pdp-actions { gap: 6px !important; margin-top: 8px !important; }
+  .pdp-actions .add-btn,
+  .pdp-actions .btn,
+  .pdp-buy-now { height: 28px !important; min-height: 28px !important; font-size: 11px !important; padding: 0 8px !important; border-radius: 8px !important; line-height: 1 !important; }
+  .pdp-actions .qty { height: 28px !important; }
+  .pdp-actions .qty button { width: 26px !important; font-size: 12px !important; }
+  .pdp-actions .add-btn::before { width: 14px !important; height: 14px !important; font-size: 11px !important; }
+}
+
+/* "% OFF" ribbon on cards: a bigger body for the text and a much shallower notch at the bottom */
+.card .badge {
+  width: 31px !important;
+  height: 29px !important;
+  padding: 5px 1px 0 !important;
+  font-size: 7.8px !important;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 93%, 0 100%) !important;
+}
+@media (min-width: 721px) {
+  .card .badge { width: 37px !important; height: 34px !important; font-size: 9.2px !important; padding: 6px 1px 0 !important; }
+}
+
+/* "% OFF" ribbon: a smaller box, the text keeps its size */
+.card .badge { width: 26px !important; height: 24px !important; padding: 3px 0 0 !important; font-size: 7.8px !important; line-height: 1.05 !important; }
+@media (min-width: 721px) {
+  .card .badge { width: 32px !important; height: 29px !important; padding: 4px 0 0 !important; font-size: 9.2px !important; }
+}
+
+/* "% OFF" ribbon: sized by its own text (with a little padding), so "40%" and "OFF" are never cut off,
+   whatever the phone's font settings. Same look on the home page, lists and product page. */
+.card .badge {
+  width: auto !important;
+  min-width: 26px !important;
+  height: auto !important;
+  display: inline-block !important;
+  padding: 3px 5px 6px !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  font-size: 7.8px !important;
+  line-height: 1.1 !important;
+  text-align: center !important;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 90%, 0 100%) !important;
+}
+@media (min-width: 721px) {
+  .card .badge { min-width: 32px !important; padding: 4px 6px 7px !important; font-size: 9.2px !important; }
+}
+
+/* The photo box has big rounded corners that sliced the ribbon's top-left ("20%" lost its "2"):
+   the corner the ribbon sits in is square now, so the ribbon is never cut. */
+.card .card-media { border-top-left-radius: 0 !important; }
+
+/* Raise a ticket */
+.support-page { max-width: 760px; margin-inline: auto; padding-bottom: 40px; }
+.support-form { padding: 18px; margin-bottom: 22px; }
+.support-form select, .support-form input, .support-form textarea { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface, #fff); }
+.support-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.support-msg { margin: 0 0 12px; font-size: 13.5px; }
+.support-msg.err { color: #d43b3b; }
+.support-msg.ok { color: var(--brand-dark); }
+.support-sub { font-size: 16px; margin: 0 0 10px; }
+.support-empty { color: var(--text-muted); font-size: 13.5px; margin: 6px 0; }
+.support-list { display: grid; gap: 10px; }
+.support-ticket { padding: 0; overflow: hidden; }
+.support-ticket-head { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; background: none; border: 0; text-align: left; cursor: pointer; font: inherit; }
+.support-ticket-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.support-ticket-main small { color: var(--text-faint); font-size: 12px; }
+.support-pill { flex: none; font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); }
+.support-pill.warn { background: #fff3d6; color: #8a5a00; }
+.support-pill.info { background: #e3f0ff; color: #1f5fa8; }
+.support-thread { border-top: 1px solid var(--border); padding: 14px 16px; display: grid; gap: 10px; }
+.support-bubble { max-width: 85%; padding: 9px 12px; border-radius: 12px; font-size: 14px; }
+.support-bubble p { margin: 2px 0 0; white-space: pre-wrap; }
+.support-bubble small { font-size: 11px; color: var(--text-faint); }
+.support-bubble.me { justify-self: end; background: var(--brand-soft); }
+.support-bubble.them { justify-self: start; background: #f3f4f2; }
+.support-reply { display: flex; gap: 8px; align-items: flex-end; }
+.support-reply textarea { flex: 1; font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
+@media (max-width: 720px) {
+  body:has(.support-page .cat-mobile-head) .page-title { display: none; }
+}
+
+/* Empty cart: the shared empty screen, filling the drawer */
+.cart-drawer-body:has(.cart-drawer-empty) { padding: 0; background: #fff; gap: 0; }
+.cart-drawer-empty { padding: 0; flex: 1; display: flex; }
+.cart-drawer .cart-drawer-empty .empty-hero {
+  width: 100%; max-width: none; margin: 0; min-height: 100%; flex: 1;
+  border: 0; border-radius: 0; box-shadow: none; overflow: hidden;
+  justify-content: flex-start; padding: 28px 20px 110px;
+}
+.cart-drawer .cart-drawer-empty .empty-hero-art { width: min(300px, 80%); }
+.cart-drawer .cart-drawer-empty .empty-hero-title { font-size: 28px; margin-top: 6px; }
+.cart-drawer .cart-drawer-empty .empty-hero-text { font-size: 14.5px; max-width: 300px; margin-top: 18px; }
+.cart-drawer .cart-drawer-empty .empty-hero-btn { height: 52px; font-size: 16px; margin-top: 22px; }
