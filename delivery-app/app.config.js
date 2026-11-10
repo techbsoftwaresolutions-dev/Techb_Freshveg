@@ -15,10 +15,16 @@ export default {
     ios: { supportsTablet: false, bundleIdentifier: "com.hosurbasket.partner" },
     android: { package: "com.hosurbasket.partner", adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#FFFDF6" } },
     web: { bundler: "metro", favicon: "./assets/favicon.png" },
+    updates: {
+      enabled: false,
+      checkAutomatically: "NEVER",
+    },
     plugins: [["expo-camera", { cameraPermission: "Hosur Basket Partner uses the camera to take a delivery photo." }]],
     extra: {
       apiBaseUrl: process.env.API_BASE_URL,
-      eas: { projectId: "ad0e15c2-9ae6-4bcc-bc7b-a123dcc818e8" },
+      eas: {
+        projectId: "15f3e6b1-3d41-411b-8428-e567f71383e9",
+      },
     },
   },
 };

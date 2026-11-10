@@ -96,25 +96,12 @@ export default function QueueScreen({ navigation }) {
         <View style={styles.cashIcon}>
           <Ionicons name="wallet-outline" size={22} color="#fff" />
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={styles.cashContent}>
           <Text style={styles.cashLabel} numberOfLines={1}>Cash to deposit:</Text>
-          <Text style={styles.cashValue} numberOfLines={1} adjustsFontSizeToFit>
+          <Text style={styles.cashValue} numberOfLines={1}>
             {rupees(stats?.codCollected)}
           </Text>
         </View>
-        <View style={styles.cashDivider} />
-        <Pressable
-          style={styles.depositBtn}
-          onPress={() =>
-            Alert.alert(
-              "Deposit cash",
-              `Hand ${rupees(stats?.codCollected)} to the store manager at the end of your shift.`
-            )
-          }
-        >
-          <Text style={styles.depositText}>Deposit Now</Text>
-          <Ionicons name="chevron-forward" size={14} color="#fff" />
-        </Pressable>
       </View>
 
       {error ? (
@@ -269,20 +256,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cashLabel: { color: "rgba(255,255,255,0.9)", fontSize: 12.5, fontWeight: "600" },
-  cashValue: { color: "#fff", fontSize: 26, fontWeight: "800" },
-  cashDivider: { width: 1, alignSelf: "stretch", backgroundColor: "rgba(255,255,255,0.35)" },
-  depositBtn: {
+  cashContent: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.7)",
-    borderRadius: radius.pill,
-    paddingHorizontal: 9,
-    paddingVertical: 9,
+    justifyContent: "space-between",
+    paddingRight: 6,
   },
-  depositText: { color: "#fff", fontWeight: "800", fontSize: 12.5 },
+  cashLabel: { color: "rgba(255,255,255,0.92)", fontSize: 14.5, fontWeight: "600" },
+  cashValue: { color: "#fff", fontSize: 22, fontWeight: "800" },
 
   sectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionTitle: { fontSize: 20, fontWeight: "800", color: colors.text },
