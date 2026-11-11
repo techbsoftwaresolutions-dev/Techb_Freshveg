@@ -66,3 +66,6 @@ build/
 large images/videos
 # Images live on Cloudinary only - never store uploads on disk
 backend/uploads/
+
+# Firebase Android config contains project identifiers and must stay local.
+delivery-app/google-services.json

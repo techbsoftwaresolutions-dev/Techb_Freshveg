@@ -1,7 +1,8 @@
-import React from "react";
-import { Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, FlatList, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import useQueue from "../hooks/useQueue";
 import { colors, radius, rupees, shadow, spacing, type } from "../theme";
@@ -22,6 +23,24 @@ export default function QueueScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const bannerHeight = Math.round(width / BANNER_RATIO);
   const { orders, upcoming, stats, loading, refreshing, error, refresh } = useQueue();
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState("");
+
+  async function showNotifications() {
+    setNotificationsVisible(true);
+    setNotificationsLoading(true);
+    setNotificationsError("");
+    try {
+      const data = await api.get("/notifications", { limit: 50 });
+      setNotifications(data.items || []);
+    } catch (err) {
+      setNotificationsError(err.message);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }
 
   if (loading) return <Loading label="Loading your runs" />;
 
@@ -57,10 +76,15 @@ export default function QueueScreen({ navigation }) {
             </View>
           </View>
           <View style={styles.topActions}>
-            <View style={styles.iconBtn}>
+            <Pressable
+              style={styles.iconBtn}
+              onPress={showNotifications}
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
+            >
               <Ionicons name="notifications-outline" size={22} color="#fff" />
               {upcoming.length + orders.length > 0 ? <View style={styles.dot} /> : null}
-            </View>
+            </Pressable>
             <Pressable style={styles.avatar} onPress={() => navigation.navigate("Profile")}>
               <Ionicons name="person" size={22} color={colors.primaryDark} />
             </Pressable>
@@ -135,8 +159,65 @@ export default function QueueScreen({ navigation }) {
           </Text>
         </Card>
       ) : null}
+      <Modal
+        visible={notificationsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNotificationsVisible(false)}
+      >
+        <View style={styles.notificationBackdrop}>
+          <View style={styles.notificationPanel}>
+            <View style={styles.notificationHeader}>
+              <Text style={styles.notificationHeading}>Notifications</Text>
+              <Pressable
+                onPress={() => setNotificationsVisible(false)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Close notifications"
+              >
+                <Ionicons name="close" size={24} color={colors.text} />
+              </Pressable>
+            </View>
+            {notificationsLoading ? (
+              <ActivityIndicator style={{ margin: spacing.xl }} color={colors.primary} />
+            ) : notificationsError ? (
+              <Text style={styles.notificationEmpty}>{notificationsError}</Text>
+            ) : (
+              <FlatList
+                data={notifications}
+                keyExtractor={(item) => String(item.id)}
+                contentContainerStyle={notifications.length ? { padding: spacing.md, gap: spacing.sm } : styles.notificationEmptyWrap}
+                ListEmptyComponent={
+                  <Text style={styles.notificationEmpty}>No notifications yet.</Text>
+                }
+                renderItem={({ item }) => (
+                  <View style={[styles.notificationCard, !item.readAt && styles.notificationUnread]}>
+                    <View style={[styles.notificationDot, !item.readAt && styles.notificationDotUnread]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.notificationTitle}>{item.title}</Text>
+                      <Text style={styles.notificationBody}>{item.body}</Text>
+                      <Text style={styles.notificationTime}>
+                        {notificationAge(item.createdAt)}
+                        {item.orderCode ? ` · ${item.orderCode}` : ""}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
+}
+
+function notificationAge(value) {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return "Just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hr ago`;
+  return new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
 function StatCard({ icon, tint, soft, value, label, onPress }) {
@@ -175,6 +256,47 @@ function Section({ title, onAll, children }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#FFFFFF" },
+  notificationBackdrop: {
+    flex: 1,
+    justifyContent: "flex-start",
+    paddingTop: 62,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  notificationPanel: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    overflow: "hidden",
+  },
+  notificationHeader: {
+    minHeight: 58,
+    paddingHorizontal: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  notificationHeading: { ...type.h3, color: colors.text },
+  notificationEmptyWrap: { flexGrow: 1, justifyContent: "center" },
+  notificationEmpty: { ...type.small, color: colors.textMuted, textAlign: "center", padding: spacing.lg },
+  notificationCard: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  notificationUnread: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  notificationDot: { width: 9, height: 9, borderRadius: 5, marginTop: 5 },
+  notificationDotUnread: { backgroundColor: colors.primary },
+  notificationTitle: { ...type.h3, marginBottom: 2 },
+  notificationBody: { ...type.small, color: colors.textMuted },
+  notificationTime: { ...type.tiny, color: colors.textFaint, marginTop: 4 },
 
   header: {
     backgroundColor: HEADER_GREEN,
