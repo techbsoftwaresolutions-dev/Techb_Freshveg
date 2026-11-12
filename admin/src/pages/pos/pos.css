@@ -139,3 +139,86 @@ img.pos-thumb { border: 1px solid var(--border); padding: 2px; box-sizing: borde
 .pos--touch .pos-pay { padding: 22px; font-size: 20px; }
 .pos--touch .pos-table-wrap { max-height: 30vh; }
 @media (max-width: 1200px) { .pos--touch .pos-quick-row .pos-tile { flex-basis: calc(33.33% - 8px); } }
+
+/* ---- Modern look (all non-terminal templates) ---- */
+.pos { --r: 18px; --pos-shadow: 0 1px 2px rgba(16, 24, 20, .04), 0 8px 24px rgba(16, 24, 20, .06); gap: 18px; }
+
+/* Header: title with a live status line under it. */
+.pos-head h1 { font-size: 28px; font-weight: 800; }
+.pos-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 6px; color: var(--text-muted); font-size: 13px; }
+.pos-meta-item { display: inline-flex; align-items: center; gap: 5px; }
+.pos-status { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; background: #fdecec; color: #b42318; }
+.pos-status i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pos-status.on { background: var(--g-soft); color: var(--g-dark); }
+.pos-status.on i { box-shadow: 0 0 0 0 rgba(31, 154, 82, .5); animation: pos-pulse 2s infinite; }
+@keyframes pos-pulse { 70% { box-shadow: 0 0 0 7px rgba(31, 154, 82, 0); } 100% { box-shadow: 0 0 0 0 rgba(31, 154, 82, 0); } }
+@media (prefers-reduced-motion: reduce) { .pos-status.on i { animation: none; } }
+.pos-chip-btn { border-radius: 999px; padding: 10px 16px; box-shadow: none; transition: border-color .15s, background .15s, transform .15s; }
+.pos-chip-btn:hover { background: var(--g-soft); transform: translateY(-1px); }
+.pos-chip-btn:first-child { background: var(--g); border-color: var(--g); color: #fff; }
+.pos-chip-btn:first-child:hover { background: var(--g-dark); }
+
+/* Panels: softer cards, no hard borders. */
+.pos-panel { border-radius: var(--r); border-color: transparent; box-shadow: var(--pos-shadow); padding: 18px 20px; }
+.pos-panel h2 { font-size: 17px; font-weight: 700; }
+.pos-h-ico { width: 32px; height: 32px; border-radius: 10px; display: inline-grid; place-items: center; background: var(--g-soft); color: var(--g-dark); }
+.pos-count { min-width: 24px; padding: 1px 8px; border-radius: 999px; background: var(--g); color: #fff; font-size: 12.5px; font-weight: 700; text-align: center; }
+
+/* Scan bar: one clean field with a focus glow (no inner input border). */
+.pos-col > .pos-panel:first-child { padding: 14px; }
+.pos-scan { gap: 14px; padding: 4px 8px 4px 16px; border: 1.5px solid var(--border); border-radius: 14px; background: var(--surface-2); transition: border-color .15s, box-shadow .15s, background .15s; }
+.pos-scan:focus-within { border-color: var(--g); background: var(--surface); box-shadow: 0 0 0 4px rgba(31, 154, 82, .14); }
+.pos-scan input, .pos-scan input:focus, .pos-scan input:focus-visible { border: 0 !important; outline: 0 !important; box-shadow: none !important; background: transparent !important; padding: 14px 0; font-size: 16px; }
+.pos-scan input::placeholder { color: var(--text-faint); }
+.pos-kbd { flex: none; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); border-bottom-width: 2px; background: var(--surface); color: var(--text-muted); font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1; }
+
+/* Small buttons: pill shaped. */
+.pos-sm-btn { border-radius: 999px; padding: 8px 14px; border-color: var(--border); transition: background .15s, border-color .15s; }
+.pos-sm-btn:hover:not(:disabled) { border-color: var(--g); background: var(--g-soft); }
+.pos-sm-btn.danger:hover:not(:disabled) { border-color: var(--danger); background: var(--danger-soft); }
+
+/* Empty states with an icon. */
+.pos-empty-rich { display: grid; justify-items: center; gap: 6px; padding: 30px 16px; }
+.pos-empty-rich b { color: var(--text); font-size: 15px; }
+.pos-empty-rich span:last-child { font-size: 13px; max-width: 340px; }
+.pos-empty-ico { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; margin-bottom: 4px; background: var(--g-soft); color: var(--g); }
+
+/* Bill table. */
+.pos-table th { background: transparent; text-transform: uppercase; letter-spacing: .05em; font-size: 11px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.pos-table td { border-top: 0; border-bottom: 1px solid var(--border); }
+.pos-table tbody tr:hover td { background: var(--surface-2); }
+.pos-stepper { border-radius: 999px; border-color: var(--border); }
+.pos-stepper button { background: transparent; color: var(--g-dark); font-weight: 700; }
+.pos-stepper button:hover { background: var(--g-soft); }
+.pos-stepper input { border-inline-color: var(--border); }
+
+/* Category chips. */
+.pos-cat { border-radius: 999px; padding: 8px 16px; border-color: transparent; box-shadow: var(--pos-shadow); }
+.pos-cat:hover:not(.on) { color: var(--g-dark); }
+
+/* Quick add: white card, lifted tiles. */
+.pos-quick { background: var(--surface); border-color: transparent; }
+.pos-tile { border-color: var(--border); border-radius: 14px; padding: 10px 10px 12px; transition: transform .15s, box-shadow .15s, border-color .15s; }
+.pos-tile:hover { transform: translateY(-2px); border-color: var(--g); box-shadow: 0 8px 18px rgba(16, 24, 20, .1); }
+.pos-tile i { box-shadow: 0 4px 10px rgba(31, 154, 82, .35); }
+
+/* Payment: sticky on wide screens, bold total card. */
+@media (min-width: 1001px) { .pos-grid > .pos-panel { position: sticky; top: 16px; } }
+.pos-sum { padding: 9px 0; border-bottom: 1px dashed var(--border); font-size: 14px; color: var(--text-muted); }
+.pos-sum b { color: var(--text); }
+.pos-total { background: linear-gradient(120deg, var(--g-dark), var(--g)); color: #fff; border-radius: 16px; padding: 16px 18px; font-size: 30px; box-shadow: 0 10px 24px rgba(22, 122, 64, .25); }
+.pos-total span:first-child { font-size: 15px; font-weight: 600; opacity: .9; text-transform: uppercase; letter-spacing: .06em; }
+.pos-method { border-width: 1.5px; border-radius: 14px; transition: border-color .15s, background .15s, transform .15s; }
+.pos-method:hover { border-color: var(--g); transform: translateY(-1px); }
+.pos-pay { border-radius: 14px; box-shadow: 0 10px 22px rgba(22, 122, 64, .28); transition: transform .15s, box-shadow .15s; }
+.pos-pay:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(22, 122, 64, .34); }
+.pos-pay-row button { border-radius: 12px; border-color: var(--border); background: var(--surface); }
+.pos-pay-row button:hover:not(:disabled) { border-color: var(--g); background: var(--g-soft); }
+.pos-pay-row .danger:hover:not(:disabled) { border-color: var(--danger); }
+
+@media (max-width: 640px) {
+  .pos { padding: 12px; }
+  .pos-kbd { display: none; }
+  .pos-head h1 { font-size: 24px; }
+}
+.pos-nomatch { padding: 14px 16px; color: var(--text-muted); font-size: 14px; }

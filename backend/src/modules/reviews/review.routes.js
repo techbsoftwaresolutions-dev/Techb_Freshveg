@@ -70,14 +70,18 @@ router.use(requireAuth);
 router.get(
   "/pending",
   asyncHandler(async (req, res) => {
+    // Three independent reads, together (one round trip instead of three), and
+    // only the fields the prompt uses. Runs on page loads, so it has to be quick.
+    const [settings, delivered, reviewed] = await Promise.all([
+      Settings.load(),
+      Order.find({ customer: req.user.id, status: "DELIVERED" })
+        .select("code items.product items.variant items.name items.variantName items.image delivery.deliveredAt")
+        .sort({ "delivery.deliveredAt": -1 })
+        .limit(10),
+      Review.find({ customer: req.user.id }).select("order product").lean(),
+    ]);
     // Nothing to prompt for when reviews are switched off — POST would refuse.
-    if (!(await Settings.load()).app.reviewsEnabled) return res.json({ success: true, pending: [] });
-
-    const delivered = await Order.find({ customer: req.user.id, status: "DELIVERED" })
-      .sort({ "delivery.deliveredAt": -1 })
-      .limit(10);
-
-    const reviewed = await Review.find({ customer: req.user.id }).select("order product");
+    if (!settings.app.reviewsEnabled) return res.json({ success: true, pending: [] });
     const done = new Set(reviewed.map((r) => `${r.order}:${r.product}`));
 
     const pending = [];

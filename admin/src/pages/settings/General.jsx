@@ -1,8 +1,9 @@
 import Select from "../../components/Select";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { Banner, Field, Loading, Tabs } from "../../components/ui";
 import { Affix, FormSection, Segmented, SwitchRow } from "../../components/FormKit";
+import { DEFAULT_TEMPLATE, INVOICE_TEMPLATES, invoiceHtml, sampleInvoice } from "../orders/invoice";
 
 // One settings document, edited a section at a time — so two admins working on
 // different areas do not overwrite each other with a whole-document save.
@@ -15,6 +16,7 @@ const SECTIONS = [
   { key: "notifications", label: "Notifications" },
   { key: "app", label: "Apps" },
   { key: "pos", label: "POS" },
+  { key: "print", label: "Print" },
 ];
 
 const POS_TEMPLATES = {
@@ -396,6 +398,39 @@ export default function General() {
           </FormSection>
         ) : null}
 
+        {section === "print" ? (
+          // One page: the templates on the left, a live preview on the right.
+          <FitToScreen className="print-layout">
+            <div className="print-list" role="radiogroup" aria-label="Invoice template">
+              {Object.entries(INVOICE_TEMPLATES).map(([key, tpl]) => {
+                const on = (draft.invoiceTemplate || DEFAULT_TEMPLATE) === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={`print-item${on ? " on" : ""}`}
+                    onClick={() => setDraft((d) => ({ ...d, invoiceTemplate: key }))}
+                  >
+                    <span className="print-item-head">
+                      <i className="print-dot" style={{ background: `rgb(${tpl.accent.join(",")})` }} />
+                      <strong>{tpl.label}</strong>
+                      {on && <span className="print-check" aria-hidden="true">✓</span>}
+                    </span>
+                    <span className="print-tags">
+                      <span className="tag">{tpl.title}</span>
+                      <span className="tag">{tpl.logo ? "With logo" : "No logo"}</span>
+                      <span className="tag">{tpl.receipt ? "80mm" : "A4"}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <InvoicePreview template={draft.invoiceTemplate || DEFAULT_TEMPLATE} />
+          </FitToScreen>
+        ) : null}
+
         <div className="settings-savebar">
           <button className="btn primary" disabled={saving} onClick={save}>
             {saving
@@ -407,3 +442,78 @@ export default function General() {
     </div>
   );
 }
+
+// Fills the screen from where it starts down to just above the sticky save
+// bar, so the page itself never needs scrolling.
+function FitToScreen({ className, children }) {
+  const ref = useRef(null);
+  const [height, setHeight] = useState(null);
+  useEffect(() => {
+    const fit = () => {
+      const el = ref.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      // Room left for the save bar (and its gap) under the panel.
+      setHeight(Math.max(420, window.innerHeight - top - 96));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
+  return (
+    <div ref={ref} className={className} style={height ? { height } : undefined}>
+      {children}
+    </div>
+  );
+}
+
+// A scaled-down A4 page showing the chosen template with a sample order.
+// "Fit" shrinks it until the whole page shows; the zoom buttons (bottom-right)
+// scale from there, and only the preview area scrolls when zoomed in.
+const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
+
+function InvoicePreview({ template }) {
+  const html = useMemo(() => invoiceHtml(sampleInvoice(template)), [template]);
+  const box = useRef(null);
+  const [fit, setFit] = useState(0.5); // scale at which the whole page fits
+  const [zoom, setZoom] = useState(1); // multiple of `fit`
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return undefined;
+    const observer = new ResizeObserver(() => {
+      // Inner size, less the padding round the page.
+      const width = el.clientWidth - 24;
+      const height = el.clientHeight - 24;
+      setFit(Math.max(0.15, Math.min(width / PAGE_W, height / PAGE_H)));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const scale = fit * zoom;
+  const step = (dir) =>
+    setZoom((z) => {
+      const i = ZOOM_STEPS.findIndex((s) => s >= z - 0.001);
+      const next = ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, (i < 0 ? ZOOM_STEPS.length - 1 : i) + dir))];
+      return next;
+    });
+
+  return (
+    <div className="invoice-preview">
+      <div className="invoice-scroll" ref={box}>
+        <div className="invoice-page" style={{ width: PAGE_W * scale, height: PAGE_H * scale }}>
+          <iframe title="Invoice preview" srcDoc={html} style={{ transform: `scale(${scale})` }} />
+        </div>
+      </div>
+      <div className="zoom-ctl" role="group" aria-label="Preview zoom">
+        <button type="button" onClick={() => step(-1)} disabled={zoom <= ZOOM_STEPS[0]} aria-label="Zoom out">−</button>
+        <span className="zoom-val" aria-live="polite">{Math.round(scale * 100)}%</span>
+        <button type="button" onClick={() => step(1)} disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} aria-label="Zoom in">+</button>
+        <button type="button" className="zoom-fit" onClick={() => setZoom(1)} disabled={zoom === 1} title="Fit the whole page">Fit</button>
+      </div>
+    </div>
+  );
+}
+
+const PAGE_W = 820;
+const PAGE_H = 1100;

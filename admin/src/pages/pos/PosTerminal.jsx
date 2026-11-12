@@ -19,11 +19,12 @@ export default function PosTerminal({ p }) {
   // The grid follows the category chosen on the rail, or whatever is typed in the scan box.
   const shown = useMemo(() => {
     const t = p.code.trim().toLowerCase();
+    // Typed text uses the same ranked, server-backed search as the other layouts.
     const list = t.length >= 2
-      ? p.catalogue.filter((c) => `${c.productName} ${c.name} ${c.sku} ${c.barcode}`.toLowerCase().includes(t))
+      ? p.suggestions
       : p.catalogue.filter((c) => p.cat === "All" || c.category === p.cat);
     return list.slice(0, 80);
-  }, [p.catalogue, p.cat, p.code]);
+  }, [p.catalogue, p.cat, p.code, p.suggestions]);
 
   const priceMatches = useMemo(() => {
     const t = priceCode.trim().toLowerCase();

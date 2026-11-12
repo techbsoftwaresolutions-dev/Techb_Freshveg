@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const asyncHandler = require("../../core/asyncHandler");
+const { cacheResponse } = require("../../core/storefrontCache");
 const { requireAuth, requirePermission } = require("../../middleware/auth");
 
 const Order = require("../orders/order.model");
@@ -55,6 +56,9 @@ const reportPage = (query) => {
 // six list calls it used to make.
 router.get(
   "/dashboard",
+  // Repeat visits within 15 s are answered from the shared cache (cleared at once by any order,
+  // stock or POS write); the dashboard is the same for everyone allowed to see it.
+  cacheResponse(15),
   asyncHandler(async (req, res) => {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);

@@ -2627,6 +2627,12 @@ table.data tr.drop-target td { box-shadow: inset 0 2px 0 var(--accent); }
 .orders-page table.data .row-title.mono { font-weight: 700; }
 .order-head .order-back { display: inline-flex; margin: 0 0 6px; padding: 5px 12px; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .order-head h1 { margin: 0; }
+.menu-btn { position: relative; }
+.menu-btn > .btn { display: inline-flex; align-items: center; gap: 6px; }
+.menu-caret { font-size: 10px; opacity: .7; }
+.menu-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 170px; padding: 6px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, .14); }
+.menu-list button { text-align: left; padding: 8px 12px; border: 0; border-radius: 8px; background: none; font: inherit; font-size: 13.5px; color: var(--text); cursor: pointer; }
+.menu-list button:hover, .menu-list button:focus-visible { background: var(--surface-2); }
 .order-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
 .order-sum-tile { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); min-width: 0; }
 .order-sum-tile:nth-child(1) { border-top: 3px solid var(--accent); }
@@ -2856,6 +2862,39 @@ input.switch:checked::after { transform: translateX(18px); }
 .users-page table.data thead th { background: var(--surface-2); font-size: 11px; letter-spacing: .05em; }
 .users-page table.data tbody tr:hover { background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
 .type-tile:disabled { opacity: .55; cursor: not-allowed; }
+/* Settings -> Print: template list left, live preview right, the whole panel
+   sized to the screen (FitToScreen) so nothing scrolls. */
+.settings-main:has(.print-layout) { max-width: 1240px; }
+.print-layout { display: grid; grid-template-columns: minmax(230px, 290px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 18px; padding: 16px; min-height: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); box-sizing: border-box; }
+.print-list { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; padding: 2px; }
+.print-item { display: grid; gap: 6px; width: 100%; padding: 10px 12px; text-align: left; font: inherit; color: var(--text); background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+.print-item:hover { border-color: var(--accent); }
+.print-item.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-soft); }
+.print-item-head { display: flex; align-items: center; gap: 10px; }
+.print-item-head strong { font-size: 14px; flex: 1; min-width: 0; }
+.print-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.print-check { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 11px; font-weight: 800; flex: none; }
+.print-tags { display: flex; flex-wrap: wrap; gap: 5px; padding-left: 21px; }
+.print-tags .tag { font-size: 10.5px; padding: 1px 7px; }
+/* The preview area takes the rest; the page inside is scaled to fit it whole. */
+.print-layout .invoice-preview { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; border-radius: 12px; background: var(--surface-2); }
+/* Scrolls only when zoomed past "fit"; margin:auto centres the page without
+   clipping its left/top edge once it is bigger than the area. */
+.invoice-scroll { position: absolute; inset: 0; display: flex; overflow: auto; padding: 12px; box-sizing: border-box; }
+.invoice-scroll .invoice-page { margin: auto; flex: none; }
+.zoom-ctl { position: absolute; right: 14px; bottom: 14px; z-index: 2; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 94%, transparent); border: 1px solid var(--border); box-shadow: 0 6px 18px rgba(16, 24, 20, .16); backdrop-filter: blur(6px); }
+.zoom-ctl button { min-width: 32px; height: 32px; padding: 0 8px; border: 0; border-radius: 999px; background: none; color: var(--text); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; }
+.zoom-ctl button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
+.zoom-ctl button:disabled { opacity: .35; cursor: default; }
+.zoom-ctl .zoom-fit { font-size: 12.5px; font-weight: 700; border-left: 1px solid var(--border); border-radius: 0 999px 999px 0; margin-left: 2px; }
+.zoom-val { min-width: 46px; text-align: center; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.invoice-page { position: relative; overflow: hidden; background: #fff; border-radius: 6px; box-shadow: 0 6px 22px rgba(16, 24, 20, .14); }
+.invoice-page iframe { position: absolute; top: 0; left: 0; width: 820px; height: 1100px; border: 0; transform-origin: 0 0; }
+@media (max-width: 860px) {
+  .print-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .print-list { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
+  .print-item { flex: 0 0 200px; }
+}
 .affix-button { border: 0; border-left: 1px solid var(--border); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; color: var(--accent); }
 
 /* ---------- Audit log v2 ---------- */

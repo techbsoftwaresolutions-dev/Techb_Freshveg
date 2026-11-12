@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const asyncHandler = require("../../core/asyncHandler");
+const { cacheResponse } = require("../../core/storefrontCache");
 const ApiError = require("../../core/ApiError");
 const { paginate, paging } = require("../../core/query");
 const { requireAuth, requirePermission } = require("../../middleware/auth");
@@ -80,6 +81,8 @@ router.get(
 router.get(
   "/low-stock",
   canView,
+  // After the permission check, so only allowed staff ever reach the cache. Cleared at once by any stock/order write.
+  cacheResponse(15),
   asyncHandler(async (req, res) => {
     const filter = req.query.store ? { store: req.query.store } : {};
     const inCategory = await variantScope(req.query);

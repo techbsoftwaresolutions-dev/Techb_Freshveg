@@ -4,7 +4,16 @@
 // next.config rewrites to the backend — so there is no CORS handshake and the
 // API host never appears in the shipped HTML.
 
-const BASE = "/api/v1";
+// Optional, for development: NEXT_PUBLIC_API_PORT=5055 sends browser calls
+// straight to the API on the same host (localhost, or the LAN address the
+// site was opened on) instead of through the Next dev server's rewrite, which
+// adds ~50-100ms to every call. Unset — as in production — keeps the
+// same-origin /api route.
+const DIRECT_PORT = process.env.NEXT_PUBLIC_API_PORT;
+const BASE =
+  DIRECT_PORT && typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.hostname}:${DIRECT_PORT}/api/v1`
+    : "/api/v1";
 const SESSION_KEY = "commerce.web.session";
 const GUEST_KEY = "commerce.web.guestId";
 

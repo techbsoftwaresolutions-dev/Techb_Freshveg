@@ -107,6 +107,16 @@ const settingsSchema = new mongoose.Schema(
       template: { type: String, enum: ["standard", "compact", "touch", "terminal"], default: "standard" },
     },
 
+    // How printed / downloaded invoices look (chosen in Settings -> Print).
+    print: {
+      invoiceTemplate: {
+        type: String,
+        // "compact" is a retired template, kept so older saved values still load.
+        enum: ["classic", "modern", "elegant", "minimal", "receipt", "compact"],
+        default: "classic",
+      },
+    },
+
     website: {
       title: { type: String, default: "Hosur Basket" },
       tagline: { type: String, default: "Fresh from the market, at your door" },

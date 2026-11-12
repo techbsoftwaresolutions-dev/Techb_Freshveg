@@ -29,8 +29,11 @@ app.use(
       ? {
           origin: (origin, done) => done(null, !origin || allowedOrigins.includes(origin)),
           credentials: true,
+          maxAge: 600,
         }
-      : undefined
+      : // Browsers re-check a cross-origin call's permission (an extra
+        // OPTIONS round trip) only every 10 minutes, not every few seconds.
+        { maxAge: 600 }
   )
 );
 app.use(compression());
