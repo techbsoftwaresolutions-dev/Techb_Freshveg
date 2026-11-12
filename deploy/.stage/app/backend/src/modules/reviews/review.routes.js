@@ -189,7 +189,10 @@ router.get(
 
     const result = await paginate(Review, filter, req.query, {
       defaultSort: { createdAt: -1 },
-      populate: { path: "product", select: "name slug media" },
+      populate: [
+        { path: "product", select: "name slug media" },
+        { path: "customer", select: "name phone" },
+      ],
     });
     res.json({ success: true, ...result });
   })

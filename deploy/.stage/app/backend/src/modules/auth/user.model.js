@@ -36,6 +36,7 @@ const userSchema = new mongoose.Schema(
       match: [/^\d{10}$/, "Phone must be 10 digits"],
     },
     email: { type: String, default: "", lowercase: true, trim: true },
+    avatar: { type: String, default: "", trim: true },
     passwordHash: { type: String, default: "", select: false },
 
     role: { type: String, enum: Object.keys(ROLES), default: "customer", index: true },

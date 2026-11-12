@@ -82,6 +82,20 @@ async function refreshSession() {
   return refreshing;
 }
 
+// Where the shopper is (pincode + named area) — the server prices delivery per area.
+function deliveryHeaders() {
+  try {
+    const area = localStorage.getItem("commerce.web.area");
+    const pincode = localStorage.getItem("commerce.web.pincode");
+    return {
+      ...(area ? { "X-Delivery-Area": encodeURIComponent(area) } : {}),
+      ...(pincode ? { "X-Delivery-Pincode": pincode } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
+
 async function call(method, path, { body, query, retry = true } = {}) {
   const session = loadSession();
 
@@ -95,6 +109,7 @@ async function call(method, path, { body, query, retry = true } = {}) {
     headers: {
       "Content-Type": "application/json",
       "X-Session-Id": guestId(),
+      ...deliveryHeaders(),
       ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -118,7 +133,30 @@ async function call(method, path, { body, query, retry = true } = {}) {
   return payload;
 }
 
+// Sends one image as the raw request body (what the upload routes expect).
+async function uploadImage(path, blob, retry = true) {
+  const session = loadSession();
+  const response = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": blob.type || "image/jpeg",
+      ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+    },
+    body: blob,
+  });
+  if (response.status === 401 && retry && session?.refreshToken) {
+    const renewed = await refreshSession();
+    if (renewed) return uploadImage(path, blob, false);
+  }
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.success === false) {
+    throw new ApiError(response.status, payload.error?.message || "Upload failed", payload.error?.details);
+  }
+  return payload;
+}
+
 export const api = {
+  upload: uploadImage,
   get: (path, query) => call("GET", path, { query }),
   post: (path, body) => call("POST", path, { body }),
   patch: (path, body) => call("PATCH", path, { body }),

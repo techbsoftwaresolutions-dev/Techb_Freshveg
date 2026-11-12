@@ -2,6 +2,8 @@
 // refresh-on-401, and turning the envelope the backend sends into either data
 // or a thrown ApiError the UI can render.
 
+import { toast } from "../components/toast";
+
 const BASE = (import.meta.env.VITE_API_BASE_URL || "") + "/api/v1";
 
 const STORAGE_KEY = "commerce.admin.session";
@@ -90,7 +92,16 @@ async function call(method, path, { body, query, retry = true } = {}) {
     if (renewed) return call(method, path, { body, query, retry: false });
   }
 
-  return readPayload(response, "Request failed");
+  const payload = await readPayload(response, "Request failed");
+
+  // Every successful change confirms itself with a toast. The server's own
+  // message wins; a page's more specific notice replaces this one (see Toaster).
+  // Sign-in, background notification traffic and the POS import preview stay quiet.
+  const quiet = path.startsWith("/auth") || path.startsWith("/notifications") || body?.dryRun === true;
+  if (method !== "GET" && !quiet) {
+    toast(payload.message || (method === "DELETE" ? "Deleted successfully" : method === "PATCH" ? "Saved successfully" : "Done"), "ok", true);
+  }
+  return payload;
 }
 
 // Every API reply is a JSON envelope. Anything else — an HTML page from a

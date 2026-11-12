@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import DateFilter, { todayRange } from "../../components/DateFilter";
-import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, rupees, when, ChipDropdown } from "../../components/ui";
+import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, Tabs, rupees, when } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
 // stage added to the engine shows up here without a frontend change.
@@ -53,7 +53,7 @@ export default function Orders() {
   const [statuses, setStatuses] = useState({});
   // A dashboard card (e.g. "Pending Orders") links here with ?status=..., so
   // that lands on the matching bucket instead of always opening on "All".
-  const [filters, setFilters] = useState({ status: searchParams.get("status") || "", page: 1 });
+  const [filters, setFilters] = useState({ status: searchParams.get("status") || "", channel: "online", page: 1 });
   // The calendar button next to the status chips: { from, to } as yyyy-mm-dd.
   // Arriving from a dashboard link (?status=...) means "show me all of these",
   // so the day filter starts at All Time instead of hiding older orders.
@@ -157,18 +157,28 @@ export default function Orders() {
       <Banner tone="error">{error}</Banner>
       <Banner tone="ok">{notice}</Banner>
 
+      <Tabs
+        tabs={[{ key: "online", label: "Online Orders" }, { key: "pos", label: "Walk-in Orders" }]}
+        active={filters.channel}
+        onChange={(channel) => setFilters({ status: "", channel, page: 1 })}
+      />
+
       <div className="toolbar products-filters">
-        <ChipDropdown
-          ariaLabel="Order status"
-          options={buckets.map((b) => ({ value: b.value, label: b.label }))}
+        <Select
+          aria-label="Order status"
           value={filters.status}
-          onChange={(value) => {
+          onChange={(e) => {
+            const value = e.target.value;
             // Pending orders are whatever is still open, however old, so
             // that bucket (and All) looks across all time.
             if (value === buckets.find((b) => b.label === "Pending").value) setRange({ from: "", to: "" });
-            setFilters({ status: value, page: 1 });
+            setFilters((f) => ({ ...f, status: value, page: 1 }));
           }}
-        />
+        >
+          {buckets.map((b) => (
+            <option key={b.label} value={b.value}>{b.value ? b.label : "All statuses"}</option>
+          ))}
+        </Select>
         <span className="spacer" />
         <DateFilter
           value={range}

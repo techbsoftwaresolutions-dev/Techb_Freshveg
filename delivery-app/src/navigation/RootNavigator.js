@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useCallback, useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { createNavigationContainerRef, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
+import * as Notifications from "expo-notifications";
 
 import { useAuth } from "../context/AuthContext";
 import { colors, type } from "../theme";
@@ -16,9 +17,22 @@ import DeliveredScreen from "../screens/DeliveredScreen";
 import DeliveredDetailScreen from "../screens/DeliveredDetailScreen";
 import OrdersScreen from "../screens/OrdersScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import DeliveryNotificationsScreen from "../screens/DeliveryNotificationsScreen";
 
 const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
+let pendingNotificationTarget = null;
+let handledNotificationId = null;
+
+function notificationTarget(response) {
+  const data = response?.notification?.request?.content?.data || {};
+  const deeplinkOrderId = /^delivery:(.+)$/.exec(String(data.deeplink || ""))?.[1];
+  const orderId = data.orderId || deeplinkOrderId;
+  return orderId
+    ? { name: "Delivery", params: { orderId: String(orderId) } }
+    : { name: "Notifications" };
+}
 
 // [active, inactive] icon per tab.
 const ICONS = {
@@ -54,10 +68,47 @@ function MainTabs() {
 export default function RootNavigator() {
   const { signedIn, ready } = useAuth();
 
+  const openPendingNotification = useCallback(() => {
+    if (!signedIn || !navigationRef.isReady() || !pendingNotificationTarget) return;
+
+    const target = pendingNotificationTarget;
+    pendingNotificationTarget = null;
+    navigationRef.navigate(target.name, target.params);
+    Notifications.clearLastNotificationResponseAsync().catch((error) => {
+      console.warn("[notifications] Could not clear the opened notification:", error.message);
+    });
+  }, [signedIn]);
+
+  const openNotification = useCallback((response) => {
+    const request = response?.notification?.request;
+    if (!request || request.identifier === handledNotificationId) return;
+    handledNotificationId = request.identifier;
+
+    pendingNotificationTarget = notificationTarget(response);
+    openPendingNotification();
+  }, [openPendingNotification]);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(openNotification);
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) openNotification(response);
+      })
+      .catch((error) => {
+        console.warn("[notifications] Could not read the last notification response:", error.message);
+      });
+
+    return () => subscription.remove();
+  }, [openNotification]);
+
+  useEffect(() => {
+    openPendingNotification();
+  }, [openPendingNotification]);
+
   if (!ready) return <Loading label="Starting up" />;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} onReady={openPendingNotification}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: { backgroundColor: colors.surface },
@@ -75,6 +126,7 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Delivery" component={DeliveryScreen} options={{ title: "Delivery" }} />
+            <Stack.Screen name="Notifications" component={DeliveryNotificationsScreen} options={{ title: "Notifications" }} />
             <Stack.Screen name="DeliveredDetail" component={DeliveredDetailScreen} options={{ title: "Delivery details" }} />
             <Stack.Screen
               name="Delivered"

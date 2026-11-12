@@ -3,6 +3,7 @@ import { createContext, isValidElement, useContext, useEffect, useMemo, useRef, 
 import { Link } from "react-router-dom";
 import Sparkline from "./Sparkline";
 import { IconDownload } from "./Icons";
+import { toast } from "./toast";
 
 // Small shared primitives. Deliberately plain — the interesting code in this
 // app is the schema-driven form, not a component library.
@@ -117,8 +118,14 @@ export function Empty({ title, hint, action, icon: Icon }) {
   );
 }
 
+// Plain text of a React node, for turning a banner's content into a toast.
+const noticeText = (n) => (n == null || n === false ? "" : Array.isArray(n) ? n.map(noticeText).join("") : typeof n === "object" ? noticeText(n.props?.children) : String(n));
+
+// Success ("ok") banners are shown as toasts, so a saved/deleted message does not push the page down.
 export function Banner({ tone = "info", children }) {
-  if (!children) return null;
+  const text = tone === "ok" ? noticeText(children).trim() : "";
+  useEffect(() => { if (text) toast(text); }, [text]);
+  if (!children || tone === "ok") return null;
   return <div className={`banner ${tone}`}>{children}</div>;
 }
 

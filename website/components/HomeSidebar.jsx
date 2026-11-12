@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { categoryImage, img } from "@/lib/format";
 import CategoryIcon from "./CategoryIcon";
 
 // The vertical department list beside the homepage content — the same
@@ -22,8 +22,8 @@ export default function HomeSidebar({ departments = [], hasOffers = false }) {
         {departments.map((department) => (
           <Link key={department.id} href={`/c/${department.slug}`} className="aisles-item">
             <span style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
-              {department.image ? (
-                <img src={img(department.image, 80)} alt="" className="aisles-head-icon aisles-head-photo" />
+              {categoryImage(department) ? (
+                <img src={img(categoryImage(department), 80)} alt="" className="aisles-head-icon aisles-head-photo" />
               ) : (
                 <CategoryIcon name={department.name} className="aisles-head-icon" />
               )}

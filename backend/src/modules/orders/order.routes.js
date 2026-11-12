@@ -166,6 +166,9 @@ router.get(
     if (req.query.store) filter.store = req.query.store;
     if (req.query.partner) filter["delivery.partner"] = req.query.partner;
     if (req.query.paymentStatus) filter["payment.status"] = req.query.paymentStatus;
+    // Counter (POS) bills and online orders are listed apart.
+    if (req.query.channel === "pos") filter.source = "pos";
+    else if (req.query.channel === "online") filter.source = { $ne: "pos" };
     const placed = dateBounds(req.query.from, req.query.to);
     if (placed) filter.placedAt = placed;
 

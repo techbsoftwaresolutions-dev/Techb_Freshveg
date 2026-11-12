@@ -8,6 +8,7 @@ import Filters, { ActiveFilters, SortBar } from "@/components/Filters";
 import { DeliveryBar, MobileChips, MobileRail } from "@/components/MobileBrowse";
 import { SearchHead, SearchProvider, SearchSwap } from "@/components/ListingSearch";
 import CategoryIcon from "@/components/CategoryIcon";
+import DepartmentNav from "@/components/DepartmentNav";
 import EmptyState from "@/components/EmptyState";
 import InfiniteProducts from "@/components/InfiniteProducts";
 import TrustStrip from "@/components/TrustStrip";
@@ -111,9 +112,12 @@ export default async function CategoryPage({ params, searchParams }) {
       <div className="split browse cat-layout has-rail">
         <MobileRail departments={departments} activeSlug={slug} />
 
-        <Suspense fallback={<aside />}>
-          <Filters filters={filters} brands={brands} priceBands={priceBands} availability={availability} />
-        </Suspense>
+        <div className="cat-side">
+          <DepartmentNav departments={departments} activeSlug={slug} />
+          <Suspense fallback={<aside />}>
+            <Filters filters={filters} brands={brands} priceBands={priceBands} availability={availability} />
+          </Suspense>
+        </div>
 
         <div>
           <MobileChips facets={{ filters, brands, priceBands, availability }} />

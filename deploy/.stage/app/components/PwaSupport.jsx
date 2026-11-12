@@ -48,7 +48,7 @@ export default function PwaSupport() {
   if (!mounted || installed || dismissed || (!canPrompt && !showIosHint)) return null;
 
   return (
-    <div className="install-bar" role="dialog" aria-label="Install the Hosur Basket app">
+    <div className={`install-bar${canPrompt ? " has-btn" : ""}`} role="dialog" aria-label="Install the Hosur Basket app">
       <img src="/icons/icon-192.png?v=3" alt="" className="install-bar-icon" width="40" height="40" />
       <div className="install-bar-copy">
         <strong>Get the Hosur Basket app</strong>

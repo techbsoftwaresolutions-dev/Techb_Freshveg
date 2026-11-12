@@ -51,7 +51,7 @@ function packLabel(packSize, fallbackUnit) {
     unit = unit === "kg" ? "g" : "ml";
   }
 
-  if (unit === "pcs") return value === 1 ? "1 piece" : `Pack of ${value}`;
+  if (unit === "pcs") return value === 1 ? "1 pack" : `Pack of ${value}`;
   if (unit === "l" || unit === "ltr") return `${trimNumber(value)} ltr`;
 
   return `${trimNumber(value)} ${unit}`;

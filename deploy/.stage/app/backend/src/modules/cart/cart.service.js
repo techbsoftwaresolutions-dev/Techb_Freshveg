@@ -7,6 +7,7 @@ const Order = require("../orders/order.model");
 const ApiError = require("../../core/ApiError");
 const inventoryService = require("../inventory/inventory.service");
 const { priceCart } = require("../pricing/pricing.service");
+const requestContext = require("../../core/requestContext");
 
 async function resolveStore(storeId) {
   const store = storeId
@@ -198,6 +199,7 @@ async function summarise(cart, { couponCode, paymentMethod } = {}) {
         }
       : null,
     couponCode: couponCode ?? cart.couponCode ?? null,
+    area: requestContext.current(),
     paymentMethod,
     walletRequested: cart.walletRequested || 0,
     loyaltyPointsRequested: cart.loyaltyPointsRequested || 0,

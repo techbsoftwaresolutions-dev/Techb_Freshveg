@@ -23,6 +23,10 @@ export function MobileRail({ departments = [], activeSlug = null }) {
     }
   }
 
+  // The "All" tile shows a small mix of the shop's department photos instead of
+  // a basket icon.
+  const mix = departments.filter((d) => d.image).slice(0, 4);
+
   return (
     <nav className="cat-rail" aria-label="Categories">
       {items.map((item) => {
@@ -34,8 +38,14 @@ export function MobileRail({ departments = [], activeSlug = null }) {
             className={`cat-rail-item${active ? " active" : ""}`}
             aria-current={active ? "page" : undefined}
           >
-            <span className="cat-rail-icon">
-              {item.image ? <img src={img(item.image, 120)} alt="" /> : <CategoryIcon name={item.name} />}
+            <span className={`cat-rail-icon${item.id === "all" && mix.length >= 2 ? " cat-rail-mix" : ""}`}>
+              {item.id === "all" && mix.length >= 2 ? (
+                mix.map((d) => <img key={d.id || d.slug} src={img(d.image, 80)} alt="" />)
+              ) : item.image ? (
+                <img src={img(item.image, 120)} alt="" />
+              ) : (
+                <CategoryIcon name={item.name} />
+              )}
             </span>
             <span className="cat-rail-name">{item.name}</span>
           </Link>

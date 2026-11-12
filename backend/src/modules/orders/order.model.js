@@ -146,7 +146,7 @@ const orderSchema = new mongoose.Schema(
     payment: {
       method: {
         type: String,
-        enum: ["cod", "upi", "card", "netbanking", "wallet", "paylater", "store_credit"],
+        enum: ["cod", "cash", "upi", "card", "netbanking", "wallet", "paylater", "store_credit"],
         default: "cod",
       },
       status: {
@@ -229,6 +229,17 @@ const orderSchema = new mongoose.Schema(
       comment: String,
       ratedAt: Date,
     },
+
+    // POS bills. posClientId is made on the till (before any network call), so
+    // a bill replayed after an offline spell is recognised and not booked twice.
+    invoiceNo: { type: String, default: "", index: true },
+    posClientId: { type: String, index: true, sparse: true },
+    posPayments: {
+      type: [new mongoose.Schema({ method: String, amount: Number }, { _id: false })],
+      default: undefined,
+    },
+    cashier: objectId("User"),
+    cashierName: { type: String, default: "" },
 
     placedAt: { type: Date, default: Date.now, index: true },
   },

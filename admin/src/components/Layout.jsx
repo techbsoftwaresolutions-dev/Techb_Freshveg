@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import NotificationBell from "./NotificationBell";
+import Toaster from "./Toaster";
 import {
   IconDashboard,
   IconCalendar,
@@ -102,6 +103,9 @@ const NAV = [
   {
     group: "Operations",
     items: [
+      { to: "/pos", label: "POS Billing", permission: "pos.sell", icon: IconPayments },
+      { to: "/pos/labels", label: "Barcode Labels", permission: "pos.manage", icon: IconProducts },
+      { to: "/pos/import", label: "Excel Import", permission: "pos.manage", icon: IconInventory },
       {
         to: "/inventory",
         label: "Inventory",
@@ -613,6 +617,7 @@ export default function Layout() {
         </header>
 
         <Outlet />
+        <Toaster />
       </div>
     </div>
   );

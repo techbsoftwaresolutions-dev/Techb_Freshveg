@@ -1,5 +1,6 @@
 "use client";
 
+import { gateCheckout } from "@/lib/launch";
 import Link from "next/link";
 import { MorphingSquare } from "@/components/ui/morphing-square";
 import FreeDeliveryProgress from "@/components/FreeDeliveryProgress";
@@ -67,7 +68,7 @@ export default function CartPage() {
     setClearOpen(false);
   }
 
-  const checkout = () => router.push(signedIn ? "/checkout" : "/login?next=/checkout");
+  const checkout = () => { if (gateCheckout()) return; router.push(signedIn ? "/checkout" : "/login?next=/checkout"); };
   const itemCount = cart.items.length;
 
   async function applyCoupon(event) {

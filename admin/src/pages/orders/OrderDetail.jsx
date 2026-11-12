@@ -409,10 +409,7 @@ export default function OrderDetail() {
                             </span>
                           )}
                           <div className="stack">
-                            <span className="row-title">
-                              {item.name}
-                              {item.variantName ? ` · ${item.variantName}` : ""}
-                            </span>
+                            <span className="row-title">{item.name}</span>
                             <span className="tag tag-plain">{item.sku}</span>
                             {item.deferred?.expectedOn ? (
                               <span className="inline" style={{ gap: 8, marginTop: 4 }}>
@@ -437,12 +434,14 @@ export default function OrderDetail() {
                         </div>
                       </td>
                       <td className="num">
-                        {item.quantity} {item.unit}
+                        {item.quantity}
                         {item.pickedQuantity !== null && item.pickedQuantity !== undefined && (
                           <div className="row-sub">picked {item.pickedQuantity}</div>
                         )}
                       </td>
-                      <td className="num">{rupees(item.unitPrice, { decimals: true })}</td>
+                      <td className="num">
+                        {formatPackSize(item.packSize, item.variantName)}
+                      </td>
                       <td className="num">
                         <strong>{rupees(item.payable)}</strong>
                       </td>
@@ -800,6 +799,22 @@ function Row({ label, value, tone }) {
   );
 }
 
+function formatPackSize(packSize, fallback) {
+  const value = Number(packSize?.value);
+  let unit = String(packSize?.unit || "").trim().toLowerCase();
+  if (!Number.isFinite(value) || value <= 0 || !unit) return fallback || "—";
+
+  if (unit === "kg" && value < 1) {
+    return `${(value * 1000).toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`;
+  }
+  if (unit === "l" && value < 1) {
+    return `${(value * 1000).toLocaleString("en-IN", { maximumFractionDigits: 3 })} ml`;
+  }
+  if (unit === "pcs" && value === 1) unit = "pc";
+
+  return `${value.toLocaleString("en-IN", { maximumFractionDigits: 3 })} ${unit}`;
+}
+
 // Asks when the chosen items will arrive. Saving tells the customer straight
 // away (push, SMS and in the app) and marks the lines on their order page.
 function DelayModal({ busy, items, onClose, onSave }) {
@@ -823,7 +838,7 @@ function DelayModal({ busy, items, onClose, onSave }) {
     >
       <ul className="muted" style={{ margin: "0 0 14px", paddingLeft: 18 }}>
         {items.map((i) => (
-          <li key={i.id}>{i.name}{i.variantName ? ` · ${i.variantName}` : ""} × {i.quantity}</li>
+          <li key={i.id}>{i.name} · {formatPackSize(i.packSize, i.variantName)} × {i.quantity}</li>
         ))}
       </ul>
       <div className="grid cols-2">
