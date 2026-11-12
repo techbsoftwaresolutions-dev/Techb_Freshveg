@@ -1,0 +1,24 @@
+.im-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+@media (max-width: 1100px) { .im-grid { grid-template-columns: 1fr; } }
+.im-step { display: grid; gap: 12px; align-content: start; position: relative; }
+.im-step h2 { margin: 0; font-size: 18px; }
+.im-step p { margin: 0; color: var(--text-muted); line-height: 1.5; }
+.im-num { width: 30px; height: 30px; border-radius: 50%; background: var(--g-soft); color: var(--g-dark); font-weight: 800; display: grid; place-items: center; }
+.im-cols { display: flex; flex-wrap: wrap; gap: 6px; }
+.im-cols span { padding: 4px 10px; border-radius: 999px; background: var(--g-soft); color: var(--g-dark); font-size: 12px; font-weight: 700; }
+.im-drop { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 28px 16px; border: 2px dashed #9ed3b5; border-radius: 14px; background: var(--surface-2); color: var(--g-dark); cursor: pointer; }
+.im-drop:hover, .im-drop.over, .im-drop:focus-visible { border-color: var(--g); background: var(--g-soft); outline: none; }
+.im-drop b { color: var(--text); word-break: break-all; }
+.im-drop small { color: var(--text-muted); }
+.im-muted { color: var(--text-muted); }
+.im-sum { display: flex; gap: 12px; flex-wrap: wrap; }
+.im-sum span { padding: 8px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
+.im-sum span b { font-size: 20px; margin-right: 4px; }
+.im-sum .ok { background: var(--g-soft); border-color: #cfe9da; color: var(--g-dark); }
+.im-sum .bad { background: var(--danger-soft); border-color: #f3c3c3; color: var(--danger); }
+.im-h2 { margin: 0 0 10px; font-size: 18px; }
+.im-table { max-height: 340px; overflow: auto; }
+.im-table table { width: 100%; border-collapse: collapse; }
+.im-table th { position: sticky; top: 0; text-align: left; padding: 8px; font-size: 12px; color: var(--text-muted); background: var(--surface-2); }
+.im-table td { padding: 9px 8px; border-top: 1px solid var(--border); }
+.im-table .bad { color: var(--danger); }

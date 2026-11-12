@@ -179,8 +179,11 @@ export default function Pos() {
     const goOffline = () => setOnline(false);
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
-    const t = setInterval(sync, 60000);
-    return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); clearInterval(t); };
+    // The whole product list is heavy, so it refreshes every 5 minutes; waiting offline
+    // bills are retried every 30 s (a no-op, with no network call, when none are waiting).
+    const full = setInterval(sync, 300000);
+    const retry = setInterval(() => { flushQueue().then(refreshCounts).catch(() => {}); }, 30000);
+    return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); clearInterval(full); clearInterval(retry); };
   }, [sync]);
 
   const add = (item) => {

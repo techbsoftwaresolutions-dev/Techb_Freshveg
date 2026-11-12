@@ -191,11 +191,8 @@ export default function Labels() {
 
   return (
     <div className="lb">
-      <div className="lb-head">
-        <span className="lb-head-ico">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14M21 5v14" /></svg>
-        </span>
-        <div><h1>Barcode Labels</h1><p>Generate and print barcode labels for your products</p></div>
+      <div className="page-head">
+        <div><h1>Barcode Labels</h1></div>
       </div>
 
       {msg && <Banner tone={msg.tone}>{msg.text}</Banner>}

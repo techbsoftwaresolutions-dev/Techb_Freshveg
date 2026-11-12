@@ -19,6 +19,16 @@ async function connectDb() {
   try {
     await mongoose.connect(config.mongoUri, {
       serverSelectionTimeoutMS: 8000,
+      // A cloud database is ~35 ms away per query, and opening a new connection
+      // (TLS) costs 300-600 ms more. Keep a few connections open so a page that fires
+      // several calls at once never waits on a handshake.
+      minPoolSize: 5,
+      maxPoolSize: 20,
+      // Close connections idle for 2 min instead of keeping one a router/NAT has
+      // silently dropped (the next request on it hangs for many seconds).
+      maxIdleTimeMS: 120000,
+      // Fail a dead socket quickly so the driver retries on a fresh connection.
+      socketTimeoutMS: 30000,
     });
   } catch (err) {
     console.error("\n[db] Could not connect to MongoDB.");
@@ -29,6 +39,13 @@ async function connectDb() {
 
   const { name, host } = mongoose.connection;
   console.log(`[db] connected — ${name} @ ${host}`);
+
+  // Touch every pooled connection every 30 s so none goes stale while the app is idle
+  // (the first request after a quiet spell used to stall for several seconds).
+  setInterval(() => {
+    const ping = () => mongoose.connection.db.admin().ping().catch(() => {});
+    Promise.all(Array.from({ length: 5 }, ping));
+  }, 30000).unref();
 
   mongoose.connection.on("disconnected", () => console.warn("[db] disconnected"));
   mongoose.connection.on("reconnected", () => console.log("[db] reconnected"));
