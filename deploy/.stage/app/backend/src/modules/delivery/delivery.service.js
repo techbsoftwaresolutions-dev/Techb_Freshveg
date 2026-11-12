@@ -89,7 +89,7 @@ async function quote({ storeId, pincode, coordinates, cartValue = 0 }) {
     isFree: free,
     minOrderValue: zone ? zone.minOrderValue : store.settings.minOrderValue,
     codEnabled: zone ? zone.codEnabled : store.settings.codEnabled,
-    etaMinutes: store.settings.prepTimeMinutes + (zone?.extraMinutes || 0),
+    etaMinutes: require("../stores/deliveryTime").minutesUntil(require("../stores/deliveryTime").infoFor(store.settings)) + (zone?.extraMinutes || 0),
     distanceKm:
       coordinates && store.location?.coordinates
         ? distanceKm(store.location.coordinates, coordinates)

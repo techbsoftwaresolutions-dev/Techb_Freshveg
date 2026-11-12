@@ -15,7 +15,7 @@ router.use(requireAuth, requirePermission("users.manage"));
 // The roles this screen hands out. Other staff roles still exist in the system
 // (and any account already holding one stays visible and editable), they just
 // aren't offered when adding or changing someone.
-const ASSIGNABLE_ROLES = ["super_admin", "admin", "store_manager", "delivery_partner"];
+const ASSIGNABLE_ROLES = ["super_admin", "admin", "store_manager", "cashier", "delivery_partner"];
 
 // Everyone this screen lists. Delivery boys are not "staff" to the auth layer
 // (they sign in to the delivery app with an OTP, never to this admin), but the

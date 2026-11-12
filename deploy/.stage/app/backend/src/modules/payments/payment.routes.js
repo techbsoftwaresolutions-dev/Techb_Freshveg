@@ -1,4 +1,5 @@
 const express = require("express");
+const { dateBounds } = require("../../core/dateRange");
 const QRCode = require("qrcode");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
@@ -188,11 +189,8 @@ router.get(
     if (req.query.method) filter.method = { $in: String(req.query.method).split(",") };
     if (req.query.store) filter.store = req.query.store;
     if (req.query.search) filter.orderCode = new RegExp(String(req.query.search), "i");
-    if (req.query.from || req.query.to) {
-      filter.createdAt = {};
-      if (req.query.from) filter.createdAt.$gte = new Date(req.query.from);
-      if (req.query.to) filter.createdAt.$lte = new Date(req.query.to);
-    }
+    const created = dateBounds(req.query.from, req.query.to);
+    if (created) filter.createdAt = created;
 
     const result = await paginate(Payment, filter, req.query, { defaultSort: { createdAt: -1 } });
 
@@ -278,6 +276,16 @@ router.get(
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
     const result = await paginate(Refund, filter, req.query, { defaultSort: { createdAt: -1 } });
+
+    // An order an admin has deleted still has its refund on record, but there
+    // is no order page left to open — tell the screen so it doesn't link there.
+    const ids = result.items.map((r) => r.order).filter(Boolean);
+    const alive = new Set((await Order.find({ _id: { $in: ids } }).select("_id").lean()).map((o) => String(o._id)));
+    result.items = result.items.map((r) => {
+      const row = typeof r.toJSON === "function" ? r.toJSON() : r;
+      return { ...row, orderExists: alive.has(String(r.order)) };
+    });
+
     res.json({ success: true, ...result });
   })
 );

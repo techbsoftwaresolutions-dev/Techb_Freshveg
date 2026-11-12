@@ -14,7 +14,15 @@ const SECTIONS = [
   { key: "delivery", label: "Delivery" },
   { key: "notifications", label: "Notifications" },
   { key: "app", label: "Apps" },
+  { key: "pos", label: "POS" },
 ];
+
+const POS_TEMPLATES = {
+  standard: "Standard - scan bar, category chips, bill table and a Quick Add row",
+  compact: "Compact - scan bar and a tall bill list only; best for barcode scanners",
+  touch: "Touch - large product tiles first, bigger buttons; best for touch screens",
+  terminal: "Terminal - full screen with its own top bar, category rail, product grid and bottom action bar; best for a dedicated counter screen",
+};
 
 export default function General() {
   const [settings, setSettings] = useState(null);
@@ -373,6 +381,19 @@ export default function General() {
               ) : null}
             </FormSection>
           </>
+        ) : null}
+
+        {section === "pos" ? (
+          <FormSection step="1" title="Billing screen">
+            <Field label="POS screen template" help={POS_TEMPLATES[draft.template || "standard"]}>
+              <Select value={draft.template || "standard"} onChange={set("template")}>
+                <option value="standard">Standard</option>
+                <option value="compact">Compact</option>
+                <option value="touch">Touch</option>
+                <option value="terminal">Terminal (full screen)</option>
+              </Select>
+            </Field>
+          </FormSection>
         ) : null}
 
         <div className="settings-savebar">

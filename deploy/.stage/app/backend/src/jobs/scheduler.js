@@ -14,6 +14,7 @@ const JOBS = [
   { name: "winBack", everyMinutes: 24 * 60, run: rules.winBack },
   { name: "expireCarts", everyMinutes: 24 * 60, run: rules.expireCarts },
   { name: "expireLoyalty", everyMinutes: 24 * 60, run: rules.expireLoyalty },
+  { name: "purgeNotifications", everyMinutes: 60, run: rules.purgeNotifications },
 ];
 
 const timers = [];
@@ -60,6 +61,9 @@ function start() {
     timer.unref?.();
     timers.push(timer);
   }
+
+  // Clear what has already expired now, not an hour from now.
+  trigger("purgeNotifications").catch(() => {});
 
   console.log(`[jobs] ${JOBS.length} scheduled rules running`);
 }

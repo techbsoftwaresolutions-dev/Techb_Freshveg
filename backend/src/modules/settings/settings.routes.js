@@ -72,7 +72,7 @@ router.patch(
   asyncHandler(async (req, res) => {
     const allowed = [
       "company", "tax", "payment", "loyalty", "referral",
-      "delivery", "notifications", "app", "website",
+      "delivery", "notifications", "app", "website", "pos",
     ];
     const { section } = req.params;
     if (!allowed.includes(section)) {

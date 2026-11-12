@@ -1,4 +1,5 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const asyncHandler = require("../../core/asyncHandler");
 const { paginate } = require("../../core/query");
 const { requireAuth, requirePermission } = require("../../middleware/auth");
@@ -7,6 +8,17 @@ const Referral = require("./referral.model");
 const referralService = require("./referral.service");
 
 const router = express.Router();
+
+// Public: the sign-up screen checks a code from an invite link before the
+// person has an account. Answers with a first name only.
+router.get(
+  "/validate/:code",
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 60 }),
+  asyncHandler(async (req, res) => {
+    res.json({ success: true, ...(await referralService.validate(req.params.code)) });
+  })
+);
+
 router.use(requireAuth);
 
 router.get(

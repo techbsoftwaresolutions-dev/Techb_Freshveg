@@ -27,6 +27,9 @@ import Stores, { StoreFormPage } from "./pages/settings/Stores";
 import General from "./pages/settings/General";
 import AuditLog from "./pages/settings/AuditLog";
 import Users, { UserFormPage } from "./pages/settings/Users";
+import Pos from "./pages/pos/Pos";
+import Labels from "./pages/pos/Labels";
+import Import from "./pages/pos/Import";
 
 // A route can require a permission. Without it the user is sent to the
 // dashboard rather than shown an error — the nav already hides what they
@@ -79,6 +82,9 @@ function Shell() {
         <Route path="returns" element={<Guard permission="orders.view"><Returns /></Guard>} />
         <Route path="payments" element={<Guard permission="orders.view"><Payments /></Guard>} />
 
+        <Route path="pos" element={<Guard permission="pos.sell"><Pos /></Guard>} />
+        <Route path="pos/labels" element={<Guard permission="pos.manage"><Labels /></Guard>} />
+        <Route path="pos/import" element={<Guard permission="pos.manage"><Import /></Guard>} />
         <Route path="inventory" element={<Guard permission="inventory.view"><Inventory /></Guard>} />
         <Route path="delivery" element={<Guard permission="delivery.view"><Delivery /></Guard>} />
         <Route path="support" element={<Guard permission="customers.view"><Support /></Guard>} />

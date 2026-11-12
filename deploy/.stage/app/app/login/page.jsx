@@ -3,6 +3,10 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/Providers";
+import { api } from "@/lib/client-api";
+import { rupees } from "@/lib/format";
+
+const REF_KEY = "commerce.web.ref";
 
 export default function LoginPage() {
   return (
@@ -27,6 +31,40 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
   const timer = useRef(null);
+
+  // A friend's code: from an invite link (?ref=CODE, remembered in case the
+  // page is reloaded) or typed here. It is only used if this turns out to be
+  // a brand-new account.
+  const [refCode, setRefCode] = useState("");
+  const [refOpen, setRefOpen] = useState(false);
+  const [refInfo, setRefInfo] = useState(null);
+
+  useEffect(() => {
+    let value = (params.get("ref") || "").trim().toUpperCase();
+    try {
+      if (value) localStorage.setItem(REF_KEY, value);
+      else value = localStorage.getItem(REF_KEY) || "";
+    } catch {}
+    if (value) {
+      setRefCode(value);
+      setRefOpen(true);
+    }
+  }, [params]);
+
+  useEffect(() => {
+    const value = refCode.trim();
+    if (value.length < 4) {
+      setRefInfo(null);
+      return undefined;
+    }
+    const timer2 = setTimeout(() => {
+      api
+        .get(`/referrals/validate/${encodeURIComponent(value)}`)
+        .then((data) => setRefInfo(data))
+        .catch(() => setRefInfo(null));
+    }, 350);
+    return () => clearTimeout(timer2);
+  }, [refCode]);
 
   useEffect(() => {
     if (signedIn) router.replace(next);
@@ -74,7 +112,10 @@ function LoginForm() {
     setBusy(true);
     setError("");
     try {
-      await verifyOtp(phone, code);
+      await verifyOtp(phone, code, undefined, refCode.trim() || undefined);
+      try {
+        localStorage.removeItem(REF_KEY);
+      } catch {}
       router.replace(next);
     } catch (err) {
       setError(err.message);
@@ -110,6 +151,34 @@ function LoginForm() {
                   required
                 />
               </div>
+            </div>
+
+            <div className="ref-field">
+              {refOpen ? (
+                <>
+                  <label htmlFor="refcode">Referral code <span>(optional)</span></label>
+                  <input
+                    id="refcode"
+                    value={refCode}
+                    onChange={(e) => setRefCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12))}
+                    placeholder="Friend's code"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  {refInfo?.valid ? (
+                    <p className="ref-ok">
+                      Invited by <strong>{refInfo.referrerName}</strong> — you get {rupees(refInfo.friendReward)} after your first delivered order
+                      {refInfo.minFirstOrderValue ? ` of ${rupees(refInfo.minFirstOrderValue)} or more` : ""}.
+                    </p>
+                  ) : refInfo && refCode.trim().length >= 4 ? (
+                    <p className="ref-bad">This code isn&apos;t valid. You can still continue without it.</p>
+                  ) : null}
+                </>
+              ) : (
+                <button type="button" className="link-btn" onClick={() => setRefOpen(true)}>
+                  Have a referral code?
+                </button>
+              )}
             </div>
 
             <button className="btn primary block lg" disabled={phone.length !== 10 || busy}>

@@ -244,7 +244,7 @@ const categories = [
     ],
   },
   { slug: "fresh-fruits", name: "Fresh Fruits", parent: "fruits-vegetables", icon: "🍎", seq: 1 },
-  { slug: "fresh-vegetables", name: "Fresh Vegetables", parent: "fruits-vegetables", icon: "🥕", seq: 2 },
+  { slug: "fresh-vegetables", name: "Fresh Vegetables", parent: "fruits-vegetables", icon: "🥕", seq: 2, description: "Farm-fresh greens and vegetables, picked for everyday meals." },
   {
     slug: "leafy-greens",
     name: "Leafy Greens",
