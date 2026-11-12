@@ -31,6 +31,8 @@ export class ApiError extends Error {
 }
 
 let refreshing = null;
+// The access token already re-checked after a 403 (see call()).
+let permChecked = null;
 
 async function refreshSession() {
   const session = loadSession();
@@ -90,6 +92,20 @@ async function call(method, path, { body, query, retry = true } = {}) {
   if (response.status === 401 && retry && session?.refreshToken) {
     const renewed = await refreshSession();
     if (renewed) return call(method, path, { body, query, retry: false });
+  }
+
+  // A 403 may only mean the token is stale: permissions are baked into the
+  // access token when it is issued (it lives for days), so a role that gained
+  // a permission since — or a new feature's permission — is refused until the
+  // next refresh. Renew once per token and retry; a 403 after that is real.
+  if (response.status === 403 && retry && session?.refreshToken && permChecked !== session.accessToken) {
+    permChecked = session.accessToken;
+    const renewed = await refreshSession();
+    if (renewed) {
+      permChecked = renewed.accessToken;
+      window.dispatchEvent(new CustomEvent("app:session-refreshed", { detail: renewed }));
+      return call(method, path, { body, query, retry: false });
+    }
   }
 
   const payload = await readPayload(response, "Request failed");
@@ -155,6 +171,24 @@ async function uploadImage(file, folder = "products") {
       if (renewed) return attempt(renewed.accessToken);
     }
     throw err;
+  }
+}
+
+// Renews the session now (used at start-up when the token's permissions are
+// out of date) and tells the app about the new session.
+export async function renewSession() {
+  const renewed = await refreshSession();
+  if (renewed) window.dispatchEvent(new CustomEvent("app:session-refreshed", { detail: renewed }));
+  return renewed;
+}
+
+// The permissions baked into an access token (it is a JWT; only read, not trusted).
+export function tokenPermissions(token) {
+  try {
+    const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(part)).perms || [];
+  } catch {
+    return null;
   }
 }
 

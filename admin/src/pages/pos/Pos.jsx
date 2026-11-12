@@ -27,6 +27,9 @@ const PATHS = {
   cash: "M3 7h18v10H3zM12 9.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z",
   upi: "M5 19L12 5l7 14M8 14h8",
   card: "M3 6h18v12H3zM3 10h18",
+  bag: "M5 8h14l-1 12H6zM9 8V6a3 3 0 016 0v2",
+  box: "M4 8l8-4 8 4-8 4zM4 8v8l8 4 8-4V8M12 12v8",
+  store: "M4 10v10h16V10M3 10l2-6h14l2 6zM9 20v-5h6v5",
 };
 const Ico = ({ n, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -164,12 +167,17 @@ export default function Pos() {
     try {
       const sent = await flushQueue();
       if (sent) setMsg({ tone: "ok", text: `${sent} offline bill(s) synced` });
-      const [h, c] = await Promise.all([api.get("/pos/invoice-header"), api.get("/pos/search", { all: 1 })]);
-      setHeader(h.header);
-      setCatalogue(c.items);
-      localStorage.setItem(HEADER_KEY, JSON.stringify(h.header));
-      saveCatalogue(c.items);
     } catch { /* offline: keep the saved copies */ }
+    // Loaded separately, so a failing header never throws the product list away.
+    const [h, c] = await Promise.allSettled([api.get("/pos/invoice-header"), api.get("/pos/search", { all: 1 })]);
+    if (h.status === "fulfilled" && h.value?.header) {
+      setHeader(h.value.header);
+      try { localStorage.setItem(HEADER_KEY, JSON.stringify(h.value.header)); } catch { /* storage blocked */ }
+    }
+    if (c.status === "fulfilled" && Array.isArray(c.value?.items)) {
+      setCatalogue(c.value.items);
+      saveCatalogue(c.value.items);
+    }
     refreshCounts();
   }, []);
 
@@ -191,12 +199,45 @@ export default function Pos() {
     setCode("");
   };
 
+  // Live server matches for what is typed, so a name like "oreo" is found even
+  // when the till's saved catalogue copy is empty or out of date.
+  const [remote, setRemote] = useState({ q: "", items: [] });
+  useEffect(() => {
+    const q = code.trim();
+    if (q.length < 2 || !navigator.onLine) return undefined;
+    const timer = setTimeout(() => {
+      api.get("/pos/search", { q, store: header?.storeId })
+        .then((res) => setRemote({ q, items: res.items || [] }))
+        .catch(() => {});
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [code, header?.storeId]);
+
   // Suggestions appear as you type (2+ characters), with photo, price and stock.
+  // Every typed word must appear somewhere (name, pack, SKU, barcode, category);
+  // names that start with the text rank first.
   const suggestions = useMemo(() => {
     const t = code.trim().toLowerCase();
     if (t.length < 2) return [];
-    return catalogue.filter((c) => `${c.productName} ${c.name} ${c.sku} ${c.barcode}`.toLowerCase().includes(t)).slice(0, 8);
-  }, [code, catalogue]);
+    const words = t.split(/\s+/);
+    const seen = new Set();
+    const pool = [...catalogue, ...(remote.q.toLowerCase() === t ? remote.items : [])].filter((c) => !seen.has(c.id) && seen.add(c.id));
+    return pool
+      .map((c) => {
+        const name = `${c.productName || ""} ${c.name || ""}`.toLowerCase();
+        const hay = `${name} ${c.sku || ""} ${c.barcode || ""} ${c.category || ""}`.toLowerCase();
+        if (!words.every((w) => hay.includes(w))) return null;
+        // 0 name starts with it, 1 a word in the name does, 2 inside the name, 3 SKU/barcode/category only
+        const score = name.startsWith(t) ? 0 : ` ${name}`.includes(` ${t}`) ? 1 : name.includes(t) ? 2 : 3;
+        return { c, score };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.score - b.score || (b.c.stock > 0) - (a.c.stock > 0))
+      .slice(0, 80)
+      .map((x) => x.c);
+  }, [code, catalogue, remote]);
+  const noMatch = code.trim().length >= 2 && !suggestions.length;
+  const searching = noMatch && online && remote.q !== code.trim();
 
   // Enter: an exact barcode/SKU (a scanner) adds straight away; otherwise a single
   // suggestion is added, and several stay on screen to pick from.
@@ -323,7 +364,7 @@ export default function Pos() {
   const terminal = header?.template === "terminal";
   // Everything the full-screen terminal layout needs from this screen's state.
   const ctx = {
-    header, online, pending, catalogue, cats, cat, setCat, lines, bill, setQty, setPrice, add, code, setCode, onScan, scanRef,
+    header, online, pending, catalogue, suggestions, cats, cat, setCat, lines, bill, setQty, setPrice, add, code, setCode, onScan, scanRef,
     method, setMethod, received, setReceived, receivedPaise, change, split, setSplit, splitPaise, canPay, busy, charge,
     reset, hold, newBill, held, setModal, openPast, customer, setCustomer, changePhone, msg, setMsg,
     discount, setDiscount, canDiscount, Ico, Thumb, QtyInput, PriceCell, MethodIcon,
@@ -335,6 +376,11 @@ export default function Pos() {
       <div className="pos-head">
         <div>
           <h1>POS Billing</h1>
+          <div className="pos-meta">
+            <span className={`pos-status${online ? " on" : ""}`}><i />{online ? "Online" : "Offline"}</span>
+            {header?.store && <span className="pos-meta-item"><Ico n="store" size={15} /> {header.store}</span>}
+            <span className="pos-meta-item"><Ico n="clock" size={15} /> {new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}</span>
+          </div>
         </div>
         <div className="pos-actions">
           <button className="pos-chip-btn" onClick={newBill}><Ico n="plus" /> New Bill (F2)</button>
@@ -370,10 +416,14 @@ export default function Pos() {
                 onKeyDown={(e) => { if (e.key === "Escape") setCode(""); }}
                 aria-label="Scan barcode or search product"
               />
+              <kbd className="pos-kbd">Enter ↵</kbd>
             </form>
+            {noMatch && (
+              <div className="pos-matches pos-nomatch">{searching ? "Searching…" : `No products match "${code.trim()}"`}</div>
+            )}
             {suggestions.length > 0 && (
               <div className="pos-matches" role="listbox">
-                {suggestions.map((m) => (
+                {suggestions.slice(0, 10).map((m) => (
                   <button key={m.id} role="option" onClick={() => { add(m); scanRef.current?.focus(); }}>
                     <Thumb item={m} />
                     <span className="pos-match-text">
@@ -397,7 +447,7 @@ export default function Pos() {
 
           <div className="pos-panel">
             <div className="pos-panel-head">
-              <h2><Ico n="cash" /> Bill Items ({lines.length})</h2>
+              <h2><span className="pos-h-ico"><Ico n="bag" size={18} /></span> Bill Items <span className="pos-count">{lines.length}</span></h2>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="pos-sm-btn danger" disabled={!lines.length} onClick={reset}><Ico n="trash" size={16} /> Clear All</button>
                 <button className="pos-sm-btn" onClick={() => setCustomer((c) => c || { name: "", phone: "" })}><Ico n="user" size={16} /> Add Customer</button>
@@ -411,7 +461,11 @@ export default function Pos() {
               </div>
             )}
             {!lines.length ? (
-              <div className="pos-empty">Scan an item or tap a product below to start the bill.</div>
+              <div className="pos-empty pos-empty-rich">
+                <span className="pos-empty-ico"><Ico n="barcode" size={26} /></span>
+                <b>No items on this bill yet</b>
+                <span>Scan a barcode, search above, or tap a product below to start.</span>
+              </div>
             ) : (
               <div className="pos-table-wrap">
                 <table className="pos-table">
@@ -446,7 +500,7 @@ export default function Pos() {
 
           <div className="pos-panel pos-quick">
             <div className="pos-panel-head">
-              <h2>Quick Add Products</h2>
+              <h2><span className="pos-h-ico"><Ico n="plus" size={18} /></span> Quick Add Products</h2>
               <span style={{ display: "flex", gap: 6 }}>
                 <button className="pos-sm-btn" aria-label="Scroll left" onClick={() => quickRef.current?.scrollBy({ left: -480, behavior: "smooth" })}>&lsaquo;</button>
                 <button className="pos-sm-btn" aria-label="Scroll right" onClick={() => quickRef.current?.scrollBy({ left: 480, behavior: "smooth" })}>&rsaquo;</button>
@@ -464,13 +518,17 @@ export default function Pos() {
                 ))}
               </div>
             ) : (
-              <div className="pos-empty">No products yet.</div>
+              <div className="pos-empty pos-empty-rich">
+                <span className="pos-empty-ico"><Ico n="box" size={26} /></span>
+                <b>No products yet</b>
+                <span>Products added to the catalogue show up here for one-tap billing.</span>
+              </div>
             )}
           </div>
         </div>
 
         <div className="pos-panel">
-          <div className="pos-panel-head"><h2><Ico n="card" /> Payment</h2></div>
+          <div className="pos-panel-head"><h2><span className="pos-h-ico"><Ico n="card" size={18} /></span> Payment</h2></div>
           <div className="pos-sum"><span>Subtotal</span><b>{money(bill.gross)}</b></div>
           {canDiscount && (
             <div className="pos-sum">

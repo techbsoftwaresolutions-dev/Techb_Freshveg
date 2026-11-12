@@ -2,6 +2,9 @@ const express = require("express");
 
 const router = express.Router();
 
+// Any write that changes what shoppers see clears the storefront cache.
+router.use(require("../core/storefrontCache").invalidateOnWrite);
+
 // --- Identity -------------------------------------------------------------
 router.use("/auth", require("../modules/auth/auth.routes"));
 
