@@ -3,6 +3,7 @@ const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
 const { paginate, leanToApi, escapeRegex } = require("../../core/query");
 const { optionalAuth } = require("../../middleware/auth");
+const cache = require("../../core/cache");
 
 const Category = require("./category.model");
 const Brand = require("./brand.model");
@@ -103,6 +104,34 @@ async function withCardDetails(cards, store) {
       packLabel: packLabel(pick?.packSize, card.unit),
     };
   });
+}
+
+// withCardDetails costs three queries per call, and the home page makes about ten calls (one
+// per rail). This gathers every call made within 30 ms for the same store into ONE run, then
+// hands each caller back its own cards - same answers, a handful of queries instead of ~30.
+const pendingCards = new Map(); // store id -> { store, waiters }
+function batchedCardDetails(cards, store) {
+  if (!cards.length) return Promise.resolve(cards);
+  const key = store ? String(store._id) : "";
+  let batch = pendingCards.get(key);
+  if (!batch) {
+    batch = { store, waiters: [] };
+    pendingCards.set(key, batch);
+    setTimeout(async () => {
+      pendingCards.delete(key);
+      try {
+        const all = await withCardDetails(batch.waiters.flatMap((w) => w.cards), store);
+        let from = 0;
+        for (const w of batch.waiters) {
+          w.resolve(all.slice(from, from + w.cards.length));
+          from += w.cards.length;
+        }
+      } catch (err) {
+        batch.waiters.forEach((w) => w.reject(err));
+      }
+    }, 30);
+  }
+  return new Promise((resolve, reject) => batch.waiters.push({ cards, resolve, reject }));
 }
 
 // Resolves which store is serving this request: an explicit ?store=, the one
@@ -358,9 +387,7 @@ const OFFER_RAIL_TITLES = { discount: "Discounts", special: "Special Offers", co
 
 // The app's home screen in one request: categories, live offers and a few
 // merchandised rails. One round trip matters on a phone connection.
-router.get(
-  "/home",
-  asyncHandler(async (req, res) => {
+async function buildHome(req) {
     const store = await resolveStore(req);
 
     const [tree, offers, featured, topCategories] = await Promise.all([
@@ -376,16 +403,18 @@ router.get(
         .select(PRODUCT_CARD_FIELDS)
         .limit(12)
         .lean()
-        .then((rows) => withCardDetails(rows.map(leanToApi), store)),
+        .then((rows) => batchedCardDetails(rows.map(leanToApi), store)),
       Category.find({ status: "active", level: 0, showInNav: true }).sort({ seq: 1 }).limit(6),
     ]);
 
     // One rail per top-level department, so the home screen grows by itself
     // when a new department is added.
-    const rails = await Promise.all(
+    // The rails, offer rails, flash deal and offer pictures below do not depend on one
+    // another, so they are all started here and awaited together (one wait, not four).
+    const railsP = Promise.all(
       topCategories.map(async (category) => ({
         category: { id: category.id, name: category.name, slug: category.slug, icon: category.icon },
-        products: await withCardDetails(
+        products: await batchedCardDetails(
           (
             await Product.find({ categoryPath: category._id, status: "active" })
               .select(PRODUCT_CARD_FIELDS)
@@ -400,12 +429,12 @@ router.get(
 
     // One rail per offer kind the admin has tagged products with, so the home
     // page can show Discounts / Special Offers / Combo Offers on their own.
-    const offerRails = (
-      await Promise.all(
+    const offerRailsP = (
+      Promise.all(
         OFFER_KINDS.map(async (kind) => ({
           kind,
           title: OFFER_RAIL_TITLES[kind],
-          products: await withCardDetails(
+          products: await batchedCardDetails(
             (
               await Product.find({ status: "active", "offer.kind": kind })
                 .select(PRODUCT_CARD_FIELDS)
@@ -417,13 +446,14 @@ router.get(
           ),
         }))
       )
-    ).filter((rail) => rail.products.length);
+    ).then((rows) => rows.filter((rail) => rail.products.length));
 
     // A "Flash Deal" countdown is only ever as real as its deadline — so
     // this looks for an offer someone actually gave a schedule.endsAt in the
     // future (set from the admin's Offers screen), rather than the homepage
     // inventing a countdown to nothing. Independent of isFeatured: a flash
     // sale shouldn't need a second, unrelated flag toggled to show up.
+    const flashP = (async () => {
     const flashOfferDoc = await Offer.findOne({
       status: "active",
       "schedule.endsAt": { $gt: new Date() },
@@ -444,7 +474,7 @@ router.get(
         ].filter(Boolean);
       }
 
-      const dealProducts = await withCardDetails(
+      const dealProducts = await batchedCardDetails(
         (
           await Product.find(scopedFilter)
             .select(PRODUCT_CARD_FIELDS)
@@ -467,21 +497,24 @@ router.get(
         };
       }
     }
+    return flashDeal;
+    })();
 
     // An offer card needs a picture and somewhere to go. Both come from the
     // aisle the offer applies to when it names one, so a grocery offer shows
     // the grocery photo and "Shop now" lands in the grocery aisle — and an
     // offer's own uploaded image, when it has one, always wins.
     const offerCategoryIds = offers.flatMap((o) => o.conditions?.categories || []);
-    const offerCategories = offerCategoryIds.length
-      ? await Category.find({ _id: { $in: offerCategoryIds }, status: "active" }).select("slug image")
-      : [];
+    const offerCategoriesP = offerCategoryIds.length
+      ? Category.find({ _id: { $in: offerCategoryIds }, status: "active" }).select("slug image")
+      : Promise.resolve([]);
+    const [rails, offerRails, flashDeal, offerCategories] = await Promise.all([railsP, offerRailsP, flashP, offerCategoriesP]);
     const offerCategoryById = new Map(offerCategories.map((c) => [c.id, c]));
     const departmentImage = tree.find((c) => c.showInNav && c.image)?.image || "";
     const offerTarget = (offer) =>
       (offer.conditions?.categories || []).map((id) => offerCategoryById.get(String(id))).find(Boolean);
 
-    res.json({
+    const homeBody = {
       success: true,
       store: store
         ? {
@@ -513,7 +546,35 @@ router.get(
       rails: rails.filter((r) => r.products.length),
       offerRails,
       flashDeal,
-    });
+    };
+    return homeBody;
+}
+
+// The busiest public page, identical for everyone in the same delivery area. Served from memory
+// without touching the database. For 30 s the copy is fresh; after that the old copy is still
+// answered instantly while ONE background run rebuilds it, so visitors almost never wait for a
+// rebuild (a cold build is ~0.5 s). Any catalogue/offer/stock write drops it (routes/index.js).
+const homeRefreshing = new Set();
+router.get(
+  "/home",
+  asyncHandler(async (req, res) => {
+    const key = `sf:home:${req.query.store || ""}:${req.query.pincode || req.headers["x-delivery-pincode"] || ""}:${req.headers["x-delivery-area"] || ""}`;
+    const hit = await cache.get(key);
+    // A flash-deal countdown must never outlive its deadline: past endsAt, rebuild inline.
+    const expiredDeal = hit?.body?.flashDeal && new Date(hit.body.flashDeal.endsAt) <= Date.now();
+    if (hit && !expiredDeal) {
+      if (Date.now() - hit.at > 30000 && !homeRefreshing.has(key)) {
+        homeRefreshing.add(key);
+        buildHome(req)
+          .then((body) => cache.set(key, { at: Date.now(), body }, 300))
+          .catch(() => {})
+          .finally(() => homeRefreshing.delete(key));
+      }
+      return res.json(hit.body);
+    }
+    const body = await buildHome(req);
+    await cache.set(key, { at: Date.now(), body }, 300);
+    res.json(body);
   })
 );
 

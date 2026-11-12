@@ -2,6 +2,7 @@ import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
+import { useApi } from "../../api/useApi";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import { Avatar } from "../orders/Orders";
@@ -13,26 +14,22 @@ export default function Customers() {
   const { can } = useAuth();
   const canManage = can("customers.manage");
 
-  const [data, setData] = useState({ items: [], meta: null });
   const [filters, setFilters] = useState({ search: "", status: "", page: 1 });
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    api
-      .get("/customers", { ...filters, limit: 20 })
-      .then(setData)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [filters]);
-
+  // Typing in the search box waits 250 ms before asking the server; the 20-row page then comes
+  // from the shared cache, and the previous page stays visible while the next one loads.
+  const [searchTerm, setSearchTerm] = useState("");
   useEffect(() => {
-    const timer = setTimeout(load, filters.search ? 250 : 0);
+    const timer = setTimeout(() => setSearchTerm(filters.search), filters.search ? 250 : 0);
     return () => clearTimeout(timer);
-  }, [load, filters.search]);
+  }, [filters.search]);
+  const listQ = useApi("/customers", { ...filters, search: searchTerm, limit: 20 });
+  const data = listQ.data || { items: [], meta: null };
+  const loading = listQ.loading;
+  const load = listQ.reload;
 
   const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));
 
@@ -44,7 +41,7 @@ export default function Customers() {
         </div>
       </div>
 
-      <Banner tone="error">{error}</Banner>
+      <Banner tone="error">{error || (listQ.error && !listQ.data ? listQ.error.message : "")}</Banner>
 
       <div className="toolbar products-filters">
         <span className="search-field">

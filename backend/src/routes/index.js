@@ -2,6 +2,19 @@ const express = require("express");
 
 const router = express.Router();
 
+// Remembered answers (storefront pages, the till's product list) are dropped the moment
+// anything that could change them is written: catalogue, offers, stock, stores, settings, sales.
+// Cart and wishlist traffic is deliberately not in this list, so shoppers never empty the cache.
+const cache = require("../core/cache");
+router.use(["/catalog", "/marketing", "/inventory", "/stores", "/settings", "/pos", "/orders", "/payments", "/returns"], (req, res, next) => {
+  if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    res.on("finish", () => {
+      if (res.statusCode < 400) { cache.del("sf:*"); cache.del("pos:*"); }
+    });
+  }
+  next();
+});
+
 // --- Identity -------------------------------------------------------------
 router.use("/auth", require("../modules/auth/auth.routes"));
 

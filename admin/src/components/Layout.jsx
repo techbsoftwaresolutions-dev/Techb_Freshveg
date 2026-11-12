@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../api/client";
+import { useApi } from "../api/useApi";
 import NotificationBell from "./NotificationBell";
 import Toaster from "./Toaster";
 import {
@@ -291,30 +291,15 @@ function useCollapsedGroups() {
 // Live numbers shown beside Orders, Inventory and Support, refreshed every
 // minute: what needs attention, not how many pages a menu holds.
 function useNavBadges(can) {
-  const [badges, setBadges] = useState({});
-  useEffect(() => {
-    let alive = true;
-    const load = () => {
-      Promise.all([
-        can("reports.view") ? api.get("/reports/dashboard").catch(() => null) : null,
-        can("customers.view") ? api.get("/support", { open: "true", limit: 1 }).catch(() => null) : null,
-      ]).then(([dash, tix]) => {
-        if (!alive) return;
-        setBadges({
-          pending: dash?.lifetime?.pendingOrders || 0,
-          lowStock: dash?.lowStockCount || 0,
-          tickets: tix?.meta?.total || 0,
-        });
-      });
-    };
-    load();
-    const id = setInterval(load, 60000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, [can]);
-  return badges;
+  // Shown from memory at once, refreshed in the background each minute while the tab is
+  // visible; the notification bell asks for the same support count, which is shared.
+  const dash = useApi("/reports/dashboard", undefined, { refreshMs: 60000, enabled: can("reports.view") }).data;
+  const tix = useApi("/support", { open: "true", limit: 1 }, { refreshMs: 60000, enabled: can("customers.view") }).data;
+  return {
+    pending: dash?.lifetime?.pendingOrders || 0,
+    lowStock: dash?.lowStockCount || 0,
+    tickets: tix?.meta?.total || 0,
+  };
 }
 
 // A real, ticking clock for the topbar — not a screenshot-time string.

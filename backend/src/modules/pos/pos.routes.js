@@ -13,6 +13,7 @@ const Order = require("../orders/order.model");
 const Store = require("../stores/store.model");
 const User = require("../auth/user.model");
 const Settings = require("../settings/settings.model");
+const cache = require("../../core/cache");
 
 // Counter sales: scan -> bill -> pay -> invoice. A POS bill is an ordinary Order
 // (source "pos", already DELIVERED) so reports, returns and the order screens
@@ -39,18 +40,22 @@ async function storeFor(id) {
 }
 
 async function presentVariants(variants, storeId) {
-  const [products, stock] = await Promise.all([
+  // Three independent lookups, one round trip's worth of waiting. (A variant carries its
+  // product's category, so the category names need not wait for the products.)
+  const categoryIds = [...new Set(variants.map((v) => String(v.category)).filter((id) => id && id !== "undefined"))];
+  const [products, stock, categories] = await Promise.all([
     Product.find({ _id: { $in: variants.map((v) => v.product) } }).select("name unit media category").lean(),
     Inventory.find({ store: storeId, variant: { $in: variants.map((v) => v._id) } }).select("variant onHand").lean(),
+    Category.find({ _id: { $in: categoryIds } }).select("name").lean(),
   ]);
   const name = new Map(products.map((p) => [String(p._id), p]));
-  const cats = new Map((await Category.find({ _id: { $in: products.map((p) => p.category) } }).select("name").lean()).map((c) => [String(c._id), c.name]));
+  const cats = new Map(categories.map((c) => [String(c._id), c.name]));
   const onHand = new Map(stock.map((r) => [String(r.variant), r.onHand]));
   return variants.map((v) => ({
     id: String(v._id),
     productName: name.get(String(v.product))?.name || "",
     image: v.media?.[0]?.url || name.get(String(v.product))?.media?.find((m) => m.type === "image")?.url || "",
-    category: cats.get(String(name.get(String(v.product))?.category)) || "",
+    category: cats.get(String(v.category)) || "",
     name: v.name,
     sku: v.sku,
     barcode: v.barcode,
@@ -88,6 +93,13 @@ router.get(
   canSellOrManage,
   asyncHandler(async (req, res) => {
     const q = String(req.query.q || "").trim();
+    // The full list for a till is the heavy one: remember it for 20 s per store. Any write to
+    // sales, stock or the catalogue forgets it (see routes/index.js).
+    const cacheKey = req.query.all && !q ? `pos:all:${req.query.store || ""}` : null;
+    if (cacheKey) {
+      const hit = await cache.get(cacheKey);
+      if (hit) return res.json(hit);
+    }
     const store = await storeFor(req.query.store);
     const filter = { status: "active" };
     if (q) {
@@ -95,8 +107,15 @@ router.get(
       const products = await Product.find({ name: rx }).select("_id").limit(200).lean();
       filter.$or = [{ sku: rx }, { barcode: rx }, { name: rx }, { product: { $in: products.map((p) => p._id) } }];
     }
-    const variants = await Variant.find(filter).sort({ updatedAt: -1 }).limit(req.query.all ? 5000 : 50);
-    res.json({ success: true, items: await presentVariants(variants, store._id) });
+    // lean(): plain objects, not 5000 hydrated Mongoose documents.
+    const variants = await Variant.find(filter)
+      .select("product category sku barcode name packSize mrp sellingPrice taxRatePct taxInclusive media")
+      .sort({ updatedAt: -1 })
+      .limit(req.query.all ? 5000 : 50)
+      .lean();
+    const body = { success: true, items: await presentVariants(variants, store._id) };
+    if (cacheKey) await cache.set(cacheKey, body, 20);
+    res.json(body);
   })
 );
 
@@ -106,7 +125,7 @@ router.get(
   canSell,
   asyncHandler(async (req, res) => {
     const phone = String(req.query.phone || "");
-    const user = /^d{10}$/.test(phone) && phone !== "0000000000" ? await User.findOne({ phone, role: "customer" }).select("name").lean() : null;
+    const user = /^\d{10}$/.test(phone) && phone !== "0000000000" ? await User.findOne({ phone, role: "customer" }).select("name").lean() : null;
     res.json({ success: true, name: user?.name || "" });
   })
 );
@@ -238,7 +257,7 @@ router.post(
     ]);
     const actor = actorOf(req);
 
-    const order = await Order.create({
+    const orderData = {
       code: `POS-${dayCode}-${String(daySeq).padStart(4, "0")}`,
       invoiceNo: `${store.code}/${financialYear(now)}/${String(invSeq).padStart(5, "0")}`,
       posClientId: clientId,
@@ -270,7 +289,19 @@ router.post(
       cashier: actor.id,
       cashierName: actor.name,
       placedAt: now,
-    });
+    };
+    let order;
+    try {
+      order = await Order.create(orderData);
+    } catch (err) {
+      // The unique index on posClientId refused a second copy of this bill (two requests raced
+      // past the check above): answer with the one already booked.
+      if (err.code === 11000 && String(err.message).includes("posClientId")) {
+        const dup = await Order.findOne({ posClientId: clientId });
+        if (dup) return res.json({ success: true, order: dup, duplicate: true });
+      }
+      throw err;
+    }
 
     // The goods are already in the customer's hands: stock moves after the bill is
     // booked and never rejects it (an offline sale may outrun the counted stock).

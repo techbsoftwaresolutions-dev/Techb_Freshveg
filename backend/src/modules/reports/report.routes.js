@@ -42,6 +42,13 @@ const match = (query, extra = {}) => {
   return filter;
 };
 
+// Report lists are paged on the server: 50 by default, 100 at most. Asks for one extra row to learn whether a next page exists.
+const reportPage = (query) => {
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 50));
+  const page = Math.max(1, Number(query.page) || 1);
+  return { page, limit, skip: (page - 1) * limit };
+};
+
 // ---------------------------------------------------------------- dashboard
 
 // Everything the admin home screen needs, in one query set rather than the
@@ -56,7 +63,7 @@ router.get(
       ? { store: new mongoose.Types.ObjectId(String(req.query.store)) }
       : {};
 
-    const [todayRows, statusRows, lowStock, newCustomers, trend, lifetimeRevenueRows, pendingCount] = await Promise.all([
+    const [todayRows, statusRows, lowStock, newCustomers, trend, lifetimeRevenueRows, pendingCount, productCount, customerCount, orderCount] = await Promise.all([
       Order.aggregate([
         { $match: { placedAt: { $gte: startOfToday }, ...storeFilter } },
         {
@@ -111,6 +118,10 @@ router.get(
         status: { $nin: ["DELIVERED", "CANCELLED", "REJECTED"] },
         ...storeFilter,
       }),
+      // Totals for the header tiles: one cheap count each instead of three list calls.
+      Product.countDocuments({}),
+      User.countDocuments({ role: "customer" }),
+      Order.countDocuments(storeFilter),
     ]);
 
     const byStatus = Object.fromEntries(statusRows.map((r) => [r._id, r.count]));
@@ -129,6 +140,7 @@ router.get(
         delivered: byStatus.DELIVERED || 0,
       },
       lowStockCount: lowStock,
+      counts: { products: productCount, customers: customerCount, orders: orderCount },
       trend: trend.map((row) => ({ date: row._id, orders: row.orders, revenue: row.revenue })),
       lifetime: {
         revenue: lifetimeRevenueRows[0]?.revenue || 0,
@@ -194,6 +206,7 @@ router.get(
 router.get(
   "/products",
   asyncHandler(async (req, res) => {
+    const { page, limit, skip } = reportPage(req.query);
     const rows = await Order.aggregate([
       { $match: match(req.query, { status: LIVE }) },
       { $unwind: "$items" },
@@ -206,13 +219,16 @@ router.get(
           orders: { $addToSet: "$_id" },
         },
       },
-      // The product's own current photo, not a snapshot off the order — a
-      // listing card should show what the item looks like today.
+      { $addFields: { orders: { $size: "$orders" } } },
+      { $sort: { [req.query.sort === "units" ? "units" : "revenue"]: -1, _id: 1 } },
+      // One page, then the photo lookup for only those rows (it used to look up every product sold).
+      { $skip: skip },
+      { $limit: limit + 1 },
       {
         $lookup: {
           from: "products",
-          localField: "_id",
-          foreignField: "_id",
+          let: { id: "$_id" },
+          pipeline: [{ $match: { $expr: { $eq: ["$_id", "$$id"] } } }, { $project: { media: 1 } }],
           as: "productDoc",
         },
       },
@@ -220,18 +236,10 @@ router.get(
         $addFields: {
           image: {
             $let: {
-              vars: {
-                media: { $ifNull: [{ $arrayElemAt: ["$productDoc.media", 0] }, []] },
-              },
+              vars: { media: { $ifNull: [{ $arrayElemAt: ["$productDoc.media", 0] }, []] } },
               in: {
                 $arrayElemAt: [
-                  {
-                    $map: {
-                      input: { $filter: { input: "$$media", cond: { $eq: ["$$this.type", "image"] } } },
-                      as: "m",
-                      in: "$$m.url",
-                    },
-                  },
+                  { $map: { input: { $filter: { input: "$$media", cond: { $eq: ["$$this.type", "image"] } } }, as: "m", in: "$$m.url" } },
                   0,
                 ],
               },
@@ -239,12 +247,14 @@ router.get(
           },
         },
       },
-      { $project: { name: 1, units: 1, revenue: 1, orders: { $size: "$orders" }, image: 1 } },
-      { $sort: { [req.query.sort === "units" ? "units" : "revenue"]: -1 } },
-      { $limit: Number(req.query.limit) || 25 },
+      { $project: { name: 1, units: 1, revenue: 1, orders: 1, image: 1 } },
     ]);
 
-    res.json({ success: true, products: rows.map((r) => ({ id: r._id, ...r, _id: undefined })) });
+    res.json({
+      success: true,
+      products: rows.slice(0, limit).map((r) => ({ id: r._id, ...r, _id: undefined })),
+      meta: { page, limit, hasNext: rows.length > limit },
+    });
   })
 );
 
@@ -289,6 +299,7 @@ router.get(
 router.get(
   "/customers",
   asyncHandler(async (req, res) => {
+    const { page, limit, skip } = reportPage(req.query);
     const rows = await Order.aggregate([
       { $match: match(req.query, { status: LIVE }) },
       {
@@ -301,8 +312,9 @@ router.get(
           lastOrderAt: { $max: "$placedAt" },
         },
       },
-      { $sort: { spend: -1 } },
-      { $limit: Number(req.query.limit) || 25 },
+      { $sort: { spend: -1, _id: 1 } },
+      { $skip: skip },
+      { $limit: limit + 1 },
     ]);
 
     const { from, to } = range(req.query);
@@ -327,7 +339,8 @@ router.get(
           ? Math.round(rows.reduce((sum, r) => sum + r.spend, 0) / rows.length)
           : 0,
       },
-      top: rows.map((r) => ({ id: String(r._id), ...r, _id: undefined })),
+      top: rows.slice(0, limit).map((r) => ({ id: String(r._id), ...r, _id: undefined })),
+      meta: { page, limit, hasNext: rows.length > limit },
     });
   })
 );

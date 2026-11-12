@@ -19,6 +19,8 @@ export function loadSession() {
 export function saveSession(session) {
   if (session) localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   else localStorage.removeItem(STORAGE_KEY);
+  clearCache(); // a different user must never be handed the previous user's answers
+  hooks.onSession?.();
 }
 
 export class ApiError extends Error {
@@ -63,7 +65,29 @@ async function refreshSession() {
   return refreshing;
 }
 
-async function call(method, path, { body, query, retry = true } = {}) {
+// A GET that failed because the network blinked (not because the server said no) is
+// retried twice before giving up. Writes are never retried: they might have landed.
+async function fetchRetrying(method, href, init) {
+  const waits = method === "GET" ? [300, 900] : [];
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await fetch(href, init);
+    } catch (err) {
+      if (attempt >= waits.length) {
+        // The browser is online but the server is not answering: say so, once in a while.
+        if (method === "GET" && navigator.onLine && Date.now() - lastDownToast > 15000) {
+          lastDownToast = Date.now();
+          toast("Can't reach the server. Retrying in the background.", "danger");
+        }
+        throw err; // still the raw network error: the POS offline queue relies on that
+      }
+      await new Promise((r) => setTimeout(r, waits[attempt]));
+    }
+  }
+}
+let lastDownToast = 0;
+
+async function send(method, path, { body, query, retry = true } = {}) {
   const session = loadSession();
 
   const url = new URL(`${BASE}${path}`, window.location.origin);
@@ -76,7 +100,7 @@ async function call(method, path, { body, query, retry = true } = {}) {
   // The whole URL, not just its path: in production the API lives on another
   // host (VITE_API_BASE_URL), and a bare path would be sent to the admin's own
   // static site instead.
-  const response = await fetch(url.href, {
+  const response = await fetchRetrying(method, url.href, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -89,10 +113,13 @@ async function call(method, path, { body, query, retry = true } = {}) {
   // means the session is genuinely gone.
   if (response.status === 401 && retry && session?.refreshToken) {
     const renewed = await refreshSession();
-    if (renewed) return call(method, path, { body, query, retry: false });
+    if (renewed) return send(method, path, { body, query, retry: false });
   }
 
   const payload = await readPayload(response, "Request failed");
+
+  // Anything may have changed: forget every remembered answer so the next read is fresh.
+  if (method !== "GET") { clearCache(); hooks.onWrite?.(); }
 
   // Every successful change confirms itself with a toast. The server's own
   // message wins; a page's more specific notice replaces this one (see Toaster).
@@ -158,8 +185,64 @@ async function uploadImage(file, folder = "products") {
   }
 }
 
+// ---- Reading: remembered answers, one request per question, background refresh ----
+//
+// - A GET answered in the last FRESH_MS is served from memory: no request at all.
+// - The same GET asked while it is already on its way shares that one request.
+// - Any successful write (POST/PATCH/DELETE) forgets everything, so a page that
+//   reloads after saving always sees the new data.
+// - peek() hands back a remembered answer (up to STALE_MS old) so a screen can paint
+//   at once and let useApi refresh it in the background.
+const FRESH_MS = 10000;
+const STALE_MS = 5 * 60000;
+const cache = new Map(); // key -> { at, payload }
+const inflight = new Map(); // key -> Promise
+// Real-time or per-moment data is never remembered.
+const LIVE = ["/auth", "/pos", "/notifications"];
+
+const keyOf = (path, query) =>
+  `${path}?${Object.entries(query || {}).filter(([, v]) => v !== undefined && v !== null && v !== "").sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `${k}=${v}`).join("&")}`;
+const copy = (payload) => (typeof structuredClone === "function" ? structuredClone(payload) : payload);
+
+// TanStack Query registers here (see queryClient.js): after any successful write its cached
+// queries are marked stale and refetched; when the signed-in user changes, they are all dropped.
+export const hooks = { onWrite: null, onSession: null };
+
+function clearCache() {
+  cache.clear();
+  inflight.clear();
+}
+
+function call(method, path, opts = {}) {
+  if (method !== "GET" || LIVE.some((p) => path.startsWith(p))) return send(method, path, opts);
+
+  const key = keyOf(path, opts.query);
+  if (!opts.force) {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.at < FRESH_MS) return Promise.resolve(copy(hit.payload));
+    if (inflight.has(key)) return inflight.get(key).then(copy);
+  }
+  const request = send(method, path, opts)
+    .then((payload) => {
+      cache.set(key, { at: Date.now(), payload });
+      return payload;
+    })
+    .finally(() => {
+      if (inflight.get(key) === request) inflight.delete(key);
+    });
+  inflight.set(key, request);
+  return request.then(copy);
+}
+
+function peek(path, query) {
+  const hit = cache.get(keyOf(path, query));
+  return hit && Date.now() - hit.at < STALE_MS ? copy(hit.payload) : undefined;
+}
+
 export const api = {
-  get: (path, query) => call("GET", path, { query }),
+  get: (path, query, opts) => call("GET", path, { query, ...opts }),
+  peek,
+  clearCache,
   post: (path, body) => call("POST", path, { body }),
   patch: (path, body) => call("PATCH", path, { body }),
   delete: (path, body) => call("DELETE", path, { body }),

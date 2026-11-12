@@ -222,18 +222,22 @@ async function purgeOld() {
   return { deleted: result.deletedCount || 0 };
 }
 
-async function feed(userId, { limit = 30, unreadOnly = false } = {}) {
+// Newest first, a page at a time: pass the createdAt of the last item as `before` to load more.
+async function feed(userId, { limit = 20, unreadOnly = false, before } = {}) {
+  limit = Math.min(50, Math.max(1, Number(limit) || 20));
   // The cut-off is applied here too, so a message past its three days is gone
   // from the app at once, not only when the next sweep runs.
   const filter = { user: userId, createdAt: { $gte: keepSince() } };
   if (unreadOnly) filter.readAt = null;
+  const cursor = before ? new Date(before) : null;
+  if (cursor && !Number.isNaN(cursor.getTime())) filter.createdAt = { $gte: keepSince(), $lt: cursor };
 
-  const [items, unread] = await Promise.all([
-    Notification.find(filter).sort({ createdAt: -1 }).limit(limit),
+  const [rows, unread] = await Promise.all([
+    Notification.find(filter).sort({ createdAt: -1 }).limit(limit + 1),
     Notification.countDocuments({ user: userId, readAt: null, createdAt: { $gte: keepSince() } }),
   ]);
 
-  return { items, unread };
+  return { items: rows.slice(0, limit), unread, hasMore: rows.length > limit };
 }
 
 async function markRead(userId, notificationId) {
