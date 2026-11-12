@@ -81,7 +81,30 @@ const iconProps = {
 // (cart page) or "compact" (side panels).
 export default function FreeDeliveryProgress({ variant = "inline" }) {
   const fd = useFreeDelivery();
+  // The side-panel card can be folded down to its title row with the chevron.
+  const [open, setOpen] = useState(true);
+  // Once "Free delivery unlocked", the card can be dismissed with a cross. It
+  // comes back by itself if the cart later drops below the threshold.
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    if (!fd.unlocked) setDismissed(false);
+  }, [fd.unlocked]);
   if (!fd.show) return null;
+  const foldable = variant === "compact";
+  if (foldable && fd.unlocked && dismissed) return null;
+
+  // Folded away: the whole card disappears, leaving one small ">" to bring it back.
+  if (foldable && !open) {
+    return (
+      <div className="fd-reopen">
+        <button type="button" className="fd-toggle" aria-expanded="false" aria-label="Show free delivery card" onClick={() => setOpen(true)}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
 
   const title = fd.unlocked
     ? (variant === "compact" ? "Free delivery unlocked" : "FREE DELIVERY UNLOCKED")
@@ -90,7 +113,7 @@ export default function FreeDeliveryProgress({ variant = "inline" }) {
       : `${toGo(fd.remaining)} to go for ${variant === "compact" ? "free delivery" : "FREE DELIVERY"}`;
 
   return (
-    <div className={`fd fd-${variant}${fd.unlocked ? " unlocked" : ""}`} role="status" aria-live="polite">
+    <div className={`fd fd-${variant}${fd.unlocked ? " unlocked" : ""}${foldable ? (open ? " is-open" : " is-closed") : ""}`} role="status" aria-live="polite">
       <div className="fd-head">
         {fd.unlocked ? (
           <svg {...iconProps}>
@@ -105,6 +128,26 @@ export default function FreeDeliveryProgress({ variant = "inline" }) {
         )}
         <span className="fd-title">{title}</span>
       </div>
+
+      {foldable && fd.unlocked ? (
+        <button type="button" className="fd-toggle fd-cancel" aria-label="Dismiss" title="Dismiss" onClick={() => setDismissed(true)}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      ) : foldable ? (
+        <button
+          type="button"
+          className="fd-toggle"
+          aria-expanded={open}
+          aria-label={open ? "Hide free delivery details" : "Show free delivery details"}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        </button>
+      ) : null}
 
       <div
         className="fd-bar"

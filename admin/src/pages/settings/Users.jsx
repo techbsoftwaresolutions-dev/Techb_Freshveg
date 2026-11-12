@@ -5,6 +5,7 @@ import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import { FormSection, Segmented } from "../../components/FormKit";
+import { toast } from "../../components/Toaster";
 import { Avatar } from "../orders/Orders";
 import {
   Banner,
@@ -393,7 +394,7 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
         onSaved(user, false);
       }
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
       setFieldErrors(err.details || {});
       setSaving(false);
     }
@@ -429,7 +430,7 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
         <div className="offer-main">
           <FormSection step="1" title="Details">
             <div className="grid cols-2">
-              <Field label="Full name" error={fieldErrors.name}>
+              <Field label="Full name" required error={fieldErrors.name}>
                 <input
                   type="text"
                   value={form.name}
@@ -437,7 +438,7 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
                   onChange={(e) => set("name", e.target.value)}
                 />
               </Field>
-              <Field label="Mobile number" error={fieldErrors.phone || phoneProblem}>
+              <Field label="Mobile number" required={isNew} error={fieldErrors.phone || phoneProblem}>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -451,6 +452,7 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
             </div>
             <Field
               label={isPartner ? "Email (their sign-in)" : "Email (optional)"}
+              required={isPartner}
               error={fieldErrors.email || (form.email ? emailProblem : "")}
             >
               <input
@@ -523,6 +525,7 @@ function UserModal({ value, roles, minPassword, isSelf, onClose, onSaved }) {
           <FormSection step={isNew ? "3" : "4"} title="Sign-in">
             <Field
               label={isNew ? "Password" : "Reset password (optional)"}
+              required={isNew}
               error={fieldErrors.password || passwordProblem}
             >
               <span className="affix">

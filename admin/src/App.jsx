@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
+import Toaster from "./components/Toaster";
 import { Loading } from "./components/ui";
 
 import Login from "./pages/Login";
@@ -145,6 +146,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Shell />
+        <Toaster />
       </AuthProvider>
     </BrowserRouter>
   );

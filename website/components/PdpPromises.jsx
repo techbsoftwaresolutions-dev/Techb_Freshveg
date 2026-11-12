@@ -9,8 +9,8 @@ const ROWS = [
         <path d="M12 15c0-3-2-5.4-6-6 0 3.6 2.2 6 6 6z" />
       </>
     ),
-    title: "Farm-Fresh Goodness, Every Day",
-    body: "Enjoy fresh fruits, vegetables and quality groceries, carefully selected to bring freshness and goodness to your home.",
+    title: "Farm-fresh daily",
+    body: "Fresh fruits, vegetables and groceries.",
   },
   {
     // price tag with a heart: quality at best prices
@@ -21,8 +21,8 @@ const ROWS = [
         <path d="M13.2 14.6c-1.5-1.1-2.4-1.9-2.4-2.9a1.4 1.4 0 0 1 2.4-.9 1.4 1.4 0 0 1 2.4.9c0 1-.9 1.8-2.4 2.9z" />
       </>
     ),
-    title: "Quality Products at Best Prices",
-    body: "Shop smarter with affordable prices, exclusive deals and exciting daily offers on your everyday essentials.",
+    title: "Best prices",
+    body: "Everyday deals and offers.",
   },
   {
     // shopping basket: everything in one place
@@ -33,19 +33,19 @@ const ROWS = [
         <path d="M9 14v3M12 14v3M15 14v3" />
       </>
     ),
-    title: "Everything You Need, One Basket",
-    body: "From fresh produce and dairy to groceries, snacks and household essentials – find everything you need in one convenient place.",
+    title: "One basket",
+    body: "Everything you need in one place.",
   },
 ];
 
 export default function PdpPromises() {
   return (
     <section className="pdp-promises" aria-label="Why choose Hosur Basket">
-      <h2>Why Choose Hosur Basket?</h2>
+      <h2>Why Hosur Basket?</h2>
       <ul>
-        {ROWS.map((r) => (
+        {ROWS.map((r, i) => (
           <li key={r.title}>
-            <span className="pdp-promise-icon">
+            <span className={`pdp-promise-icon tone-${i}`}>
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 {r.icon}
               </svg>

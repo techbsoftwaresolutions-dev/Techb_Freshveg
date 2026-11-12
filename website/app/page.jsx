@@ -7,6 +7,9 @@ import BannerCarousel from "@/components/BannerCarousel";
 import CategoryIcon from "@/components/CategoryIcon";
 import HomeSidebar from "@/components/HomeSidebar";
 import HeroCarousel from "@/components/HeroCarousel";
+import HomeWishlist from "@/components/HomeWishlist";
+import PromoRow from "@/components/PromoRow";
+import PromoShopLink from "@/components/PromoShopLink";
 import FlashDeal from "@/components/FlashDeal";
 import TrustStrip from "@/components/TrustStrip";
 import AppDownload from "@/components/AppDownload";
@@ -105,7 +108,7 @@ export default async function HomePage() {
           ) : null}
 
           {offers.length ? (
-            <div className="promo-row" id="offers">
+            <PromoRow count={Math.min(offers.length, 6)}>
               {offers.slice(0, 6).map((offer, index) => (
                 <article key={offer.id} className={`promo tone-${index % 3}`}>
                   {offer.image ? (
@@ -126,18 +129,21 @@ export default async function HomePage() {
                         </>
                       ) : null}
                     </p>
-                    <Link
+                    <PromoShopLink
                       href={offer.categorySlug ? `/c/${offer.categorySlug}` : "/c?sort=discount"}
+                      code={offer.code}
                       className="pill-btn"
                     >
                       Shop Now
                       <IconArrow />
-                    </Link>
+                    </PromoShopLink>
                   </div>
                 </article>
               ))}
-            </div>
+            </PromoRow>
           ) : null}
+
+          <HomeWishlist />
 
           {bestSellers.length ? (
             <section className="section">

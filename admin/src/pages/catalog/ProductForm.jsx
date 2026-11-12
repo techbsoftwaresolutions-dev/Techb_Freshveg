@@ -7,6 +7,7 @@ import { Banner, Card, Field, Loading, Pill } from "../../components/ui";
 import SchemaForm from "../../components/SchemaForm";
 import SelectMenu from "../../components/SelectMenu";
 import { suggestDetails } from "./productAutofill";
+import { toast } from "../../components/Toaster";
 
 // This screen is the point of the whole engine. Pick a category and the rest
 // of the form rebuilds itself from that category's resolved schema — which
@@ -101,6 +102,10 @@ export default function ProductForm() {
   // brand-new product update it instead of creating another.
   const savingRef = useRef(false);
   const savedIdRef = useRef(null);
+  // What was last saved (or loaded), as the JSON that would be sent; a save with
+  // an identical payload is "already saved". Re-taken whenever baselineTick changes.
+  const lastSavedRef = useRef(null);
+  const [baselineTick, setBaselineTick] = useState(0);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [notice, setNotice] = useState("");
@@ -141,8 +146,19 @@ export default function ProductForm() {
         }
       })
       .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        lastSavedRef.current = null;
+        setBaselineTick((t) => t + 1);
+      });
   }, [id, isNew, fromId]);
+
+  // Once the product has loaded (or just been saved) its current state is the baseline.
+  useEffect(() => {
+    if (isNew || loading || !baselineTick) return;
+    lastSavedRef.current = JSON.stringify(buildPayload(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baselineTick, loading]);
 
   // Changing the category swaps the entire field set. Values whose field no
   // longer exists are dropped rather than sent to a schema that would reject
@@ -213,30 +229,10 @@ export default function ProductForm() {
 
   const formErrors = submitted ? validate() : { variants: {}, attributes: {} };
 
-  async function save({ publish } = {}) {
-    if (savingRef.current) return;
-    const errs = validate();
-    if (hasErrors(errs)) {
-      setSubmitted(true);
-      setNotice("");
-      setError("Please fill in the required fields marked below — nothing was saved.");
-      // Wait a tick so the inline messages exist, then bring the first one into view.
-      setTimeout(() => {
-        document.querySelector(".field .error, .photos-error, .variant-error")?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }, 50);
-      return;
-    }
-
-    savingRef.current = true;
-    setSaving(true);
-    setError("");
-    setFieldErrors({});
-    setNotice("");
-
-    const payload = {
+  // Everything the server is sent for this product, as one object. Also what
+  // "has anything changed since the last save?" compares.
+  function buildPayload(publish) {
+    return {
       name: product.name,
       category: product.category,
       brand: product.brand || null,
@@ -281,6 +277,39 @@ export default function ProductForm() {
         };
       }),
     };
+  }
+
+  async function save({ publish } = {}) {
+    if (savingRef.current) return;
+    const errs = validate();
+    if (hasErrors(errs)) {
+      setSubmitted(true);
+      setNotice("");
+      setError("Please fill in the required fields marked below — nothing was saved.");
+      // Wait a tick so the inline messages exist, then bring the first one into view.
+      setTimeout(() => {
+        document.querySelector(".field .error, .photos-error, .variant-error")?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 50);
+      return;
+    }
+
+    const payload = buildPayload(publish);
+
+    // Nothing edited since the last save: say so instead of saving the same thing again.
+    if (!isNew && lastSavedRef.current && JSON.stringify(payload) === lastSavedRef.current) {
+      setNotice("");
+      toast.info("Already saved — there are no new changes.");
+      return;
+    }
+
+    savingRef.current = true;
+    setSaving(true);
+    setError("");
+    setFieldErrors({});
+    setNotice("");
 
     try {
       const existingId = isNew ? savedIdRef.current : id;
@@ -289,6 +318,7 @@ export default function ProductForm() {
         : await api.post("/catalog/products", payload);
 
       setNotice("Saved.");
+      toast.success("Product saved");
       if (isNew) {
         // Stay locked: we are about to leave this page for the saved product.
         savedIdRef.current = result.product.id;
@@ -297,9 +327,11 @@ export default function ProductForm() {
       } else {
         setProduct((p) => ({ ...p, ...result.product, category: product.category, brand: product.brand }));
         setVariants(result.variants);
+        setBaselineTick((t) => t + 1);
       }
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
       // A 422 carries per-field messages; hand them to the schema form so they
       // render against the right inputs.
       if (err.details) setFieldErrors(err.details);

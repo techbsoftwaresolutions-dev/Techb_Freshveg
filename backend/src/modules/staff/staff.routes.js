@@ -58,16 +58,21 @@ function checkPassword(password) {
   }
 }
 
-// Staff sign in by phone and the login looks up the first staff account with
-// that number, so one phone must never hold two staff accounts (and a delivery
-// boy's number is unique among delivery boys).
+// One phone number, one admin-side account. The number can't be reused for a new
+// account — or moved to a different role — while any admin, super admin or
+// delivery boy already has it, and the error says who that is.
 async function assertPhoneFree(phone, role, exceptId) {
   const taken = await User.findOne({
     phone,
-    role: { $in: inStaffPool(role) ? STAFF_ROLES : ["delivery_partner"] },
+    role: { $in: MANAGED_ROLES },
     ...(exceptId ? { _id: { $ne: exceptId } } : {}),
-  }).select("_id");
-  if (taken) throw ApiError.conflict("An account with this phone number already exists for this kind of role");
+  }).select("name role");
+  if (taken) {
+    throw ApiError.conflict(
+      `This phone number is already used by ${taken.name || "another user"} (${roleLabel(taken.role)}). Use a different number.`,
+      { phone: "Already in use" }
+    );
+  }
 }
 
 // A delivery boy signs in with email + password, so the email is required and
@@ -211,7 +216,7 @@ router.patch(
       if (user.role === "super_admin" && (await activeSuperAdmins(user._id)) === 0) {
         throw ApiError.conflict("This is the only active super admin, so its role can't be changed");
       }
-      if (inStaffPool(role) !== inStaffPool(user.role)) await assertPhoneFree(user.phone, role, user._id);
+      await assertPhoneFree(user.phone, role, user._id);
       user.role = role;
     }
 
