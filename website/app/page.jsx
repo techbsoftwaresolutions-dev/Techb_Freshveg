@@ -3,6 +3,7 @@ import { categoryImage, img } from "@/lib/format";
 import { getBanners, getHome } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
+import LazySection from "@/components/LazySection";
 import BannerCarousel from "@/components/BannerCarousel";
 import CategoryIcon from "@/components/CategoryIcon";
 import HomeSidebar from "@/components/HomeSidebar";
@@ -189,7 +190,8 @@ export default async function HomePage() {
 
           {rails
             .filter((rail) => rail.products.length >= MIN_ROW_ITEMS)
-            .map((rail) => (
+            .map((rail, railIndex) => {
+              const row = (
               <section key={rail.category.id} className="section">
                 <SectionHead
                   title={rail.category.name}
@@ -202,7 +204,10 @@ export default async function HomePage() {
                   ))}
                 </Carousel>
               </section>
-            ))}
+              );
+              // The first two department rows are near the top; the rest build only as you scroll to them.
+              return railIndex < 2 ? row : <LazySection key={rail.category.id}>{row}</LazySection>;
+            })}
 
           {departments.length ? (
             <section className="section">

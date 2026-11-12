@@ -112,7 +112,7 @@ export default function NotificationBell() {
   const poll = useCallback(async () => {
     if (can("orders.view")) {
       try {
-        const res = await api.get("/orders", { limit: 10 });
+        const res = await api.get("/orders", { limit: 10, view: "summary" }); // 1 KB, not 40 KB
         const items = res.items || [];
         if (knownOrders.current === null) {
           // First look: this is the baseline, not "new".
@@ -153,8 +153,11 @@ export default function NotificationBell() {
 
   useEffect(() => {
     poll();
-    const timer = setInterval(poll, POLL_MS);
-    return () => clearInterval(timer);
+    // No point asking while nobody is looking at the tab; catch up when they return.
+    const timer = setInterval(() => { if (!document.hidden) poll(); }, POLL_MS);
+    const onVisible = () => { if (!document.hidden) poll(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, [poll]);
 
   // Close on outside click / Escape.

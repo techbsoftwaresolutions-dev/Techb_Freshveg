@@ -172,7 +172,13 @@ router.get(
     const placed = dateBounds(req.query.from, req.query.to);
     if (placed) filter.placedAt = placed;
 
-    const result = await paginate(Order, filter, req.query, { defaultSort: { placedAt: -1 } });
+    // ?view=summary: just what a glance list shows (dashboard, notification bell), about 1/20th
+    // of a full order. Lean documents, so no Mongoose overhead either.
+    const summary = req.query.view === "summary";
+    const result = await paginate(Order, filter, req.query, {
+      defaultSort: { placedAt: -1 },
+      ...(summary ? { select: "code customerSnapshot pricing.total status placedAt source", lean: true } : {}),
+    });
     res.json({ success: true, ...result });
   })
 );

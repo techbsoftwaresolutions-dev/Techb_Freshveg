@@ -2,6 +2,7 @@ import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
+import { useApi } from "../../api/useApi";
 import { useAuth } from "../../context/AuthContext";
 import DateFilter, { todayRange } from "../../components/DateFilter";
 import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, Tabs, rupees, when } from "../../components/ui";
@@ -49,7 +50,6 @@ export default function Orders() {
   // Which row's Delivery cell is being edited, and the rider picked so far.
   const [editing, setEditing] = useState({ id: null, partner: "" });
   const [searchParams] = useSearchParams();
-  const [data, setData] = useState({ items: [], meta: null });
   const [statuses, setStatuses] = useState({});
   // A dashboard card (e.g. "Pending Orders") links here with ?status=..., so
   // that lands on the matching bucket instead of always opening on "All".
@@ -58,7 +58,6 @@ export default function Orders() {
   // Arriving from a dashboard link (?status=...) means "show me all of these",
   // so the day filter starts at All Time instead of hiding older orders.
   const [range, setRange] = useState(() => (searchParams.get("status") ? { from: "", to: "" } : todayRange()));
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -79,11 +78,9 @@ export default function Orders() {
       .catch(() => {});
   }, [canAssign]);
 
+  // Re-reads the current page (also done automatically after any save, and every 30 s).
   function load() {
-    return api
-      .get("/orders", { ...filters, ...range, limit: 20 })
-      .then(setData)
-      .catch((err) => setError(err.message));
+    return ordersQ.reload();
   }
 
   async function removeOrder(order) {
@@ -118,14 +115,11 @@ export default function Orders() {
     }
   }
 
-  useEffect(() => {
-    setLoading(true);
-    api
-      .get("/orders", { ...filters, ...range, limit: 20 })
-      .then(setData)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [filters, range]);
+  // Server-paginated, 20 per page. Cached and shared; the previous page stays on screen while the
+  // next one loads; refreshed in the background every 30 s while the tab is visible.
+  const ordersQ = useApi("/orders", { ...filters, ...range, limit: 20 }, { refreshMs: 30000 });
+  const data = ordersQ.data || { items: [], meta: null };
+  const loading = ordersQ.loading;
 
   // A handful of useful buckets rather than all 19 statuses as chips. The
   // "Pending" value must match PENDING_ORDER_STATUSES in Dashboard.jsx
@@ -154,7 +148,7 @@ export default function Orders() {
         </div>
       </div>
 
-      <Banner tone="error">{error}</Banner>
+      <Banner tone="error">{error || (ordersQ.error && !ordersQ.data ? ordersQ.error.message : "")}</Banner>
       <Banner tone="ok">{notice}</Banner>
 
       <Tabs

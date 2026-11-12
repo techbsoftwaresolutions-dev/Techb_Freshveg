@@ -19,8 +19,9 @@ router.get(
   "/",
   asyncHandler(async (req, res) => {
     const feed = await notificationService.feed(req.user.id, {
-      limit: Number(req.query.limit) || 30,
+      limit: req.query.limit,
       unreadOnly: req.query.unread === "true",
+      before: req.query.before,
     });
     res.json({ success: true, ...feed });
   })

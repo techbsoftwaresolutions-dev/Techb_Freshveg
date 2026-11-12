@@ -1,10 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pill, rupees, useConfirm, when } from "../../components/ui";
 import SelectMenu from "../../components/SelectMenu";
+import { toast } from "../../components/toast";
 import { Avatar, statusTone } from "./Orders";
+import {
+  buildInvoice,
+  downloadExcel,
+  downloadPdf,
+  downloadWord,
+  invoiceText,
+  loadInvoiceSetup,
+  printInvoice,
+  whatsappUrl,
+} from "./invoice";
 
 export default function OrderDetail() {
   const [confirm, confirmDialog] = useConfirm();
@@ -157,6 +168,63 @@ export default function OrderDetail() {
 
 
 
+  // Builds the invoice from the loaded order (plus the store letterhead) at
+  // click time, so it always reflects the order as it is now.
+  async function currentInvoice() {
+    // Read the template fresh each time, so a change in Settings -> Print
+    // applies to the very next print or download.
+    const { header, template } = await loadInvoiceSetup(order.store);
+    return buildInvoice(order, header, {
+      template,
+      packLabel: (item) => formatPackSize(item.packSize, item.variantName),
+      statusLabel: statuses[order.status]?.label,
+    });
+  }
+
+  async function printOrderInvoice() {
+    try {
+      printInvoice(await currentInvoice());
+    } catch (err) {
+      setError(`Could not print the invoice: ${err.message}`);
+    }
+  }
+
+  async function downloadInvoice(format) {
+    try {
+      const inv = await currentInvoice();
+      if (format === "pdf") await downloadPdf(inv);
+      else if (format === "word") downloadWord(inv);
+      else downloadExcel(inv);
+      toast(`Invoice ${inv.number} downloaded`);
+    } catch (err) {
+      setError(`Could not create the invoice: ${err.message}`);
+    }
+  }
+
+  async function shareLink() {
+    const link = window.location.href;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast("Order link copied");
+    } catch {
+      window.prompt("Copy this link", link);
+    }
+  }
+
+  async function shareWhatsapp() {
+    // Open the tab first (synchronously) so the browser doesn't block it as a popup.
+    const tab = window.open("", "_blank");
+    try {
+      const inv = await currentInvoice();
+      const url = whatsappUrl(order.customerSnapshot?.phone, invoiceText(inv));
+      if (tab) tab.location.href = url;
+      else window.location.href = url;
+    } catch (err) {
+      tab?.close();
+      setError(err.message);
+    }
+  }
+
   if (loading) return <div className="page"><Loading /></div>;
   if (!order) {
     return (
@@ -212,7 +280,24 @@ export default function OrderDetail() {
           </p>
         </div>
         <div className="inline">
-          <button className="btn" onClick={() => window.print()}>
+          <MenuButton
+            label="Download"
+            icon={<IconDownload />}
+            items={[
+              { label: "PDF (.pdf)", onClick: () => downloadInvoice("pdf") },
+              { label: "Word (.doc)", onClick: () => downloadInvoice("word") },
+              { label: "Excel (.xlsx)", onClick: () => downloadInvoice("excel") },
+            ]}
+          />
+          <MenuButton
+            label="Share"
+            icon={<IconShare />}
+            items={[
+              { label: "Copy link", onClick: shareLink },
+              { label: "WhatsApp", onClick: shareWhatsapp },
+            ]}
+          />
+          <button className="btn" onClick={printOrderInvoice}>
             Print
           </button>
         </div>
@@ -784,6 +869,69 @@ function IconImagePlaceholder() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+// A button that opens a small list of choices below it; closes on pick,
+// outside click or Escape.
+function MenuButton({ label, icon, items }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false);
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="menu-btn" ref={ref}>
+      <button type="button" className="btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {icon} {label} <span aria-hidden="true" className="menu-caret">▾</span>
+      </button>
+      {open && (
+        <div className="menu-list" role="menu">
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                item.onClick();
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IconDownload() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true">
+      <path d="M12 4v11M7 10l5 5 5-5M5 20h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconShare() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true">
+      <circle cx="18" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="6" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="18" cy="19" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
 }

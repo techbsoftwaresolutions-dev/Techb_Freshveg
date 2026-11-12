@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { api } from "../api/client";
+import { useApi } from "../api/useApi";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./orders/Orders";
 import {
@@ -214,70 +214,29 @@ export default function Dashboard() {
   const [pages, setPages] = useState({});
   const pageOf = (rows, key) => rows.slice((pages[key] || 0) * PAGE_SIZE, ((pages[key] || 0) + 1) * PAGE_SIZE);
   const goPage = (key, next) => setPages((p) => ({ ...p, [key]: next }));
-  const [data, setData] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [ordersTotal, setOrdersTotal] = useState(0);
-  const [lowStock, setLowStock] = useState([]);
-  const [outOfStock, setOutOfStock] = useState({ items: [], total: 0 });
-  const [tickets, setTickets] = useState([]);
-  const [productsTotal, setProductsTotal] = useState(0);
-  const [customersTotal, setCustomersTotal] = useState(0);
-  const [topProducts, setTopProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  // Six small calls instead of eight big ones (the totals for products, customers and orders now
+  // ride along in /reports/dashboard). Each is cached, shared and refreshed in the background by
+  // TanStack Query, and every list is only as long as the card that shows it.
+  const refresh = { refreshMs: 60000 };
+  const dashQ = useApi("/reports/dashboard", undefined, { ...refresh, enabled: can("reports.view") });
+  const ordersQ = useApi("/orders", { limit: 15, view: "summary" }, { ...refresh, enabled: can("orders.view") });
+  const stockQ = useApi("/inventory/low-stock", { limit: 15 }, { ...refresh, enabled: can("inventory.view") });
+  const ticketQ = useApi("/support", { open: "true", limit: 5 }, { ...refresh, enabled: can("customers.view") });
+  const topQ = useApi("/reports/products", { limit: 15 }, { ...refresh, enabled: can("reports.view") });
+  const outQ = useApi("/inventory/out-of-stock", { limit: 15 }, { ...refresh, enabled: can("inventory.view") });
 
-  useEffect(() => {
-    Promise.all([
-      can("reports.view")
-        ? api.get("/reports/dashboard")
-        : Promise.resolve(null),
-      can("orders.view")
-        ? api.get("/orders", { limit: 30 })
-        : Promise.resolve({ items: [], meta: null }),
-      can("inventory.view")
-        ? api.get("/inventory/low-stock")
-        : Promise.resolve({ items: [] }),
-      can("customers.view")
-        ? api.get("/support", { open: "true", limit: 5 })
-        : Promise.resolve({ items: [] }),
-      can("catalog.view")
-        ? api.get("/catalog/products", { limit: 1 })
-        : Promise.resolve({ meta: null }),
-      can("customers.view")
-        ? api.get("/customers", { limit: 1 })
-        : Promise.resolve({ meta: null }),
-      can("reports.view")
-        ? api.get("/reports/products", { limit: 50 })
-        : Promise.resolve({ products: [] }),
-      can("inventory.view")
-        ? api.get("/inventory/out-of-stock", { limit: 50 })
-        : Promise.resolve({ items: [], meta: null }),
-    ])
-      .then(
-        ([
-          dashboard,
-          orderData,
-          stockData,
-          ticketData,
-          productData,
-          customerData,
-          topProductData,
-          outData,
-        ]) => {
-          setData(dashboard);
-          setOrders(orderData.items || []);
-          setOrdersTotal(orderData.meta?.total || 0);
-          setLowStock(stockData.items || []);
-          setTickets(ticketData.items || []);
-          setProductsTotal(productData.meta?.total || 0);
-          setCustomersTotal(customerData.meta?.total || 0);
-          setTopProducts(topProductData.products || []);
-          setOutOfStock({ items: outData.items || [], total: outData.meta?.total || 0 });
-        },
-      )
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [can]);
+  const data = dashQ.data || null;
+  const orders = ordersQ.data?.items || [];
+  const ordersTotal = data?.counts?.orders ?? ordersQ.data?.meta?.total ?? 0;
+  const lowStock = stockQ.data?.items || [];
+  const outOfStock = { items: outQ.data?.items || [], total: outQ.data?.meta?.total || 0 };
+  const tickets = ticketQ.data?.items || [];
+  const productsTotal = data?.counts?.products || 0;
+  const customersTotal = data?.counts?.customers || 0;
+  const topProducts = topQ.data?.products || [];
+  const queries = [dashQ, ordersQ, stockQ, ticketQ, topQ, outQ];
+  const loading = queries.some((q) => q.loading);
+  const error = queries.find((q) => q.error && !q.data)?.error?.message || "";
 
   if (loading)
     return (

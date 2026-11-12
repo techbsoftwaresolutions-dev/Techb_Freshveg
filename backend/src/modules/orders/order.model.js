@@ -233,7 +233,8 @@ const orderSchema = new mongoose.Schema(
     // POS bills. posClientId is made on the till (before any network call), so
     // a bill replayed after an offline spell is recognised and not booked twice.
     invoiceNo: { type: String, default: "", index: true },
-    posClientId: { type: String, index: true, sparse: true },
+    // unique + sparse: the database itself refuses a second copy of the same till bill.
+    posClientId: { type: String, unique: true, sparse: true },
     posPayments: {
       type: [new mongoose.Schema({ method: String, amount: Number }, { _id: false })],
       default: undefined,
@@ -250,6 +251,8 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index({ customer: 1, placedAt: -1 });
 // The admin order board, and the per-store delivery queue.
 orderSchema.index({ store: 1, status: 1, placedAt: -1 });
+// The Online / Walk-in tabs on the admin orders screen.
+orderSchema.index({ source: 1, placedAt: -1 });
 orderSchema.index({ "delivery.partner": 1, status: 1 });
 orderSchema.index({ code: "text", "customerSnapshot.phone": "text" });
 

@@ -127,8 +127,11 @@ function OrderDetail() {
   useEffect(() => {
     clearInterval(poller.current);
     if (!tracking || CLOSED.includes(tracking.status)) return undefined;
-    poller.current = setInterval(load, 20000);
-    return () => clearInterval(poller.current);
+    // Not while the tab is hidden; catch up as soon as the shopper comes back.
+    poller.current = setInterval(() => { if (!document.hidden) load(); }, 20000);
+    const onVisible = () => { if (!document.hidden) load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(poller.current); document.removeEventListener("visibilitychange", onVisible); };
   }, [tracking, load]);
 
   // The review prompt (components/ReviewPrompt) listens for this.
