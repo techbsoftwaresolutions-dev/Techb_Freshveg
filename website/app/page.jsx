@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { categoryImage, img } from "@/lib/format";
 import { getBanners, getHome } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
@@ -94,8 +94,8 @@ export default async function HomePage() {
                 {departments.map((department) => (
                   <Link key={department.id} href={`/c/${department.slug}`} className="top-cat">
                     <span className="top-cat-icon">
-                      {department.image ? (
-                        <img src={img(department.image, 160)} alt="" className="top-cat-photo" />
+                      {categoryImage(department) ? (
+                        <img src={img(categoryImage(department), 160)} alt="" className="top-cat-photo" />
                       ) : (
                         <CategoryIcon name={department.name} />
                       )}
@@ -211,8 +211,8 @@ export default async function HomePage() {
                 {departments.slice(0, 8).map((department) => (
                   <Link key={department.id} href={`/c/${department.slug}`} className="shop-card">
                     <span className="shop-card-media">
-                      {department.image ? (
-                        <img src={img(department.image, 240)} alt="" loading="lazy" />
+                      {categoryImage(department) ? (
+                        <img src={img(categoryImage(department), 240)} alt="" loading="lazy" />
                       ) : (
                         <CategoryIcon name={department.name} />
                       )}

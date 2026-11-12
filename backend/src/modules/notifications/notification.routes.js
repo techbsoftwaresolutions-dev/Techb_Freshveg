@@ -2,7 +2,7 @@ const express = require("express");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
 const { paginate } = require("../../core/query");
-const { requireAuth, requirePermission } = require("../../middleware/auth");
+const { requireAuth, requirePermission, requireRole } = require("../../middleware/auth");
 
 const Notification = require("./notification.model");
 const NotificationTemplate = require("./notificationTemplate.model");
@@ -31,6 +31,26 @@ router.post(
   asyncHandler(async (req, res) => {
     const result = await notificationService.markRead(req.user.id, req.body.id);
     res.json({ success: true, ...result });
+  })
+);
+
+router.post(
+  "/test-push",
+  requireRole("delivery_partner"),
+  asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+    if (!user) throw ApiError.notFound("Delivery partner not found");
+
+    const result = await require("./channels").push(
+      {
+        event: "TEST_PUSH",
+        title: "Hosur Basket notifications",
+        body: "Push notifications are working on this device.",
+        deeplink: "",
+      },
+      user
+    );
+    res.json({ success: true, result });
   })
 );
 

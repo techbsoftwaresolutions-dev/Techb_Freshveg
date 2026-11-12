@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { categoryImage, img } from "@/lib/format";
 import CategoryIcon from "./CategoryIcon";
 
 // Desktop department list for a category page: every department, with the one you're in
@@ -15,8 +15,8 @@ export default function DepartmentNav({ departments = [], activeSlug = null }) {
         return (
           <div key={department.id} className={`aisles-group${inside ? " open" : ""}`}>
             <Link href={`/c/${department.slug}`} className={`aisles-head${department.slug === activeSlug ? " current" : ""}`}>
-              {department.image ? (
-                <img src={img(department.image, 80)} alt="" className="aisles-head-icon aisles-head-photo" />
+              {categoryImage(department) ? (
+                <img src={img(categoryImage(department), 80)} alt="" className="aisles-head-icon aisles-head-photo" />
               ) : (
                 <CategoryIcon name={department.name} className="aisles-head-icon" />
               )}

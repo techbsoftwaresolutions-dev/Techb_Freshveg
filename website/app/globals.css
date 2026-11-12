@@ -230,6 +230,12 @@ a.utility-item:hover { color: #fff; opacity: 0.85; }
 .header-btn .sub { display: block; font-size: 12px; color: var(--text); font-weight: 500; line-height: 1.3; }
 .header-btn .main { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 500; color: var(--text-muted); line-height: 1.3; }
 .header-caret { width: 10px; height: 10px; }
+.location-btn { gap: 8px; padding: 5px 8px; }
+.location-btn .header-btn-icon { width: 20px; height: 20px; flex-basis: 20px; color: var(--text); }
+.location-copy { display: grid; gap: 1px; min-width: 0; line-height: 1.15; }
+.location-label { color: var(--text-muted); font-size: 12px; font-weight: 400; }
+.location-name { max-width: 120px; overflow: hidden; color: var(--text); font-size: 14px; font-weight: 500; text-overflow: ellipsis; }
+.location-caret { width: 10px; height: 10px; flex: 0 0 10px; color: var(--text-muted); }
 
 /* Category bar — the desktop affordance the app does not have. */
 .catbar { border-top: 1px solid var(--border); background: var(--bg); position: relative; }
@@ -2885,15 +2891,21 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .header-actions { grid-row: 1; grid-column: 2; margin: 0; gap: 0; }
   .header-divider,
   .header-actions .cart-btn { display: none; }
-  /* Location as a compact chip: pin, place, caret. */
-  .header-actions .header-btn {
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    background: var(--brand-mist);
-    max-width: 150px;
+  /* Compact location picker: pin, label and place name. */
+  .header-actions .location-btn {
+    gap: 14px;
+    padding: 4px 7px !important;
+    border-radius: 0;
+    background: transparent;
+    max-width: 160px;
+    width: auto;
+    height: auto;
   }
-  .header-actions .header-btn .header-btn-icon { width: 16px; height: 16px; flex-basis: 16px; color: var(--brand); }
+  .header-actions .location-btn .header-btn-icon { width: 20px; height: 20px; flex-basis: 20px; color: var(--text); }
+  .header-actions .location-copy { gap: 0; line-height: 1.2; text-align: left; }
+  .header-actions .location-name { max-width: 100px; font-size: 16px; font-weight: 400; }
+  .header-actions .location-label { color: var(--text); font-size: 14px; font-weight: 400; }
+  .header-actions .location-caret { width: 10px; height: 10px; flex-basis: 10px; margin-left: -8px; }
   .header-actions .header-btn .sub { display: none; }
   .header-actions .header-btn .main {
     display: flex;
@@ -7250,8 +7262,9 @@ dialog.coming-soon img { display: block; width: 100%; height: auto; border-radiu
   .utility-item { font-size: 10.5px !important; font-weight: 600; letter-spacing: 0; }
   .header-main { padding: 6px 14px 8px !important; gap: 6px 10px !important; }
   .logo-img { height: 28px !important; }
-  .header-actions .header-btn { padding: 7px !important; width: 32px; height: 32px; min-width: 0; }
-  .header-actions .header-btn .header-btn-icon { width: 15px !important; height: 15px !important; flex-basis: 15px !important; }
+  .header-actions .header-btn:not(.location-btn) { padding: 7px !important; width: 32px; height: 32px; min-width: 0; }
+  .header-actions .location-btn { width: auto !important; height: auto !important; min-width: 0; }
+  .header-actions .header-btn:not(.location-btn) .header-btn-icon { width: 15px !important; height: 15px !important; flex-basis: 15px !important; }
   .search-form input[type="search"] { height: 38px !important; font-size: 12.5px !important; padding: 0 44px 0 36px !important; }
   .search-form-icon { left: 12px !important; width: 16px; height: 16px; }
   .search-hint { left: 36px !important; right: 44px !important; font-size: 12.5px !important; }

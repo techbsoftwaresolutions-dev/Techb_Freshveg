@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { categoryImage, img } from "@/lib/format";
 import { Suspense } from "react";
 import { getCategories, getProducts } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
@@ -65,8 +65,8 @@ export default async function CategoriesPage({ searchParams }) {
             {departments.map((department) => (
               <div key={department.id} className="aisles-group">
                 <Link href={`/c/${department.slug}`} className="aisles-head">
-                  {department.image ? (
-                    <img src={img(department.image, 80)} alt="" className="aisles-head-icon aisles-head-photo" />
+                  {categoryImage(department) ? (
+                    <img src={img(categoryImage(department), 80)} alt="" className="aisles-head-icon aisles-head-photo" />
                   ) : (
                     <CategoryIcon name={department.name} className="aisles-head-icon" />
                   )}
