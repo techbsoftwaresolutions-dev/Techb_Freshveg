@@ -18,6 +18,17 @@ import { MorphingSquare } from "./ui/morphing-square";
 // back well before they scroll into sight and fast flings never show a gap.
 const KEEP_MOUNTED = "1500px 0px";
 
+// On wide screens the product list scrolls inside its own box rather than the
+// page, so the observers must measure against that box. null (the viewport) is
+// right wherever the page itself scrolls, e.g. on a phone.
+function scrollParent(el) {
+  for (let node = el?.parentElement; node; node = node.parentElement) {
+    const overflow = getComputedStyle(node).overflowY;
+    if (overflow === "auto" || overflow === "scroll") return node;
+  }
+  return null;
+}
+
 export default function InfiniteProducts({ query, startPage, pages, seenIds = [] }) {
   const [chunks, setChunks] = useState([]);
   const [next, setNext] = useState(startPage);
@@ -56,6 +67,7 @@ export default function InfiniteProducts({ query, startPage, pages, seenIds = []
     // stalls; appended cards go below the viewport, so the scroll position
     // is not disturbed.
     const observer = new IntersectionObserver((entries) => entries[0].isIntersecting && load(), {
+      root: scrollParent(sentinel.current),
       rootMargin: "600px 0px",
     });
     observer.observe(sentinel.current);
@@ -101,7 +113,7 @@ const Chunk = memo(function Chunk({ items }) {
         if (!entry.isIntersecting) height.current = el.offsetHeight;
         setNear(entry.isIntersecting);
       },
-      { rootMargin: KEEP_MOUNTED }
+      { root: scrollParent(el), rootMargin: KEEP_MOUNTED }
     );
     observer.observe(el);
     return () => observer.disconnect();

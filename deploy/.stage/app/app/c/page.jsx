@@ -31,6 +31,7 @@ export default async function CategoriesPage({ searchParams }) {
     limit: PER_PAGE,
     ...(query.sort ? { sort: query.sort } : {}),
     ...(query.offers === "true" ? { offers: "true" } : {}),
+    ...(["discount", "special", "combo"].includes(query.offer) ? { offer: query.offer } : {}),
   };
 
   const [catalog, result] = await Promise.all([getCategories(), getProducts({ ...listQuery, page })]);

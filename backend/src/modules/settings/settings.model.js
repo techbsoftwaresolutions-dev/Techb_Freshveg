@@ -102,6 +102,11 @@ const settingsSchema = new mongoose.Schema(
       wishlistEnabled: { type: Boolean, default: true },
     },
 
+    // Which screen layout the POS billing page uses (chosen in Settings -> POS).
+    pos: {
+      template: { type: String, enum: ["standard", "compact", "touch", "terminal"], default: "standard" },
+    },
+
     website: {
       title: { type: String, default: "Hosur Basket" },
       tagline: { type: String, default: "Fresh from the market, at your door" },

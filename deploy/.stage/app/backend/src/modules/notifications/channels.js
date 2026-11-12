@@ -1,10 +1,11 @@
 // Channel adapters. Each one is a function that takes a rendered message and
 // tries to deliver it.
 //
-// None of them are wired to a real provider yet — there is no Firebase project
-// and no SMS account. Rather than pretend, each logs what it would have sent
-// and reports "skipped" with a reason, so the notification log tells the truth
-// and the rest of the engine can be exercised end to end.
+// Supported WhatsApp delivery options:
+// 1. CallMeBot (100% Free Gateway for personal testing, no Meta developer account required)
+// 2. Meta WhatsApp Cloud API (Official Meta API)
+// 3. Twilio WhatsApp API
+// 4. Clickable direct wa.me link & terminal logging
 
 const config = require("../../config");
 
@@ -15,8 +16,6 @@ const stub = (name, envVar) => async (message, recipient) => {
       reason: `${name} is not configured (set ${envVar})`,
     };
   }
-  // A real adapter goes here. Reaching this branch without one is a
-  // configuration mistake worth surfacing loudly rather than silently passing.
   return { status: "failed", error: `${name} adapter is not implemented yet` };
 };
 

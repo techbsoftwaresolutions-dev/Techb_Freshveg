@@ -2,7 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { storeOpen } from "@/lib/launch";
+import ComingSoonPage from "@/components/ComingSoonPage";
 import { useAuth, useCart } from "@/components/Providers";
+import AddressAreaSync from "@/components/AddressAreaSync";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
 import { payWithRazorpay } from "@/lib/razorpay";
@@ -10,6 +13,15 @@ import SavedAddresses from "@/components/SavedAddresses";
 import { useServiceability } from "@/lib/use-serviceability";
 
 export default function CheckoutPage() {
+  // Until the shop opens (13 November) /checkout shows the Coming soon banner.
+  const [gate, setGate] = useState("pending");
+  useEffect(() => { setGate(storeOpen() ? "open" : "locked"); }, []);
+  if (gate === "pending") return null;
+  if (gate === "locked") return <ComingSoonPage />;
+  return <CheckoutInner />;
+}
+
+function CheckoutInner() {
   const router = useRouter();
   const cart = useCart();
   const { user, ready, signedIn, refreshUser } = useAuth();
@@ -22,6 +34,13 @@ export default function CheckoutPage() {
   const [note, setNote] = useState("");
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState("");
+
+  // Coupon: a folded "Have a coupon code?" row; opens to a code box with the
+  // Apply button on its right.
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
 
   useEffect(() => {
     if (ready && !signedIn) router.replace("/login?next=/checkout");
@@ -58,6 +77,29 @@ export default function CheckoutPage() {
   }, [storeId, cartTotal]);
 
   const summary = cart.summary;
+  const appliedCoupon = (cart.offers?.applied || []).find((offer) => offer.code) || null;
+  const couponSaving = appliedCoupon?.discount || 0;
+  // Automatic offers keep their own row so the rows still add up to the total.
+  const otherOfferSaving = Math.max(0, (summary?.offerDiscount || 0) - couponSaving);
+
+  async function applyCoupon(event) {
+    event.preventDefault();
+    const value = couponCode.trim();
+    if (!value) return;
+    setCouponBusy(true);
+    setCouponError("");
+    try {
+      await cart.applyCoupon(value);
+      setCouponCode("");
+      setCouponOpen(false);
+    } catch (err) {
+      // The engine says why ("Add ₹120 more to use this"), which is more
+      // useful than a flat "invalid".
+      setCouponError(err.message);
+    } finally {
+      setCouponBusy(false);
+    }
+  }
 
   if (!ready || !summary) {
     return (
@@ -316,6 +358,7 @@ export default function CheckoutPage() {
         <div className="sticky">
           <div className="panel">
             <h3>Order summary</h3>
+            <AddressAreaSync address={selectedAddress} />
             <div className="bill">
               <div className="bill-row">
                 <span className="label">
@@ -323,10 +366,16 @@ export default function CheckoutPage() {
                 </span>
                 <span>{rupees(summary.subtotal)}</span>
               </div>
-              {summary.offerDiscount > 0 ? (
+              {couponSaving > 0 ? (
+                <div className="bill-row save-row">
+                  <span className="label">Coupon ({appliedCoupon.code})</span>
+                  <span>− {rupees(couponSaving)}</span>
+                </div>
+              ) : null}
+              {otherOfferSaving > 0 ? (
                 <div className="bill-row save-row">
                   <span className="label">Offers</span>
-                  <span>− {rupees(summary.offerDiscount)}</span>
+                  <span>− {rupees(otherOfferSaving)}</span>
                 </div>
               ) : null}
               <div className={`bill-row${summary.deliveryFree ? " save-row" : ""}`}>
@@ -346,10 +395,60 @@ export default function CheckoutPage() {
                   <span>{rupees(summary.roundOff, { decimals: true })}</span>
                 </div>
               ) : null}
+              <div className="co-coupon">
+                {appliedCoupon ? (
+                  <div className="co-coupon-applied">
+                    <span className="co-coupon-icon" aria-hidden="true">%</span>
+                    <span className="co-coupon-text">
+                      <strong>{appliedCoupon.code}</strong> applied
+                      {appliedCoupon.discount ? <em> · you save {rupees(appliedCoupon.discount)}</em> : null}
+                    </span>
+                    <button type="button" className="co-coupon-remove" onClick={() => cart.removeCoupon().catch(() => {})}>
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="co-coupon-toggle"
+                      aria-expanded={couponOpen}
+                      onClick={() => setCouponOpen((open) => !open)}
+                    >
+                      <span className="co-coupon-icon" aria-hidden="true">%</span>
+                      <span>Have a coupon code?</span>
+                      <svg className="co-coupon-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                    {couponOpen ? (
+                      <form className="co-coupon-form" onSubmit={applyCoupon}>
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase().replace(/\s/g, ""))}
+                          placeholder="Enter coupon code"
+                          aria-label="Coupon code"
+                          autoComplete="off"
+                          spellCheck={false}
+                          autoFocus
+                        />
+                        <button className="co-coupon-apply" disabled={!couponCode.trim() || couponBusy}>
+                          {couponBusy ? "…" : "Apply"}
+                        </button>
+                      </form>
+                    ) : null}
+                    {couponError ? <p className="co-coupon-error" role="alert">{couponError}</p> : null}
+                  </>
+                )}
+              </div>
               <div className="bill-row total">
                 <span>{method === "cod" ? "Pay on delivery" : "To pay"}</span>
                 <span>{rupees(summary.total)}</span>
               </div>
+              {couponSaving > 0 ? (
+                <p className="co-saved">You saved {rupees(couponSaving)} with {appliedCoupon.code}</p>
+              ) : null}
             </div>
 
             {summary.cashbackEarned > 0 ? (
@@ -370,13 +469,18 @@ export default function CheckoutPage() {
               </p>
             ) : null}
 
+            <div className="co-note">
+              <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M16.02 3.2A12.65 12.65 0 0 0 5.12 22.27L3.4 28.6l6.48-1.7a12.63 12.63 0 1 0 6.14-23.7Zm0 22.96c-1.91 0-3.78-.51-5.42-1.48l-.39-.23-3.85 1.01 1.03-3.75-.25-.4a10.26 10.26 0 1 1 8.88 4.85Zm5.63-7.69c-.31-.16-1.82-.9-2.1-1-.29-.1-.5-.15-.71.16-.21.32-.8 1-.98 1.21-.18.21-.36.24-.67.08-.31-.16-1.31-.48-2.5-1.52-.92-.82-1.54-1.83-1.72-2.14-.18-.32-.02-.49.14-.65.14-.14.31-.36.47-.53.16-.18.21-.31.31-.52.11-.21.06-.4-.03-.56-.08-.16-.71-1.71-.97-2.34-.25-.61-.51-.53-.7-.54h-.6c-.21 0-.55.08-.84.4-.29.32-1.1 1.06-1.1 2.59s1.12 3 1.28 3.21c.15.21 2.2 3.36 5.33 4.71.75.32 1.33.51 1.78.65.75.24 1.43.21 1.97.13.6-.09 1.82-.74 2.08-1.45.25-.71.25-1.32.18-1.45-.08-.13-.29-.21-.6-.37Z" /></svg>
+              <span>Get live WhatsApp updates for order confirmation, tracking and arrival.</span>
+            </div>
+
             <button
-              className="btn primary block lg"
-              style={{ marginTop: 16 }}
+              className="co-place"
               disabled={!addressId || addressUnserviceable || !summary.meetsMinimum || placing}
               onClick={placeOrder}
             >
-              {placing ? "Placing order…" : method === "upi" && upiTab === "razorpay" ? "Pay & place order" : "Place order"}
+              <span>{placing ? "Placing order…" : method === "upi" && upiTab === "razorpay" ? "Pay & place order" : "Place order"}</span>
+              <i aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></i>
             </button>
           </div>
         </div>

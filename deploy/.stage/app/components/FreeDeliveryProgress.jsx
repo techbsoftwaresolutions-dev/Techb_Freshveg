@@ -84,10 +84,10 @@ export default function FreeDeliveryProgress({ variant = "inline" }) {
   if (!fd.show) return null;
 
   const title = fd.unlocked
-    ? "FREE DELIVERY UNLOCKED"
+    ? (variant === "compact" ? "Free delivery unlocked" : "FREE DELIVERY UNLOCKED")
     : fd.empty
-      ? `Add ${toGo(fd.remaining)} more to get FREE DELIVERY`
-      : `${toGo(fd.remaining)} to go for FREE DELIVERY`;
+      ? `Add ${toGo(fd.remaining)} more to get ${variant === "compact" ? "free delivery" : "FREE DELIVERY"}`
+      : `${toGo(fd.remaining)} to go for ${variant === "compact" ? "free delivery" : "FREE DELIVERY"}`;
 
   return (
     <div className={`fd fd-${variant}${fd.unlocked ? " unlocked" : ""}`} role="status" aria-live="polite">

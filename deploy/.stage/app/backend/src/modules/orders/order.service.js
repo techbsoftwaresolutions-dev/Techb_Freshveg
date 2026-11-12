@@ -56,7 +56,20 @@ async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", sl
 
   const [store, customer] = await Promise.all([Store.findById(cart.store), User.findById(userId)]);
   if (!store) throw ApiError.badRequest("Store not found");
-  if (!store.isOpenNow()) throw ApiError.conflict("This store is not accepting orders right now");
+  if (!store.isOpenNow()) {
+    const why =
+      store.status !== "active"
+        ? `the store is ${store.status}`
+        : !store.settings?.acceptingOrders
+          ? "\"Accepting orders\" is switched off for the store"
+          : "the store is marked closed today";
+    console.warn(`[order] store ${store.name || store._id} not open: ${why}`);
+    throw ApiError.conflict("This store is not accepting orders right now", { reason: why });
+  }
+
+  // After the cut-off (7 pm by default) the order is still taken, then
+  // delivered early next morning.
+  const afterHoursInfo = require("../stores/deliveryTime").afterHours(store.settings);
 
   const address = customer.addresses.id(addressId) || customer.defaultAddress();
   if (!address) throw ApiError.badRequest("Add a delivery address before placing the order");
@@ -163,7 +176,7 @@ async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", sl
       slot: slot || cart.deliverySlot,
       otp: deliveryOtp(),
       instructions: note || "",
-      expectedBy: new Date(Date.now() + (store.settings.prepTimeMinutes + 30) * 60000),
+      expectedBy: (afterHoursInfo || { expectedBy: require("../stores/deliveryTime").expectedBy(store.settings) }).expectedBy,
     },
     customerNote: note || "",
   });
@@ -206,12 +219,26 @@ async function placeOrder({ cartId, userId, addressId, paymentMethod = "cod", sl
   // announcing here — and "we've got your order" is the one notification a
   // customer actually waits for.
   await announce(order, "ORDER_PLACED");
+  notifyOwnerNewOrder(order).catch(() => {});
+
 
   // COD needs no payment step, so it can go straight on to confirmation.
   if (paymentMethod === "cod") {
     await transition(order, "ORDER_CONFIRMED", { role: "system" }, "Cash on delivery");
   } else {
     await transition(order, "PAYMENT_PENDING", { role: "system" });
+  }
+
+  // Tell the customer when to expect it — after the cut-off that is early next
+  // morning, with the reason; otherwise the store's Delivery time setting
+  // (15 min, 30 min, 1 hour, next day or a name the admin added). Sent after
+  // the confirmation so it reads as the last word. It also stamps the order,
+  // so tracking shows the same promise.
+  try {
+    if (afterHoursInfo) await tellAfterHours(order, afterHoursInfo);
+    else await setDeliveryTime(order, require("../stores/deliveryTime").infoFor(store.settings).key, store.settings);
+  } catch (err) {
+    console.warn("[order] delivery time notice:", err.message);
   }
 
   return order;
@@ -273,6 +300,9 @@ async function transition(order, to, actor = {}, note = "") {
       // Stock physically leaves the building here, clearing the reservation
       // made at checkout.
       for (const item of order.items) {
+        // An item held back for a later day has not left the building yet; its
+        // stock is dispatched when it is delivered (see the delayed-items route).
+        if (item.deferred?.expectedOn && !item.deferred.deliveredAt) continue;
         await inventoryService.dispatch(order.store, item.variant, item.pickedQuantity ?? item.quantity, {
           refType: "order", refId: order._id, refCode: order.code, reason: "Delivered",
           actor,
@@ -289,6 +319,16 @@ async function transition(order, to, actor = {}, note = "") {
       // Points and wallet spent on this order go back before the refund, so a
       // customer is never left out of pocket on both.
       await reverseCredits(order, actor);
+      // A cancelled order gives its coupon use back, so a limited coupon is
+      // not burned by orders that never happened.
+      for (const applied of order.appliedOffers || []) {
+        if (applied.offer) {
+          await Offer.updateOne(
+            { _id: applied.offer, "limits.usedCount": { $gt: 0 } },
+            { $inc: { "limits.usedCount": -1 } }
+          );
+        }
+      }
       if (order.payment.status === "paid") {
         await paymentService.refund(order, {
           reason: note || `Order ${to.toLowerCase()}`,
@@ -314,6 +354,9 @@ async function transition(order, to, actor = {}, note = "") {
   // notification about something that then failed to save is worse than none.
   await announce(order, to);
 
+  // Send owner-specific WhatsApp alert on key status changes
+  notifyOwnerStatusUpdate(order, to).catch(() => {});
+
   // A rider was already chosen while the store was preparing this order, so
   // hand it over the moment it is ready instead of waiting for a second click.
   if (to === "READY_FOR_PICKUP" && from !== "ASSIGNED_TO_DELIVERY" && order.delivery?.partner) {
@@ -327,21 +370,233 @@ async function transition(order, to, actor = {}, note = "") {
 // notification engine, which owns the copy and the channel rules. The event
 // name is the status itself, so adding a stage to the state machine and adding
 // a template for it is all it takes.
+// "Tomato 1 kg × 2, Onion 500 g × 1 and 3 more" — what the customer ordered, for
+// messages that go outside the app (WhatsApp) where there is no order screen.
+function itemSummary(order, max = 6) {
+  const lines = (order.items || []).map((i) => `${i.name}${i.variantName ? ` ${i.variantName}` : ""} × ${i.quantity}`);
+  return lines.length > max ? `${lines.slice(0, max).join(", ")} and ${lines.length - max} more` : lines.join(", ");
+}
+
 async function announce(order, status) {
   await notificationService.notify(order.customer, status, {
     code: order.code,
+    items: itemSummary(order),
     orderId: order._id.toString(),
     total: `₹${((order.pricing.total || 0) / 100).toFixed(0)}`,
     itemCount: order.items.length,
-    partner: order.delivery.partnerName || "",
+    partner: order.delivery.partnerName || "Our delivery partner",
     otp: order.delivery.otp || "",
     eta: order.delivery.expectedBy
       ? new Date(order.delivery.expectedBy).toLocaleTimeString("en-IN", {
           hour: "2-digit",
           minute: "2-digit",
         })
-      : "",
+      : "shortly",
   });
+}
+
+// Sends owner-tailored WhatsApp notifications on key order lifecycle stages
+async function notifyOwnerStatusUpdate(order, status) {
+  try {
+    const channels = require("../notifications/channels");
+    let settings = null;
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const Settings = require("../settings/settings.model");
+        settings = await Settings.load();
+      } catch {
+        // In dev/demo or if settings not yet seeded
+      }
+    }
+
+    const callmebotKey = process.env.CALLMEBOT_API_KEY || "";
+    const isWhatsAppOn =
+      settings?.notifications?.channels?.whatsapp ||
+      process.env.WHATSAPP_DRY_RUN === "true" ||
+      (callmebotKey.trim() !== "" && !callmebotKey.includes("←") && !callmebotKey.includes("paste"));
+    if (!isWhatsAppOn) return;
+
+    const ownerPhone = settings?.notifications?.ownerWhatsApp || process.env.OWNER_WHATSAPP_NUMBER || "+917010272131";
+    const isCOD = order.payment?.method === "cod";
+    const totalFormatted = `₹${((order.pricing?.total || 0) / 100).toFixed(0)}`;
+    const customerName = order.customerSnapshot?.name || "Customer";
+    const customerPhone = order.customerSnapshot?.phone || "";
+    const partnerName = order.delivery?.partnerName || "Assigned Partner";
+    const partnerPhone = order.delivery?.partnerPhone || "";
+
+    const addr = order.delivery?.address;
+    const addressStr = addr
+      ? [addr.line1, addr.line2, addr.city, addr.pincode].filter(Boolean).join(", ")
+      : "Store pickup";
+
+    let title = "";
+    let body = "";
+    const event = `OWNER_${status}`;
+
+    // Estimated delivery time in minutes
+    let minsToDeliver = 30;
+    if (order.delivery?.expectedBy) {
+      const diffMs = new Date(order.delivery.expectedBy).getTime() - Date.now();
+      minsToDeliver = Math.max(5, Math.round(diffMs / 60000));
+    }
+
+    // Owner only receives concise, essential business notifications to avoid message rush:
+    // 1. New Order Confirmed (items, payment mode, payment amount, ETA in mins, delivered status: NO)
+    // 2. Order Delivered (payment collected, delivered status: YES)
+    switch (status) {
+      case "ORDER_PLACED":
+      case "ORDER_CONFIRMED": {
+        const paymentModeText = isCOD
+          ? `⚠️ Cash on Delivery (COD) - Collect ${totalFormatted}`
+          : `✅ Online Payment (PAID)`;
+
+        const itemsSummary = (order.items || [])
+          .map((item) => `• ${item.name} (${item.quantity} ${item.unit || "unit"}) - ₹${((item.payable || item.lineTotal) / 100).toFixed(0)}`)
+          .join("\n");
+
+        title = `🚨 FreshVeg - New Order #${order.code}`;
+        body = 
+`🛒 Ordered Products:
+${itemsSummary || "• Order items"}
+
+💰 Payment Amount: ${totalFormatted}
+💳 Payment Mode: ${paymentModeText}
+⏱️ To Deliver In: ~${minsToDeliver} mins
+📦 Status: ⏳ NOT DELIVERED (Pending)
+
+👤 Customer: ${customerName} (📞 ${customerPhone})
+📍 Address: ${addressStr}
+
+🔗 Admin Link: http://localhost:5180/orders`;
+        break;
+      }
+
+      case "DELIVERED": {
+        const paymentModeText = isCOD
+          ? `✅ Cash Collected (${totalFormatted})`
+          : `✅ Paid Online (${totalFormatted})`;
+
+        title = `✅ FreshVeg - Order #${order.code} Delivered`;
+        body = 
+`📦 Status: ✅ DELIVERED
+💰 Payment Amount: ${totalFormatted}
+💳 Payment Mode: ${paymentModeText}
+👤 Customer: ${customerName} (📞 ${customerPhone})`;
+        break;
+      }
+
+      default:
+        // Skip intermediate updates (OUT_FOR_DELIVERY, ARRIVED) for owner to avoid rush
+        return;
+    }
+
+    await channels.whatsapp({ event, title, body }, { phone: ownerPhone });
+  } catch (err) {
+    console.warn("[order] notifyOwnerStatusUpdate error:", err.message);
+  }
+}
+
+// Backwards compatibility alias
+const notifyOwnerNewOrder = (order) => notifyOwnerStatusUpdate(order, "ORDER_CONFIRMED");
+
+// Told to the customer when some items of an order will come on a later day,
+// and again when they arrive. The templates are created on first use, so a
+// shop whose notification templates were seeded before this existed still
+// sends them (an admin can reword them afterwards like any other).
+const NotificationTemplate = require("../notifications/notificationTemplate.model");
+const deferredTemplates = require("../../seed/notificationTemplates").filter((tpl) =>
+  ["ITEMS_DELAYED", "DELAYED_ITEMS_DELIVERED", "DELIVERY_TIME_SET", "AFTER_HOURS_ORDER"].includes(tpl.event)
+);
+
+const shortDate = (date) =>
+  new Date(date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+
+async function announceDeferred(order, event, items) {
+  const tpl = deferredTemplates.find((t) => t.event === event);
+  if (tpl) {
+    await NotificationTemplate.updateOne(
+      { event, audience: "customer" },
+      { $setOnInsert: { ...tpl, audience: "customer", enabled: true, isSystem: true } },
+      { upsert: true }
+    ).catch(() => {});
+  }
+  const names = items.map((i) => `${i.name}${i.variantName ? ` (${i.variantName})` : ""}`);
+  const first = items[0];
+  await notificationService.notify(order.customer, event, {
+    code: order.code,
+    orderId: order._id.toString(),
+    items: names.length > 3 ? `${names.slice(0, 3).join(", ")} and ${names.length - 3} more` : names.join(", "),
+    count: items.length,
+    date: first?.deferred?.expectedOn ? shortDate(first.deferred.expectedOn) : "",
+    reason: first?.deferred?.reason ? `${first.deferred.reason}. ` : "",
+  });
+}
+
+// Creates the notification template on first use. Once WhatsApp is configured
+// it is also added to that template's channels (admins can still switch it off
+// by removing it from the template afterwards — it is only added while the
+// template does not list it and WhatsApp credentials are present).
+async function ensureTemplate(event) {
+  const tpl = deferredTemplates.find((t) => t.event === event);
+  if (!tpl) return;
+  await NotificationTemplate.updateOne(
+    { event, audience: "customer" },
+    { $setOnInsert: { ...tpl, audience: "customer", enabled: true, isSystem: true } },
+    { upsert: true }
+  ).catch(() => {});
+  if ((process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) || process.env.WHATSAPP_DRY_RUN === "true") {
+    await NotificationTemplate.updateOne(
+      { event, audience: "customer", whatsappOffered: { $ne: true } },
+      { $addToSet: { channels: "whatsapp" }, $set: { whatsappOffered: true } }
+    ).catch(() => {});
+  }
+}
+
+// An order placed after the cut-off: confirmed now, delivered early next
+// morning, and the customer is told why.
+async function tellAfterHours(order, info) {
+  order.delivery.expectedBy = info.expectedBy;
+  order.delivery.etaOption = "next_morning";
+  order.delivery.etaLabel = info.label;
+  order.delivery.etaSetAt = new Date();
+  await order.save();
+  await ensureTemplate("AFTER_HOURS_ORDER");
+  await notificationService.notify(order.customer, "AFTER_HOURS_ORDER", {
+    code: order.code,
+    orderItems: itemSummary(order),
+    orderId: order._id.toString(),
+    when: info.when,
+    reason: info.reason,
+  });
+}
+
+// Tells the customer when to expect the order and records it as the order's
+// expected delivery time (the tracking screen and "on time" report read it).
+// `settings` is the store's: its standard choices plus any it added itself.
+async function setDeliveryTime(order, optionKey, settings) {
+  const dt = require("../stores/deliveryTime");
+  const choice = dt.optionsFor(settings).find((o) => o.key === optionKey);
+  if (!choice) throw new Error("Unknown delivery time");
+  const expectedBy = dt.expectedByOption(choice);
+  let when = choice.text;
+  if (choice.key === "next_day") {
+    when = `tomorrow, ${expectedBy.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}`;
+  }
+  order.delivery.expectedBy = expectedBy;
+  order.delivery.etaOption = choice.key;
+  order.delivery.etaLabel = choice.label;
+  order.delivery.etaSetAt = new Date();
+  await order.save();
+
+  await ensureTemplate("DELIVERY_TIME_SET");
+  await notificationService.notify(order.customer, "DELIVERY_TIME_SET", {
+    code: order.code,
+    items: itemSummary(order),
+    orderId: order._id.toString(),
+    when,
+  });
+  return { expectedBy, label: choice.label, when };
 }
 
 // Returns wallet money and loyalty points that were put against an order when
@@ -451,12 +706,25 @@ async function completeDelivery(order, { otp, photo, signature, location }, acto
 // What the customer's tracking screen renders.
 function trackingView(order) {
   return {
+    delayedItems: (order.items || [])
+      .filter((item) => item.deferred?.expectedOn)
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        variantName: item.variantName,
+        expectedOn: item.deferred.expectedOn,
+        deliveredAt: item.deferred.deliveredAt || null,
+        reason: item.deferred.reason || "",
+      })),
     code: order.code,
     status: order.status,
     statusLabel: STATUSES[order.status].customerLabel,
     isOpen: order.isOpen,
     timeline: buildTimeline(order.status, order.statusHistory),
     expectedBy: order.delivery.expectedBy,
+    etaOption: order.delivery.etaOption || "",
+    etaLabel: order.delivery.etaLabel || "",
+    etaSetAt: order.delivery.etaSetAt || null,
     partner: order.delivery.partner
       ? { name: order.delivery.partnerName, phone: order.delivery.partnerPhone }
       : null,
@@ -466,6 +734,8 @@ function trackingView(order) {
 }
 
 module.exports = {
+  announceDeferred,
+  setDeliveryTime,
   placeOrder,
   transition,
   assignDeliveryPartner,
@@ -473,4 +743,5 @@ module.exports = {
   trackingView,
   nextOrderCode,
   creditRewards,
+  notifyOwnerStatusUpdate,
 };

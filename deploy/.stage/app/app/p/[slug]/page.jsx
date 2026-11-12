@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProduct, SITE_URL } from "@/lib/api";
+import { getHome, getProduct, getProducts, SITE_URL } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
 import VariantPicker from "@/components/VariantPicker";
 import ProductGallery from "@/components/ProductGallery";
-import PdpDelivery from "@/components/PdpDelivery";
 import ProductTabs from "@/components/ProductTabs";
 import ShareRow from "@/components/ShareRow";
-import { discountPct, rupees } from "@/lib/format";
+import PdpPromises from "@/components/PdpPromises";
+import { discountPct, offerLabel, productMedia, rupees } from "@/lib/format";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }) {
       title: `${product.name} | Hosur Basket`,
       description,
       url: `${SITE_URL}/p/${product.slug}`,
-      images: product.media?.[0]?.url ? [product.media[0].url] : undefined,
+      images: productMedia(product)[0]?.url ? [productMedia(product)[0].url] : undefined,
     },
   };
 }
@@ -42,6 +42,19 @@ export default async function ProductPage({ params }) {
   if (!data) notFound();
 
   const { product, variants = [], specs = [], features = {}, related = [], breadcrumb = [] } = data;
+  const media = productMedia(product);
+
+  // More to look at, without repeating anything: this category's best, then today's deals.
+  const category = breadcrumb[breadcrumb.length - 1];
+  const [home, inCategory, deals] = await Promise.all([
+    getHome(),
+    category ? getProducts({ category: category.slug, limit: 14 }) : null,
+    getProducts({ sort: "discount", limit: 14 }),
+  ]);
+  const seen = new Set([product.id, ...related.map((r) => r.id)]);
+  const fresh = (list) => (list?.items || []).filter((p) => p.inStock !== false && !seen.has(p.id) && seen.add(p.id)).slice(0, 10);
+  const topInCategory = fresh(inCategory);
+  const bestDeals = fresh(deals);
 
   const cheapest = variants.reduce(
     (low, v) => (!low || v.sellingPrice < low.sellingPrice ? v : low),
@@ -58,7 +71,7 @@ export default async function ProductPage({ params }) {
     "@type": "Product",
     name: product.name,
     description: product.shortDescription || product.description || undefined,
-    image: product.media?.map((m) => m.url).filter(Boolean),
+    image: media.map((m) => m.url).filter(Boolean),
     sku: cheapest?.sku,
     brand: product.brand?.name ? { "@type": "Brand", name: product.brand.name } : undefined,
     category: breadcrumb.map((b) => b.name).join(" > ") || undefined,
@@ -124,81 +137,104 @@ export default async function ProductPage({ params }) {
       {/* Columns set in CSS, not inline: an inline style outranks the media
           query that stacks them on a phone. */}
       <div className="split pdp">
-        <div className="sticky">
-          <ProductGallery
-            media={product.media}
-            name={product.name}
-            badge={off > 0 ? <span className="badge">{off}% OFF</span> : null}
-          />
-        </div>
-
-        <div className="pdp-info">
-          {product.brand?.name ? <span className="pdp-brand">{product.brand.name}</span> : null}
-          <h1 className="pdp-title">{product.name}</h1>
-
-          {product.rating?.count ? (
-            <div className="rating-row">
-              <span className="rating-stars" style={{ "--rating": product.rating.average }} aria-hidden="true" />
-              <span className="rating-value">{Number(product.rating.average).toFixed(1)}</span>
-              <span className="rating-count">
-                ({product.rating.count} review{product.rating.count === 1 ? "" : "s"})
-              </span>
-            </div>
-          ) : null}
-
-          {product.shortDescription ? <p className="pdp-lede">{product.shortDescription}</p> : null}
-
-          {/* Badges driven by the category's capability flags, not by product type. */}
-          <div className="pdp-tags">
-            {features.perishable ? <span className="pill brand">Fresh stock</span> : null}
-            {product.attributes?.organic ? <span className="pill save">Organic</span> : null}
-            {features.returnable ? (
-              <span className="pill">
-                {product.returnWindowDays ? `${product.returnWindowDays}-day return` : "Returnable"}
-              </span>
-            ) : (
-              <span className="pill accent">No returns</span>
-            )}
-            {features.allowSubstitution ? <span className="pill">Substitution allowed</span> : null}
+        {/* Left: photos, then the product information underneath them, so the column is
+            as long as the buy column beside it instead of leaving a blank gap. */}
+        <div className="pdp-left">
+          <div className="pdp-gallery-slot">
+            <ProductGallery
+              media={media}
+              name={product.name}
+              badge={off > 0 ? <span className="badge">{off}% OFF</span> : null}
+            />
           </div>
 
+          <div className="panel pdp-tabs-panel pdp-details-slot">
+            <ProductTabs product={product} specs={specs} variants={variants} category={category} features={features} />
+          </div>
+        </div>
+
+        <div className="pdp-info pdp-info-sticky">
           {/* One card: pack picker, price and buttons together. */}
           <div className="panel pdp-buy">
+            <div className="pdp-summary">
+              <ShareRow name={product.name} />
+              {product.brand?.name ? <span className="pdp-brand">{product.brand.name}</span> : null}
+              <h1 className="pdp-title">{product.name}</h1>
+              {breadcrumb.length ? (
+                <Link className="pdp-similar-link" href={`/c/${breadcrumb[breadcrumb.length - 1].slug}`}>
+                  View all similar products
+                </Link>
+              ) : null}
+              {product.rating?.count ? (
+                <div className="rating-row">
+                  <span className="rating-stars" style={{ "--rating": product.rating.average }} aria-hidden="true" />
+                  <span className="rating-value">{Number(product.rating.average).toFixed(1)}</span>
+                  <span className="rating-count">
+                    ({product.rating.count} review{product.rating.count === 1 ? "" : "s"})
+                  </span>
+                </div>
+              ) : null}
+              {product.shortDescription ? <p className="pdp-lede">{product.shortDescription}</p> : null}
+              {product.offer?.kind === "combo" && product.offer.details ? (
+                <p className="pdp-lede"><strong>Combo includes:</strong> {product.offer.details}</p>
+              ) : null}
+              <div className="pdp-tags">
+                {offerLabel(product.offer) ? <span className="pill save">{offerLabel(product.offer)}</span> : null}
+                {features.perishable ? <span className="pill brand">Fresh stock</span> : null}
+                {product.attributes?.organic ? <span className="pill save">Organic</span> : null}
+                {features.returnable ? (
+                  <span className="pill">
+                    {product.returnWindowDays ? `${product.returnWindowDays}-day return` : "Returnable"}
+                  </span>
+                ) : (
+                  <span className="pill accent">No returns</span>
+                )}
+                {features.allowSubstitution ? <span className="pill">Substitution allowed</span> : null}
+              </div>
+            </div>
             <VariantPicker product={product} variants={variants} />
           </div>
 
-          <PdpDelivery />
+          <PdpPromises />
 
-          {specs.length ? (
-            <div className="panel pdp-specs">
-              <h3>Product details</h3>
-              <dl>
-                {specs.map((spec) => (
-                  <div key={spec.label}>
-                    <dt>{spec.label}</dt>
-                    <dd>
-                      {formatSpec(spec.value)}
-                      {spec.unit ? ` ${spec.unit}` : ""}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          ) : null}
-
-          <ShareRow name={product.name} />
-
-          <ProductTabs product={product} />
         </div>
       </div>
 
       {related.length ? (
-        <section className="section">
+        <section className="section pdp-related">
           <div className="section-head">
-            <h2 className="accent">You may also like</h2>
+            <h2>Similar products</h2>
           </div>
-          <Carousel label="You may also like">
+          <Carousel label="Similar products">
             {related.map((item) => (
+              <ProductCard key={item.id} product={item} />
+            ))}
+          </Carousel>
+        </section>
+      ) : null}
+
+      {topInCategory.length ? (
+        <section className="section pdp-related">
+          <div className="section-head">
+            <h2>Top picks in {category?.name || "this category"}</h2>
+            {category ? <Link className="section-link" href={`/c/${category.slug}`}>View all</Link> : null}
+          </div>
+          <Carousel label={`Top picks in ${category?.name || "this category"}`}>
+            {topInCategory.map((item) => (
+              <ProductCard key={item.id} product={item} />
+            ))}
+          </Carousel>
+        </section>
+      ) : null}
+
+      {bestDeals.length ? (
+        <section className="section pdp-related">
+          <div className="section-head">
+            <h2>Best deals today</h2>
+            <Link className="section-link" href="/c?sort=discount">View all</Link>
+          </div>
+          <Carousel label="Best deals today">
+            {bestDeals.map((item) => (
               <ProductCard key={item.id} product={item} />
             ))}
           </Carousel>
@@ -206,10 +242,4 @@ export default async function ProductPage({ params }) {
       ) : null}
     </div>
   );
-}
-
-function formatSpec(value) {
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  return String(value);
 }

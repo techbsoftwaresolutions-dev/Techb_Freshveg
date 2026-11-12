@@ -10,6 +10,8 @@ import { rupees, when } from "@/lib/format";
 import StatusPill from "@/components/StatusPill";
 import AccountMobile, { AccountHead } from "@/components/AccountMobile";
 import SavedAddresses from "@/components/SavedAddresses";
+import ReferralPanel from "@/components/ReferralPanel";
+import { shareInvite } from "@/lib/referral";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -22,18 +24,10 @@ export default function AccountPage() {
   }, [ready, signedIn, router]);
 
   async function shareReferral(code) {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const text = `Use my Hosur Basket referral code ${code} and get a discount on your first order!`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: "Hosur Basket referral", text, url: origin });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(`${text} ${origin}`);
-        setShared(true);
-        setTimeout(() => setShared(false), 2000);
-      }
-    } catch {
-      // Share sheet dismissed — nothing to do.
+    const result = await shareInvite(code);
+    if (result === "copied") {
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
     }
   }
 
@@ -89,16 +83,13 @@ export default function AccountPage() {
       </header>
 
       <section className="account-hero">
-        <span className="avatar" aria-hidden="true">{initials}</span>
+        <span className="avatar" aria-hidden="true">{user.avatar ? <img className="avatar-photo" src={user.avatar} alt="" /> : initials}</span>
         <div className="account-hero-copy">
           <strong>{user.name || "Add your name"}</strong>
           <span>
             +91 {user.phone}
             {user.email ? ` · ${user.email}` : ""}
           </span>
-          <Link href="/account/edit" className="account-hero-edit">
-            Edit profile
-          </Link>
         </div>
         <button
           type="button"
@@ -119,23 +110,14 @@ export default function AccountPage() {
           <strong>{user.loyaltyPoints ?? 0}</strong>
           <em>100 points = ₹10 off</em>
         </div>
-        {user.referralCode ? (
-          <div className="stat-tile">
-            <span>Refer a friend</span>
-            <div className="stat-tile-row">
-              <strong className="stat-code">{user.referralCode}</strong>
-              <button type="button" className="stat-share-btn" onClick={() => shareReferral(user.referralCode)}>
-                {shared ? "Copied!" : "Share"}
-              </button>
-            </div>
-          </div>
-        ) : null}
         <div className="stat-tile">
           <span>Delivery location</span>
           <strong>{pincode || store?.address?.city || "Not set"}</strong>
           {store?.name ? <em>{store.name}</em> : null}
         </div>
       </div>
+
+      {user.referralCode ? <ReferralPanel code={user.referralCode} /> : null}
 
       <div className="split cart">
         <section className="panel">

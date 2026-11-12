@@ -18,6 +18,7 @@ const Otp = require("../auth/otp.model");
 const Referral = require("../referrals/referral.model");
 const walletService = require("../wallet/wallet.service");
 const loyaltyService = require("../loyalty/loyalty.service");
+const referralService = require("../referrals/referral.service");
 const audit = require("../audit/audit.service");
 
 const router = express.Router();
@@ -40,7 +41,7 @@ router.get(
     }
     if (req.query.search) {
       const rx = new RegExp(escapeRegex(req.query.search), "i");
-      filter.$or = [{ name: rx }, { phone: rx }, { email: rx }];
+      filter.$or = [{ name: rx }, { phone: rx }, { email: rx }, { referralCode: rx }];
     }
 
     const result = await paginate(User, filter, req.query, {
@@ -62,6 +63,7 @@ router.get(
       },
     ]);
     const byCustomer = new Map(stats.map((s) => [String(s._id), s]));
+    const referralsBy = await referralService.countsFor(result.items.map((u) => u._id));
 
     res.json({
       success: true,
@@ -71,6 +73,9 @@ router.get(
         orders: byCustomer.get(user.id)?.orders || 0,
         totalSpend: byCustomer.get(user.id)?.spend || 0,
         lastOrderAt: byCustomer.get(user.id)?.lastOrderAt || null,
+        // How many people signed up with this customer's code.
+        referralCount: referralsBy.get(user.id)?.total || 0,
+        referralRewarded: referralsBy.get(user.id)?.rewarded || 0,
       })),
     });
   })
@@ -83,10 +88,11 @@ router.get(
     const customer = await User.findOne({ _id: req.params.id, role: "customer" });
     if (!customer) throw ApiError.notFound("Customer not found");
 
-    const [orders, wallet, loyalty] = await Promise.all([
+    const [orders, wallet, loyalty, referral] = await Promise.all([
       Order.find({ customer: customer._id }).sort({ placedAt: -1 }).limit(20),
       walletService.history(customer._id, { limit: 20 }),
       loyaltyService.history(customer._id, { limit: 20 }),
+      referralService.detailFor(customer._id),
     ]);
 
     const delivered = orders.filter((o) => o.status === "DELIVERED");
@@ -97,6 +103,7 @@ router.get(
       orders,
       wallet,
       loyalty,
+      referral,
       stats: {
         orders: orders.length,
         delivered: delivered.length,
