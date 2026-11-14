@@ -15,6 +15,28 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 const SHOW_QR = false;
 
 const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+
+// What the top-right toast says when the order moves to a new step while the
+// shopper is watching. Steps not listed fall back to the status label.
+const STATUS_TOAST = {
+  ORDER_CONFIRMED: ["Your order is confirmed", "The store has accepted your order."],
+  PAYMENT_CONFIRMED: ["Payment received", "Thank you — your payment went through."],
+  ORDER_ACCEPTED: ["Preparing your order", "The store has started on your order."],
+  PICKING: ["Collecting your items", "Your items are being picked from the shelves."],
+  PACKING: ["Packing your order", "Almost ready to leave the store."],
+  READY_FOR_PICKUP: ["Your order is packed", "Waiting for a delivery partner."],
+  ASSIGNED_TO_DELIVERY: ["Delivery partner assigned", "Someone is on the way to collect it."],
+  PICKED_UP: ["Picked up from the store", "Your order is on its way."],
+  OUT_FOR_DELIVERY: ["Out for delivery", "Your order is on the way to you."],
+  ARRIVED: ["Your delivery partner has arrived", "Share your handover code at the door."],
+  DELIVERED: ["Order delivered successfully", ""],
+  CANCELLED: ["Your order was cancelled", "Any payment made will be refunded."],
+  REJECTED: ["Your order could not be fulfilled", "Any payment made will be refunded."],
+  RETURN_REQUESTED: ["Return requested", "We'll let you know once it's approved."],
+  RETURN_APPROVED: ["Return approved", "A partner will collect the items."],
+  RETURN_PICKED: ["Return collected", "Your refund is on its way."],
+  REFUNDED: ["Refund done", "Your refund has been processed."],
+};
 const ORDER_PROGRESS_STAGES = [
   { label: "Order placed", statuses: ["ORDER_PLACED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED"] },
   { label: "Order confirmed", statuses: ["ORDER_CONFIRMED"] },
@@ -84,6 +106,27 @@ function OrderDetail() {
   const params = useSearchParams();
   const justPlaced = params.get("placed") === "1";
   const { ready, signedIn } = useAuth();
+  // Top-right toast: "order placed" after checkout, then one for each new
+  // step (confirmed, out for delivery, delivered...) seen while on this page.
+  // Closes itself after a few seconds.
+  const [toast, setToast] = useState(
+    justPlaced ? { title: "Thank you! Your order is placed.", text: "The store is preparing it now — follow every step below.", tone: "ok", at: 0 } : null
+  );
+  useEffect(() => {
+    if (!toast) return undefined;
+    const t = setTimeout(() => setToast(null), 6000);
+    return () => clearTimeout(t);
+  }, [toast]);
+  const lastStatus = useRef(null);
+  // "?placed=1" is only for the moment after checkout: drop it from the address
+  // so a refresh or a later visit (say, after delivery) never says "placed" again.
+  useEffect(() => {
+    if (!justPlaced) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("placed");
+    url.searchParams.delete("paid");
+    window.history.replaceState(window.history.state, "", url.pathname + (url.search || ""));
+  }, [justPlaced]);
 
   const [tracking, setTracking] = useState(null);
   const [order, setOrder] = useState(null);
@@ -106,6 +149,27 @@ function OrderDetail() {
         api.get("/orders/mine", { limit: 30 }),
       ]);
       setTracking(track.tracking);
+      const status = track.tracking?.status;
+      // An order that is already finished never shows the "placed" toast.
+      if (!lastStatus.current && CLOSED.includes(status)) {
+        setToast((t) => (t && t.at === 0 ? null : t));
+      }
+      if (lastStatus.current && status && status !== lastStatus.current) {
+        const [title, text] = STATUS_TOAST[status] || [track.tracking.statusLabel, ""];
+        setToast({ title, text, tone: ["CANCELLED", "REJECTED"].includes(status) ? "bad" : "ok", at: Date.now() });
+      }
+      // Delivered: also shown the first time the shopper opens the order after
+      // delivery (not only when watching live) — once per order, per browser.
+      if (status === "DELIVERED") {
+        const seenKey = `commerce.web.deliveredToast.${id}`;
+        let seen = false;
+        try { seen = localStorage.getItem(seenKey) === "1"; localStorage.setItem(seenKey, "1"); } catch {}
+        if (!seen && lastStatus.current !== "DELIVERED" && !(lastStatus.current && lastStatus.current !== status)) {
+          const [title, text] = STATUS_TOAST.DELIVERED;
+          setToast({ title, text, tone: "ok", at: Date.now() });
+        }
+      }
+      if (status) lastStatus.current = status;
       setOrder(mine.items.find((o) => o.id === id) || null);
       setError("");
       return track.tracking;
@@ -219,13 +283,20 @@ function OrderDetail() {
         </div>
       ) : null}
 
-      {justPlaced && tracking.status !== "PAYMENT_PENDING" ? (
-        <div className="placed-banner" role="status">
-          <i aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></i>
+      {toast && tracking.status !== "PAYMENT_PENDING" ? (
+        <div key={toast.at} className={`placed-toast${toast.tone === "bad" ? " bad" : ""}`} role="status">
+          <i aria-hidden="true">
+            {toast.tone === "bad" ? (
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+            )}
+          </i>
           <div>
-            <strong>Thank you! Your order is placed.</strong>
-            <span>The store is preparing it now — follow every step below.</span>
+            <strong>{toast.title}</strong>
+            {toast.text ? <span>{toast.text}</span> : null}
           </div>
+          <button type="button" className="placed-toast-close" onClick={() => setToast(null)} aria-label="Close">×</button>
         </div>
       ) : null}
 
@@ -239,11 +310,6 @@ function OrderDetail() {
           </p>
         </div>
       ) : null}
-
-      <div className="order-wa">
-        <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M16.02 3.2A12.65 12.65 0 0 0 5.12 22.27L3.4 28.6l6.48-1.7a12.63 12.63 0 1 0 6.14-23.7Zm0 22.96c-1.91 0-3.78-.51-5.42-1.48l-.39-.23-3.85 1.01 1.03-3.75-.25-.4a10.26 10.26 0 1 1 8.88 4.85Zm5.63-7.69c-.31-.16-1.82-.9-2.1-1-.29-.1-.5-.15-.71.16-.21.32-.8 1-.98 1.21-.18.21-.36.24-.67.08-.31-.16-1.31-.48-2.5-1.52-.92-.82-1.54-1.83-1.72-2.14-.18-.32-.02-.49.14-.65.14-.14.31-.36.47-.53.16-.18.21-.31.31-.52.11-.21.06-.4-.03-.56-.08-.16-.71-1.71-.97-2.34-.25-.61-.51-.53-.7-.54h-.6c-.21 0-.55.08-.84.4-.29.32-1.1 1.06-1.1 2.59s1.12 3 1.28 3.21c.15.21 2.2 3.36 5.33 4.71.75.32 1.33.51 1.78.65.75.24 1.43.21 1.97.13.6-.09 1.82-.74 2.08-1.45.25-.71.25-1.32.18-1.45-.08-.13-.29-.21-.6-.37Z" /></svg>
-        <span><strong>WhatsApp updates on.</strong> Order, dispatch and arrival alerts are sent to your WhatsApp.</span>
-      </div>
 
       <nav className="crumbs">
         <Link href="/">Home</Link> › <Link href="/orders">My orders</Link> › <span>{tracking.code}</span>
@@ -280,20 +346,17 @@ function OrderDetail() {
             </span>
             <div>
               <h1>{tracking.statusLabel}</h1>
-              <p>
-                Order <strong className="tabular">{tracking.code}</strong>
-                {tracking.expectedBy && !CLOSED.includes(tracking.status) ? (
-                  <>
-                    {" · "}Expected by{" "}
-                    <strong>
-                      {new Date(tracking.expectedBy).toLocaleTimeString("en-IN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </strong>
-                  </>
-                ) : null}
-              </p>
+              {tracking.expectedBy && !CLOSED.includes(tracking.status) ? (
+                <p>
+                  Expected by{" "}
+                  <strong>
+                    {new Date(tracking.expectedBy).toLocaleTimeString("en-IN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </strong>
+                </p>
+              ) : null}
             </div>
           </div>
 

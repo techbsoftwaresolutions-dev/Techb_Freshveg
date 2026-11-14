@@ -10,6 +10,7 @@ import { Avatar } from "../orders/Orders";
 import {
   Banner,
   Card,
+  ConfirmDialog,
   Empty,
   Field,
   Loading,
@@ -275,36 +276,16 @@ export default function Users() {
       </Card>
 
       {confirming && (
-        <Modal
-          title="Delete user?"
-          onClose={() => !deleting && setConfirming(null)}
-          footer={
-            <>
-              <button
-                className="btn"
-                disabled={Boolean(deleting)}
-                onClick={() => setConfirming(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn danger"
-                disabled={Boolean(deleting)}
-                onClick={() => removeUser(confirming)}
-              >
-                {deleting ? "Deleting…" : "Yes, delete"}
-              </button>
-            </>
-          }
-        >
-          <p style={{ margin: 0 }}>
-            <strong>{confirming.name || confirming.phone}</strong> will no
-            longer be able to sign in.
-          </p>
-          <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
-            To keep their record, block them instead of deleting.
-          </p>
-        </Modal>
+        <ConfirmDialog
+          title="Delete this user?"
+          message={confirming.name || confirming.phone}
+          confirmLabel="Delete"
+          onAnswer={(yes) => {
+            const row = confirming;
+            setConfirming(null);
+            if (yes && !deleting) removeUser(row);
+          }}
+        />
       )}
     </div>
   );

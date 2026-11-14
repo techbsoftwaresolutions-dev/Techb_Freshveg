@@ -3181,3 +3181,74 @@ input.switch:checked::after { transform: translateX(18px); }
 @keyframes toast-in { from { opacity: 0; transform: translateX(24px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes toast-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
+/* ---------------------------------------------------------------- confirm
+   "Delete this product?" — a small card in the middle of the screen. */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(10, 12, 16, 0.5);
+  animation: confirm-fade 0.12s ease-out;
+}
+.confirm-card {
+  width: 100%;
+  max-width: 360px;
+  padding: 26px 24px 20px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.28);
+  text-align: center;
+  animation: confirm-pop 0.14s ease-out;
+}
+.confirm-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--danger-soft, #fdecec);
+  color: var(--danger);
+}
+.confirm-card h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
+.confirm-message {
+  margin: 8px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.confirm-actions { display: flex; gap: 10px; margin-top: 22px; }
+.confirm-actions .btn { flex: 1; justify-content: center; min-height: 40px; }
+.btn.confirm-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.confirm-danger:hover:not(:disabled) { filter: brightness(0.93); }
+@keyframes confirm-fade { from { opacity: 0; } }
+@keyframes confirm-pop { from { opacity: 0; transform: scale(0.96); } }
+.confirm-note { margin: 6px 0 0; font-size: 13px; color: var(--text-muted); }
+.confirm-note.error { color: var(--danger); }
+
+/* Delete button in the confirm card: stays red on hover / press, just a
+   shade darker (a generic .btn:hover was turning it grey with white text). */
+.confirm-actions .btn.confirm-danger,
+.confirm-actions .btn.confirm-danger:hover:not(:disabled),
+.confirm-actions .btn.confirm-danger:focus-visible {
+  background: #c62828;
+  border-color: #c62828;
+  color: #fff;
+  filter: none;
+}
+.confirm-actions .btn.confirm-danger:hover:not(:disabled) {
+  background: #a91f1f;
+  border-color: #a91f1f;
+  box-shadow: 0 6px 16px rgba(198, 40, 40, 0.28);
+}
+.confirm-actions .btn.confirm-danger:active:not(:disabled) { background: #8f1a1a; border-color: #8f1a1a; box-shadow: none; }
+.confirm-actions .btn.confirm-danger:focus-visible { outline: 2px solid #c62828; outline-offset: 2px; }
+.confirm-actions .btn.confirm-danger:disabled { background: #e57373; border-color: #e57373; color: #fff; opacity: 1; }
+/* Cancel: a light grey fill on hover so it is clearly the quieter choice. */
+.confirm-actions .btn:not(.confirm-danger):not(.primary):hover:not(:disabled) { background: #f1f3f2; border-color: #cfd6d2; color: var(--text); }

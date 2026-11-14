@@ -5,7 +5,7 @@ import { api } from "../../api/client";
 import { useApi } from "../../api/useApi";
 import { useAuth } from "../../context/AuthContext";
 import DateFilter, { todayRange } from "../../components/DateFilter";
-import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, Tabs, rupees, when } from "../../components/ui";
+import { Banner, Card, ConfirmDialog, Empty, Loading, Modal, Pagination, Pill, Table, Tabs, rupees, when } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
 // stage added to the engine shows up here without a frontend change.
@@ -356,34 +356,16 @@ export default function Orders() {
       </Card>
 
       {confirming && (
-        <Modal
-          title="Delete order?"
-          onClose={() => !deleting && setConfirming(null)}
-          footer={
-            <>
-              <button className="btn" disabled={deleting} onClick={() => setConfirming(null)}>
-                Cancel
-              </button>
-              <button className="btn danger" disabled={deleting} onClick={() => removeOrder(confirming)}>
-                {deleting ? "Deleting…" : "Yes, delete"}
-              </button>
-            </>
-          }
-        >
-          <p style={{ margin: 0 }}>
-            <strong className="mono">{confirming.code}</strong> will be permanently removed.
-          </p>
-          {!["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"].includes(confirming.status) ? (
-            <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
-              This order is still open, so it will be cancelled first: its stock is returned and any
-              payment is refunded, and the customer is notified of the cancellation.
-            </p>
-          ) : (
-            <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
-              This cannot be undone.
-            </p>
-          )}
-        </Modal>
+        <ConfirmDialog
+          title="Delete this order?"
+          message={confirming.code}
+          confirmLabel="Delete"
+          onAnswer={(yes) => {
+            const row = confirming;
+            setConfirming(null);
+            if (yes && !deleting) removeOrder(row);
+          }}
+        />
       )}
     </div>
   );

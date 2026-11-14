@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Field, Loading, Pill } from "../../components/ui";
+import { Banner, Card, Field, Loading, Pill, useConfirm } from "../../components/ui";
 import SchemaForm from "../../components/SchemaForm";
 import SelectMenu from "../../components/SelectMenu";
 import { suggestDetails } from "./productAutofill";
@@ -904,6 +904,7 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
   const [error, setError] = useState("");
   // Index of the photo whose options popup is open, or null.
   const [picked, setPicked] = useState(null);
+  const [confirm, confirmDialog] = useConfirm();
   const [dragging, setDragging] = useState(false);
   // Drag-to-reorder: which thumbnail is being dragged, and which one it is over.
   const [dragIndex, setDragIndex] = useState(null);
@@ -1066,8 +1067,10 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
               <button
                 type="button"
                 className="btn danger"
-                onClick={() => {
-                  remove(picked);
+                onClick={async () => {
+                  const index = picked;
+                  if (!(await confirm({ title: "Remove this photo?", confirmLabel: "Remove" }))) return;
+                  remove(index);
                   setPicked(null);
                 }}
               >
@@ -1217,6 +1220,7 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
         </label>
       ) : null}
       </div>
+      {confirmDialog}
     </Card>
   );
 }

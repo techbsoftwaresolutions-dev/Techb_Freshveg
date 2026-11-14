@@ -405,7 +405,7 @@ router.get(
       // need a hidden "featured" flag the admin form never offered, so a new
       // offer was running but never reached the home page. (Whether each is
       // live is checked now, so a memoised list can't outlive a schedule.)
-      memo("offers", 30000, () => Offer.find({ status: "active" }).sort({ priority: -1, createdAt: -1 }).limit(12)).then(
+      memo("offers", 30000, () => Offer.find({ status: "active" }).sort({ editedAt: -1, createdAt: -1 }).limit(12)).then(
         (rows) => rows.filter((o) => o.isLive())
       ),
       cards(Product.find({ status: "active", isFeatured: true }).limit(12)),
@@ -537,6 +537,44 @@ router.get(
       rails: rails.filter((r) => r.products.length),
       offerRails,
       flashDeal,
+    });
+  })
+);
+
+// The coupon for the site header strip: the coupon the admin added or edited
+// most recently, among those a shopper can use right now. null when none.
+router.get(
+  "/latest-coupon",
+  cacheResponse(30),
+  asyncHandler(async (_req, res) => {
+    const rows = await Offer.find({ status: "active", requiresCode: true, code: { $nin: [null, ""] } })
+      .sort({ editedAt: -1, createdAt: -1 })
+      .limit(20);
+    const now = new Date();
+    const offer = rows.find(
+      (o) => o.isLive(now) && !(o.limits?.totalUses && o.limits.usedCount >= o.limits.totalUses)
+    );
+    if (!offer) return res.json({ success: true, coupon: null });
+
+    const r = offer.reward || {};
+    const value =
+      offer.type === "percentage" && r.discountPct ? `${r.discountPct}% off`
+      : offer.type === "fixed" && r.discountAmount ? `Rs ${r.discountAmount} off`.replace("Rs ", "₹")
+      : offer.type === "free_delivery" ? "Free delivery"
+      : offer.type === "cashback" && r.cashbackPct ? `${r.cashbackPct}% cashback`
+      : offer.type === "bogo" && r.buyQuantity ? `Buy ${r.buyQuantity} get ${r.getQuantity} free`
+      : "";
+    res.json({
+      success: true,
+      coupon: {
+        id: offer.id,
+        code: offer.code,
+        title: offer.title,
+        badge: offer.badge || "",
+        // The admin's own badge text first, so the header matches the home-page card.
+        value: offer.badge || value,
+        minCartValue: offer.conditions?.minCartValue || 0,
+      },
     });
   })
 );

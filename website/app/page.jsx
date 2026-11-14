@@ -209,37 +209,6 @@ export default async function HomePage() {
               return railIndex < 2 ? row : <LazySection key={rail.category.id}>{row}</LazySection>;
             })}
 
-          {departments.length ? (
-            <section className="section">
-              <SectionHead title="Explore Categories" href="/c" linkLabel="View All Categories" />
-              <div className="shop-row">
-                {departments.slice(0, 8).map((department) => (
-                  <Link key={department.id} href={`/c/${department.slug}`} className="shop-card">
-                    <span className="shop-card-media">
-                      {categoryImage(department) ? (
-                        <img src={img(categoryImage(department), 240)} alt="" loading="lazy" />
-                      ) : (
-                        <CategoryIcon name={department.name} />
-                      )}
-                    </span>
-                    <span className="shop-card-body">
-                      <strong>{department.name}</strong>
-                      {department.description || department.slug === "fresh-vegetables" ? (
-                        <span className="shop-card-note">
-                          {department.description || "Farm-fresh greens and vegetables, fresh every day."}
-                        </span>
-                      ) : null}
-                      <span className="shop-cue">
-                        Shop Now
-                        <IconArrow />
-                      </span>
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
           <TrustStrip prepTimeMinutes={store?.prepTimeMinutes} />
 
           <AppDownload />

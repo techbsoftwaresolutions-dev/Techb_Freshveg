@@ -209,23 +209,39 @@ function ModalDialog({ title, onClose, children, footer, wide }) {
 //   if (!(await confirm({ title, message, confirmLabel }))) return;
 //   ...and render {confirmDialog} somewhere in the page.
 export function ConfirmDialog({ title, message, confirmLabel = "Delete", cancelLabel = "Cancel", tone = "danger", onAnswer }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onAnswer(false);
+    document.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [onAnswer]);
+
   return (
-    <ModalDialog
-      title={title}
-      onClose={() => onAnswer(false)}
-      footer={
-        <>
-          <button type="button" className="btn ghost" onClick={() => onAnswer(false)} autoFocus>
+    <div className="confirm-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onAnswer(false)}>
+      <div className="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+        {tone === "danger" ? (
+          <span className="confirm-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+            </svg>
+          </span>
+        ) : null}
+        <h2 id="confirm-title">{title}</h2>
+        {message ? <p className="confirm-message">{message}</p> : null}
+        <div className="confirm-actions">
+          <button type="button" className="btn" onClick={() => onAnswer(false)} autoFocus>
             {cancelLabel}
           </button>
-          <button type="button" className={`btn ${tone}`} onClick={() => onAnswer(true)}>
+          <button type="button" className={`btn ${tone === "danger" ? "confirm-danger" : "primary"}`} onClick={() => onAnswer(true)}>
             {confirmLabel}
           </button>
-        </>
-      }
-    >
-      <p style={{ margin: 0, lineHeight: 1.55 }}>{message}</p>
-    </ModalDialog>
+        </div>
+      </div>
+    </div>
   );
 }
 

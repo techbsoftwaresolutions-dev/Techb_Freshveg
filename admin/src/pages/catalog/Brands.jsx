@@ -62,7 +62,7 @@ export default function Brands() {
   // live product is still filed under it, and that refusal's message is
   // what ends up in the banner below.
   async function removeBrand(brand) {
-    if (!(await confirm({ title: "Delete brand?", message: `Delete "${brand.name}"? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
+    if (!(await confirm({ title: "Delete this brand?", message: brand.name, confirmLabel: "Delete" }))) return;
     setRemovingId(brand.id);
     setError("");
     try {

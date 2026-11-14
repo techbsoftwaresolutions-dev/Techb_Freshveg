@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, rupees } from "../../components/ui";
+import { Banner, rupees, useConfirm } from "../../components/ui";
 import {
   clearFailed, computeBill, enqueue, failed, flushQueue, isOffline,
   loadCatalogue, printInvoice, queued, saveCatalogue,
@@ -122,6 +122,7 @@ const METHODS =[["cash", "Cash"], ["upi", "UPI"], ["card", "Card"]];
 
 export default function Pos() {
   const { can } = useAuth();
+  const [confirm, confirmDialog] = useConfirm();
   const canDiscount = can("pos.discount");
   const scanRef = useRef(null);
   const quickRef = useRef(null);
@@ -297,8 +298,8 @@ export default function Pos() {
     setModal(null);
   };
 
-  const newBill = () => {
-    if (lines.length && !window.confirm("Clear the current bill and start a new one?")) return;
+  const newBill = async () => {
+    if (lines.length && !(await confirm({ title: "Clear this bill?", confirmLabel: "Clear" }))) return;
     reset();
   };
 
@@ -590,7 +591,10 @@ export default function Pos() {
                 <span>{h.lines.length} item(s) - {new Date(h.at).toLocaleTimeString("en-IN")}{h.customer?.name ? ` - ${h.customer.name}` : ""}</span>
                 <span style={{ display: "flex", gap: 6 }}>
                   <button className="pos-sm-btn" onClick={() => resume(h)}>Resume</button>
-                  <button className="pos-sm-btn danger" onClick={() => saveHeld(held.filter((x) => x.id !== h.id))}>Delete</button>
+                  <button className="pos-sm-btn danger" onClick={async () => {
+                    if (!(await confirm({ title: "Delete this held bill?", message: `${h.lines.length} item(s)`, confirmLabel: "Delete" }))) return;
+                    saveHeld(held.filter((x) => x.id !== h.id));
+                  }}>Delete</button>
                 </span>
               </div>
             )) : <div className="pos-empty">No held bills.</div>)}
@@ -606,6 +610,7 @@ export default function Pos() {
           </div>
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }

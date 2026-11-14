@@ -7,6 +7,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
+    "predev": "node scripts/ensure-deps.mjs",
     "dev": "nodemon src/server.js",
     "seed": "node src/seed/run.js",
     "seed:reset": "node src/seed/run.js --reset",

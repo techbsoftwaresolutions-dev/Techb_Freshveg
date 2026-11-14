@@ -7261,7 +7261,7 @@ dialog.coming-soon img { display: block; width: 100%; height: auto; border-radiu
   .utility-inner { height: 24px !important; }
   .utility-item { font-size: 10.5px !important; font-weight: 600; letter-spacing: 0; }
   .header-main { padding: 6px 14px 8px !important; gap: 6px 10px !important; }
-  .logo-img { height: 28px !important; }
+  .logo-img { height: 52px !important; }
   .header-actions .header-btn:not(.location-btn) { padding: 7px !important; width: 32px; height: 32px; min-width: 0; }
   .header-actions .location-btn { width: auto !important; height: auto !important; min-width: 0; }
   .header-actions .header-btn:not(.location-btn) .header-btn-icon { width: 15px !important; height: 15px !important; flex-basis: 15px !important; }
@@ -8062,3 +8062,145 @@ body:has(.auth-page) .crumbs { display: none !important; }
 
 /* Unlocked card: a plain cross, no turning chevron */
 .cart-drawer .fd.is-open .fd-cancel svg { transform: none; }
+
+/* Phone: four "Shop by Category" tiles in view (rest scroll sideways). */
+@media (max-width: 720px) {
+  .top-cats > .top-cat { flex: 0 0 calc((100% - 18px) / 4) !important; width: calc((100% - 18px) / 4) !important; }
+}
+
+/* Trust strip: full-colour icons (red apple, delivery van...) on a light tile. */
+.assurance-icon { background: #fff; box-shadow: inset 0 0 0 1px #d7e9dc; }
+@media (max-width: 720px) {
+  .assurance-icon { width: 40px; height: 40px; flex-basis: 40px; }
+  .assurance-icon svg { width: 24px; height: 24px; }
+}
+
+/* Bigger brand logo in the header. */
+.header-main .logo-img { height: 76px; }
+@media (max-width: 900px) { .header-main .logo-img { height: 62px; } }
+
+/* App band: the phones show real screenshots of the site. */
+.app-phone-screen { padding: 0; }
+.app-phone-shot { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.app-phone-notch { z-index: 1; }
+/* Tilted phones: composite on the GPU so the screenshots are filtered smoothly
+   (no jagged text or shimmer when rotated). */
+.app-phone { backface-visibility: hidden; will-change: transform; }
+.app-phone-shot { image-rendering: auto; backface-visibility: hidden; transform: translateZ(0); }
+
+/* App band, larger and straighter phones so the screenshots read clearly. */
+.app-band { grid-template-columns: 300px minmax(0, 1fr) auto; }
+.app-band-art { height: 290px; }
+.app-phone { width: 150px; height: 296px; border-width: 5px; border-radius: 30px; }
+.app-phone-screen { border-radius: 25px; }
+.app-phone.back { left: 14px; bottom: -34px; transform: rotate(-7deg); }
+.app-phone.front { left: 132px; bottom: -22px; transform: rotate(4deg); }
+@media (max-width: 1180px) { .app-band { grid-template-columns: 300px minmax(0, 1fr); } }
+@media (max-width: 720px) {
+  .app-band { grid-template-columns: minmax(0, 1fr); }
+  .app-band-art { width: 300px; height: 262px; }
+  .app-phone.back { left: 12px; bottom: -44px; transform: rotate(-7deg); }
+  .app-phone.front { left: 136px; bottom: -52px; transform: rotate(4deg); }
+  .app-sprig.right { left: 250px; }
+}
+
+/* Header strip: the newest coupon, tap to copy its code. */
+.utility-coupon { gap: 8px; }
+.utility-coupon-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.utility-coupon-code:hover { background: rgba(255, 255, 255, 0.26); }
+.utility-coupon-code:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.utility-coupon-code.copied { background: #fff; color: var(--brand-deep); border-style: solid; }
+@media (max-width: 900px) {
+  /* Phone and tablet: the strip shows only the free-delivery line, so the coupon joins it as a small chip. */
+  .utility-inner > .utility-coupon { display: inline-flex !important; }
+  .utility-coupon-text { display: none; }
+  .utility-coupon-code { height: 19px; padding: 0 7px; gap: 4px; font-size: 10.5px; border-radius: 5px; }
+  .utility-coupon-code svg { width: 11px; height: 11px; }
+  .utility-inner { gap: 8px !important; }
+}
+
+/* "Thank you! Your order is placed." — a toast at the top right. */
+.placed-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(380px, calc(100vw - 32px));
+  padding: 14px 14px 14px 16px;
+  border-radius: 14px;
+  background: var(--btn-gradient, linear-gradient(100deg, #305a12 0%, #547f1a 55%, #6c961e 100%));
+  color: #fff;
+  box-shadow: 0 14px 36px rgba(20, 40, 10, 0.28);
+  animation: placed-toast-in 0.28s ease-out;
+}
+.placed-toast i { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%; background: rgba(255,255,255,.2); display: inline-flex; align-items: center; justify-content: center; }
+.placed-toast > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.placed-toast strong { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.placed-toast span { font-size: 12.5px; line-height: 1.4; opacity: 0.92; }
+.placed-toast-close {
+  flex: none;
+  align-self: flex-start;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.placed-toast-close:hover { background: rgba(255, 255, 255, 0.28); }
+@keyframes placed-toast-in { from { opacity: 0; transform: translateX(24px); } }
+@media (max-width: 720px) {
+  .placed-toast { top: calc(12px + env(safe-area-inset-top)); right: 16px; }
+}
+.placed-toast.bad { background: linear-gradient(100deg, #b3261e 0%, #d43b3b 100%); }
+
+/* ---- Offer cards: one sliding row on every screen (3 in view on desktop,
+   2 on a tablet, 1 on a phone), with arrows, dots and auto-slide. */
+.promo-row.promo-slider,
+.home-main .promo-row.promo-slider {
+  display: grid !important;
+  grid-auto-flow: column !important;
+  grid-template-columns: none !important;
+  grid-auto-columns: calc((100% - 2 * 14px) / 3) !important;
+  gap: 14px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.promo-row.promo-slider::-webkit-scrollbar { display: none; }
+.promo-row.promo-slider > * { scroll-snap-align: start; min-width: 0; }
+.promo-wrap .promo-arrow { top: 50%; transform: translateY(-50%); z-index: 2; }
+.promo-dots { display: flex; justify-content: center; gap: 6px; margin: 4px 0 8px; }
+.promo-dots button { width: 6px; height: 6px; padding: 0; border: 0; border-radius: 999px; background: #c9d8bd; transition: width .2s ease, background .2s ease; cursor: pointer; }
+.promo-dots button.current { width: 18px; background: var(--btn, #547f1a); }
+@media (max-width: 1080px) {
+  .promo-row.promo-slider, .home-main .promo-row.promo-slider { grid-auto-columns: calc((100% - 14px) / 2) !important; }
+}
+@media (max-width: 720px) {
+  .promo-row.promo-slider, .home-main .promo-row.promo-slider { grid-auto-columns: 100% !important; gap: 10px !important; }
+  .promo-wrap .promo-arrow { display: none; }
+}

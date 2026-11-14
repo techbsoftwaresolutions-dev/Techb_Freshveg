@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "./Providers";
 import { FreeDeliveryNote } from "./FreeDeliveryProgress";
+import CouponNote from "./CouponNote";
 
 const SEARCH_HINTS = ["fruits", "vegetables", "milk", "bread", "eggs", "rice", "snacks", "soap", "groceries"];
 
@@ -204,6 +205,7 @@ export default function Header({ categories = [] }) {
         <div className="wrap utility-inner">
           <span className="utility-item utility-wide">Freshness You Can Trust</span>
           <FreeDeliveryNote className="utility-item utility-promo" withSeparator />
+          <CouponNote />
           <span className="utility-spacer" />
           <Link href="/help" className="utility-item utility-wide">
             <IconHelp className="utility-icon" />

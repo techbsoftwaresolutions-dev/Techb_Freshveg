@@ -165,13 +165,7 @@ export default function ReviewPrompt() {
         ) : (
           <>
             <h2 id="review-prompt-title">How was your order?</h2>
-            <p className="review-prompt-sub">
-              Order {order.order.code} was delivered
-              {order.order.deliveredAt
-                ? ` on ${new Date(order.order.deliveredAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`
-                : ""}
-              . Rate what you got — it helps other shoppers.
-            </p>
+            <p className="review-prompt-sub">Tap the stars to rate your items.</p>
 
             <ul className="review-prompt-items">
               {order.items.map((item) => (

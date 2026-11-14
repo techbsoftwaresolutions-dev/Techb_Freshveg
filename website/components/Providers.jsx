@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { QueryClientProvider } from "@tanstack/react-query";
 import { api, loadSession, saveSession } from "@/lib/client-api";
 import { makeQueryClient } from "@/lib/query-client";
+import DeliveredToast from "./DeliveredToast";
 
 const AuthContext = createContext(null);
 const CartContext = createContext(null);
@@ -313,6 +314,7 @@ export function Providers({ children }) {
         <CartContext.Provider value={cartApi}>
           <WishlistContext.Provider value={wishlistApi}>
             {children}
+            <DeliveredToast signedIn={Boolean(user)} />
             {wishlistToast ? (
               <div className="wishlist-toast" role="status">
                 <span>{wishlistToast.saved ? "Added to your wishlist" : "Removed from your wishlist"}</span>

@@ -59,7 +59,7 @@ export default function Banners() {
   }
 
   async function removeBanner(banner) {
-    if (!(await confirm({ title: "Delete banner?", message: `Delete the banner "${banner.title}"? This can't be undone — pause it instead to just take it off the site.`, confirmLabel: "Yes, delete" }))) return;
+    if (!(await confirm({ title: "Delete this banner?", message: banner.title, confirmLabel: "Delete" }))) return;
     setBusyId(banner.id);
     setError("");
     try {

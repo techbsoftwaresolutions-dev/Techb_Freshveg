@@ -58,9 +58,9 @@ export default function Stores() {
   async function removeStore(store) {
     if (
       !(await confirm({
-        title: "Delete store?",
-        message: `Delete "${store.name}"? Its stock, delivery zones and slots go with it. This can't be undone.`,
-        confirmLabel: "Yes, delete",
+        title: "Delete this store?",
+        message: store.name,
+        confirmLabel: "Delete",
       }))
     )
       return;

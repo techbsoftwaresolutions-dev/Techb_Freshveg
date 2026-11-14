@@ -116,7 +116,7 @@ export default function Products() {
   // at these documents), so drop it from the visible list here rather than
   // trusting a refetch to hide it again.
   async function removeProduct(product) {
-    if (!(await confirm({ title: "Delete product?", message: `Delete "${product.name}"? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
+    if (!(await confirm({ title: "Delete this product?", message: product.name, confirmLabel: "Delete" }))) return;
     setRemovingId(product.id);
     setError("");
     try {

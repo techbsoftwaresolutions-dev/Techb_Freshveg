@@ -314,6 +314,9 @@ export default function Categories() {
   }
 
   async function unbindAttribute(attributeId) {
+    const field = schema?.fields?.find?.((f) => f.attributeId === attributeId);
+    const name = field?.label || field?.name || "this field";
+    if (!(await confirm({ title: "Remove this field?", message: name, confirmLabel: "Remove" }))) return;
     setSaving(true);
     try {
       const { category } = await api.delete(`/catalog/categories/${selectedId}/attributes/${attributeId}`);
@@ -330,7 +333,7 @@ export default function Categories() {
   // has subcategories or products) so the confirm prompt already reflects
   // what's about to happen rather than a delete that immediately 409s.
   async function removeCategory(target) {
-    if (!(await confirm({ title: "Delete category?", message: `Delete "${target.name}"? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
+    if (!(await confirm({ title: "Delete this category?", message: target.name, confirmLabel: "Delete" }))) return;
     setSaving(true);
     setError("");
     setBlockingProducts([]);

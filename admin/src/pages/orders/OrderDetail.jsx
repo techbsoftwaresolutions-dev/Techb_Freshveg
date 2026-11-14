@@ -376,9 +376,10 @@ export default function OrderDetail() {
                 onClick={async () => {
                   const yes = await confirm({
                     title: `${action.label}?`,
-                    message: `${action.label} ${order.code}? The customer will be told.`,
+                    message: order.code,
                     confirmLabel: `Yes, ${action.label.toLowerCase()}`,
                     cancelLabel: "No, keep it",
+                    tone: /cancel/i.test(action.label) || action.status === "CANCELLED" ? "danger" : "primary",
                   });
                   if (yes) advance(action.status);
                 }}
