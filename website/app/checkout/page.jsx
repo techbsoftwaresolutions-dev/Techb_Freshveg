@@ -104,6 +104,29 @@ function CheckoutInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary, signedIn]);
 
+  // Wallet: the balance held, and how much of it this order uses (server-capped).
+  const walletBalance = user?.walletBalance || 0;
+  const walletApplied = summary?.walletApplied || 0;
+  const paidByWallet = walletApplied > 0 && (summary?.total || 0) <= 0;
+  const [walletBusy, setWalletBusy] = useState(false);
+
+  async function toggleWallet(on) {
+    setWalletBusy(true);
+    setError("");
+    try {
+      await cart.setWallet(on ? walletBalance : 0);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setWalletBusy(false);
+    }
+  }
+
+  // Nothing left to pay online once the wallet covers the order.
+  useEffect(() => {
+    if (paidByWallet && method !== "cod") setMethod("cod");
+  }, [paidByWallet, method]);
+
   const couponSaving = appliedCoupon?.discount || 0;
   // Automatic offers keep their own row so the rows still add up to the total.
   const otherOfferSaving = Math.max(0, (summary?.offerDiscount || 0) - couponSaving);
@@ -224,7 +247,9 @@ function CheckoutInner() {
               </h3>
             </div>
 
-            {methods === null ? (
+            {paidByWallet ? (
+              <p className="muted-line">Your wallet balance covers this order — nothing more to pay.</p>
+            ) : methods === null ? (
               <p className="muted-line">Loading payment options…</p>
             ) : (
               <div className="choice-list">
@@ -468,8 +493,32 @@ function CheckoutInner() {
                   </>
                 )}
               </div>
+              {walletBalance > 0 || walletApplied > 0 ? (
+                <label className={`co-wallet${walletApplied > 0 ? " on" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={walletApplied > 0}
+                    disabled={walletBusy}
+                    onChange={(e) => toggleWallet(e.target.checked)}
+                  />
+                  <span className="co-wallet-text">
+                    <strong>Use wallet balance</strong>
+                    <em>
+                      {walletApplied > 0
+                        ? `${rupees(walletApplied)} used · ${rupees(Math.max(0, walletBalance - walletApplied))} left`
+                        : `${rupees(walletBalance)} available`}
+                    </em>
+                  </span>
+                </label>
+              ) : null}
+              {walletApplied > 0 ? (
+                <div className="bill-row save-row">
+                  <span className="label">Wallet</span>
+                  <span>− {rupees(walletApplied)}</span>
+                </div>
+              ) : null}
               <div className="bill-row total">
-                <span>{method === "cod" ? "Pay on delivery" : "To pay"}</span>
+                <span>{paidByWallet ? "Paid from wallet" : method === "cod" ? "Pay on delivery" : "To pay"}</span>
                 <span>{rupees(summary.total)}</span>
               </div>
               {couponSaving > 0 ? (

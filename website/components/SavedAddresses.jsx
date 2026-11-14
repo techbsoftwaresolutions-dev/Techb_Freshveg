@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AddressMap from "@/components/AddressMap";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import AddressForm from "@/components/AddressForm";
@@ -187,6 +188,7 @@ export default function SavedAddresses({ selectedId, onSelect }) {
               ) : null}
               <span className="addr-text">{fullAddress(current)}</span>
             </div>
+            <AddressMap address={current} onSaved={refreshUser} />
           </div>
         ) : (
           <>

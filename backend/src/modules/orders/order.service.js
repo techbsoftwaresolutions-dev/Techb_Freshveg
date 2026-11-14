@@ -289,6 +289,10 @@ async function transition(order, to, actor = {}, note = "") {
       break;
 
     case "DELIVERED": {
+      // A declined return puts the order back to Delivered. It was delivered
+      // already: cash, stock and rewards were settled then and must not be
+      // settled a second time, and the delivery time stays the real one.
+      if (from === "RETURN_REQUESTED") break;
       order.delivery.deliveredAt = new Date();
       if (order.payment.method === "cod") {
         order.payment.status = "paid";
@@ -352,13 +356,17 @@ async function transition(order, to, actor = {}, note = "") {
 
   // Tell the customer last, once the state change has actually stuck — a
   // notification about something that then failed to save is worse than none.
-  await announce(order, to);
+  // Back to Delivered after a declined return is not a second delivery: no
+  // "your order is delivered" message (the customer sees the decline reason on
+  // the order page instead).
+  const returnDeclined = from === "RETURN_REQUESTED" && to === "DELIVERED";
+  if (!returnDeclined) await announce(order, to);
   if (to === "ASSIGNED_TO_DELIVERY" && order.delivery?.partner) {
     await announceDeliveryPartner(order);
   }
 
   // Send owner-specific WhatsApp alert on key status changes
-  notifyOwnerStatusUpdate(order, to).catch(() => {});
+  if (!returnDeclined) notifyOwnerStatusUpdate(order, to).catch(() => {});
 
   // A rider was already chosen while the store was preparing this order, so
   // hand it over the moment it is ready instead of waiting for a second click.

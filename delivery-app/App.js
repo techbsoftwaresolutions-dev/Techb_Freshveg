@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AuthProvider } from "./src/context/AuthContext";
 import RootNavigator from "./src/navigation/RootNavigator";
+import LiveLocation from "./src/components/LiveLocation";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -21,6 +22,8 @@ export default function App() {
       <AuthProvider>
         <StatusBar style="light" />
         <RootNavigator />
+        {/* After the screens, so its status pill draws on top of them. */}
+        <LiveLocation />
       </AuthProvider>
     </SafeAreaProvider>
   );

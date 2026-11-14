@@ -132,9 +132,9 @@ router.get(
 
 // ---- Billing --------------------------------------------------------------
 
-function financialYear(d = new Date()) {
-  const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
-  return `${String(y).slice(2)}-${String(y + 1).slice(2)}`;
+// The date part of an invoice number: DD-MM-YY (same as online invoices).
+function invoiceDay(d) {
+  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(2)}`;
 }
 
 async function walkInCustomer(phone, name) {
@@ -252,14 +252,14 @@ router.post(
     const now = soldAt ? new Date(soldAt) : new Date();
     const dayCode = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
     const [invSeq, daySeq] = await Promise.all([
-      nextSequence(`invoice:${store.code}:${financialYear(now)}`),
+      nextSequence(`invoice:${store.code}:${invoiceDay(now)}`),
       nextSequence(`pos:${dayCode}`),
     ]);
     const actor = actorOf(req);
 
     const orderData = {
       code: `POS-${dayCode}-${String(daySeq).padStart(4, "0")}`,
-      invoiceNo: `${store.code}/${financialYear(now)}/${String(invSeq).padStart(5, "0")}`,
+      invoiceNo: `${store.code}/${invoiceDay(now)}/${String(invSeq).padStart(4, "0")}`,
       posClientId: clientId,
       customer: customer._id,
       customerSnapshot: { name: customerName || customer.name, phone: customerPhone || "" },

@@ -140,7 +140,8 @@ async function send(method, path, { body, query, retry = true } = {}) {
   // Every successful change confirms itself with a toast. The server's own
   // message wins; a page's more specific notice replaces this one (see Toaster).
   // Sign-in, background notification traffic and the POS import preview stay quiet.
-  const quiet = path.startsWith("/auth") || path.startsWith("/notifications") || body?.dryRun === true;
+  // Numbering an invoice (on print / download) is background work too.
+  const quiet = path.startsWith("/auth") || path.startsWith("/notifications") || body?.dryRun === true || path.endsWith("/invoice-number");
   if (method !== "GET" && !quiet) {
     toast(payload.message || (method === "DELETE" ? "Deleted successfully" : method === "PATCH" ? "Saved successfully" : "Done"), "ok", true);
   }

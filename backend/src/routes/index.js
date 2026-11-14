@@ -27,9 +27,11 @@ router.use("/settings", require("../modules/settings/settings.routes"));
 // --- Shopping -------------------------------------------------------------
 router.use("/cart", require("../modules/cart/cart.routes"));
 router.use("/wishlist", require("../modules/wishlist/wishlist.routes"));
+router.use("/stock-alerts", require("../modules/stockAlerts/stockAlert.routes"));
 router.use("/orders", require("../modules/orders/order.routes"));
 router.use("/returns", require("../modules/orders/return.routes"));
 router.use("/payments", require("../modules/payments/payment.routes"));
+router.use("/wallet", require("../modules/wallet/wallet.routes"));
 router.use("/reviews", require("../modules/reviews/review.routes"));
 router.use("/referrals", require("../modules/referrals/referral.routes"));
 router.use("/notifications", require("../modules/notifications/notification.routes"));

@@ -222,6 +222,28 @@ const orderSchema = new mongoose.Schema(
 
     customerNote: { type: String, default: "" },
     internalNote: { type: String, default: "" },
+    // What the customer sent with a return: their reason and photo proof.
+    returnRequest: {
+      reason: { type: String, default: "" },
+      photos: { type: [String], default: undefined },
+      requestedAt: Date,
+      attempts: { type: Number, default: 0 },   // requests raised on this order
+      declineReason: { type: String, default: "" }, // shown to the customer
+      declinedAt: Date,
+      // Every request the customer raised on this order, oldest first.
+      history: {
+        type: [
+          {
+            _id: false,
+            reason: String,
+            photos: [String],
+            items: [String], // item names, as shown to staff
+            at: Date,
+          },
+        ],
+        default: undefined,
+      },
+    },
     rating: {
       order: { type: Number, min: 1, max: 5 },
       delivery: { type: Number, min: 1, max: 5 },

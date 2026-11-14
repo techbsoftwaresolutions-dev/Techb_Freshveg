@@ -10,6 +10,8 @@ const rules = require("./rules");
 const JOBS = [
   { name: "abandonedCarts", everyMinutes: 15, run: rules.abandonedCarts },
   { name: "wishlistWatches", everyMinutes: 60, run: rules.wishlistWatches },
+  // "Notify me" on out-of-stock items: tell customers once it is back.
+  { name: "stockAlerts", everyMinutes: 10, run: () => require("../modules/stockAlerts/stockAlert.service").sweep() },
   { name: "lowStockAlerts", everyMinutes: 12 * 60, run: rules.lowStockAlerts },
   { name: "winBack", everyMinutes: 24 * 60, run: rules.winBack },
   { name: "expireCarts", everyMinutes: 24 * 60, run: rules.expireCarts },

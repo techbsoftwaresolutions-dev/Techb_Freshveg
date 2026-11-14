@@ -40,19 +40,11 @@ async function loadLogo() {
   }
 }
 
-/**
- * Opens the Razorpay window (UPI first) for an order that is awaiting payment.
- * Resolves { paid: true } once the payment is verified by our server, or
- * { paid: false } if the customer closes the window. Rejects with a readable
- * message if something actually went wrong.
- */
-export async function payWithRazorpay(orderId) {
-  const { payment, checkout } = await api.post(`/payments/orders/${orderId}/initiate`, {
-    method: "upi",
-    gateway: "razorpay",
-  });
+// Opens the Razorpay window (UPI first) for a checkout session from our server.
+// `confirm(response)` sends the signed result to our server. Resolves
+// { paid: true } once that succeeds, { paid: false } if the window is closed.
+async function openCheckout(checkout, confirm) {
   if (!checkout) throw new Error("Razorpay did not return a payment session. Please try again.");
-
   await loadScript();
   const logo = await loadLogo();
 
@@ -79,12 +71,9 @@ export async function payWithRazorpay(orderId) {
       handler: async (response) => {
         try {
           // Our server checks the signature and asks Razorpay for the payment's
-          // real state before confirming the order.
-          await api.post(`/payments/${payment.id}/confirm`, {
-            providerPaymentId: response.razorpay_payment_id,
-            signature: response.razorpay_signature,
-          });
-          resolve({ paid: true });
+          // real state before acting on it.
+          const result = await confirm(response);
+          resolve({ paid: true, ...result });
         } catch (err) {
           reject(err);
         }
@@ -96,4 +85,29 @@ export async function payWithRazorpay(orderId) {
     });
     instance.open();
   });
+}
+
+/** Pays for an order that is awaiting payment. */
+export async function payWithRazorpay(orderId) {
+  const { payment, checkout } = await api.post(`/payments/orders/${orderId}/initiate`, {
+    method: "upi",
+    gateway: "razorpay",
+  });
+  return openCheckout(checkout, (response) =>
+    api.post(`/payments/${payment.id}/confirm`, {
+      providerPaymentId: response.razorpay_payment_id,
+      signature: response.razorpay_signature,
+    })
+  );
+}
+
+/** Adds money (paise) to the customer's wallet. Resolves { paid, balance }. */
+export async function addMoneyWithRazorpay(amount) {
+  const { topup, checkout } = await api.post("/wallet/topup", { amount });
+  return openCheckout(checkout, (response) =>
+    api.post(`/wallet/topup/${topup.id}/confirm`, {
+      providerPaymentId: response.razorpay_payment_id,
+      signature: response.razorpay_signature,
+    })
+  );
 }

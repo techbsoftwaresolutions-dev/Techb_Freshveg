@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { api, loadSession, saveSession } from "@/lib/client-api";
 import { makeQueryClient } from "@/lib/query-client";
 import DeliveredToast from "./DeliveredToast";
+import BackInStockToast from "./BackInStockToast";
 
 const AuthContext = createContext(null);
 const CartContext = createContext(null);
@@ -215,6 +216,13 @@ export function Providers({ children }) {
         setCart(data.cart);
         return data.cart;
       },
+      // Wallet money (paise) to put against this order; the server caps it at
+      // the balance held and the amount payable. 0 stops using the wallet.
+      setWallet: async (paise) => {
+        const data = await api.post("/cart/credits", { wallet: Math.max(0, Math.round(paise || 0)), store: storeId });
+        setCart(data.cart);
+        return data.cart;
+      },
       removeCoupon: async () => {
         const data = await api.del("/cart/coupon", { store: storeId });
         setCart(data.cart);
@@ -315,6 +323,7 @@ export function Providers({ children }) {
           <WishlistContext.Provider value={wishlistApi}>
             {children}
             <DeliveredToast signedIn={Boolean(user)} />
+            <BackInStockToast signedIn={Boolean(user)} />
             {wishlistToast ? (
               <div className="wishlist-toast" role="status">
                 <span>{wishlistToast.saved ? "Added to your wishlist" : "Removed from your wishlist"}</span>

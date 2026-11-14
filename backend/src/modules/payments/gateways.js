@@ -42,14 +42,20 @@ const manual = {
  *
  * Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to turn it on.
  */
+function cleanKey(value) {
+  return String(value || "").trim().replace(/^["']|["']$/g, "").trim();
+}
+
 const razorpay = {
   name: "razorpay",
 
+  // Trimmed and unquoted: a stray space, CR (a .env saved on Windows) or quotes
+  // pasted around a key on the server make Razorpay answer "Authentication failed".
   get keyId() {
-    return process.env.RAZORPAY_KEY_ID || "";
+    return cleanKey(process.env.RAZORPAY_KEY_ID);
   },
   get keySecret() {
-    return process.env.RAZORPAY_KEY_SECRET || "";
+    return cleanKey(process.env.RAZORPAY_KEY_SECRET);
   },
   get configured() {
     return Boolean(this.keyId && this.keySecret);
@@ -68,6 +74,16 @@ const razorpay = {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (response.status === 401) {
+        // Bad key pair on this server — say so in the log, not to the customer.
+        console.error(
+          `[razorpay] Authentication failed for key ${this.keyId.slice(0, 12)}… — check RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET in the backend .env (same account, same live/test mode) and restart.`
+        );
+        const error = new Error("Online payment is unavailable right now. Please try again shortly or choose Cash on Delivery.");
+        error.code = payload?.error?.code;
+        error.payload = payload;
+        throw error;
+      }
       const error = new Error(payload?.error?.description || "Payment provider rejected the request");
       error.code = payload?.error?.code;
       error.payload = payload;

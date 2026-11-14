@@ -10,6 +10,8 @@ import { rupees, when } from "@/lib/format";
 import { payWithRazorpay } from "@/lib/razorpay";
 import EmptyState from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ReturnRequest from "@/components/ReturnRequest";
+import OrderTrackMap from "@/components/OrderTrackMap";
 
 // The customer's order QR is switched off: the delivery partner only needs the OTP.
 const SHOW_QR = false;
@@ -154,7 +156,9 @@ function OrderDetail() {
       if (!lastStatus.current && CLOSED.includes(status)) {
         setToast((t) => (t && t.at === 0 ? null : t));
       }
-      if (lastStatus.current && status && status !== lastStatus.current) {
+      if (lastStatus.current === "RETURN_REQUESTED" && status === "DELIVERED") {
+        setToast({ title: "Return declined", text: "See the reason below the bill.", tone: "bad", at: Date.now() });
+      } else if (lastStatus.current && status && status !== lastStatus.current) {
         const [title, text] = STATUS_TOAST[status] || [track.tracking.statusLabel, ""];
         setToast({ title, text, tone: ["CANCELLED", "REJECTED"].includes(status) ? "bad" : "ok", at: Date.now() });
       }
@@ -192,7 +196,9 @@ function OrderDetail() {
     clearInterval(poller.current);
     if (!tracking || CLOSED.includes(tracking.status)) return undefined;
     // Not while the tab is hidden; catch up as soon as the shopper comes back.
-    poller.current = setInterval(() => { if (!document.hidden) load(); }, 20000);
+    // Every 10s while a rider is bringing it (the map follows them), else 20s.
+    const riding = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"].includes(tracking.status);
+    poller.current = setInterval(() => { if (!document.hidden) load(); }, riding ? 10000 : 20000);
     const onVisible = () => { if (!document.hidden) load(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(poller.current); document.removeEventListener("visibilitychange", onVisible); };
@@ -392,6 +398,10 @@ function OrderDetail() {
             </div>
           ) : null}
 
+          {tracking.map && !CLOSED.includes(tracking.status) && !/^RETURN|^PAYMENT_PENDING$/.test(tracking.status) ? (
+            <OrderTrackMap map={tracking.map} status={tracking.status} />
+          ) : null}
+
           <div className="panel">
             <h3>Order progress</h3>
             <ol className="timeline">
@@ -440,6 +450,7 @@ function OrderDetail() {
                       <span>
                         {item.variantName ? `${item.variantName} · ` : ""}×{item.quantity}
                       </span>
+                      {item.itemStatus === "returned" ? <span className="item-returned">Return requested</span> : null}
                       {item.deferred?.expectedOn ? (
                         <span className={`item-later${item.deferred.deliveredAt ? " done" : ""}`}>
                           {item.deferred.deliveredAt ? "Delivered later" : `Arriving ${laterDate(item.deferred.expectedOn)}`}
@@ -502,6 +513,20 @@ function OrderDetail() {
                 {" · "}
                 {order.payment.status.replace(/_/g, " ").toLowerCase()}
               </p>
+
+              {["DELIVERED", "RETURN_REQUESTED"].includes(tracking.status) ? (
+                <ReturnRequest
+                  key={tracking.status}
+                  pending={tracking.status === "RETURN_REQUESTED"}
+                  orderId={id}
+                  items={order.items}
+                  autoOpen={params.get("return") === "1"}
+                  onDone={async () => {
+                    await load();
+                    setToast({ title: "Return requested", text: "", tone: "ok", at: Date.now() });
+                  }}
+                />
+              ) : null}
 
               {canCancel ? (
                 <button

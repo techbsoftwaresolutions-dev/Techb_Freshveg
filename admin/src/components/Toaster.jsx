@@ -24,22 +24,50 @@ export default function Toaster() {
     const timers = new Set();
     const onToast = (event) => {
       const id = nextId++;
-      setItems((list) => [...list.slice(-3), { id, ...event.detail }]);
+      const at = Date.now();
+      setItems((list) => [
+        ...list.filter((item) => !(item.generic && at - item.at < 1500)).slice(-3),
+        { id, ...event.detail, at },
+      ]);
       const timer = setTimeout(() => {
         setItems((list) => list.filter((item) => item.id !== id));
         timers.delete(timer);
-      }, 5000);
+      }, 3500);
       timers.add(timer);
     };
     window.addEventListener(EVENT, onToast);
+
+    // The other toast helper (components/toast.js, used by the API client for
+    // its automatic "saved" message) sends { text, tone, generic }. A page's own,
+    // more specific message replaces a generic one that just appeared.
+    const onAppToast = (event) => {
+      const { text, tone, generic } = event.detail || {};
+      if (!text) return;
+      const mapped = tone === "danger" || tone === "error" ? "error" : tone === "info" ? "info" : "success";
+      const id = nextId++;
+      const at = Date.now();
+      setItems((list) => {
+        // A generic "saved" right after a specific message adds nothing.
+        if (generic && list.some((item) => !item.generic && at - item.at < 1500)) return list;
+        const kept = generic ? list : list.filter((item) => !(item.generic && at - item.at < 1500));
+        return [...kept.slice(-3), { id, tone: mapped, message: String(text), generic: Boolean(generic), at }];
+      });
+      const timer = setTimeout(() => {
+        setItems((list) => list.filter((item) => item.id !== id));
+        timers.delete(timer);
+      }, 3500);
+      timers.add(timer);
+    };
+    window.addEventListener("app:toast", onAppToast);
+
     return () => {
       window.removeEventListener(EVENT, onToast);
+      window.removeEventListener("app:toast", onAppToast);
       timers.forEach(clearTimeout);
     };
   }, []);
 
   if (!items.length) return null;
-  const TITLES = { error: "Something went wrong", success: "Done", info: "Heads up" };
   return (
     <div className="toaster" role="region" aria-label="Notifications">
       {items.map((item) => (
@@ -53,10 +81,7 @@ export default function Toaster() {
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 11v6M12 7.4v.1" /></svg>
             )}
           </span>
-          <div className="toast-body">
-            <strong className="toast-title">{TITLES[item.tone] || "Notice"}</strong>
-            <span className="toast-msg">{item.message}</span>
-          </div>
+          <span className="toast-text">{item.message}</span>
           <button
             type="button"
             className="toast-x"
@@ -65,7 +90,6 @@ export default function Toaster() {
           >
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
           </button>
-          <span className="toast-bar" style={{ animationDuration: "5s" }} />
         </div>
       ))}
     </div>

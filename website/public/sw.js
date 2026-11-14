@@ -6,7 +6,7 @@
 // the offline page — so a flaky connection still opens the app instantly and
 // shows a proper "you're offline" screen instead of the browser's dinosaur.
 
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC_CACHE = `freshmart-static-${VERSION}`;
 const OFFLINE_URL = "/offline";
 
@@ -56,7 +56,11 @@ self.addEventListener("fetch", (event) => {
 
   // Build output is content-hashed — a given URL never changes — so once
   // fetched it can be served from the cache for good.
-  const immutable = url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/");
+  // Only files that really carry a content hash in their name (a production
+  // build) — `next dev` serves un-hashed names like page.js whose content
+  // changes on every edit, and those must never be cached.
+  const hashed = /[./-][0-9a-f]{8,}\.(js|css|woff2?)$/.test(url.pathname) || url.pathname.startsWith("/_next/static/media/");
+  const immutable = (url.pathname.startsWith("/_next/static/") && hashed) || url.pathname.startsWith("/icons/");
   if (immutable) {
     event.respondWith(
       caches.match(request).then(

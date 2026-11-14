@@ -301,7 +301,7 @@ export default function ProductForm() {
     // Nothing edited since the last save: say so instead of saving the same thing again.
     if (!isNew && lastSavedRef.current && JSON.stringify(payload) === lastSavedRef.current) {
       setNotice("");
-      toast.info("Already saved — there are no new changes.");
+      toast.info("Already saved");
       return;
     }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCart } from "./Providers";
+import NotifyMe from "./NotifyMe";
 
 // The only interactive island on an otherwise server-rendered product card.
 // A cart quantity is a count of this variant — packs or pieces — so every tap
@@ -14,16 +15,9 @@ export default function AddToCart({ variantId, disabled, size = "sm", qty = 1, f
   const quantity = line?.quantity || 0;
   const busy = Boolean(cart.pending[variantId]);
 
+  // Out of stock: offer to tell them when it is back instead of a dead button.
   if (disabled || (quantity <= 0 && cart.soldOut[variantId])) {
-    return (
-      <button
-        className="add-btn add-oos"
-        disabled
-        style={{ opacity: 0.5, cursor: "not-allowed", ...(fullWidth ? { width: "100%" } : null) }}
-      >
-        Out of stock
-      </button>
-    );
+    return <NotifyMe variantId={variantId} fullWidth={fullWidth} size={size} />;
   }
 
   if (quantity <= 0) {

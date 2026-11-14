@@ -15,11 +15,17 @@ const Order = require("./order.model");
 const User = require("../auth/user.model");
 const Store = require("../stores/store.model");
 const orderService = require("./order.service");
+const { nextSequence } = require("../../core/sequence");
 const deliveryTimes = require("../stores/deliveryTime");
 const audit = require("../audit/audit.service");
 const { STATUSES, allowedTransitions, buildTimeline, describeAction } = require("./orderStatus");
 
 const router = express.Router();
+
+// Tracking map: the rider is shown only while the order is with them, and only
+// if their last position is recent (a stale dot is worse than none).
+const RIDER_VISIBLE = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"];
+const RIDER_FRESH_MS = 5 * 60 * 1000;
 router.use(requireAuth);
 
 // Orders keep a snapshot of each item's photo, but ones placed before photos
@@ -114,6 +120,27 @@ router.get(
     }
 
     const tracking = orderService.trackingView(order);
+
+    // The tracking map: the store, where it's going, and — while the order is
+    // actually on its way — the rider's latest position (if recent).
+    const [store, rider] = await Promise.all([
+      Store.findById(order.store).select("name location").lean(),
+      order.delivery.partner && RIDER_VISIBLE.includes(order.status)
+        ? User.findById(order.delivery.partner).select("liveLocation").lean()
+        : null,
+    ]);
+    const point = (coords) =>
+      Array.isArray(coords) && coords.length === 2 && (coords[0] || coords[1]) ? { lat: coords[1], lng: coords[0] } : null;
+    const live = rider?.liveLocation;
+    tracking.map = {
+      store: point(store?.location?.coordinates) && { ...point(store.location.coordinates), name: store.name },
+      destination: point(order.delivery.address?.location?.coordinates),
+      rider:
+        live?.lat && live?.at && Date.now() - new Date(live.at).getTime() < RIDER_FRESH_MS
+          ? { lat: live.lat, lng: live.lng, heading: live.heading ?? null, at: live.at }
+          : null,
+    };
+
     // The QR is only handed out while the rider can actually use it (the same
     // window as the OTP), and only to the order's owner.
     if (tracking.otp && isOwner) {
@@ -121,6 +148,23 @@ router.get(
     }
 
     res.json({ success: true, tracking });
+  })
+);
+
+// The delivery app reports the rider's position here (every few seconds while
+// an order is with them). Only the latest point is kept.
+router.post(
+  "/delivery/location",
+  requireRole("delivery_partner", "admin", "super_admin", "store_manager"),
+  asyncHandler(async (req, res) => {
+    const lat = Number(req.body.lat);
+    const lng = Number(req.body.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      throw ApiError.badRequest("A valid lat and lng are needed");
+    }
+    const heading = Number.isFinite(Number(req.body.heading)) ? Number(req.body.heading) : null;
+    await User.updateOne({ _id: req.user.id }, { $set: { liveLocation: { lat, lng, heading, at: new Date() } } });
+    res.json({ success: true });
   })
 );
 
@@ -228,6 +272,37 @@ router.post(
 );
 
 // Manual or resend trigger for Store Owner WhatsApp Alert from Admin Panel
+// The order's invoice number, given out the first time an invoice is printed
+// or downloaded. Same series as POS bills: STORE/DD-MM-YY/0001 (one running
+// number per store per day), so online and counter invoices never clash and a
+// cancelled order that was never invoiced leaves no gap.
+router.post(
+  "/:id/invoice-number",
+  requirePermission("orders.view"),
+  asyncHandler(async (req, res) => {
+    const order = await Order.findById(req.params.id).select("invoiceNo store placedAt createdAt");
+    if (!order) throw ApiError.notFound("Order not found");
+    if (order.invoiceNo) return res.json({ success: true, invoiceNo: order.invoiceNo });
+
+    const store = await Store.findById(order.store).select("code");
+    const when = order.placedAt || order.createdAt || new Date();
+    // DD-MM-YY, e.g. HSR01/14-11-26/0001
+    const day = `${String(when.getDate()).padStart(2, "0")}-${String(when.getMonth() + 1).padStart(2, "0")}-${String(when.getFullYear()).slice(2)}`;
+    const code = store?.code || "INV";
+    const seq = await nextSequence(`invoice:${code}:${day}`);
+    const invoiceNo = `${code}/${day}/${String(seq).padStart(4, "0")}`;
+
+    // Only if still unnumbered: two clicks at once must not give it two numbers.
+    const updated = await Order.findOneAndUpdate(
+      { _id: order._id, $or: [{ invoiceNo: "" }, { invoiceNo: { $exists: false } }] },
+      { $set: { invoiceNo } },
+      { new: true, projection: { invoiceNo: 1 } }
+    );
+    const final = updated?.invoiceNo || (await Order.findById(order._id).select("invoiceNo"))?.invoiceNo;
+    res.json({ success: true, invoiceNo: final });
+  })
+);
+
 router.post(
   "/:id/notify-owner",
   requirePermission("orders.manage"),

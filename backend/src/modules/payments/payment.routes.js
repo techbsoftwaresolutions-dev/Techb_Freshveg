@@ -42,7 +42,15 @@ router.post(
     const event = JSON.parse(raw);
     const entity = event?.payload?.payment?.entity;
 
-    if (entity?.order_id) {
+    // A wallet "Add money" payment rather than an order payment.
+    const isTopup = entity?.order_id
+      ? await require("../wallet/topup.service").fromWebhook(entity).catch((err) => {
+          console.error("[wallet] top-up webhook failed:", err.message);
+          return true; // it was a top-up; leave it for a retry rather than treat it as an order
+        })
+      : false;
+
+    if (entity?.order_id && !isTopup) {
       const payment = await Payment.findOne({ providerOrderId: entity.order_id });
       if (payment && payment.status !== "captured" && entity.status === "captured") {
         payment.status = "captured";
