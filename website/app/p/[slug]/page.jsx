@@ -22,7 +22,7 @@ export async function generateMetadata({ params }) {
   const description =
     product.seo?.description ||
     product.shortDescription ||
-    `Buy ${product.name} online at Hosur Basket. Delivered fresh from your neighbourhood store.`;
+    `Buy ${product.name} online at Hosur Basket. Delivered fresh from your Hosur Basket store.`;
 
   return {
     title,

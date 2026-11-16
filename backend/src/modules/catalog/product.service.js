@@ -246,7 +246,7 @@ async function refreshRollup(productId) {
   if (!variants.length) {
     await Product.findByIdAndUpdate(productId, {
       priceFrom: 0, priceTo: 0, mrpFrom: 0, maxDiscountPct: 0,
-      variantCount: 0, inStock: false, defaultVariant: null,
+      variantCount: 0, totalStock: 0, inStock: false, defaultVariant: null,
     });
     return null;
   }
@@ -257,6 +257,7 @@ async function refreshRollup(productId) {
     (cheapest, v) => (v.sellingPrice < cheapest.sellingPrice ? v : cheapest),
     variants[0]
   );
+  const totalStock = variants.reduce((sum, v) => sum + (v.totalStock || 0), 0);
 
   const update = {
     priceFrom: Math.min(...prices),
@@ -264,6 +265,7 @@ async function refreshRollup(productId) {
     mrpFrom: Math.min(...mrps),
     maxDiscountPct: Math.max(...variants.map((v) => v.discountPct)),
     variantCount: variants.length,
+    totalStock,
     // A product switched to "sold out" stays out whatever the counts say.
     inStock: !(await Product.exists({ _id: productId, soldOut: true })) && variants.some((v) => v.inStock),
     defaultVariant: preferred._id,

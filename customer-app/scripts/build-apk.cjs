@@ -107,11 +107,52 @@ if ((existsSync(marker) ? readFileSync(marker, "utf8").trim() : null) !== used) 
 // 3. Gradle.
 console.log(`\nBuilding ${type} APK with API_BASE_URL=${env.API_BASE_URL}\n`);
 const task = debug ? "assembleDebug" : "assembleRelease";
-const status = isWin
-  ? run(join(androidDir, "gradlew.bat"), [task], { cwd: androidDir })
-  : run(join(androidDir, "gradlew"), [task], { cwd: androidDir });
+const gradlew = join(androidDir, isWin ? "gradlew.bat" : "gradlew");
+const gradle = (args) => run(gradlew, args, { cwd: androidDir });
+
+// One build at a time: two Gradle runs on the same android/ folder overwrite
+// each other's intermediate files ("Supplied proguard configuration does not
+// exist: ...aapt_rules.txt" and similar).
+const lock = join(androidDir, ".build-apk.lock");
+if (existsSync(lock)) {
+  const pid = Number(readFileSync(lock, "utf8"));
+  let alive = false;
+  try {
+    process.kill(pid, 0);
+    alive = pid !== process.pid;
+  } catch {
+    alive = false;
+  }
+  if (alive) {
+    console.error(`Another APK build is already running (process ${pid}). Wait for it to finish, or close it, then try again.`);
+    process.exit(1);
+  }
+}
+writeFileSync(lock, String(process.pid));
+process.on("exit", () => rmSync(lock, { force: true }));
+process.on("SIGINT", () => process.exit(130));
+
+// Always start from a clean app output: stop leftover Gradle daemons and
+// delete the old build folders, so half-written files from an earlier or
+// interrupted build can never break this one.
+console.log("Clearing old build output…\n");
+gradle(["--stop"]);
+rmSync(join(androidDir, "app", "build"), { recursive: true, force: true });
+rmSync(join(androidDir, "build"), { recursive: true, force: true });
+
+let status = gradle([task]);
 if (status !== 0) {
-  console.error(`\nGradle ${task} failed (exit ${status}).`);
+  // Most failures here come from half-written build output left by an
+  // interrupted or overlapping earlier build. Stop the Gradle daemons, throw
+  // away the app's build output and try once more from clean.
+  console.warn(`\nGradle ${task} failed (exit ${status}). Cleaning the build output and retrying once…\n`);
+  gradle(["--stop"]);
+  rmSync(join(androidDir, "app", "build"), { recursive: true, force: true });
+  rmSync(join(androidDir, "build"), { recursive: true, force: true });
+  status = gradle([task]);
+}
+if (status !== 0) {
+  console.error(`\nGradle ${task} failed again (exit ${status}). Run "npm run build:apk -- --clean" to regenerate android/ from scratch.`);
   process.exit(status);
 }
 

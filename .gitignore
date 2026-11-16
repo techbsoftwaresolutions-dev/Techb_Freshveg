@@ -77,3 +77,6 @@ customer-app/ios/
 # Local APK build output and the build script's path marker.
 dist-apk/
 .gradle-home-used
+
+# Local APK build lock (scripts/build-apk)
+.build-apk.lock

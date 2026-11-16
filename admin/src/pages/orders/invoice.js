@@ -7,6 +7,7 @@
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { api } from "../../api/client";
+import { mimeOf, saveFile, stampedName } from "../../lib/saveFile";
 
 const BRAND = "HosurBasket";
 const INK = [30, 30, 30];
@@ -266,16 +267,11 @@ export function sampleInvoice(template) {
   );
 }
 
-const fileBase = (inv) => `${isBill(themeOf(inv.template)) ? "Bill" : "Invoice"}-${inv.number}`.replace(/[^\w.-]+/g, "_");
+// "Invoice ORD-000123 16-11-26 3.00 pm": the order id, then the date and time
+// of the download (see stampedName).
+const fileBase = (inv) =>
+  stampedName(`${isBill(themeOf(inv.template)) ? "Bill" : "Invoice"} ${inv.orderCode || inv.number || ""}`);
 
-function saveBlob(blob, name) {
-  const url = URL.createObjectURL(blob);
-  const link = Object.assign(document.createElement("a"), { href: url, download: name });
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 async function logoDataUrl(url) {
   try {
@@ -502,8 +498,10 @@ export async function invoicePdf(inv) {
   return doc;
 }
 
+export const invoicePdfBlob = async (inv) => (await invoicePdf(inv)).output("blob");
+
 export async function downloadPdf(inv) {
-  (await invoicePdf(inv)).save(`${fileBase(inv)}.pdf`);
+  await saveFile(() => invoicePdfBlob(inv), `${fileBase(inv)}.pdf`);
 }
 
 // ---- HTML (Print, Word, preview) --------------------------------------------
@@ -670,8 +668,11 @@ export function printInvoice(inv) {
 }
 
 // Word opens HTML saved with the msword type as a normal editable document.
+export const invoiceWordBlob = (inv) =>
+  new Blob(["﻿", invoiceHtml(inv, { forWord: true })], { type: "application/msword" });
+
 export function downloadWord(inv) {
-  saveBlob(new Blob(["﻿", invoiceHtml(inv, { forWord: true })], { type: "application/msword" }), `${fileBase(inv)}.doc`);
+  return saveFile(() => invoiceWordBlob(inv), `${fileBase(inv)}.doc`);
 }
 
 // ---- Counter bill (80mm thermal) --------------------------------------------
@@ -956,7 +957,7 @@ ${taxTable}
 
 // ---- Excel -----------------------------------------------------------------
 
-export function downloadExcel(inv) {
+export function invoiceExcelBlob(inv) {
   const [[noLabel], [dateLabel]] = detailRows(inv);
   const rows = [
     [inv.seller.name, "", "", "", "", "", themeOf(inv.template).title],
@@ -981,7 +982,21 @@ export function downloadExcel(inv) {
   sheet["!cols"] = [{ wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 18 }, { wch: 6 }, { wch: 12 }, { wch: 22 }, { wch: 14 }];
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, sheet, isBill(themeOf(inv.template)) ? "Bill" : "Invoice");
-  XLSX.writeFile(book, `${fileBase(inv)}.xlsx`);
+  return new Blob([XLSX.write(book, { bookType: "xlsx", type: "array" })], { type: mimeOf("xlsx") });
+}
+
+export function downloadExcel(inv) {
+  return saveFile(() => invoiceExcelBlob(inv), `${fileBase(inv)}.xlsx`);
+}
+
+// Order page download: the "Save as" window opens straight from the click
+// (it is refused once the click is a few seconds old), and only then is the
+// invoice loaded and built. `loadInvoice` is async (fetches the template and
+// invoice number); the name uses the order id, known up front.
+const BUILDERS = { pdf: ["pdf", invoicePdfBlob], word: ["doc", invoiceWordBlob], excel: ["xlsx", invoiceExcelBlob] };
+export function downloadInvoiceFile(loadInvoice, format, orderCode) {
+  const [ext, toBlob] = BUILDERS[format] || BUILDERS.excel;
+  return saveFile(async () => toBlob(await loadInvoice()), `${stampedName(`Invoice ${orderCode || ""}`)}.${ext}`);
 }
 
 // ---- Share -----------------------------------------------------------------

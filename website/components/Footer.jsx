@@ -17,7 +17,7 @@ export default function Footer({ categories = [] }) {
             </Link>
             <p>
               Fresh fruit, vegetables, groceries and household essentials, delivered from your
-              neighbourhood store.
+              Hosur Basket store.
             </p>
           </div>
 

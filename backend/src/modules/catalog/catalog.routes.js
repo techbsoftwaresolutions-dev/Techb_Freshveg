@@ -323,14 +323,28 @@ router.get(
     });
     // Where each row sits in the full saved order (1 = first), so the admin can
     // show it and let someone type a new position.
-    const order = await Product.find({ status: { $ne: "archived" } })
-      .sort(PRODUCT_ORDER)
-      .select("_id")
-      .lean();
+    const productIds = result.items.map((p) => p._id);
+    const [order, variantStock] = await Promise.all([
+      Product.find({ status: { $ne: "archived" } })
+        .sort(PRODUCT_ORDER)
+        .select("_id")
+        .lean(),
+      Variant.aggregate([
+        { $match: { product: { $in: productIds }, status: { $ne: "archived" } } },
+        { $group: { _id: "$product", totalStock: { $sum: "$totalStock" } } },
+      ]),
+    ]);
     const place = new Map(order.map((p, i) => [String(p._id), i + 1]));
+    const stockByProduct = new Map(variantStock.map((v) => [String(v._id), v.totalStock]));
+
     result.items = result.items.map((doc) => {
       const row = typeof doc.toJSON === "function" ? doc.toJSON() : doc;
-      return { ...row, position: place.get(String(row.id)) || null };
+      const totalStock = stockByProduct.get(String(row.id || row._id)) ?? (row.totalStock ?? 0);
+      return {
+        ...row,
+        position: place.get(String(row.id)) || null,
+        totalStock,
+      };
     });
 
     res.json({ success: true, ...result });

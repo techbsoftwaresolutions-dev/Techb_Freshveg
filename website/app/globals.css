@@ -8521,3 +8521,63 @@ body:has(.auth-page) .crumbs { display: none !important; }
 .tmap-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 3px 10px rgba(0,0,0,.3); }
 .tmap-icon.rider { box-shadow: 0 0 0 6px rgba(21,101,192,.18), 0 3px 10px rgba(0,0,0,.3); }
 @media (max-width: 640px) { .tmap-canvas { height: 240px; } }
+
+/* Order progress: a note under the current step ("Your order is being
+   packed", "Arriving tomorrow, 17 Nov"), and the delivered order's short
+   view (placed -> delivered) with a "View all updates" toggle. */
+.timeline-note { font-style: normal; font-size: 13px; font-weight: 600; color: var(--brand); margin-top: 2px; }
+.timeline-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 8px 14px; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--brand); background: var(--brand-soft); border: 0; border-radius: 999px; cursor: pointer; }
+.timeline-toggle:hover { filter: brightness(0.97); }
+.timeline-toggle svg { transition: transform .2s; }
+
+/* Phones: each order's summary on one line — id and date, photos, then
+   total over status — with the status line and actions underneath. */
+@media (max-width: 720px) {
+  .oc { gap: 10px; padding: 12px; }
+  .oc-main {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "id thumbs total"
+      "id thumbs badge";
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 4px;
+  }
+  .oc-top, .oc-sum { display: contents; }
+  .oc-id { grid-area: id; }
+  .oc-id strong { font-size: 13.5px; }
+  .oc-main .ob { grid-area: badge; justify-self: end; }
+  .oc-thumbs { grid-area: thumbs; justify-content: flex-end; gap: 4px; }
+  .oc-thumb { width: 34px; height: 34px; border-radius: 8px; }
+  .oc-thumbs .oc-thumb:nth-child(n + 4):not(.oc-more) { display: none; }
+  .oc-count { display: none; }
+  .oc-total { grid-area: total; justify-self: end; font-size: 16px; }
+  .oc-info { grid-column: 1 / -1; margin: 0; }
+  .oc-actions { flex-wrap: nowrap; }
+  .oc-actions .oc-btn { flex: 1 1 0; min-width: 0; height: 36px; }
+}
+
+
+/* Order page, delivered: the progress as one line (Ordered -> Delivered);
+   tapping it opens every step. */
+.tl-line {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 4px 0; font: inherit; color: inherit; text-align: left;
+  background: none; border: 0; cursor: pointer;
+}
+.tl-end { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.tl-end strong { display: block; font-size: 14px; font-weight: 700; line-height: 1.2; }
+.tl-end small { display: block; font-size: 12px; color: var(--text-faint); }
+.tl-dot { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: #fff; }
+.tl-bar { flex: 1 1 auto; min-width: 16px; height: 2px; border-radius: 2px; background: var(--brand); }
+.tl-chev { flex: none; color: var(--text-muted); transition: transform .2s; }
+.tl-line + .timeline { margin-top: 16px; }
+
+/* Home page: the category bar under the header is hidden. */
+.catbar.catbar-off { display: none !important; }
+
+/* Saved addresses: Edit is a pencil icon. */
+.ap-link.ap-icon { color: var(--brand); display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; }
+.ap-link.ap-icon:hover { background: var(--brand-soft); }
+.ap-actions { align-items: center; }

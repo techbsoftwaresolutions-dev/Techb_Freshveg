@@ -1,9 +1,11 @@
 import DatePicker from "./DatePicker";
 import { createContext, isValidElement, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import * as XLSX from "xlsx";
 import Sparkline from "./Sparkline";
 import { IconDownload } from "./Icons";
 import { toast } from "./toast";
+import { saveFile as downloadBlob, stampedName } from "../lib/saveFile";
 
 // Small shared primitives. Deliberately plain — the interesting code in this
 // app is the schema-driven form, not a component library.
@@ -324,18 +326,6 @@ function escapeHtml(value) {
   ));
 }
 
-function downloadBlob(content, filename, mime) {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 // CSV and Word both download straight away. PDF has no reliable dependency-
 // free way to generate a file client-side, so it opens a print-formatted
 // window instead and lets the browser's own "Save as PDF" do the encoding —
@@ -343,57 +333,195 @@ function downloadBlob(content, filename, mime) {
 function exportRows(columns, rows, format, title) {
   const cols = columns.filter((c) => c.exportable !== false);
   const headers = cols.map((c) => c.label);
-  const lines = rows.map((row) => cols.map((c) => textOf(c.render ? c.render(row) : row[c.key])));
-  const base = (title || "export").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "") || "export";
+  const lines = rows.map((row) =>
+    cols.map((c) => {
+      if (typeof c.exportValue === "function") return c.exportValue(row);
+      return textOf(c.render ? c.render(row) : row[c.key]);
+    })
+  );
+  const base = stampedName(title);
   const heading = escapeHtml(title || "Export");
 
   if (format === "csv") {
     const esc = (v) => {
       const s = String(v ?? "");
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const csv = [headers, ...lines].map((row) => row.map(esc).join(",")).join("\r\n");
-    downloadBlob(csv, `${base}.csv`, "text/csv;charset=utf-8;");
+    // Prepend UTF-8 BOM (\uFEFF) so Excel opens UTF-8 symbols (like ₹) cleanly without garbled characters (â‚¹)
+    downloadBlob("\uFEFF" + csv, `${base}.csv`, "text/csv;charset=utf-8;");
+    return;
+  }
+
+  if (format === "xlsx") {
+    try {
+      // Plain numbers go in as numbers so Excel can sum and sort them.
+      const cell = (v) => (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v.trim()) ? Number(v) : v);
+      const sheet = XLSX.utils.aoa_to_sheet([headers, ...lines.map((row) => row.map(cell))]);
+      sheet["!cols"] = headers.map((h, i) => ({
+        wch: Math.min(50, Math.max(String(h).length, ...lines.map((row) => String(row[i] ?? "").length)) + 4),
+      }));
+
+      // Project color: Fresh green (#1b7a3a)
+      if (sheet["!ref"]) {
+        const range = XLSX.utils.decode_range(sheet["!ref"]);
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+          if (sheet[cellAddress]) {
+            sheet[cellAddress].s = {
+              fill: { fgColor: { rgb: "1B7A3A" } },
+              font: { color: { rgb: "FFFFFF" }, bold: true, sz: 11 },
+              alignment: { horizontal: "center", vertical: "center" },
+            };
+          }
+        }
+      }
+
+      // Color code Status column: Yellow for Low Stock, Green for Active, Red for Inactive
+      const statusColIdx = headers.findIndex((h) => String(h).toLowerCase() === "status");
+      if (statusColIdx !== -1 && sheet["!ref"]) {
+        for (let R = 1; R <= lines.length; ++R) {
+          const val = String(lines[R - 1]?.[statusColIdx] ?? "").trim();
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: statusColIdx });
+          if (sheet[cellAddress]) {
+            if (val === "Low Stock") {
+              sheet[cellAddress].s = {
+                fill: { fgColor: { rgb: "FEF08A" } },
+                font: { color: { rgb: "854D0E" }, bold: true },
+              };
+            } else if (val === "Active") {
+              sheet[cellAddress].s = {
+                fill: { fgColor: { rgb: "DCFCE7" } },
+                font: { color: { rgb: "166534" }, bold: true },
+              };
+            } else if (val === "Inactive" || val === "Out of Stock") {
+              sheet[cellAddress].s = {
+                fill: { fgColor: { rgb: "FEE2E2" } },
+                font: { color: { rgb: "991B1B" }, bold: true },
+              };
+            }
+          }
+        }
+      }
+
+      const book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, sheet, (title || "Export").replace(/[\\/?*[\]:]/g, " ").slice(0, 31));
+      const bytes = XLSX.write(book, { bookType: "xlsx", type: "array" });
+      downloadBlob(
+        new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+        `${base}.xlsx`
+      );
+    } catch (err) {
+      console.warn("[export] XLSX error, falling back to CSV:", err);
+      const esc = (v) => {
+        const s = String(v ?? "");
+        return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const csv = [headers, ...lines].map((row) => row.map(esc).join(",")).join("\r\n");
+      downloadBlob("\uFEFF" + csv, `${base}.csv`);
+    }
     return;
   }
 
   const tableHtml = `
-    <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:12px;">
-      <thead><tr>${headers.map((h) => `<th style="background:#f1f5f9;text-align:left;padding:6px 10px;">${escapeHtml(h)}</th>`).join("")}</tr></thead>
-      <tbody>${lines.map((row) => `<tr>${row.map((cell) => `<td style="padding:6px 10px;">${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody>
+    <table border="1" cellspacing="0" cellpadding="8" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:12px;border:1px solid #e5e7eb;">
+      <thead>
+        <tr>
+          ${headers.map((h) => `<th style="background:#1b7a3a;color:#ffffff;text-align:left;padding:8px 10px;font-weight:bold;font-size:12px;border:1px solid #145a2b;">${escapeHtml(h)}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${lines.map((row) => `
+          <tr>
+            ${row.map((cell, colIdx) => {
+              const h = String(headers[colIdx] || "").toLowerCase();
+              let style = "padding:6px 10px;border:1px solid #e5e7eb;";
+              const textVal = String(cell || "").trim();
+              if (h === "status" || textVal === "Low Stock" || textVal === "Active" || textVal === "Inactive" || textVal === "Out of Stock") {
+                if (textVal === "Low Stock") {
+                  style += "background:#fef08a;color:#854d0e;font-weight:bold;";
+                } else if (textVal === "Active") {
+                  style += "background:#dcfce7;color:#166534;font-weight:bold;";
+                } else if (textVal === "Inactive" || textVal === "Out of Stock") {
+                  style += "background:#fee2e2;color:#991b1b;font-weight:bold;";
+                }
+              }
+              return `<td style="${style}">${escapeHtml(cell)}</td>`;
+            }).join("")}
+          </tr>
+        `).join("")}
+      </tbody>
     </table>`;
 
   if (format === "word") {
     const doc = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
       <head><meta charset="utf-8"><title>${heading}</title></head>
-      <body><h2 style="font-family:Arial,sans-serif;">${heading}</h2>${tableHtml}</body></html>`;
-    // Word opens an HTML document saved with a .doc extension natively —
-    // the standard way to hand Word a file with no docx-building library.
-    downloadBlob(doc, `${base}.doc`, "application/msword");
+      <body><h2 style="font-family:Arial,sans-serif;color:#1b7a3a;">${heading}</h2>${tableHtml}</body></html>`;
+    downloadBlob(doc, `${base}.doc`);
     return;
   }
 
   if (format === "pdf") {
     const win = window.open("", "_blank");
-    if (!win) return; // pop-up blocked — nothing to export into
-    win.document.write(`<html><head><title>${heading}</title>
+    if (!win) {
+      // Fallback if browser popup blocker blocked window.open
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(`<html><head><title>${escapeHtml(base)}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+          h2 { margin: 0 0 16px; color: #1b7a3a; }
+          table { border-collapse: collapse; width: 100%; font-size: 12px; }
+          th { background: #1b7a3a !important; color: #ffffff !important; font-weight: bold; padding: 8px 10px; border: 1px solid #145a2b; }
+          td { padding: 6px 10px; border: 1px solid #e5e7eb; }
+          @media print {
+            @page { margin: 12mm; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            th { background: #1b7a3a !important; color: #ffffff !important; }
+          }
+        </style></head>
+        <body><h2>${heading}</h2>${tableHtml}</body></html>`);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => {
+          if (iframe.parentNode) document.body.removeChild(iframe);
+        }, 3000);
+      }, 500);
+      return;
+    }
+    win.document.write(`<html><head><title>${escapeHtml(base)}</title>
       <style>
         body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-        h2 { margin: 0 0 16px; }
-        @media print { @page { margin: 16mm; } }
+        h2 { margin: 0 0 16px; color: #1b7a3a; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th { background: #1b7a3a !important; color: #ffffff !important; font-weight: bold; padding: 8px 10px; border: 1px solid #145a2b; }
+        td { padding: 6px 10px; border: 1px solid #e5e7eb; }
+        @media print {
+          @page { margin: 12mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          th { background: #1b7a3a !important; color: #ffffff !important; }
+        }
       </style></head>
       <body><h2>${heading}</h2>${tableHtml}</body></html>`);
     win.document.close();
     win.focus();
-    // The print dialog needs the page actually painted first — closing the
-    // write stream alone isn't enough on a slower machine and can print a
-    // blank sheet.
     setTimeout(() => win.print(), 300);
   }
 }
 
 const EXPORT_FORMATS = [
   { format: "csv", label: "CSV" },
+  { format: "xlsx", label: "Excel (XLSX)" },
   { format: "word", label: "Word" },
   { format: "pdf", label: "PDF" },
 ];
@@ -559,19 +687,70 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title, onReorde
   );
 }
 
-export function Pagination({ meta, onPage }) {
-  if (!meta || meta.pages <= 1) return null;
+// Page numbers to show: always the first and last, the current one and its
+// neighbours, with "…" for the gaps (1 … 4 5 6 … 12).
+function pageList(page, pages) {
+  const keep = new Set([1, pages, page - 1, page, page + 1].filter((p) => p >= 1 && p <= pages));
+  if (page <= 3) [2, 3, 4].forEach((p) => p <= pages && keep.add(p));
+  if (page >= pages - 2) [pages - 1, pages - 2, pages - 3].forEach((p) => p >= 1 && keep.add(p));
+  const sorted = [...keep].sort((a, b) => a - b);
+  const out = [];
+  sorted.forEach((p, i) => {
+    if (i && p - sorted[i - 1] > 1) out.push(`gap${p}`);
+    out.push(p);
+  });
+  return out;
+}
+
+const PAGE_SIZES = [10, 20, 50, 100];
+
+// Table footer: rows per page (when onLimit is given), "41–60 of 79", and
+// first / previous / numbered pages / next / last.
+export function Pagination({ meta, onPage, onLimit }) {
+  if (!meta || !meta.total) return null;
+  const { page, pages, total } = meta;
+  const limit = meta.limit || Math.ceil(total / pages) || 20;
+  if (pages <= 1 && !onLimit) return null;
+  const from = (page - 1) * limit + 1;
+  const to = Math.min(total, page * limit);
   return (
-    <div className="inline" style={{ justifyContent: "flex-end", padding: "12px 16px", gap: 10 }}>
-      <span className="faint" style={{ fontSize: 12 }}>
-        Page {meta.page} of {meta.pages} · {meta.total} total
+    <div className="table-pager">
+      {onLimit ? (
+        <label className="table-pager-size">
+          Rows per page
+          <select value={limit} onChange={(e) => onLimit(Number(e.target.value))}>
+            {(PAGE_SIZES.includes(limit) ? PAGE_SIZES : [...PAGE_SIZES, limit].sort((a, b) => a - b)).map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <span className="table-pager-range">
+        {from}–{to} of {total}
       </span>
-      <button className="btn sm" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)}>
-        Prev
-      </button>
-      <button className="btn sm" disabled={meta.page >= meta.pages} onClick={() => onPage(meta.page + 1)}>
-        Next
-      </button>
+      {pages > 1 ? (
+        <nav className="table-pager-pages" aria-label="Pagination">
+          <button type="button" disabled={page <= 1} onClick={() => onPage(1)} aria-label="First page">«</button>
+          <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Previous page">‹</button>
+          {pageList(page, pages).map((p) =>
+            typeof p === "number" ? (
+              <button
+                type="button"
+                key={p}
+                className={p === page ? "on" : ""}
+                aria-current={p === page ? "page" : undefined}
+                onClick={() => p !== page && onPage(p)}
+              >
+                {p}
+              </button>
+            ) : (
+              <span key={p} className="table-pager-gap">…</span>
+            )
+          )}
+          <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label="Next page">›</button>
+          <button type="button" disabled={page >= pages} onClick={() => onPage(pages)} aria-label="Last page">»</button>
+        </nav>
+      ) : null}
     </div>
   );
 }

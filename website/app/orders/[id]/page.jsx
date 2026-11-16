@@ -12,6 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ReturnRequest from "@/components/ReturnRequest";
 import OrderTrackMap from "@/components/OrderTrackMap";
+import { arrivalText, stageText } from "@/lib/orderStatus";
 
 // The customer's order QR is switched off: the delivery partner only needs the OTP.
 const SHOW_QR = false;
@@ -131,6 +132,9 @@ function OrderDetail() {
   }, [justPlaced]);
 
   const [tracking, setTracking] = useState(null);
+  // Once delivered, the progress shows just "Order placed" and "Delivered";
+  // this opens the full step-by-step history.
+  const [showAllSteps, setShowAllSteps] = useState(false);
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -352,15 +356,15 @@ function OrderDetail() {
             </span>
             <div>
               <h1>{tracking.statusLabel}</h1>
-              {tracking.expectedBy && !CLOSED.includes(tracking.status) ? (
+              {!CLOSED.includes(tracking.status) ? (
                 <p>
-                  Expected by{" "}
-                  <strong>
-                    {new Date(tracking.expectedBy).toLocaleTimeString("en-IN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </strong>
+                  {stageText(tracking.status)}
+                  {tracking.expectedBy ? (
+                    <>
+                      {" · "}
+                      <strong>{arrivalText(tracking.expectedBy)}</strong>
+                    </>
+                  ) : null}
                 </p>
               ) : null}
             </div>
@@ -381,7 +385,9 @@ function OrderDetail() {
             </div>
           ) : null}
 
-          {tracking.partner ? (
+          {/* Only while the order is on its way: once delivered (or
+              cancelled) there is no one to call. */}
+          {tracking.partner && !CLOSED.includes(tracking.status) ? (
             <div className="panel partner-card">
               <span className="avatar small" aria-hidden="true">
                 {tracking.partner.name?.[0]?.toUpperCase() || "?"}
@@ -404,26 +410,88 @@ function OrderDetail() {
 
           <div className="panel">
             <h3>Order progress</h3>
-            <ol className="timeline">
-              {/* Steps the order skipped — a COD order never passes through
-                  "payment received" — are left out, not shown as done. */}
-              {groupedProgress(tracking.timeline, order?.status)
-                .map((step) => (
-                  <li key={step.status} className={`timeline-step ${step.state}`}>
-                    <span className="timeline-dot" aria-hidden="true">
-                      {step.state === "done" ? (
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="m5 12.5 4.5 4.5L19 7.5" />
-                        </svg>
-                      ) : null}
+            {(() => {
+              const delivered = tracking.status === "DELIVERED";
+              const open = !CLOSED.includes(tracking.status);
+              const steps = groupedProgress(tracking.timeline, order?.status).map((step) =>
+                delivered && step.status === "DELIVERED" ? { ...step, state: "done" } : step
+              );
+              // Delivered: one line (Ordered -> Delivered) until tapped. On
+              // its way: every step, with what is happening now.
+              const first = steps[0];
+              const last = steps[steps.length - 1];
+              const tick = (
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m5 12.5 4.5 4.5L19 7.5" />
+                </svg>
+              );
+              if (delivered && !showAllSteps) {
+                return (
+                  <button type="button" className="tl-line" aria-expanded="false" onClick={() => setShowAllSteps(true)}>
+                    <span className="tl-end">
+                      <span className="tl-dot">{tick}</span>
+                      <span>
+                        <strong>Ordered</strong>
+                        <small>{first?.at ? when(first.at) : ""}</small>
+                      </span>
                     </span>
-                    <span className="timeline-copy">
-                      <strong>{step.label}</strong>
-                      {step.at ? <span>{when(step.at)}</span> : null}
+                    <span className="tl-bar" aria-hidden="true" />
+                    <span className="tl-end">
+                      <span className="tl-dot">{tick}</span>
+                      <span>
+                        <strong>Delivered</strong>
+                        <small>{last?.at ? when(last.at) : tracking.deliveredAt ? when(tracking.deliveredAt) : ""}</small>
+                      </span>
                     </span>
-                  </li>
-                ))}
-            </ol>
+                    <svg className="tl-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                    <span className="sr-only">Show all updates</span>
+                  </button>
+                );
+              }
+              const shown = steps;
+              return (
+                <>
+                  <ol className="timeline">
+                    {shown.map((step) => (
+                      <li key={step.status} className={`timeline-step ${step.state}`}>
+                        <span className="timeline-dot" aria-hidden="true">
+                          {step.state === "done" ? (
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m5 12.5 4.5 4.5L19 7.5" />
+                            </svg>
+                          ) : null}
+                        </span>
+                        <span className="timeline-copy">
+                          <strong>{step.label}</strong>
+                          {step.at ? <span>{when(step.at)}</span> : null}
+                          {open && step.state === "active" ? (
+                            <em className="timeline-note">{stageText(tracking.status)}</em>
+                          ) : null}
+                          {open && step.status === "DELIVERED" && tracking.expectedBy ? (
+                            <em className="timeline-note">{arrivalText(tracking.expectedBy)}</em>
+                          ) : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                  {delivered && showAllSteps ? (
+                    <button
+                      type="button"
+                      className="timeline-toggle"
+                      aria-expanded={showAllSteps}
+                      onClick={() => setShowAllSteps((v) => !v)}
+                    >
+                      Show less
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ transform: "rotate(180deg)" }}>
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  ) : null}
+                </>
+              );
+            })()}
           </div>
         </div>
 
