@@ -2,6 +2,20 @@ const express = require("express");
 
 const router = express.Router();
 
+// The till's remembered product list (pos:*) is dropped when stock, prices or sales change.
+// (Storefront caches are cleared by invalidateOnWrite just below.)
+const cache = require("../core/cache");
+router.use(["/catalog", "/inventory", "/pos", "/orders", "/returns"], (req, res, next) => {
+  if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    res.on("finish", () => {
+      if (res.statusCode < 400) cache.del("pos:*");
+    });
+  }
+  next();
+});
+// Any write that changes what shoppers see clears the storefront cache.
+router.use(require("../core/storefrontCache").invalidateOnWrite);
+
 // --- Identity -------------------------------------------------------------
 router.use("/auth", require("../modules/auth/auth.routes"));
 
@@ -29,6 +43,7 @@ router.use("/delivery", require("../modules/delivery/delivery.routes"));
 router.use("/customers", require("../modules/customers/customer.routes"));
 router.use("/staff", require("../modules/staff/staff.routes"));
 router.use("/marketing/offers", require("../modules/pricing/offer.routes"));
+router.use("/pos", require("../modules/pos/pos.routes"));
 router.use("/maintenance", require("../modules/maintenance/maintenance.routes"));
 
 // --- Oversight ------------------------------------------------------------

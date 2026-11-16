@@ -1,3 +1,5 @@
+import WishlistButton from "@/components/WishlistButton";
+import PdpBackButton from "@/components/PdpBackButton";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getHome, getProduct, getProducts, SITE_URL } from "@/lib/api";
@@ -141,6 +143,10 @@ export default async function ProductPage({ params }) {
             as long as the buy column beside it instead of leaving a blank gap. */}
         <div className="pdp-left">
           <div className="pdp-gallery-slot">
+            <PdpBackButton fallback={breadcrumb.length ? `/c/${breadcrumb[breadcrumb.length - 1].slug}` : "/"} />
+            <span className="pdp-wish">
+              <WishlistButton productId={product.id} variantId={product.defaultVariant || variants[0]?.id} />
+            </span>
             <ProductGallery
               media={media}
               name={product.name}

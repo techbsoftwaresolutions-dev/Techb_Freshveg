@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { categoryImage, img } from "@/lib/format";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const ROTATE_MS = 4500;
@@ -55,8 +55,8 @@ export default function BannerCarousel({ banners = [], categories = [] }) {
   const banner = banners[index];
   const href = hrefFor(banner.target);
   const produce = categories
-    .filter((category) => category.image && /fruit|vegetable|produce|grocery/i.test(category.name))
-    .concat(categories.filter((category) => category.image))
+    .filter((category) => categoryImage(category) && /fruit|vegetable|produce|grocery/i.test(category.name))
+    .concat(categories.filter((category) => categoryImage(category)))
     .filter((category, i, all) => all.findIndex((item) =>
       (item.id && item.id === category.id) ||
       (item.slug && item.slug === category.slug) ||
@@ -79,14 +79,21 @@ export default function BannerCarousel({ banners = [], categories = [] }) {
   // slide uses the bundled basket pictures in /public/banner-art, one per slide.
   const photo = banner.image
     ? img(banner.image, 1400)
-    : BUNDLED_ART[index % BUNDLED_ART.length] || (featuredProduce ? img(featuredProduce.image, 1000) : "");
+    : BUNDLED_ART[index % BUNDLED_ART.length] || (featuredProduce ? img(categoryImage(featuredProduce), 1000) : "");
 
   const content = (
-    <div className="bn-slide">
+    <div className="bn-slide" data-custom={banner.image ? "1" : "0"}>
       <div className="bn-copy">
         <span className="bn-kicker">
+          <svg className="bn-ic bn-pin" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z" />
+          </svg>
           <b>Hosur Basket</b>
           <i className="bn-sep" />
+          <svg className="bn-ic bn-leafic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 19C5 10 10.5 4.5 20 4.5c0 9.5-5.5 14.5-15 14.5z" fill="currentColor" fillOpacity=".25" />
+            <path d="M5 19 14 10" />
+          </svg>
           <span>Fresh offers</span>
         </span>
 
@@ -117,6 +124,10 @@ export default function BannerCarousel({ banners = [], categories = [] }) {
 
         {banner.subtitle ? (
           <span className="bn-sub">
+            <svg className="bn-ic bn-sub-ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 19C5 10 10.5 4.5 20 4.5c0 9.5-5.5 14.5-15 14.5z" fill="currentColor" fillOpacity=".3" />
+              <path d="M5 19 14 10" />
+            </svg>
             <span>
               {subtitleParts.map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part))}
             </span>
@@ -126,6 +137,11 @@ export default function BannerCarousel({ banners = [], categories = [] }) {
         <div className="bn-actions">
           {href ? (
             <span className="bn-cta">
+              <svg className="bn-ic bn-cart" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 4h2.5l2.2 10.2a1.5 1.5 0 0 0 1.5 1.2h8.2a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2" />
+                <circle cx="9.5" cy="19.2" r="1.3" />
+                <circle cx="17" cy="19.2" r="1.3" />
+              </svg>
               Shop Now
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M9 5l7 7-7 7" />
@@ -174,6 +190,13 @@ export default function BannerCarousel({ banners = [], categories = [] }) {
         </defs>
         <path className="bn-wave-glow" d="M7 0C13 15 12 32 6 45C0 58 0 72 10 84C17 93 23 98 30 100" />
         <path className="bn-wave-rim" d="M7 0C13 15 12 32 6 45C0 58 0 72 10 84C17 93 23 98 30 100" />
+      </svg>
+      <svg className="bn-sparkle" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 9 5 2M10 7l2-6M16 12l3-4" stroke="#ffe51f" strokeWidth="2" strokeLinecap="round" fill="none" />
+      </svg>
+      <svg className="bn-topleaf" viewBox="0 0 40 28" aria-hidden="true">
+        <path d="M2 24C6 8 20 2 38 2 36 18 22 26 2 24Z" fill="#4cc25a" />
+        <path d="M2 24 28 8" stroke="#2b9a3a" strokeWidth="1.4" fill="none" />
       </svg>
       <div className="bn-visual" aria-hidden="true">
         {photo ? <img key={photo} className="bn-photo" src={photo} alt="" /> : null}

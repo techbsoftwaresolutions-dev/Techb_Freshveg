@@ -190,7 +190,7 @@ export default function SavedAddresses({ selectedId, onSelect }) {
           </div>
         ) : (
           <>
-            <p className="addr-empty">No addresses saved yet. Add one so checkout is quicker next time.</p>
+            <p className="addr-empty">No saved addresses yet.</p>
             <button type="button" className="addr-add" onClick={() => { setEditing(null); setMode("form"); }}>
               + Add address
             </button>

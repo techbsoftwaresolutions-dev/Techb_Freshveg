@@ -12,14 +12,20 @@ const TOPICS = [
   {
     title: "Track an order",
     body: "See where your order is, live, from the moment it is placed.",
-    href: "/orders",
+    href: "/track-order",
     label: "Open my orders",
   },
   {
     title: "Returns and refunds",
     body: "Open the order and raise a return from there.",
-    href: "/orders",
+    href: "/returns",
     label: "Go to my orders",
+  },
+  {
+    title: "Raise a ticket",
+    body: "Missing, damaged or wrong item, a payment problem or anything else — tell us and follow the reply here.",
+    href: "/support",
+    label: "Raise a ticket",
   },
   {
     title: "Delivery",
@@ -37,7 +43,7 @@ const TOPICS = [
 
 export default function HelpPage() {
   return (
-    <div className="wrap wrap-narrow help-page">
+    <div className="wrap help-page">
       <header className="page-title">
         <h1>Help Center</h1>
         <p>Pick what you need, or call us.</p>
