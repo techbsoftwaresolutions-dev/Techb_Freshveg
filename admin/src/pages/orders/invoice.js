@@ -600,14 +600,28 @@ ${t.logo ? `<td class="party"><div class="label">SOLD BY</div><div class="name">
 </div></body></html>`;
 }
 
+// Cuts the printed page to the bill's own length. Chrome ignores "@page size: 80mm auto" and falls
+// back to a default paper length, which feeds blank paper (or leaves a blank tail) after the bill.
+export function fitPageToContent(win) {
+  const doc = win.document;
+  const style = doc.createElement("style");
+  style.textContent = "@media screen { .rc { width: 72mm !important; } }"; // same width as print, so the height matches
+  doc.head.appendChild(style);
+  const mm = Math.ceil((doc.documentElement.scrollHeight * 25.4) / 96) + 2;
+  style.textContent += ` @page { size: 80mm ${mm}mm; margin: 0; }`;
+}
+
 // Prints the invoice (not the admin screen) through a hidden frame.
 export function printInvoice(inv) {
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
-  frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+  // A counter bill is laid out at its real paper width so its height can be measured exactly.
+  const isReceipt = themeOf(inv.template).receipt;
+  frame.style.cssText = `position:fixed;right:0;bottom:0;width:${isReceipt ? "80mm" : "0"};height:${isReceipt ? "200px" : "0"};border:0;visibility:hidden`;
   document.body.appendChild(frame);
   frame.onload = () => {
     const win = frame.contentWindow;
+    if (isReceipt) fitPageToContent(win);
     win.focus();
     win.print();
     setTimeout(() => frame.remove(), 1000);
@@ -717,16 +731,16 @@ ${row(`&nbsp;&nbsp;${l.qty} x ${amount(l.rate)}${l.gst ? ` &nbsp;GST ${l.gst}%` 
     .join("");
   return `<!doctype html><html><head><meta charset="utf-8"><title>Bill ${esc(inv.number)}</title>
 <style>
-@page { size: 80mm auto; margin: 3mm; }
-body { margin: 0; background: #fff; color: #111; font: 12px/1.45 "Courier New", Courier, monospace; }
-.rc { width: 72mm; margin: 0 auto; padding: 14px 0; }
+@page { size: 80mm auto; margin: 0; }
+body { margin: 0; background: #fff; color: #111; font: 12px/1.25 "Courier New", Courier, monospace; }
+.rc { width: 72mm; margin: 0 auto; padding: 8px 0 6px; }
 @media screen { .rc { width: 340px; } }
 .c { text-align: center; } .r { text-align: right; white-space: nowrap; }
-table { width: 100%; border-collapse: collapse; } td { padding: 1px 0; vertical-align: top; }
-hr { border: 0; border-top: 1px dashed #333; margin: 6px 0; }
+table { width: 100%; border-collapse: collapse; } td { padding: 0; vertical-align: top; }
+hr { border: 0; border-top: 1px dashed #333; margin: 4px 0; }
 .shop { font-size: 17px; font-weight: bold; text-transform: uppercase; }
-.title { font-size: 15px; font-weight: bold; letter-spacing: 3px; margin: 2px 0 4px; }
-.tot td { font-size: 16px; font-weight: bold; padding: 3px 0; }
+.title { font-size: 15px; font-weight: bold; letter-spacing: 3px; margin: 1px 0 3px; }
+.tot td { font-size: 16px; font-weight: bold; padding: 2px 0; }
 .small { font-size: 10px; }
 </style></head><body><div class="rc">
 <div class="c"><div class="shop">${esc(inv.seller.name)}</div>

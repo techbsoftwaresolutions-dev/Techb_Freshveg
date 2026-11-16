@@ -75,9 +75,29 @@ const money = (p) => rupees(p, { decimals: true });
 
 // 80mm thermal-friendly receipt. `order` is the server order, or a provisional
 // one built on the till while offline (provisional = true).
+// Prints an HTML page from a hidden frame inside this page: no pop-up window, no extra tab, and
+// nothing for a pop-up blocker to refuse. With Chrome started with --kiosk-printing (and the
+// receipt printer as the Windows default) this goes straight to the printer with no dialog.
+function printHtml(html) {
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = "position:fixed;right:0;bottom:0;width:80mm;height:200px;border:0;visibility:hidden";
+  document.body.appendChild(frame);
+  const win = frame.contentWindow;
+  const cleanup = () => frame.remove();
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  // Cut the page to the receipt's own length (Chrome would otherwise use a default, much taller, paper).
+  const style = win.document.createElement("style");
+  style.textContent = `@page { size: 80mm ${Math.ceil((win.document.documentElement.scrollHeight * 25.4) / 96) + 2}mm; margin: 0; }`;
+  win.document.head.appendChild(style);
+  win.onafterprint = () => setTimeout(cleanup, 1000);
+  setTimeout(cleanup, 60000); // in case afterprint never fires
+  setTimeout(() => { win.focus(); win.print(); }, 150); // let the page lay out first
+}
+
 export function printInvoice(order, header, { provisional = false } = {}) {
-  const w = window.open("", "_blank", "width=380,height=700");
-  if (!w) return false;
   const when = new Date(order.placedAt || Date.now()).toLocaleString("en-IN");
   const rows = order.items
     .map(
@@ -92,12 +112,12 @@ export function printInvoice(order, header, { provisional = false } = {}) {
       return `<tr><td>${b.rate}% on ${money(b.taxableValue)}</td><td class="r">CGST ${money(half)} + SGST ${money(b.tax - half)}</td></tr>`;
     })
     .join("");
-  w.document.write(`<!doctype html><title>${esc(order.invoiceNo || "Invoice")}</title>
+  const html = `<!doctype html><title>${esc(order.invoiceNo || "Invoice")}</title>
 <style>
-body{font:12px/1.4 monospace;width:72mm;margin:0 auto;padding:6px}
+body{font:12px/1.25 monospace;width:72mm;margin:0 auto;padding:4px 0}
 h1{font-size:15px;text-align:center;margin:0}.c{text-align:center}.r{text-align:right}
-table{width:100%;border-collapse:collapse}td{padding:2px 0;vertical-align:top}
-hr{border:0;border-top:1px dashed #000;margin:6px 0}.b{font-weight:bold;font-size:14px}
+table{width:100%;border-collapse:collapse}td{padding:0;vertical-align:top}
+hr{border:0;border-top:1px dashed #000;margin:4px 0}.b{font-weight:bold;font-size:14px}
 @media print{@page{margin:0}}
 </style>
 <h1>${esc(header?.name)}</h1>
@@ -114,7 +134,7 @@ ${p.roundOff ? `<tr><td>Round off</td><td class="r">${money(p.roundOff)}</td></t
 </table><hr>
 <div>${(order.posPayments || []).map((x) => `${esc(x.method.toUpperCase())}: ${money(x.amount)}`).join("<br>")}</div>
 <hr><div class="c">${provisional ? "PROVISIONAL - recorded offline<br>" : ""}Thank you! Visit again.</div>
-<script>window.onload=()=>{window.print()}</script>`);
-  w.document.close();
+`;
+  printHtml(html);
   return true;
 }
