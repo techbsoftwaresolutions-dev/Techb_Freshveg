@@ -101,10 +101,11 @@ export default function AccountPage() {
       </section>
 
       <div className="stat-tiles">
-        <div className="stat-tile">
+        <Link href="/account/wallet" className="stat-tile stat-tile-link">
           <span>Wallet balance</span>
           <strong>{rupees(user.walletBalance)}</strong>
-        </div>
+          <em>View history →</em>
+        </Link>
         <div className="stat-tile">
           <span>Loyalty points</span>
           <strong>{user.loyaltyPoints ?? 0}</strong>

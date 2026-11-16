@@ -104,4 +104,11 @@ router.post(
   receive(() => "avatars")
 );
 
+// Photo proof for a return (damaged, wrong item…), from the signed-in customer.
+router.post(
+  "/return-photo",
+  express.raw({ type: Object.keys(ALLOWED), limit: Math.min(MAX_BYTES, 3 * 1024 * 1024) }),
+  receive(() => "returns")
+);
+
 module.exports = router;

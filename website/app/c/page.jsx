@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { categoryImage, img } from "@/lib/format";
 import { Suspense } from "react";
 import { getCategories, getProducts } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import { SortBar } from "@/components/Filters";
-import CategoryIcon from "@/components/CategoryIcon";
+import DepartmentNav from "@/components/DepartmentNav";
 import EmptyState from "@/components/EmptyState";
 import InfiniteProducts from "@/components/InfiniteProducts";
 import { DeliveryBar, MobileChips, MobileRail } from "@/components/MobileBrowse";
@@ -29,6 +28,7 @@ export default async function CategoriesPage({ searchParams }) {
   // fetch the pages after this one.
   const listQuery = {
     limit: PER_PAGE,
+    ...(query.category ? { category: query.category } : {}),
     ...(query.sort ? { sort: query.sort } : {}),
     ...(query.offers === "true" ? { offers: "true" } : {}),
     ...(["discount", "special", "combo"].includes(query.offer) ? { offer: query.offer } : {}),
@@ -40,50 +40,44 @@ export default async function CategoriesPage({ searchParams }) {
   const products = result?.items || [];
   const meta = result?.meta;
 
+  // "All Fresh Fruits" in the side panel lands here as ?category=<department>:
+  // the same page, just the product list narrowed to that department.
+  const activeDepartment = query.category
+    ? departments.find((d) => d.slug === query.category) || null
+    : null;
+  const heading = activeDepartment ? activeDepartment.name : "All products";
+
   return (
     <SearchProvider className="wrap">
-      <SearchHead title="All products" backHref="/" />
+      <SearchHead title={heading} backHref={activeDepartment ? "/c" : "/"} />
 
       <nav className="crumbs" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         {" › "}
-        <span>All categories</span>
+        {activeDepartment ? (
+          <>
+            <Link href="/c">All categories</Link>
+            {" › "}
+            <span>{activeDepartment.name}</span>
+          </>
+        ) : (
+          <span>All categories</span>
+        )}
       </nav>
 
       <div className="split cat-layout has-rail">
-        <MobileRail departments={departments} activeSlug={null} />
+        <MobileRail departments={departments} activeSlug={activeDepartment?.slug || null} />
 
-        {/* The aisle rail. Real links, one URL per aisle, so a crawler can
-            follow them and a shopper can bookmark where they got to. */}
-        <aside>
-          <nav className="aisles sticky" aria-label="Categories">
-            <span className="aisles-item current" aria-current="page">
-              All products
-              {meta?.total ? <span className="aisles-count">{meta.total}</span> : null}
-            </span>
-
-            {departments.map((department) => (
-              <div key={department.id} className="aisles-group">
-                <Link href={`/c/${department.slug}`} className="aisles-head">
-                  {categoryImage(department) ? (
-                    <img src={img(categoryImage(department), 80)} alt="" className="aisles-head-icon aisles-head-photo" />
-                  ) : (
-                    <CategoryIcon name={department.name} className="aisles-head-icon" />
-                  )}
-                  {department.name}
-                </Link>
-                {department.children?.map((aisle) => (
-                  <Link key={aisle.id} href={`/c/${aisle.slug}`} className="aisles-item">
-                    {aisle.name}
-                    {aisle.productCount ? (
-                      <span className="aisles-count">{aisle.productCount}</span>
-                    ) : null}
-                  </Link>
-                ))}
-              </div>
-            ))}
-          </nav>
-        </aside>
+        {/* Same dropdown panel as the category pages: All products opens to
+            every department, each department opens to its aisles. Real links,
+            so a crawler can follow them. */}
+        <div className="cat-side">
+          <DepartmentNav
+            departments={departments}
+            activeSlug={activeDepartment?.slug || null}
+            total={activeDepartment ? null : meta?.total}
+          />
+        </div>
 
         <div>
           <MobileChips />
@@ -91,7 +85,7 @@ export default async function CategoriesPage({ searchParams }) {
           <SearchSwap query={listQuery}>
           <div className="browse-head">
             <h1>
-              All products
+              {heading}
               {meta?.total ? <span className="browse-count">{meta.total} items</span> : null}
             </h1>
             <Suspense fallback={null}>

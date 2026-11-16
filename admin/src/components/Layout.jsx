@@ -3,7 +3,6 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useApi } from "../api/useApi";
 import NotificationBell from "./NotificationBell";
-import Toaster from "./Toaster";
 import {
   IconDashboard,
   IconCalendar,
@@ -602,7 +601,6 @@ export default function Layout() {
         </header>
 
         <Outlet />
-        <Toaster />
       </div>
     </div>
   );

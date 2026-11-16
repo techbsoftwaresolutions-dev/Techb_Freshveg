@@ -1,11 +1,45 @@
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// On a simulator or `expo start --web`, localhost reaches your machine. On a
-// physical phone running Expo Go it does not — set API_BASE_URL in .env to
-// your computer's LAN IP (e.g. http://192.168.1.20:5055).
-export const API_BASE_URL =
-  Constants.expoConfig?.extra?.apiBaseUrl || "http://localhost:5055";
+// Where the API is.
+//
+// In development the phone loads this app from Expo running on your computer,
+// so Expo already knows the computer's current address (hostUri, e.g.
+// "192.168.1.36:8081"). The API runs on that same computer, so we use that
+// address with the API port — it stays right when the router hands the
+// computer a new IP, with nothing to edit in .env.
+//
+// API_BASE_URL in .env still wins when it points somewhere real (a hosted
+// server); a LAN/localhost value there is treated as "this computer" and
+// replaced by the live address. Release builds use API_BASE_URL as is.
+const configured = (Constants.expoConfig?.extra?.apiBaseUrl || "").replace(/\/+$/, "");
+
+function devMachineHost() {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    Constants.expoGoConfig?.debuggerHost ||
+    Constants.manifest2?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest?.debuggerHost ||
+    "";
+  const host = hostUri.split(":")[0];
+  // An IP or localhost — not a tunnel host (expo start --tunnel), which can't reach the API.
+  return /^(localhost|\d{1,3}(\.\d{1,3}){3})$/.test(host) ? host : null;
+}
+
+const isLocal = (url) =>
+  !url || /^https?:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(url);
+
+function resolveApiBase() {
+  const host = __DEV__ ? devMachineHost() : null;
+  if (host && isLocal(configured)) {
+    const port = configured.match(/:(\d+)$/)?.[1] || "5055";
+    return `http://${host}:${port}`;
+  }
+  return configured || "http://localhost:5055";
+}
+
+export const API_BASE_URL = resolveApiBase();
+if (__DEV__) console.log(`[api] ${API_BASE_URL}`);
 
 const BASE = `${API_BASE_URL}/api/v1`;
 

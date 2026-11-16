@@ -4,6 +4,7 @@ import { Text } from "../components/AppText";
 import { api } from "../api/client";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
+import TrackingMap from "../components/TrackingMap";
 
 // The order QR is switched off: the delivery partner only needs the OTP.
 const SHOW_QR = false;
@@ -52,7 +53,9 @@ export default function OrderTrackScreen({ route, navigation }) {
     clearInterval(poller.current);
     if (!tracking || CLOSED.includes(tracking.status)) return undefined;
 
-    poller.current = setInterval(load, 20000);
+    // Faster while the rider is on the way, so the map dot keeps moving.
+    const onTheWay = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"].includes(tracking.status);
+    poller.current = setInterval(load, onTheWay ? 10000 : 20000);
     return () => clearInterval(poller.current);
   }, [tracking, load]);
 
@@ -145,6 +148,9 @@ export default function OrderTrackScreen({ route, navigation }) {
           </Text>
         ) : null}
       </Card>
+
+      {/* Live map: store, delivery address and the rider on the way. */}
+      {tracking.map && !isClosed ? <TrackingMap map={tracking.map} status={tracking.status} /> : null}
 
       {/* The delivery time the shop promised (15 min / 30 min / 1 hour / next day). */}
       {tracking.etaLabel && !isClosed ? (

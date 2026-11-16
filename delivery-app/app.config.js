@@ -33,6 +33,7 @@ export default {
     plugins: [
       ["expo-notifications", { defaultChannel: "delivery_assignments_v2" }],
       ["expo-camera", { cameraPermission: "Hosur Basket Partner uses the camera to take a delivery photo." }],
+      ["expo-location", { locationWhenInUsePermission: "Hosur Basket Partner shares your location with the customer while you are delivering their order." }],
     ],
     extra: {
       apiBaseUrl: process.env.API_BASE_URL,

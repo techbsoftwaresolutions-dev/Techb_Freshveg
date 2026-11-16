@@ -2,7 +2,7 @@
 //   * PDF (jsPDF, drawn on an A4 grid),
 //   * HTML (used for Print, the Word download and the Settings preview),
 //   * Excel (plain rows for accounting).
-// The look comes from one of five templates picked in Settings -> Print, so a
+// The look comes from one of ten templates picked in Settings -> Print, so a
 // printed invoice, its PDF and its Word copy always match.
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
@@ -26,7 +26,52 @@ const CLOSED = ["CANCELLED", "REJECTED", "REFUNDED"];
 //   boxes:   filled | outline | none          (Sold by / Bill to)
 //   head:    solid | tint | line              (items table header)
 //   total:   band | line                      (grand total row)
+// Counter bills (receipt: true) have their own switches, read by drawReceipt
+// and receiptHtml:
+//   font:    courier | helvetica
+//   rule:    dash | solid | double           (separator lines)
+//   items:   stacked (name, then qty x rate) | columns (Item / Qty / Rate / Amt)
+//   totalStyle: plain | inverse (white on black) | boxed
+//   small:   true = tighter type, shorter paper
+//   taxTable: true = GST summary (taxable / CGST / SGST per rate)
+// Counter bills come first: they are what the shop prints most.
 export const INVOICE_TEMPLATES = {
+  receipt: {
+    label: "Counter Bill",
+    description: "Narrow till-style bill for 80mm thermal printers.",
+    title: "BILL", logo: false, receipt: true,
+    accent: [17, 17, 17], font: "courier", rule: "dash", items: "stacked", totalStyle: "plain", scale: 1, logoW: 0,
+  },
+  receipt_bold: {
+    label: "Bold Total Bill",
+    description: "80mm bill with the grand total printed white on black so it stands out.",
+    title: "BILL", logo: false, receipt: true,
+    accent: [17, 17, 17], font: "courier", rule: "solid", items: "stacked", totalStyle: "inverse", scale: 1, logoW: 0,
+  },
+  receipt_compact: {
+    label: "Compact Bill",
+    description: "80mm bill with one line per item in columns and smaller type — saves paper.",
+    title: "BILL", logo: false, receipt: true, small: true,
+    accent: [17, 17, 17], font: "courier", rule: "dash", items: "columns", totalStyle: "plain", scale: 1, logoW: 0,
+  },
+  receipt_logo: {
+    label: "Logo Counter Bill",
+    description: "80mm bill with the shop logo on top and clean sans-serif type.",
+    title: "BILL", logo: true, receipt: true,
+    accent: [17, 17, 17], font: "helvetica", rule: "dash", items: "columns", totalStyle: "boxed", scale: 1, logoW: 50,
+  },
+  receipt_gst: {
+    label: "GST Counter Bill",
+    description: "80mm tax invoice with item columns and a GST summary (taxable, CGST, SGST).",
+    title: "TAX INVOICE", logo: false, receipt: true,
+    accent: [17, 17, 17], font: "courier", rule: "double", items: "columns", totalStyle: "boxed", taxTable: true, scale: 1, logoW: 0,
+  },
+  receipt_modern: {
+    label: "Modern Counter Bill",
+    description: "80mm bill in sans-serif type with solid rules and a bold black total bar.",
+    title: "BILL", logo: false, receipt: true,
+    accent: [17, 17, 17], font: "helvetica", rule: "solid", items: "stacked", totalStyle: "inverse", scale: 1, logoW: 0,
+  },
   classic: {
     label: "Classic Invoice",
     description: "A4 invoice with the logo, green title, shaded address boxes and a solid green table.",
@@ -51,17 +96,12 @@ export const INVOICE_TEMPLATES = {
     title: "BILL", logo: false,
     accent: [24, 24, 27], font: "helvetica", header: "split", boxes: "none", head: "line", total: "line", stripes: false, scale: 1, logoW: 0,
   },
-  receipt: {
-    label: "Counter Bill (80mm)",
-    description: "Narrow till-style bill for thermal printers. No logo, just the bill.",
-    title: "BILL", logo: false, receipt: true,
-    accent: [17, 17, 17], font: "courier", scale: 1, logoW: 0,
-  },
 };
-export const DEFAULT_TEMPLATE = "classic";
+export const DEFAULT_TEMPLATE = "receipt";
 // "compact" was an earlier template name; it now prints as Classic.
-const themeOf = (key) => INVOICE_TEMPLATES[key] || INVOICE_TEMPLATES[DEFAULT_TEMPLATE];
-const isBill = (t) => t.title === "BILL";
+const templateKey = (key) => (key === "compact" ? "classic" : INVOICE_TEMPLATES[key] ? key : DEFAULT_TEMPLATE);
+const themeOf = (key) => INVOICE_TEMPLATES[templateKey(key)];
+const isBill = (t) => t.title === "BILL" || Boolean(t.receipt);
 const docWord = (t) => (isBill(t) ? "bill" : "invoice");
 
 const tint = (rgb, amt) => rgb.map((v) => Math.round(v + (255 - v) * amt));
@@ -162,7 +202,7 @@ export function buildInvoice(order, header, { packLabel = (i) => i.variantName |
   if (p.roundOff) summary.push(["Round off", p.roundOff]);
 
   return {
-    template: INVOICE_TEMPLATES[template] ? template : DEFAULT_TEMPLATE,
+    template: templateKey(template),
     number: order.invoiceNo || order.code,
     orderCode: order.code,
     date: dateText(order.placedAt),
@@ -622,41 +662,79 @@ export function downloadWord(inv) {
 
 // ---- Counter bill (80mm thermal) --------------------------------------------
 
+// GST summary for the tax counter bill: line prices include GST, so each
+// rate's taxable value is backed out of its lines and split CGST/SGST.
+function gstRows(inv) {
+  const byRate = new Map();
+  for (const l of inv.lines) {
+    if (!l.gst) continue;
+    const gross = Number(l.amount) || 0;
+    const taxable = Math.round((gross * 100) / (100 + l.gst));
+    const row = byRate.get(l.gst) || { rate: l.gst, taxable: 0, tax: 0 };
+    row.taxable += taxable;
+    row.tax += gross - taxable;
+    byRate.set(l.gst, row);
+  }
+  return [...byRate.values()]
+    .sort((a, b) => a.rate - b.rate)
+    .map((r) => ({ ...r, cgst: Math.floor(r.tax / 2), sgst: r.tax - Math.floor(r.tax / 2) }));
+}
+
+// The tax table already lists GST, so that bill leaves the "(incl.)" rows out.
+const receiptSummary = (inv, t) => (t.taxTable ? inv.summary.filter((r) => !r.included) : inv.summary);
+const receiptWord = (t) => (t.title === "TAX INVOICE" ? "tax invoice" : "bill");
+
 // Drawn twice: once on a tall scratch page to measure, then on a page cut to
 // exactly that length, so a thermal printer doesn't feed blank paper.
-function drawReceipt(doc, inv) {
+function drawReceipt(doc, inv, logo) {
   const t = themeOf(inv.template);
+  const k = t.small ? 0.88 : 1; // type scale
   const M = 5;
   const R = 75;
   const C = 40;
   const CW = R - M;
   let y = 8;
-  const f = (style, size) => doc.setFont("courier", style).setFontSize(size).setTextColor(17, 17, 17);
+  const f = (style, size, color = [17, 17, 17]) =>
+    doc.setFont(t.font, style).setFontSize(size * k).setTextColor(...color);
   const center = (text, style, size, gap) => {
     f(style, size);
     const rows = doc.splitTextToSize(text, CW);
     doc.text(rows, C, y, { align: "center" });
-    y += rows.length * gap;
+    y += rows.length * gap * k;
   };
-  const dash = () => {
+  const rule = () => {
     y -= 1;
-    doc.setLineDashPattern([0.8, 0.8], 0).setDrawColor(60).setLineWidth(0.2).line(M, y, R, y);
-    doc.setLineDashPattern([], 0);
-    y += 4;
+    doc.setDrawColor(40).setLineWidth(0.2);
+    if (t.rule === "dash") {
+      doc.setLineDashPattern([0.8, 0.8], 0).line(M, y, R, y);
+      doc.setLineDashPattern([], 0);
+    } else if (t.rule === "double") {
+      doc.line(M, y - 0.5, R, y - 0.5).line(M, y + 0.5, R, y + 0.5);
+    } else {
+      doc.setLineWidth(0.35).line(M, y, R, y);
+    }
+    y += 4 * k;
   };
   const lr = (left, right, style = "normal", size = 8) => {
     f(style, size);
     doc.text(left, M, y);
     doc.text(right, R, y, { align: "right" });
-    y += size * 0.47;
+    y += size * 0.47 * k;
   };
 
-  center(inv.seller.name.toUpperCase(), "bold", 13, 5.5);
+  // Header: logo or shop name, then the shop details.
+  if (t.logo && logo) {
+    const w = t.logoW || 50;
+    doc.addImage(logo, "PNG", C - w / 2, y - 4, w, w * LOGO_RATIO);
+    y += w * LOGO_RATIO + 1;
+  } else {
+    center(inv.seller.name.toUpperCase(), "bold", 13, 5.5);
+  }
   if (inv.seller.address) center(inv.seller.address, "normal", 8, 3.6);
   if (inv.seller.phone) center(`Ph: ${inv.seller.phone}`, "normal", 8, 3.6);
   if (inv.seller.gstin) center(`GSTIN: ${inv.seller.gstin}`, "normal", 8, 3.6);
   y += 1.5;
-  dash();
+  rule();
   center(t.title, "bold", 11, 5.5);
   lr("Bill No", inv.number);
   lr("Date", inv.date);
@@ -665,82 +743,200 @@ function drawReceipt(doc, inv) {
   if (inv.customer.name) lr("Customer", inv.customer.name);
   if (inv.customer.phone) lr("Phone", inv.customer.phone);
   y += 1;
-  dash();
-  f("bold", 8);
-  doc.text("ITEM", M, y);
-  doc.text("AMOUNT", R, y, { align: "right" });
-  y += 3;
-  dash();
-  for (const l of inv.lines) {
-    f("bold", 9);
-    const rows = doc.splitTextToSize(`${l.name}${l.pack ? ` (${l.pack})` : ""}`, CW);
-    doc.text(rows, M, y);
-    y += rows.length * 3.8;
-    lr(`  ${l.qty} x ${amount(l.rate)}${l.gst ? `  GST ${l.gst}%` : ""}`, amount(l.amount));
-    y += 1.2;
+  rule();
+
+  if (t.items === "columns") {
+    // Item | Qty | Rate | Amount on one line; long names wrap under Item.
+    const QX = 46; // qty centre
+    const RX = 61; // rate right edge
+    f("bold", 7.5);
+    doc.text("ITEM", M, y);
+    doc.text("QTY", QX, y, { align: "center" });
+    doc.text("RATE", RX, y, { align: "right" });
+    doc.text("AMT", R, y, { align: "right" });
+    y += 3;
+    rule();
+    for (const l of inv.lines) {
+      f("bold", 8);
+      const rows = doc.splitTextToSize(`${l.name}${l.pack ? ` (${l.pack})` : ""}`, 36);
+      doc.text(rows, M, y);
+      f("normal", 8);
+      doc.text(String(l.qty), QX, y, { align: "center" });
+      doc.text(amount(l.rate), RX, y, { align: "right" });
+      doc.text(amount(l.amount), R, y, { align: "right" });
+      y += rows.length * 3.5 * k;
+      if (t.taxTable && l.gst) {
+        f("normal", 6.8, [90, 90, 90]);
+        doc.text(`GST ${l.gst}%`, M + 2, y - 0.6);
+        y += 2.8 * k;
+      }
+      y += 0.9;
+    }
+  } else {
+    f("bold", 8);
+    doc.text("ITEM", M, y);
+    doc.text("AMOUNT", R, y, { align: "right" });
+    y += 3;
+    rule();
+    for (const l of inv.lines) {
+      f("bold", 9);
+      const rows = doc.splitTextToSize(`${l.name}${l.pack ? ` (${l.pack})` : ""}`, CW);
+      doc.text(rows, M, y);
+      y += rows.length * 3.8 * k;
+      lr(`  ${l.qty} x ${amount(l.rate)}${l.gst ? `  GST ${l.gst}%` : ""}`, amount(l.amount));
+      y += 1.2;
+    }
   }
-  dash();
-  for (const r of inv.summary) lr(r.label + (r.included ? " (incl.)" : ""), r.text);
+  rule();
+  for (const r of receiptSummary(inv, t)) lr(r.label + (r.included ? " (incl.)" : ""), r.text);
   y += 1;
-  dash();
-  y += 1;
-  lr("TOTAL", rs(inv.total), "bold", 12);
-  dash();
+
+  // Grand total in the template's style.
+  if (t.totalStyle === "inverse") {
+    doc.setFillColor(17, 17, 17).rect(M, y - 1, CW, 9 * k, "F");
+    f("bold", 12, [255, 255, 255]);
+    doc.text("TOTAL", M + 2, y + 5 * k);
+    doc.text(rs(inv.total), R - 2, y + 5 * k, { align: "right" });
+    y += 9 * k + 5;
+  } else if (t.totalStyle === "boxed") {
+    doc.setDrawColor(17).setLineWidth(0.5).rect(M, y - 1, CW, 10 * k, "S");
+    f("bold", 12);
+    doc.text("TOTAL", M + 2, y + 5.6 * k);
+    doc.text(rs(inv.total), R - 2, y + 5.6 * k, { align: "right" });
+    y += 10 * k + 5;
+  } else {
+    rule();
+    y += 1;
+    lr("TOTAL", rs(inv.total), "bold", 12);
+    rule();
+  }
+
+  if (t.taxTable) {
+    const rows = gstRows(inv);
+    if (rows.length) {
+      f("bold", 7.5);
+      doc.text("GST%", M, y);
+      doc.text("TAXABLE", 34, y, { align: "right" });
+      doc.text("CGST", 54, y, { align: "right" });
+      doc.text("SGST", R, y, { align: "right" });
+      y += 3;
+      rule();
+      for (const r of rows) {
+        f("normal", 7.5);
+        doc.text(`${r.rate}%`, M, y);
+        doc.text(amount(r.taxable), 34, y, { align: "right" });
+        doc.text(amount(r.cgst), 54, y, { align: "right" });
+        doc.text(amount(r.sgst), R, y, { align: "right" });
+        y += 3.6 * k;
+      }
+      y += 1;
+      rule();
+    }
+  }
+
   f("normal", 7.5);
   const words = doc.splitTextToSize(inv.words, CW);
   doc.text(words, M, y);
-  y += words.length * 3.4 + 1;
+  y += words.length * 3.4 * k + 1;
   lr("Paid by", `${inv.payment.method} (${inv.payment.status})`);
   y += 1;
-  dash();
+  rule();
   center("Thank you! Visit again.", "bold", 9, 4);
-  center("Computer-generated bill", "normal", 7, 3);
+  center(`Computer-generated ${receiptWord(t)}`, "normal", 7, 3);
   return y + 4;
 }
 
-function receiptPdf(inv) {
+async function receiptPdf(inv) {
+  const t = themeOf(inv.template);
+  const logo = t.logo ? await logoDataUrl(inv.logoUrl) : null;
   const scratch = new jsPDF({ unit: "mm", format: [80, 1000] });
-  const height = drawReceipt(scratch, inv);
+  const height = drawReceipt(scratch, inv, logo);
   const doc = new jsPDF({ unit: "mm", format: [80, Math.max(height, 80)] });
-  drawReceipt(doc, inv);
+  drawReceipt(doc, inv, logo);
   return doc;
 }
 
 function receiptHtml(inv) {
   const t = themeOf(inv.template);
+  const px = (n) => `${Math.round(n * (t.small ? 0.9 : 1) * 10) / 10}px`;
+  const family = t.font === "helvetica" ? '"Segoe UI", Arial, Helvetica, sans-serif' : '"Courier New", Courier, monospace';
+  const ruleCss = { dash: "1px dashed #333", solid: "1.5px solid #111", double: "3px double #111" }[t.rule || "dash"];
   const row = (l, r, cls = "") => `<tr class="${cls}"><td>${l}</td><td class="r">${r}</td></tr>`;
-  const items = inv.lines
-    .map(
-      (l) => `<tr><td colspan="2"><b>${esc(l.name)}${l.pack ? ` (${esc(l.pack)})` : ""}</b></td></tr>
+  const sellerInfo = [esc(inv.seller.address), inv.seller.phone ? `Ph: ${esc(inv.seller.phone)}` : "", inv.seller.gstin ? `GSTIN: ${esc(inv.seller.gstin)}` : ""]
+    .filter(Boolean)
+    .join("<br>");
+
+  const head = t.logo
+    ? `<img class="logo" src="${esc(inv.logoUrl)}" alt="${esc(inv.seller.name)}">`
+    : `<div class="shop">${esc(inv.seller.name)}</div>`;
+
+  const items =
+    t.items === "columns"
+      ? `<table class="cols"><tr class="th"><td>ITEM</td><td class="c">QTY</td><td class="r">RATE</td><td class="r">AMT</td></tr>
+<tr><td colspan="4"><hr></td></tr>
+${inv.lines
+  .map(
+    (l) => `<tr><td><b>${esc(l.name)}</b>${l.pack ? ` <span class="small">(${esc(l.pack)})</span>` : ""}${
+      t.taxTable && l.gst ? `<div class="small muted">GST ${l.gst}%</div>` : ""
+    }</td><td class="c">${l.qty}</td><td class="r">${amount(l.rate)}</td><td class="r">${amount(l.amount)}</td></tr>`
+  )
+  .join("")}</table>`
+      : `<table>${row("<b>ITEM</b>", "<b>AMOUNT</b>")}</table><hr>
+<table>${inv.lines
+          .map(
+            (l) => `<tr><td colspan="2"><b>${esc(l.name)}${l.pack ? ` (${esc(l.pack)})` : ""}</b></td></tr>
 ${row(`&nbsp;&nbsp;${l.qty} x ${amount(l.rate)}${l.gst ? ` &nbsp;GST ${l.gst}%` : ""}`, amount(l.amount))}`
-    )
-    .join("");
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Bill ${esc(inv.number)}</title>
+          )
+          .join("")}</table>`;
+
+  const total =
+    t.totalStyle === "inverse"
+      ? `<table class="tot inverse">${row("TOTAL", rs(inv.total))}</table>`
+      : t.totalStyle === "boxed"
+        ? `<table class="tot boxed">${row("TOTAL", rs(inv.total))}</table>`
+        : `<hr><table class="tot">${row("TOTAL", rs(inv.total))}</table><hr>`;
+
+  const gst = t.taxTable ? gstRows(inv) : [];
+  const taxTable = gst.length
+    ? `<table class="cols gst"><tr class="th"><td>GST%</td><td class="r">TAXABLE</td><td class="r">CGST</td><td class="r">SGST</td></tr>
+${gst.map((r) => `<tr><td>${r.rate}%</td><td class="r">${amount(r.taxable)}</td><td class="r">${amount(r.cgst)}</td><td class="r">${amount(r.sgst)}</td></tr>`).join("")}
+</table><hr>`
+    : "";
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${t.title === "TAX INVOICE" ? "Tax Invoice" : "Bill"} ${esc(inv.number)}</title>
 <style>
 @page { size: 80mm auto; margin: 3mm; }
-body { margin: 0; background: #fff; color: #111; font: 12px/1.45 "Courier New", Courier, monospace; }
+html, body { margin: 0; background: #fff; }
+body { color: #111; font: ${px(12)}/1.45 ${family}; }
 .rc { width: 72mm; margin: 0 auto; padding: 14px 0; }
-@media screen { .rc { width: 340px; } }
+@media screen { .rc { width: 340px; padding: 18px 20px; } }
 .c { text-align: center; } .r { text-align: right; white-space: nowrap; }
 table { width: 100%; border-collapse: collapse; } td { padding: 1px 0; vertical-align: top; }
-hr { border: 0; border-top: 1px dashed #333; margin: 6px 0; }
-.shop { font-size: 17px; font-weight: bold; text-transform: uppercase; }
-.title { font-size: 15px; font-weight: bold; letter-spacing: 3px; margin: 2px 0 4px; }
-.tot td { font-size: 16px; font-weight: bold; padding: 3px 0; }
-.small { font-size: 10px; }
+hr { border: 0; border-top: ${ruleCss}; margin: 6px 0; }
+.shop { font-size: ${px(17)}; font-weight: bold; text-transform: uppercase; }
+.logo { display: block; width: 60%; height: auto; margin: 0 auto 4px; filter: grayscale(1) contrast(1.2); }
+.title { font-size: ${px(15)}; font-weight: bold; letter-spacing: 3px; margin: 2px 0 4px; }
+.cols td { padding: 2px 3px 2px 0; } .cols td:last-child { padding-right: 0; }
+.cols .th td { font-weight: bold; font-size: ${px(11)}; }
+.gst td { font-size: ${px(11)}; }
+.tot td { font-size: ${px(16)}; font-weight: bold; padding: 3px 0; }
+.tot.inverse { background: #111; color: #fff; margin: 8px 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.tot.inverse td, .tot.boxed td { padding: 6px 8px; }
+.tot.boxed { border: 2px solid #111; margin: 8px 0; }
+.small { font-size: ${px(10)}; } .muted { color: #555; }
 </style></head><body><div class="rc">
-<div class="c"><div class="shop">${esc(inv.seller.name)}</div>
-<div class="small">${[esc(inv.seller.address), inv.seller.phone ? `Ph: ${esc(inv.seller.phone)}` : "", inv.seller.gstin ? `GSTIN: ${esc(inv.seller.gstin)}` : ""].filter(Boolean).join("<br>")}</div></div>
+<div class="c">${head}
+<div class="small">${sellerInfo}</div></div>
 <hr><div class="c title">${t.title}</div>
 <table>${row("Bill No", esc(inv.number))}${row("Date", esc(inv.date))}${row("Order", esc(inv.orderCode))}${row("Status", esc(inv.status))}
 ${inv.customer.name ? row("Customer", esc(inv.customer.name)) : ""}${inv.customer.phone ? row("Phone", esc(inv.customer.phone)) : ""}</table>
-<hr><table>${row("<b>ITEM</b>", "<b>AMOUNT</b>")}</table><hr>
-<table>${items}</table><hr>
-<table>${inv.summary.map((r) => row(esc(r.label) + (r.included ? " (incl.)" : ""), esc(r.text))).join("")}</table>
-<hr><table>${row("TOTAL", rs(inv.total), "tot")}</table><hr>
+<hr>${items}<hr>
+<table>${receiptSummary(inv, t).map((r) => row(esc(r.label) + (r.included ? " (incl.)" : ""), esc(r.text))).join("")}</table>
+${total}
+${taxTable}
 <div class="small">${esc(inv.words)}</div>
 <table>${row("Paid by", `${esc(inv.payment.method)} (${esc(inv.payment.status)})`)}</table>
-<hr><div class="c"><b>Thank you! Visit again.</b><br><span class="small">Computer-generated bill</span></div>
+<hr><div class="c"><b>Thank you! Visit again.</b><br><span class="small">Computer-generated ${receiptWord(t)}</span></div>
 </div></body></html>`;
 }
 

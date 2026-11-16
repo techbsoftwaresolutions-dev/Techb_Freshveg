@@ -48,7 +48,14 @@ export function StatusBadge({ status }) {
   return <span className={`ob ob-${tone}`}>{label}</span>;
 }
 
-export default function OrderCard({ order }) {
+// Returns can be raised for one hour after delivery (the server has the final say).
+const RETURN_WINDOW_MS = 60 * 60 * 1000;
+function withinReturnWindow(order) {
+  const at = order.delivery?.deliveredAt || order.statusHistory?.find((h) => h.status === "DELIVERED")?.at;
+  return Boolean(at) && Date.now() - new Date(at).getTime() < RETURN_WINDOW_MS;
+}
+
+export default function OrderCard({ order, returnAction = false }) {
   const router = useRouter();
   const cart = useCart();
   const [busy, setBusy] = useState(false);
@@ -115,7 +122,11 @@ export default function OrderCard({ order }) {
         <Link href={`/orders/${order.id}`} className="oc-btn primary">
           View Order
         </Link>
-        {delivered ? (
+        {returnAction && order.status === "DELIVERED" && withinReturnWindow(order) ? (
+          <Link href={`/orders/${order.id}?return=1`} className="oc-btn">
+            Return items
+          </Link>
+        ) : delivered ? (
           <button type="button" className="oc-btn" onClick={buyAgain} disabled={busy}>
             {busy ? "Adding…" : "Buy Again"}
           </button>
