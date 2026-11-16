@@ -4,6 +4,7 @@ import JsBarcode from "jsbarcode";
 import QRCode from "qrcode";
 import { jsPDF } from "jspdf";
 import { api } from "../../api/client";
+import { saveFile, stampedName } from "../../lib/saveFile";
 import { Banner, rupees } from "../../components/ui";
 import Select from "../../components/Select";
 import "./labels.css";
@@ -154,6 +155,10 @@ export default function Labels() {
   const downloadPdf = async () => {
     if (!total) return;
     setBusy(true);
+    // The "Save as" window opens straight from the click; the labels are
+    // drawn only after a place is picked (drawing first made the browser
+    // refuse the window).
+    await saveFile(async () => {
     const list = await withImages();
     const pw = cols * w;
     const doc = new jsPDF({ orientation: pw > h ? "landscape" : "portrait", unit: "mm", format: [Math.min(pw, h), Math.max(pw, h)] });
@@ -174,8 +179,8 @@ export default function Labels() {
         doc.text(`Rs. ${(i.price / 100).toFixed(2)}`, x + w - 2, h / 2 + 4, { align: "right" });
       });
     });
-    doc.save("labels.pdf");
-    setBusy(false);
+    return doc.output("blob");
+    }, `${stampedName("Labels")}.pdf`).finally(() => setBusy(false));
   };
 
   const labelEl = current && (

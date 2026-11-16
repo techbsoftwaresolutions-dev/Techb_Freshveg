@@ -8,9 +8,7 @@ import { toast } from "../../components/toast";
 import { Avatar, statusTone } from "./Orders";
 import {
   buildInvoice,
-  downloadExcel,
-  downloadPdf,
-  downloadWord,
+  downloadInvoiceFile,
   invoiceText,
   loadInvoiceSetup,
   printInvoice,
@@ -199,11 +197,8 @@ export default function OrderDetail() {
 
   async function downloadInvoice(format) {
     try {
-      const inv = await currentInvoice();
-      if (format === "pdf") await downloadPdf(inv);
-      else if (format === "word") downloadWord(inv);
-      else downloadExcel(inv);
-      toast(`Invoice ${inv.number} downloaded`);
+      // The "Save as" window opens first, then the invoice is loaded and built.
+      await downloadInvoiceFile(currentInvoice, format, order.code);
     } catch (err) {
       setError(`Could not create the invoice: ${err.message}`);
     }

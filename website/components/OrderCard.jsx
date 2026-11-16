@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { rupees } from "@/lib/format";
-import { CLOSED_STATUSES, orderStatusInfo } from "@/lib/orderStatus";
+import { CLOSED_STATUSES, orderProgressText, orderStatusInfo } from "@/lib/orderStatus";
 import { useCart } from "./Providers";
 
 // The order list's pieces: the card, the loading skeleton and the empty state.
@@ -16,11 +16,6 @@ const MAX_THUMBS = 4;
 
 const day = (value) =>
   value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "";
-const shortDay = (value) =>
-  value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "";
-const clock = (value) =>
-  new Date(value).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
-const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
 
 // The one line under the total: when it arrived, when it was cancelled, or
 // when it is due.
@@ -36,11 +31,8 @@ function infoLine(order) {
     const word = orderStatusInfo(order.status).label;
     return at ? `${word} on ${day(at)}` : word;
   }
-  const due = order.delivery?.expectedBy;
-  if (due) {
-    return sameDay(due, new Date()) ? `Expected today by ${clock(due)}` : `Expected ${shortDay(due)}`;
-  }
-  return `Placed on ${day(order.placedAt)}`;
+  // Still on its way: what is happening now and when it arrives.
+  return orderProgressText(order);
 }
 
 export function StatusBadge({ status }) {

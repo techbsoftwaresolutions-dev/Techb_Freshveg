@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import { colors, radius, rupees, spacing, type } from "../theme";
 import { Button, Card, Divider, EmptyState, Loading, Notice, Pill } from "../components/ui";
 import TrackingMap from "../components/TrackingMap";
+import { arrivalText, stageText } from "../lib/orderStatus";
 
 // The order QR is switched off: the delivery partner only needs the OTP.
 const SHOW_QR = false;
@@ -23,6 +24,9 @@ export default function OrderTrackScreen({ route, navigation }) {
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState("");
   const poller = useRef(null);
+  // Once delivered, the progress shows just "Order placed" and "Delivered";
+  // this opens the full step-by-step history.
+  const [showAllSteps, setShowAllSteps] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -124,15 +128,12 @@ export default function OrderTrackScreen({ route, navigation }) {
         <Text style={styles.statusLabel}>{tracking.statusLabel}</Text>
         <Text style={type.tiny}>{tracking.code}</Text>
 
-        {tracking.expectedBy && !isClosed ? (
-          <Text style={[type.small, { marginTop: spacing.sm }]}>
-            Expected by{" "}
-            <Text style={{ fontWeight: "700", color: colors.text }}>
-              {new Date(tracking.expectedBy).toLocaleTimeString("en-IN", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Text>
+        {!isClosed ? (
+          <Text style={[type.small, { marginTop: spacing.sm, textAlign: "center" }]}>
+            {stageText(tracking.status)}
+            {tracking.expectedBy ? (
+              <Text style={{ fontWeight: "700", color: colors.text }}>{` · ${arrivalText(tracking.expectedBy)}`}</Text>
+            ) : null}
           </Text>
         ) : null}
 
@@ -183,8 +184,9 @@ export default function OrderTrackScreen({ route, navigation }) {
         </Card>
       ) : null}
 
-      {/* Delivery partner */}
-      {tracking.partner ? (
+      {/* Delivery partner — only while the order is on its way; once
+          delivered (or cancelled) there is no one to call. */}
+      {tracking.partner && !isClosed ? (
         <Card style={{ padding: spacing.md, flexDirection: "row", alignItems: "center", gap: spacing.md }}>
           <View style={styles.avatar}>
             {/* The rider's initial rather than a scooter: it identifies this
@@ -207,12 +209,46 @@ export default function OrderTrackScreen({ route, navigation }) {
       ) : null}
 
       {/* Timeline — steps this order skipped (a COD order never passes through
-          "payment received") are not shown at all. */}
+          "payment received") are not shown at all. While the order is on its
+          way every step shows, with what is happening now under the current
+          one; once delivered it is one line (Ordered -> Delivered) that opens
+          every step when tapped. */}
       <Card style={{ padding: spacing.lg }}>
         <Text style={[type.h3, { marginBottom: spacing.md }]}>Order progress</Text>
-        {tracking.timeline
-          .filter((step) => step.state !== "skipped")
-          .map((step, index, visible) => (
+        {(() => {
+          const delivered = tracking.status === "DELIVERED";
+          const all = tracking.timeline
+            .filter((step) => step.state !== "skipped")
+            .map((step) => (delivered && step.status === "DELIVERED" ? { ...step, state: "done" } : step));
+          const stamp = (at) =>
+            at ? new Date(at).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+          if (delivered && !showAllSteps) {
+            // Delivered: one line (Ordered -> Delivered) until tapped.
+            const first = all[0];
+            const last = all.find((step) => step.status === "DELIVERED");
+            return (
+              <Pressable onPress={() => setShowAllSteps(true)} style={styles.oneLine} accessibilityRole="button">
+                <View style={styles.oneEnd}>
+                  <View style={[styles.dot, styles.dotDone]}><Text style={styles.tick}>✓</Text></View>
+                  <View>
+                    <Text style={styles.stepLabel}>Ordered</Text>
+                    <Text style={type.tiny}>{stamp(first?.at)}</Text>
+                  </View>
+                </View>
+                <View style={styles.oneBar} />
+                <View style={styles.oneEnd}>
+                  <View style={[styles.dot, styles.dotDone]}><Text style={styles.tick}>✓</Text></View>
+                  <View>
+                    <Text style={styles.stepLabel}>Delivered</Text>
+                    <Text style={type.tiny}>{stamp(last?.at || tracking.deliveredAt)}</Text>
+                  </View>
+                </View>
+                <Text style={styles.oneChev}>▼</Text>
+              </Pressable>
+            );
+          }
+          const visible = all;
+          return visible.map((step, index) => (
             <View key={step.status} style={styles.step}>
               <View style={styles.stepRail}>
                 <View
@@ -249,9 +285,21 @@ export default function OrderTrackScreen({ route, navigation }) {
                     })}
                   </Text>
                 ) : null}
+                {!isClosed && step.state === "active" ? (
+                  <Text style={styles.stepNote}>{stageText(tracking.status)}</Text>
+                ) : null}
+                {!isClosed && step.status === "DELIVERED" && tracking.expectedBy ? (
+                  <Text style={styles.stepNote}>{arrivalText(tracking.expectedBy)}</Text>
+                ) : null}
               </View>
             </View>
-          ))}
+          ));
+        })()}
+        {tracking.status === "DELIVERED" && showAllSteps ? (
+          <Pressable onPress={() => setShowAllSteps(false)} style={styles.stepToggle} accessibilityRole="button">
+            <Text style={styles.stepToggleText}>Show less  ▲</Text>
+          </Pressable>
+        ) : null}
       </Card>
 
       {/* Items and bill */}
@@ -402,6 +450,13 @@ const styles = StyleSheet.create({
   etaLabel: { ...type.small, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
   etaValue: { fontSize: 26, fontWeight: "800", color: colors.primaryDark, marginVertical: 2 },
   screen: { flex: 1, backgroundColor: colors.bg },
+  oneLine: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  oneEnd: { flexDirection: "row", alignItems: "center", gap: 6 },
+  oneBar: { flex: 1, height: 2, borderRadius: 2, backgroundColor: colors.primary, minWidth: 12 },
+  oneChev: { fontSize: 11, color: colors.textMuted },
+  stepNote: { fontSize: 12.5, fontWeight: "700", color: colors.primaryDark, marginTop: 2 },
+  stepToggle: { alignSelf: "flex-start", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.primarySoft, marginTop: -4 },
+  stepToggleText: { fontSize: 13, fontWeight: "800", color: colors.primaryDark },
   statusLabel: { fontSize: 19, fontWeight: "800", color: colors.text, textAlign: "center" },
 
   otpCard: { padding: spacing.lg, alignItems: "center", backgroundColor: colors.primarySoft, borderColor: colors.primary },

@@ -6,6 +6,8 @@ import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees, useConfirm, ChipExpand } from "../../components/ui";
 
 const OFFER_LABEL = { discount: "Discount", special: "Special offer", combo: "Combo offer" };
+// Readable names for the stored product unit codes.
+const UNIT_NAME = { pcs: "piece", piece: "piece", pack: "pack", bunch: "bunch", kg: "kg" };
 
 export default function Products() {
   const [confirm, confirmDialog] = useConfirm();
@@ -45,7 +47,7 @@ export default function Products() {
     const timer = setTimeout(
       () =>
         api
-          .get("/catalog/products", { ...filters, limit: 20 })
+          .get("/catalog/products", { limit: 20, ...filters })
           .then(setData)
           .catch((err) => setError(err.message))
           .finally(() => setLoading(false)),
@@ -198,6 +200,7 @@ export default function Products() {
                 {
                   key: "name",
                   label: "Product",
+                  exportValue: (row) => row.name || "",
                   render: (row) => {
                     const media = row.media?.[0];
                     return (
@@ -251,14 +254,27 @@ export default function Products() {
                     ),
                 },
                 {
+                  // What one of the product is sold as ("1 pack", "1 piece"),
+                  // from the product's own unit; never a weight like 68 g.
+                  key: "unit",
+                  label: "Unit",
+                  exportValue: (row) => `1 ${UNIT_NAME[row.unit] || row.unit || "piece"}`,
+                  render: (row) => <span className="unit-cell">1 {UNIT_NAME[row.unit] || row.unit || "piece"}</span>,
+                },
+                {
                   key: "price",
                   label: "Price",
                   align: "right",
+                  exportValue: (row) => {
+                    const from = (row.priceFrom || 0) / 100;
+                    const to = (row.priceTo || 0) / 100;
+                    return from === to ? `₹${from}` : `₹${from} - ₹${to}`;
+                  },
                   render: (row) => (
                     <strong className="price-cell">
                       {row.priceFrom === row.priceTo
                         ? rupees(row.priceFrom)
-                        : `${rupees(row.priceFrom)} – ${rupees(row.priceTo)}`}
+                        : `${rupees(row.priceFrom)} - ${rupees(row.priceTo)}`}
                     </strong>
                   ),
                 },
@@ -266,52 +282,104 @@ export default function Products() {
                   key: "variantCount",
                   label: "Variants",
                   align: "right",
+                  exportValue: (row) => row.variantCount || 0,
                   render: (row) => row.variantCount || 0,
                 },
                 {
-                  key: "inStock",
+                  key: "totalStock",
                   label: "Stock",
-                  render: (row) =>
-                    canManage && row.status !== "archived" ? (
-                      <div>
-                        <Switch
-                          checked={!row.soldOut}
-                          onChange={(onSale) => quickUpdate(row, { soldOut: !onSale })}
-                          disabled={busyId === row.id}
-                          onLabel="On sale"
-                          offLabel="Sold out"
-                          offTone="danger"
-                          title={row.soldOut ? "Put back on sale" : "Mark as sold out — stock counts are kept"}
-                        />
-                        {/* On sale, but nothing on the shelf: a different
-                            problem from "sold out", with a different fix. */}
-                        {!row.soldOut && !row.inStock ? <span className="switch-note">No stock left</span> : null}
+                  align: "right",
+                  exportValue: (row) => row.totalStock ?? 0,
+                  render: (row) => {
+                    const stock = row.totalStock ?? 0;
+                    const isLow = stock > 0 && stock <= 5;
+                    const isOut = stock === 0 || row.soldOut;
+                    return (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            fontSize: "13.5px",
+                            color: isOut ? "#dc2626" : isLow ? "#d97706" : "#15803d",
+                          }}
+                        >
+                          {stock}
+                        </span>
+                        {isLow ? (
+                          <span
+                            style={{
+                              background: "#fef08a",
+                              color: "#854d0e",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              border: "1px solid #fde047",
+                            }}
+                          >
+                            Low
+                          </span>
+                        ) : isOut ? (
+                          <span
+                            style={{
+                              background: "#fee2e2",
+                              color: "#991b1b",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              border: "1px solid #fecaca",
+                            }}
+                          >
+                            Out
+                          </span>
+                        ) : null}
                       </div>
-                    ) : row.inStock ? (
-                      <Pill tone="ok">In stock</Pill>
-                    ) : (
-                      <Pill tone="danger">{row.soldOut ? "Sold out" : "Out"}</Pill>
-                    ),
+                    );
+                  },
                 },
                 {
                   key: "status",
                   label: "Status",
-                  render: (row) =>
-                    canManage && row.status !== "archived" ? (
-                      <Switch
-                        checked={row.status === "active"}
-                        onChange={(on) => quickUpdate(row, { status: on ? "active" : "hidden" })}
-                        disabled={busyId === row.id}
-                        tone="accent"
-                        onLabel="Active"
-                        offLabel={row.status === "draft" ? "Draft" : "Hidden"}
-                        title={row.status === "active" ? "Hide from the store" : "Publish to the store"}
-                      />
-                    ) : (
-                      <Pill tone={row.status === "active" ? "ok" : row.status === "draft" ? "warn" : undefined}>
-                        {row.status}
-                      </Pill>
-                    ),
+                  exportValue: (row) => {
+                    const stock = row.totalStock ?? 0;
+                    if (row.soldOut || stock === 0 || row.status === "hidden" || row.status === "draft") {
+                      return "Inactive";
+                    }
+                    if (stock <= 5) return "Low Stock";
+                    return "Active";
+                  },
+                  render: (row) => {
+                    const stock = row.totalStock ?? 0;
+                    const isLow = stock > 0 && stock <= 5;
+                    const isOut = stock === 0 || row.soldOut || row.status === "hidden" || row.status === "draft";
+                    const statusText = isOut ? "Inactive" : isLow ? "Low Stock" : "Active";
+                    const statusTone = isOut ? "danger" : isLow ? "warn" : "ok";
+
+                    return (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Pill
+                          tone={statusTone}
+                          style={
+                            isLow
+                              ? { background: "#fef08a", color: "#854d0e", borderColor: "#fde047", fontWeight: 700 }
+                              : undefined
+                          }
+                        >
+                          {statusText}
+                        </Pill>
+                        {canManage && row.status !== "archived" ? (
+                          <Switch
+                            checked={!row.soldOut && row.status === "active"}
+                            onChange={(on) => quickUpdate(row, { soldOut: !on, status: on ? "active" : "hidden" })}
+                            disabled={busyId === row.id}
+                            tone="accent"
+                            title={row.soldOut ? "Put back on sale" : "Toggle active status"}
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  },
                 },
                 {
                   key: "actions",
@@ -360,7 +428,7 @@ export default function Products() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(limit) => set("limit", limit)} />
           </>
         )}
       </Card>

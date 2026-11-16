@@ -215,7 +215,7 @@ const categories = [
     color: "#DCFCE7",
     seq: 1,
     isFeatured: true,
-    description: "Fresh produce, sourced daily from the local market.",
+    description: "Fresh produce, sourced daily direct from farmers.",
     features: {
       perishable: true,
       weightBased: true,

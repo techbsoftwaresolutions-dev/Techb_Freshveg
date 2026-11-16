@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { api } from "../../api/client";
+import { mimeOf, saveFile, stampedName } from "../../lib/saveFile";
 import { Banner } from "../../components/ui";
 import "./labels.css";
 import "./import.css";
@@ -22,7 +23,7 @@ export default function Import() {
     const ws = XLSX.utils.aoa_to_sheet([COLUMNS, ["TOM-1KG", "", 40, 45, 30, 0, 100]]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Products");
-    XLSX.writeFile(wb, "product-import-template.xlsx");
+    saveFile(new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array" })], { type: mimeOf("xlsx") }), `${stampedName("Product import template")}.xlsx`);
   };
 
   const readFile = async (file) => {
