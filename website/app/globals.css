@@ -2201,8 +2201,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .empty-state h2 { font-size: 20px; font-weight: 600; }
 .empty-state p { margin: 8px 0 0; color: var(--text-muted); font-size: 14px; }
 .empty-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 22px; }
-/* An empty shelf needs no filter column beside it. */
-.split.browse:has(.filters-empty) { grid-template-columns: minmax(0, 1fr); }
+/* An empty shelf needs no filter column beside it — except on category pages,
+   where that column also holds the department list and must always show. */
+.split.browse:not(.cat-layout):has(.filters-empty) { grid-template-columns: minmax(0, 1fr); }
 
 /* ---- search */
 .suggest-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -6px 0 22px; }
@@ -4145,6 +4146,36 @@ a.list-row:hover { background: var(--bg-alt); color: inherit; }
   .oc-main { gap: 12px; }
   .oc-thumb, .sk-thumb { width: 48px; height: 48px; }
   .order-list { max-width: 760px; }
+}
+
+/* wide screens: each order sits on one line —
+   id/date · thumbs · items/info · total · status · actions */
+@media (min-width: 900px) {
+  .order-list { max-width: none; }
+  .oc { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 24px; padding: 14px 20px; }
+  .oc-main {
+    flex: 1 1 0;
+    display: grid;
+    grid-template-columns: minmax(150px, auto) auto 1fr auto auto;
+    grid-template-areas:
+      "id thumbs count total badge"
+      "id thumbs info  total badge";
+    align-items: center;
+    column-gap: 24px;
+    row-gap: 2px;
+  }
+  .oc-top, .oc-sum { display: contents; }
+  .oc-id { grid-area: id; }
+  .oc-main .ob { grid-area: badge; justify-self: end; }
+  .oc-thumbs { grid-area: thumbs; }
+  .oc-count { grid-area: count; align-self: end; }
+  .oc-info { grid-area: info; align-self: start; margin: 0; }
+  .oc-total { grid-area: total; }
+  .oc-actions { flex: 0 0 auto; flex-wrap: nowrap; }
+  .oc-note { flex: 1 0 100%; margin-top: -16px; }
+
+  .oc-skel .oc-top { display: flex; gap: 24px; align-items: center; }
+  .oc-skel > .sk-line { flex: 1 1 0; }
 }
 
 /* phone: the app-style header replaces the site's; the card list gets room
@@ -6527,9 +6558,66 @@ body:has(.help-page) .search-form { display: none; }
   .cat-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; align-self: start; }
   .dept-nav { display: block; position: static; }
   .cat-side .filters { position: static; max-height: none; overflow: visible; }
-  .aisles.dept-nav .aisles-group:not(.open) .aisles-head { opacity: .9; }
-  .aisles.dept-nav .aisles-head.current { color: var(--brand-deep, #1f5d2b); font-weight: 700; }
 }
+
+/* Department list: same panel, heading and collapsible sections as Filters. */
+.dept-panel {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+/* the side column is a flex column that scrolls; its panels must keep their
+   full height instead of being squashed (which cut the list off) */
+.cat-side > * { flex-shrink: 0; }
+.dept-tree { display: flex; flex-direction: column; gap: 2px; padding-bottom: 12px; }
+.dept-section { border-radius: 10px; }
+.dept-section > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.dept-section > summary::-webkit-details-marker { display: none; }
+.dept-section > summary:hover { background: var(--brand-mist); }
+.dept-section > summary .icon-chevron { flex: 0 0 auto; color: var(--text-faint); transition: transform 0.15s; }
+.dept-section:not([open]) > summary .icon-chevron { transform: rotate(-90deg); }
+.dept-section > summary.current { color: var(--brand-dark); }
+.dept-root:not([open]) > summary .icon-chevron { transform: rotate(-90deg); }
+.dept-aisles { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 6px 20px; padding-left: 10px; border-left: 2px solid var(--border); }
+.dept-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dept-icon { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; object-fit: cover; color: var(--brand); }
+.dept-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+.dept-link:hover { background: var(--brand-mist); color: var(--brand-dark); }
+.dept-link.current { background: var(--brand); color: #fff; font-weight: 600; }
+.dept-count {
+  min-width: 24px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--bg-alt);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+}
+.dept-link.current .dept-count { background: rgba(255, 255, 255, 0.22); color: #fff; }
 @media (min-width: 1081px) {
   .split.cat-layout.has-rail > .cat-side { min-height: 0; max-height: 100%; overflow-y: auto; scrollbar-width: thin; align-self: stretch; }
 }

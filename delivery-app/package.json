@@ -9,8 +9,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web --port 8082",
     "clean:adb": "adb kill-server && adb start-server && adb devices",
-    "build:apk": "cd android && gradlew assembleRelease",
-    "build:apk:debug": "cd android && gradlew assembleDebug"
+    "build:apk": "node scripts/build-apk.js",
+    "build:apk:debug": "node scripts/build-apk.js --debug"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",

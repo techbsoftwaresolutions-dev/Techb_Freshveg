@@ -399,7 +399,8 @@ export default function General() {
         ) : null}
 
         {section === "print" ? (
-          // One page: the templates on the left, a live preview on the right.
+          // One page: all templates in a column on the left, the live preview
+          // of the picked one on the right.
           <FitToScreen className="print-layout">
             <div className="print-list" role="radiogroup" aria-label="Invoice template">
               {Object.entries(INVOICE_TEMPLATES).map(([key, tpl]) => {
@@ -410,6 +411,7 @@ export default function General() {
                     type="button"
                     role="radio"
                     aria-checked={on}
+                    title={tpl.description}
                     className={`print-item${on ? " on" : ""}`}
                     onClick={() => setDraft((d) => ({ ...d, invoiceTemplate: key }))}
                   >
@@ -417,11 +419,6 @@ export default function General() {
                       <i className="print-dot" style={{ background: `rgb(${tpl.accent.join(",")})` }} />
                       <strong>{tpl.label}</strong>
                       {on && <span className="print-check" aria-hidden="true">✓</span>}
-                    </span>
-                    <span className="print-tags">
-                      <span className="tag">{tpl.title}</span>
-                      <span className="tag">{tpl.logo ? "With logo" : "No logo"}</span>
-                      <span className="tag">{tpl.receipt ? "80mm" : "A4"}</span>
                     </span>
                   </button>
                 );
@@ -474,21 +471,45 @@ const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
 
 function InvoicePreview({ template }) {
   const html = useMemo(() => invoiceHtml(sampleInvoice(template)), [template]);
+  const receipt = Boolean(INVOICE_TEMPLATES[template]?.receipt);
+  // A4 pages use a fixed sheet; an 80mm bill is a narrow strip whose length
+  // depends on its content, so it is measured once the frame has loaded.
+  const [billH, setBillH] = useState(RECEIPT_H);
+  const pageW = receipt ? RECEIPT_W : PAGE_W;
+  const pageH = receipt ? billH : PAGE_H;
   const box = useRef(null);
-  const [fit, setFit] = useState(0.5); // scale at which the whole page fits
+  const [area, setArea] = useState(null); // inner size of the preview area
   const [zoom, setZoom] = useState(1); // multiple of `fit`
   useEffect(() => {
     const el = box.current;
     if (!el) return undefined;
     const observer = new ResizeObserver(() => {
       // Inner size, less the padding round the page.
-      const width = el.clientWidth - 24;
-      const height = el.clientHeight - 24;
-      setFit(Math.max(0.15, Math.min(width / PAGE_W, height / PAGE_H)));
+      setArea({ width: el.clientWidth - 24, height: el.clientHeight - 24 });
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+  useEffect(() => setZoom(1), [template]);
+  // A bill is shown at full width (up to 100%) and scrolls if it is long;
+  // an A4 page is scaled so the whole sheet fits.
+  const fit = !area
+    ? 0.5
+    : receipt
+      ? Math.max(0.3, Math.min(1, area.width / pageW, Math.max(area.height / pageH, 0.85)))
+      : Math.max(0.15, Math.min(area.width / pageW, area.height / pageH));
+  const measure = (event) => {
+    if (!receipt) return;
+    try {
+      // The bill element's own height: the document's scrollHeight would
+      // never drop below the frame's current height.
+      const bill = event.currentTarget.contentDocument?.querySelector(".rc");
+      const h = bill?.getBoundingClientRect().height;
+      if (h) setBillH(Math.ceil(h) + 4);
+    } catch {
+      // cross-origin or not ready: keep the default height
+    }
+  };
 
   const scale = fit * zoom;
   const step = (dir) =>
@@ -501,8 +522,13 @@ function InvoicePreview({ template }) {
   return (
     <div className="invoice-preview">
       <div className="invoice-scroll" ref={box}>
-        <div className="invoice-page" style={{ width: PAGE_W * scale, height: PAGE_H * scale }}>
-          <iframe title="Invoice preview" srcDoc={html} style={{ transform: `scale(${scale})` }} />
+        <div className="invoice-page" style={{ width: pageW * scale, height: pageH * scale }}>
+          <iframe
+            title="Invoice preview"
+            srcDoc={html}
+            onLoad={measure}
+            style={{ width: pageW, height: pageH, transform: `scale(${scale})` }}
+          />
         </div>
       </div>
       <div className="zoom-ctl" role="group" aria-label="Preview zoom">
@@ -517,3 +543,7 @@ function InvoicePreview({ template }) {
 
 const PAGE_W = 820;
 const PAGE_H = 1100;
+// 80mm counter bill: the bill's on-screen width (340px + padding) and a
+// starting height until the real one is measured.
+const RECEIPT_W = 380;
+const RECEIPT_H = 900;
