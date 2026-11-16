@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { storeOpen } from "@/lib/launch";
 import ComingSoonPage from "@/components/ComingSoonPage";
 import { useAuth, useCart } from "@/components/Providers";
 import AddressAreaSync from "@/components/AddressAreaSync";
 import { api } from "@/lib/client-api";
 import { rupees } from "@/lib/format";
+import { pendingCoupon, forgetCoupon } from "@/lib/pending-coupon";
 import { payWithRazorpay } from "@/lib/razorpay";
 import SavedAddresses from "@/components/SavedAddresses";
 import { useServiceability } from "@/lib/use-serviceability";
@@ -78,6 +79,31 @@ function CheckoutInner() {
 
   const summary = cart.summary;
   const appliedCoupon = (cart.offers?.applied || []).find((offer) => offer.code) || null;
+  // A coupon picked on the home page ("Shop Now") is applied once, as soon as
+  // the cart is here. If it doesn't fit this cart, the reason is shown in the
+  // coupon box with the code already typed in.
+  const autoCoupon = useRef(false);
+  useEffect(() => {
+    if (autoCoupon.current || !summary || !signedIn) return;
+    const code = pendingCoupon();
+    if (!code) return;
+    autoCoupon.current = true;
+    if (appliedCoupon?.code === code) {
+      forgetCoupon();
+      return;
+    }
+    cart
+      .applyCoupon(code)
+      .then(() => forgetCoupon())
+      .catch((err) => {
+        forgetCoupon();
+        setCouponCode(code);
+        setCouponError(err.message);
+        setCouponOpen(true);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summary, signedIn]);
+
   const couponSaving = appliedCoupon?.discount || 0;
   // Automatic offers keep their own row so the rows still add up to the total.
   const otherOfferSaving = Math.max(0, (summary?.offerDiscount || 0) - couponSaving);
@@ -350,7 +376,7 @@ function CheckoutInner() {
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Ring the bell twice, leave with the watchman"
+              placeholder="e.g. Ring the bell twice"
             />
           </section>
         </div>
@@ -465,7 +491,7 @@ function CheckoutInner() {
               </p>
             ) : !addressId ? (
               <p className="notice warn" style={{ marginTop: 14, marginBottom: 0 }}>
-                Add a delivery address to place this order.
+                Add an address to place your order.
               </p>
             ) : null}
 

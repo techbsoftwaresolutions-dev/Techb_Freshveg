@@ -353,6 +353,9 @@ async function transition(order, to, actor = {}, note = "") {
   // Tell the customer last, once the state change has actually stuck — a
   // notification about something that then failed to save is worse than none.
   await announce(order, to);
+  if (to === "ASSIGNED_TO_DELIVERY" && order.delivery?.partner) {
+    await announceDeliveryPartner(order);
+  }
 
   // Send owner-specific WhatsApp alert on key status changes
   notifyOwnerStatusUpdate(order, to).catch(() => {});
@@ -393,6 +396,19 @@ async function announce(order, status) {
         })
       : "shortly",
   });
+}
+
+async function announceDeliveryPartner(order) {
+  const orderId = order._id.toString();
+  await notificationService.notify(
+    order.delivery.partner,
+    "ASSIGNED_TO_DELIVERY",
+    { code: order.code, orderId },
+    {
+      audience: "delivery_partner",
+      data: { orderId },
+    }
+  );
 }
 
 // Sends owner-tailored WhatsApp notifications on key order lifecycle stages
@@ -683,6 +699,7 @@ async function assignDeliveryPartner(order, partnerId, actor) {
     return transition(order, "ASSIGNED_TO_DELIVERY", actor, `Assigned to ${partner.name}`);
   }
   await order.save();
+  await announceDeliveryPartner(order);
   return order;
 }
 

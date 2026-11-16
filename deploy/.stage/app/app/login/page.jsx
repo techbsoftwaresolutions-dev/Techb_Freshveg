@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/client-api";
@@ -19,7 +20,11 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/";
+  // Where to go after signing in. Checkout, orders and the like return the
+  // customer to what they were doing; signing in from the Account tab lands on
+  // the home page. Only on-site paths are accepted.
+  const wanted = params.get("next") || "/";
+  const next = !wanted.startsWith("/") || wanted.startsWith("//") || wanted === "/account" ? "/" : wanted;
   const { requestOtp, verifyOtp, signedIn } = useAuth();
 
   const [step, setStep] = useState("phone");
@@ -126,6 +131,15 @@ function LoginForm() {
 
   return (
     <div className="auth-page">
+      {/* Phone only: the logo and welcome sit on the green top, the form on a white sheet below. */}
+      <div className="auth-hero">
+        <Link href="/" className="auth-back" aria-label="Back to the shop">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+        </Link>
+        <span className="auth-hero-logo"><img src="/logo-mark.png" alt="Hosur Basket" width="92" height="76" /></span>
+        <h2>{step === "phone" ? "Login or sign up" : "Verify your number"}</h2>
+        <p>{step === "phone" ? "Fresh groceries, delivered fast." : `Code sent to +91 ${phone}`}</p>
+      </div>
       <div className="panel auth-card">
         <div className="auth-head">
           <img src="/logo-mark.png" alt="Hosur Basket" className="auth-logo" width="92" height="76" />
@@ -138,7 +152,7 @@ function LoginForm() {
         {step === "phone" ? (
           <form onSubmit={send}>
             <div className="field">
-              <label htmlFor="phone">Mobile number</label>
+              <label htmlFor="phone">Mobile number<b className="req"> *</b></label>
               <div className="phone-input">
                 <span>+91</span>
                 <input
@@ -184,6 +198,9 @@ function LoginForm() {
             <button className="btn primary block lg" disabled={phone.length !== 10 || busy}>
               {busy ? "Sending…" : "Continue"}
             </button>
+            <p className="auth-terms">
+              By continuing you agree to our <Link href="/terms">Terms &amp; Conditions</Link>
+            </p>
           </form>
         ) : (
           <form onSubmit={verify}>
@@ -192,7 +209,7 @@ function LoginForm() {
             </button>
 
             <div className="field">
-              <label htmlFor="code">One-time code</label>
+              <label htmlFor="code">One-time code<b className="req"> *</b></label>
               {rolling ? (
                 <OtpRoll
                   code={devCode}

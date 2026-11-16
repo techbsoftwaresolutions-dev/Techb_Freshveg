@@ -64,6 +64,13 @@ module.exports = [
     default: t("{{partner}} is collecting your order", "They'll pick up {{code}} from the store shortly.", "order:{{orderId}}"),
   },
   {
+    event: "ASSIGNED_TO_DELIVERY",
+    audience: "delivery_partner",
+    name: "New delivery assigned",
+    channels: ["push", "inapp"],
+    default: t("New delivery assigned", "Order {{code}} has been assigned to you. Open the app to view pickup details.", "delivery:{{orderId}}"),
+  },
+  {
     event: "PICKED_UP",
     name: "Picked up from store",
     channels: ["push", "inapp"],

@@ -144,7 +144,7 @@ export default function AddressForm({ address, onSaved, onCancel }) {
                 value={form.contactName}
                 onChange={set("contactName")}
               />
-              <span>Name *</span>
+              <span>Name<b className="req"> *</b></span>
             </label>
             <label className="ae-field" htmlFor={id("phone")}>
               <input
@@ -156,7 +156,7 @@ export default function AddressForm({ address, onSaved, onCancel }) {
                 value={form.contactPhone}
                 onChange={digits("contactPhone", 10)}
               />
-              <span>Contact number *</span>
+              <span>Contact number<b className="req"> *</b></span>
             </label>
           </div>
         </section>
@@ -199,17 +199,17 @@ export default function AddressForm({ address, onSaved, onCancel }) {
                   value={form.pincode}
                   onChange={digits("pincode", 6)}
                 />
-                <span>Pincode *</span>
+                <span>Pincode<b className="req"> *</b></span>
               </label>
               <label className="ae-field" htmlFor={id("city")}>
                 <input id={id("city")} type="text" placeholder=" " autoComplete="address-level2" value={form.city} onChange={set("city")} />
-                <span>City *</span>
+                <span>City<b className="req"> *</b></span>
               </label>
             </div>
 
             <label className="ae-field" htmlFor={id("line1")}>
               <input id={id("line1")} type="text" placeholder=" " autoComplete="address-line1" value={form.line1} onChange={set("line1")} />
-              <span>House no., building, street, area *</span>
+              <span>House no., building, street, area<b className="req"> *</b></span>
             </label>
 
             <label className="ae-field" htmlFor={id("landmark")}>

@@ -164,7 +164,7 @@ router.get(
   "/:id",
   canView,
   asyncHandler(async (req, res) => {
-    const ticket = await SupportTicket.findById(req.params.id).populate("order", "code status pricing items");
+    const ticket = await SupportTicket.findById(req.params.id).populate("order", "code status pricing items payment");
     if (!ticket) throw ApiError.notFound("Ticket not found");
     res.json({ success: true, ticket });
   })
@@ -201,6 +201,27 @@ router.patch(
     });
 
     res.json({ success: true, ticket });
+  })
+);
+
+// Removes a ticket and its whole thread. Any refund it triggered stays on the
+// order's own refund record, so no money history is lost.
+router.delete(
+  "/:id",
+  canManage,
+  asyncHandler(async (req, res) => {
+    const ticket = await SupportTicket.findById(req.params.id);
+    if (!ticket) throw ApiError.notFound("Ticket not found");
+
+    const before = audit.snapshot(ticket);
+    await ticket.deleteOne();
+
+    await audit.record({
+      req, action: "delete", entity: "SupportTicket", entityId: ticket._id,
+      label: ticket.code, before,
+    });
+
+    res.json({ success: true });
   })
 );
 

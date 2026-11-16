@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth, useCart } from "./Providers";
 import AddToCart from "./AddToCart";
 import FreeDeliveryProgress from "./FreeDeliveryProgress";
+import EmptyHero from "./EmptyHero";
 import { rupees } from "@/lib/format";
 import { gateCheckout } from "@/lib/launch";
 
@@ -55,10 +56,7 @@ export default function CartDrawer() {
         {cart.error ? <p className="notice error" role="alert">{cart.error}</p> : null}
         {!cart.cart && !cart.error ? <p role="status">Loading your cart…</p> : !cart.items.length ? (
           <div className="cart-drawer-empty">
-            <span aria-hidden="true">🛒</span>
-            <h3>Your cart is empty</h3>
-            <p>Add fresh fruit, vegetables and your everyday essentials.</p>
-            <button type="button" className="btn primary" onClick={close}>Continue shopping</button>
+            <EmptyHero before="Your" word="cart" after="is empty" cta="Continue shopping" onClick={close} />
           </div>
         ) : <>
           <FreeDeliveryProgress variant="compact" />

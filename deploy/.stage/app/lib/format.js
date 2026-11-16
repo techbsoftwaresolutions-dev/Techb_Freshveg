@@ -28,6 +28,11 @@ export function img(url, width = 600) {
   return url.replace("/image/upload/", `/image/upload/f_auto,q_auto,w_${width}/`);
 }
 
+export function categoryImage(category) {
+  if (category?.slug === "snacks") return "/snacks-category.webp";
+  return category?.image || "";
+}
+
 const LOCAL_PRODUCT_IMAGES = {
   tomato: "/products/tomato.jpg",
   onion: "/products/onion.jpg",

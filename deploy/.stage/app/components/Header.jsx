@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth, useCart, useStore } from "./Providers";
 import { FreeDeliveryNote } from "./FreeDeliveryProgress";
+import CouponNote from "./CouponNote";
 
 const SEARCH_HINTS = ["fruits", "vegetables", "milk", "bread", "eggs", "rice", "snacks", "soap", "groceries"];
 
@@ -35,6 +36,7 @@ export default function Header({ categories = [] }) {
     setTimeout(() => cart.refresh?.(), 0);
   };
   const placeLabel = [pincode, area].filter(Boolean).join(" · ") || store?.address?.city || "Set location";
+  const placeName = area || store?.address?.city || pincode || "Set location";
   const [openCategory, setOpenCategory] = useState(null);
   // Hover opens and closes a dropdown as the pointer moves through it, which
   // breaks the instant the pointer leaves the page to do anything else — to
@@ -203,6 +205,7 @@ export default function Header({ categories = [] }) {
         <div className="wrap utility-inner">
           <span className="utility-item utility-wide">Freshness You Can Trust</span>
           <FreeDeliveryNote className="utility-item utility-promo" withSeparator />
+          <CouponNote />
           <span className="utility-spacer" />
           <Link href="/help" className="utility-item utility-wide">
             <IconHelp className="utility-icon" />
@@ -302,10 +305,8 @@ export default function Header({ categories = [] }) {
         </form>
 
         <div className="header-actions">
-          {/* Icon only — the place name lives in the tooltip / screen-reader
-              label (read from localStorage, so only the client knows it). */}
           <button
-            className="header-btn icon-only"
+            className="header-btn location-btn"
             onClick={() => setPinOpen((v) => !v)}
             aria-expanded={pinOpen}
             aria-label={`Location: ${placeLabel}`}
@@ -313,6 +314,11 @@ export default function Header({ categories = [] }) {
             suppressHydrationWarning
           >
             <IconPin className="header-btn-icon" />
+            <span className="location-copy">
+              <span className="location-label">Location</span>
+              <span className="location-name">{placeName}</span>
+            </span>
+            <IconCaret className="location-caret" />
           </button>
 
           {/* The location card floats under the pin icon, so it takes no space in the page. */}
