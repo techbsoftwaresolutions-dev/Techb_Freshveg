@@ -230,6 +230,14 @@ export default function EditProfilePage() {
             hidden
             onChange={(e) => changePhoto(e.target.files?.[0])}
           />
+          <button
+            type="button"
+            className="edit-photo-link"
+            onClick={() => fileInput.current?.click()}
+            disabled={photoBusy}
+          >
+            {photoBusy ? "Uploading…" : photo ? "Change photo" : "Add profile photo"}
+          </button>
           <div className="edit-profile-who">
             <strong>{form.name || user.name}</strong>
             <span>+91 {user.phone}</span>

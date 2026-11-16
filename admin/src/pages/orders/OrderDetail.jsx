@@ -173,8 +173,16 @@ export default function OrderDetail() {
   async function currentInvoice() {
     // Read the template fresh each time, so a change in Settings -> Print
     // applies to the very next print or download.
-    const { header, template } = await loadInvoiceSetup(order.store);
-    return buildInvoice(order, header, {
+    // The invoice gets its own number (STORE/FY/00001), separate from the
+    // order number; the server issues it the first time it is needed.
+    const [{ header, template }, invoiceNo] = await Promise.all([
+      loadInvoiceSetup(order.store),
+      order.invoiceNo
+        ? order.invoiceNo
+        : api.post(`/orders/${order.id}/invoice-number`).then((r) => r.invoiceNo).catch(() => ""),
+    ]);
+    if (invoiceNo && invoiceNo !== order.invoiceNo) setOrder((o) => (o ? { ...o, invoiceNo } : o));
+    return buildInvoice({ ...order, invoiceNo: invoiceNo || order.invoiceNo }, header, {
       template,
       packLabel: (item) => formatPackSize(item.packSize, item.variantName),
       statusLabel: statuses[order.status]?.label,

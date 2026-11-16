@@ -7,6 +7,10 @@ export default {
     // IDs below are permanent once the app is in a store.
     name: "Hosur Basket",
     slug: "commerce-customer-app",
+    // The Expo account that owns the EAS project below (same account as the
+    // delivery app). The project used to point at another person's account,
+    // which made every `eas build` fail with "Entity not authorized".
+    owner: "baranidharansm098",
     version: "0.1.0",
     orientation: "portrait",
     userInterfaceStyle: "light",
@@ -44,7 +48,8 @@ export default {
       apiBaseUrl: process.env.API_BASE_URL,
       // Website used for shared product links (src/components/ShareRow.js).
       webBaseUrl: process.env.WEB_BASE_URL,
-      eas: { projectId: "7eb234bb-513d-4593-b9ed-7e9697189a13" },
+      // @baranidharansm098/commerce-customer-app on expo.dev
+      eas: { projectId: "b9efc147-1c4f-4463-b5e0-2587129e4e0b" },
     },
   },
 };

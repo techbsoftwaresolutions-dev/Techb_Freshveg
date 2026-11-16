@@ -69,3 +69,11 @@ backend/uploads/
 
 # Firebase Android config contains project identifiers and must stay local.
 delivery-app/google-services.json
+
+# Customer app: android/ is generated from app.config.js by `expo prebuild`
+# (npm run build:apk). Kept out of git so EAS also builds from app.config.js.
+customer-app/android/
+customer-app/ios/
+# Local APK build output and the build script's path marker.
+dist-apk/
+.gradle-home-used

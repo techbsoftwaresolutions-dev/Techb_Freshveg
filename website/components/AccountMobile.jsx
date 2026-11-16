@@ -123,10 +123,10 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
           <IconBag />
           <span>Your orders</span>
         </Link>
-        <div className="ah-quick-tile">
+        <Link href="/account/wallet" className="ah-quick-tile">
           <IconWallet width={26} height={26} />
           <span>Wallet {rupees(user.walletBalance)}</span>
-        </div>
+        </Link>
         <Link href="/help" className="ah-quick-tile">
           <IconHeadset width={26} height={26} />
           <span>Need help?</span>

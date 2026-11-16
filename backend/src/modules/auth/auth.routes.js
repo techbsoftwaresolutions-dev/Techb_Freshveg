@@ -261,6 +261,33 @@ router.get(
   })
 );
 
+// The customer's own wallet: balance plus the ledger rows that explain it.
+router.get(
+  "/me/wallet",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const walletService = require("../wallet/wallet.service");
+    const [balance, rows] = await Promise.all([
+      walletService.balanceOf(req.user.id),
+      walletService.history(req.user.id, { limit: 100 }),
+    ]);
+    res.json({
+      success: true,
+      balance,
+      transactions: rows.map((t) => ({
+        id: t.id,
+        amount: t.amount,
+        balanceAfter: t.balanceAfter,
+        reason: t.reason,
+        note: t.note,
+        orderCode: t.orderCode,
+        order: t.order ? String(t.order) : null,
+        createdAt: t.createdAt,
+      })),
+    });
+  })
+);
+
 router.patch(
   "/me",
   requireAuth,
