@@ -3,7 +3,7 @@ const { dateBounds } = require("../../core/dateRange");
 const QRCode = require("qrcode");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
-const { paginate } = require("../../core/query");
+const { paginate, escapeRegex } = require("../../core/query");
 const {
   requireAuth,
   requirePermission,
@@ -215,6 +215,30 @@ router.get(
     else if (req.query.channel === "online") filter.source = { $ne: "pos" };
     const placed = dateBounds(req.query.from, req.query.to);
     if (placed) filter.placedAt = placed;
+
+    // ?q= — anything on the bill: order id, bill / invoice number, customer
+    // name, phone or email, an item's name, size or code, or the amount
+    // (e.g. 676 or 676.00).
+    const q = String(req.query.q || "").trim().slice(0, 60);
+    if (q) {
+      const rx = new RegExp(escapeRegex(q), "i");
+      const or = [
+        { code: rx },
+        { invoiceNo: rx },
+        { "customerSnapshot.name": rx },
+        { "customerSnapshot.phone": rx },
+        { "customerSnapshot.email": rx },
+        { "items.name": rx },
+        { "items.variantName": rx },
+        { "items.sku": rx },
+        { cashierName: rx },
+      ];
+      const amount = Number(q.replace(/[₹,\s]/g, ""));
+      if (q.replace(/[₹,\s]/g, "") !== "" && Number.isFinite(amount) && amount > 0) {
+        or.push({ "pricing.total": Math.round(amount * 100) });
+      }
+      filter.$or = or;
+    }
 
     // ?view=summary: just what a glance list shows (dashboard, notification bell), about 1/20th
     // of a full order. Lean documents, so no Mongoose overhead either.

@@ -3,6 +3,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import ProductCard from "./ProductCard";
+import { isReturning, listingKey } from "./ListingScrollMemory";
 import { MorphingSquare } from "./ui/morphing-square";
 
 // On every screen size: instead of page links, the rest of the catalogue loads
@@ -39,6 +40,36 @@ export default function InfiniteProducts({ query, startPage, pages, seenIds = []
   const seen = useRef(new Set(seenIds));
 
   const done = next > pages;
+
+  // Coming back from a product: put back the pages that were loaded before,
+  // so the spot the shopper scrolled to exists again (ListingScrollMemory then
+  // scrolls to it). Saved per listing address, for this browser tab only.
+  const storeKey = useRef("");
+  const restored = useRef(false);
+  useEffect(() => {
+    storeKey.current = `${listingKey()}:pages`;
+    if (!isReturning()) return;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(storeKey.current) || "null");
+      if (saved?.query === JSON.stringify(query) && Array.isArray(saved.chunks) && saved.chunks.length) {
+        saved.chunks.forEach((chunk) => chunk.items.forEach((item) => seen.current.add(item.id)));
+        restored.current = true;
+        setChunks(saved.chunks);
+        setNext(saved.next);
+      }
+    } catch {
+      // nothing saved, or unreadable: load as usual
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!storeKey.current) return;
+    try {
+      sessionStorage.setItem(storeKey.current, JSON.stringify({ query: JSON.stringify(query), chunks, next }));
+    } catch {
+      // storage full: going back will just reload from the first page
+    }
+  }, [chunks, next, query]);
 
   useEffect(() => {
     if (done || failed || !sentinel.current) return undefined;

@@ -287,24 +287,95 @@ async function buildFacets(fields, productMatch, knownIds) {
   return facets.filter(Boolean);
 }
 
-// Price ceilings drawn from what this shelf actually costs, each with how many
-// products it keeps, worked out from shelf rows already in hand. A band that
-// keeps nothing is dropped; one that keeps everything is too, since choosing
-// it would change nothing.
+// Price ranges drawn from what this shelf actually costs, each with how many
+// products fall in it, worked out from shelf rows already in hand. The ranges
+// do not overlap ("Under ₹50", "₹50 – ₹100", …, "Above ₹200"), so a shopper can
+// tick several at once (?price=0-5000,10000-20000, in paise). A range that
+// keeps nothing is dropped; a single range that keeps everything is too, since
+// choosing it would change nothing.
 function priceBandsFrom(rows, max, total) {
   if (!max) return [];
-  const ceiling = Math.ceil(max / 100);
-  const steps = [...new Set([0.25, 0.5, 0.75].map((f) => Math.round((ceiling * f) / 10) * 10))].filter(
-    (rupees) => rupees > 0
-  );
-  const bands = steps.map((rupees) => ({
-    max: rupees * 100,
-    label: `Under ₹${rupees}`,
-    count: rows.filter((r) => typeof r.priceFrom === "number" && r.priceFrom <= rupees * 100).length,
-  }));
-  return bands.filter(
-    (band, i) => band.count > 0 && band.count < total && band.count !== bands[i - 1]?.count
-  );
+  const priced = rows.filter((r) => typeof r.priceFrom === "number");
+  if (!priced.length) return [];
+  // Cut where the products' prices actually sit (a quarter, half and three
+  // quarters of them), not at fractions of the dearest item: one ₹980 tin of
+  // oil would otherwise put every ₹20 vegetable in the same range. Rounded to
+  // amounts a shopper reads easily (₹20, ₹50, ₹100, ₹250…).
+  const sorted = priced.map((r) => r.priceFrom / 100).sort((a, b) => a - b);
+  const at = (f) => sorted[Math.min(sorted.length - 1, Math.floor(f * sorted.length))];
+  const tidy = (rupees) => {
+    const step = rupees <= 20 ? 5 : rupees <= 100 ? 10 : rupees <= 500 ? 50 : 100;
+    return Math.max(step, Math.round(rupees / step) * step);
+  };
+  const top = sorted[sorted.length - 1];
+  const cuts = [...new Set([0.25, 0.5, 0.75].map((f) => tidy(at(f))))]
+    .filter((rupees) => rupees > sorted[0] && rupees <= top)
+    .sort((a, b) => a - b);
+  const edges = [0, ...cuts.map((r) => r * 100), Infinity];
+  const bands = [];
+  for (let i = 0; i < edges.length - 1; i += 1) {
+    const lo = edges[i];
+    const hi = edges[i + 1];
+    const count = priced.filter((r) => r.priceFrom >= lo && (hi === Infinity ? true : r.priceFrom < hi)).length;
+    const rupees = (paise) => `₹${Math.round(paise / 100)}`;
+    const label = lo === 0 ? `Under ${rupees(hi)}` : hi === Infinity ? `Above ${rupees(lo)}` : `${rupees(lo)} – ${rupees(hi)}`;
+    bands.push({
+      value: `${lo}-${hi === Infinity ? "" : hi}`,
+      min: lo,
+      max: hi === Infinity ? null : hi,
+      label,
+      count,
+    });
+  }
+  const kept = bands.filter((band) => band.count > 0);
+  return kept.length === 1 && kept[0].count === total ? [] : kept;
+}
+
+// ?price=0-5000,10000-20000 (paise; an empty top means "and above") -> a match
+// on the product's lowest price that keeps any of the ticked ranges.
+function priceRangeFilter(param) {
+  const ranges = String(param || "")
+    .split(",")
+    .map((part) => /^(\d{0,9})-(\d{0,9})$/.exec(part.trim()))
+    .filter(Boolean)
+    .map(([, lo, hi]) => {
+      const cond = {};
+      if (lo !== "") cond.$gte = Number(lo);
+      if (hi !== "") cond.$lt = Number(hi);
+      return Object.keys(cond).length ? { priceFrom: cond } : null;
+    })
+    .filter(Boolean);
+  if (!ranges.length) return null;
+  return ranges.length === 1 ? ranges[0] : { $or: ranges };
+}
+
+// Brands, price ranges and stock counts for a set of products (the "shelf"),
+// worked out from one read of it. Shared by a category landing and the
+// all-products listing.
+async function shelfFacets(shelf, buyable) {
+  const rows = await Product.find(shelf).select("_id priceFrom priceTo brand soldOut inStock").lean();
+  const total = rows.length;
+  const buyableIds = buyable?._id ? new Set(buyable._id.$in.map(String)) : null;
+  const inStockCount = rows.filter((r) =>
+    buyableIds ? buyableIds.has(String(r._id)) && r.soldOut !== true : r.inStock === true
+  ).length;
+  const prices = rows.map((r) => r.priceFrom).filter((v) => typeof v === "number");
+  const tops = rows.map((r) => r.priceTo).filter((v) => typeof v === "number");
+  const band = total ? { min: prices.length ? Math.min(...prices) : 0, max: tops.length ? Math.max(...tops) : 0 } : null;
+  const brandRows = [...rows.reduce((map, r) => (r.brand ? map.set(String(r.brand), (map.get(String(r.brand)) || 0) + 1) : map), new Map())];
+  // A single brand that makes up the whole shelf is not a choice.
+  const brandCount = new Map(brandRows.every(([, count]) => count === total) ? [] : brandRows);
+  const brandDocs = await Brand.find({ _id: { $in: [...brandCount.keys()] }, status: "active" }).select("name slug logo");
+  const brands = brandDocs
+    .map((brand) => ({ ...brand.toJSON(), count: brandCount.get(brand.id) || 0 }))
+    .sort((x, y) => y.count - x.count || x.name.localeCompare(y.name));
+  return {
+    rows,
+    brands,
+    priceRange: { min: band?.min || 0, max: band?.max || 0 },
+    priceBands: priceBandsFrom(rows, band?.max || 0, total),
+    availability: { total, inStock: inStockCount },
+  };
 }
 
 // ---------------------------------------------------------------- discovery
@@ -600,30 +671,10 @@ router.get(
     // being browsed, so it only ever offers choices that return something.
     const shelf = { categoryPath: { $in: ids }, status: "active" };
 
-    // One read of the shelf's products; price range, brand counts, totals and
-    // price bands are worked out from it here rather than one query each.
-    const rows = await Product.find(shelf).select("_id priceFrom priceTo brand soldOut inStock").lean();
-    const total = rows.length;
-    const buyableIds = buyable._id ? new Set(buyable._id.$in.map(String)) : null;
-    const inStockCount = rows.filter((r) =>
-      buyableIds ? buyableIds.has(String(r._id)) && r.soldOut !== true : r.inStock === true
-    ).length;
-    const prices = rows.map((r) => r.priceFrom).filter((v) => typeof v === "number");
-    const tops = rows.map((r) => r.priceTo).filter((v) => typeof v === "number");
-    const band = total ? { min: prices.length ? Math.min(...prices) : 0, max: tops.length ? Math.max(...tops) : 0 } : null;
-    const brandRows = [...rows.reduce((map, r) => (r.brand ? map.set(String(r.brand), (map.get(String(r.brand)) || 0) + 1) : map), new Map())];
-
-    // Same rule as the attribute facets: a single brand that makes up the
-    // whole shelf is not a choice.
-    const brandCount = new Map(brandRows.every(([, count]) => count === total) ? [] : brandRows);
-    const [brandDocs, facets] = await Promise.all([
-      Brand.find({ _id: { $in: [...brandCount.keys()] }, status: "active" }).select("name slug logo"),
-      buildFacets(schema.filters, shelf, rows.map((r) => r._id)),
-    ]);
-    const priceBands = priceBandsFrom(rows, band?.max || 0, total);
-    const brands = brandDocs
-      .map((brand) => ({ ...brand.toJSON(), count: brandCount.get(brand.id) || 0 }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    // One read of the shelf's products; price ranges, brand counts and
+    // totals come from it (shelfFacets), the attribute facets alongside.
+    const { rows, brands, priceRange, priceBands, availability } = await shelfFacets(shelf, buyable);
+    const facets = await buildFacets(schema.filters, shelf, rows.map((r) => r._id));
 
     res.json({
       success: true,
@@ -643,11 +694,30 @@ router.get(
       // what a filter UI should render.
       facets,
       brands,
-      priceRange: { min: band?.min || 0, max: band?.max || 0 },
+      priceRange,
       priceBands,
       // Offered only when it would actually hide something.
-      availability: { total, inStock: inStockCount },
+      availability,
     });
+  })
+);
+
+// Filters for the all-products listing (/c), optionally narrowed to one
+// department (?category=<slug>): brands, price ranges and stock — the same
+// shapes a category landing returns.
+router.get(
+  "/facets",
+  cacheResponse(60),
+  asyncHandler(async (req, res) => {
+    let shelf = { status: "active" };
+    if (req.query.category) {
+      const category = await categoryBySlug(req.query.category);
+      if (!category) throw ApiError.notFound("Category not found");
+      shelf = { categoryPath: { $in: await descendantIds(category._id) }, status: "active" };
+    }
+    const buyable = await resolveStore(req).then(buyableAt);
+    const { brands, priceRange, priceBands, availability } = await shelfFacets(shelf, buyable);
+    res.json({ success: true, brands, priceRange, priceBands, availability });
   })
 );
 
@@ -716,6 +786,8 @@ router.get(
       ];
     }
 
+    const priceMatch = priceRangeFilter(req.query.price);
+    if (priceMatch) filter.$and = [...(filter.$and || []), priceMatch];
     if (req.query.minPrice || req.query.maxPrice) {
       filter.priceFrom = {};
       if (req.query.minPrice) filter.priceFrom.$gte = Number(req.query.minPrice);

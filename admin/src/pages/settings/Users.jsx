@@ -162,7 +162,7 @@ export default function Users() {
         ) : (
           <>
             <Table
-              title="Users"
+              title="Users" search={false}
               columns={[
                 {
                   key: "name",

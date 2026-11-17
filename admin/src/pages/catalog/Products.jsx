@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -6,6 +7,33 @@ import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees, useConfirm, ChipExpand } from "../../components/ui";
 
 const OFFER_LABEL = { discount: "Discount", special: "Special offer", combo: "Combo offer" };
+// QR pictures by value, kept for the page's life so the table and the Word /
+// PDF downloads use the same image without drawing it twice.
+const qrCache = new Map();
+
+function QrCell({ value }) {
+  const [url, setUrl] = useState(() => (value ? qrCache.get(value) || "" : ""));
+  useEffect(() => {
+    if (!value) return undefined;
+    if (qrCache.has(value)) {
+      setUrl(qrCache.get(value));
+      return undefined;
+    }
+    let alive = true;
+    QRCode.toDataURL(value, { margin: 1, width: 160 })
+      .then((data) => {
+        qrCache.set(value, data);
+        if (alive) setUrl(data);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [value]);
+  if (!value) return <span className="muted">—</span>;
+  return url ? <img className="qr-cell" src={url} alt={`QR code ${value}`} title={value} /> : <span className="qr-cell qr-wait" />;
+}
+
 // Readable names for the stored product unit codes.
 const UNIT_NAME = { pcs: "piece", piece: "piece", pack: "pack", bunch: "bunch", kg: "kg" };
 
@@ -154,7 +182,7 @@ export default function Products() {
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input
             type="search"
-            placeholder="Search products…"
+            placeholder="Search by name, product code or barcode…"
             value={filters.search}
             onChange={(e) => set("search", e.target.value)}
           />
@@ -182,7 +210,7 @@ export default function Products() {
         ) : (
           <>
             <Table
-              title="Products"
+              title="Products" search={false}
               columns={[
                 ...(canManage
                   ? [
@@ -199,7 +227,7 @@ export default function Products() {
                   : []),
                 {
                   key: "name",
-                  label: "Product",
+                  label: "Product name",
                   exportValue: (row) => row.name || "",
                   render: (row) => {
                     const media = row.media?.[0];
@@ -227,6 +255,13 @@ export default function Products() {
                       </div>
                     );
                   },
+                },
+                {
+                  // The main variant's SKU — what the QR code and labels carry.
+                  key: "code",
+                  label: "Product code",
+                  exportValue: (row) => row.code || "",
+                  render: (row) => (row.code ? <span className="code-cell">{row.code}</span> : "—"),
                 },
                 {
                   key: "offer",
@@ -262,6 +297,13 @@ export default function Products() {
                   render: (row) => <span className="unit-cell">1 {UNIT_NAME[row.unit] || row.unit || "piece"}</span>,
                 },
                 {
+                  key: "variantCount",
+                  label: "Variants",
+                  align: "right",
+                  exportValue: (row) => row.variantCount || 0,
+                  render: (row) => row.variantCount || 0,
+                },
+                {
                   key: "price",
                   label: "Price",
                   align: "right",
@@ -277,13 +319,6 @@ export default function Products() {
                         : `${rupees(row.priceFrom)} - ${rupees(row.priceTo)}`}
                     </strong>
                   ),
-                },
-                {
-                  key: "variantCount",
-                  label: "Variants",
-                  align: "right",
-                  exportValue: (row) => row.variantCount || 0,
-                  render: (row) => row.variantCount || 0,
                 },
                 {
                   key: "totalStock",
@@ -380,6 +415,17 @@ export default function Products() {
                       </div>
                     );
                   },
+                },
+                {
+                  // QR of the barcode (or the code when there is none) — the
+                  // same thing the POS labels print. Word and PDF downloads
+                  // carry the picture; CSV and Excel the code it holds.
+                  key: "qr",
+                  label: "QR code",
+                  sortable: false,
+                  exportValue: (row) => row.barcode || row.code || "",
+                  exportImage: (row) => qrCache.get(row.barcode || row.code) || null,
+                  render: (row) => <QrCell value={row.barcode || row.code} />,
                 },
                 {
                   key: "actions",

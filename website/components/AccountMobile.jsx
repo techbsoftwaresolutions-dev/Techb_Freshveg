@@ -106,7 +106,7 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
 
         <span className="ah-avatar-wrap">
           <span className="ah-avatar" aria-hidden="true">
-            {user.avatar ? <img className="avatar-photo" src={user.avatar} alt="" /> : user.name ? initials : <IconUser width={44} height={44} />}
+            {user.name ? initials : <IconUser width={44} height={44} />}
           </span>
           <Link href="/account/edit" className="ah-avatar-edit" aria-label="Edit profile" title="Edit profile">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

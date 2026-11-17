@@ -222,3 +222,64 @@ img.pos-thumb { border: 1px solid var(--border); padding: 2px; box-sizing: borde
   .pos-head h1 { font-size: 24px; }
 }
 .pos-nomatch { padding: 14px 16px; color: var(--text-muted); font-size: 14px; }
+
+/* ---- One screen, no page scroll (wide screens, non-terminal templates) ----
+   .pos-fit gets its height from Pos.jsx (window height minus the top bar).
+   Header and scan bar keep their size; the bill list takes the free height
+   and scrolls inside; the payment column scrolls inside if it ever must. */
+.pos-total { font-size: 22px; padding: 11px 16px; margin: 6px 0 12px; border-radius: 14px; }
+.pos-total span:first-child { font-size: 13px; }
+@media (min-width: 1001px) {
+  .pos.pos-fit { display: flex; flex-direction: column; gap: 10px; padding: 12px 18px 14px; overflow: hidden; }
+  .pos-fit > .pos-head { flex: none; }
+  .pos-fit .pos-head h1 { font-size: 22px; }
+  .pos-fit .pos-meta { margin-top: 2px; }
+  .pos-fit .pos-chip-btn { padding: 7px 14px; font-size: 14px; }
+  .pos-fit > .pos-grid { flex: 1; min-height: 0; align-items: stretch; gap: 12px; }
+  .pos-fit .pos-col { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .pos-fit .pos-col > * { flex: none; }
+  .pos-fit .pos-col > .pos-panel:first-child { padding: 10px; }
+  .pos-fit .pos-scan input { padding: 10px 0 !important; font-size: 15px; }
+  .pos-fit .pos-panel { padding: 12px 16px; }
+  .pos-fit .pos-panel-head { margin-bottom: 8px; }
+  .pos-fit .pos-panel h2 { font-size: 15.5px; }
+  .pos-fit .pos-h-ico { width: 28px; height: 28px; }
+  .pos-fit .pos-sm-btn { padding: 6px 12px; font-size: 12.5px; }
+  .pos-fit .pos-cat { padding: 6px 13px; }
+
+  /* Bill: takes whatever height is left; rows scroll inside. */
+  .pos-fit .pos-col > .pos-bill { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .pos-fit .pos-bill .pos-table-wrap { flex: 1; min-height: 0; max-height: none; }
+  .pos-fit .pos-bill .pos-empty-rich { flex: 1; align-content: center; padding: 10px; }
+  .pos-fit .pos-table td { padding: 6px 8px; }
+  .pos-fit .pos-thumb { width: 36px; height: 36px; }
+
+  /* Quick add: one short row. */
+  .pos-fit .pos-quick { padding: 10px 14px; }
+  .pos-fit .pos-quick .pos-panel-head { margin-bottom: 6px; }
+  .pos-fit .pos-quick-row .pos-tile { flex-basis: 128px; padding: 7px 8px 9px; gap: 2px; }
+  .pos-fit .pos-tile .pos-thumb { width: 100%; height: 44px; }
+  .pos-fit .pos-tile b { font-size: 12.5px; }
+  .pos-fit .pos-tile i { width: 22px; height: 22px; right: 6px; bottom: 6px; }
+  .pos-fit .pos-quick .pos-empty-rich { padding: 8px; }
+
+  /* Payment: compact rows, scrolls inside on short screens. */
+  .pos-fit .pos-grid > .pos-payment { position: static; min-height: 0; overflow-y: auto; scrollbar-width: thin; padding: 12px 16px; }
+  .pos-fit .pos-sum { padding: 6px 0; font-size: 13.5px; }
+  .pos-fit .pos-sum input { padding: 6px 10px; }
+  .pos-fit .pos-methods { gap: 8px; margin: 6px 0 8px; }
+  .pos-fit .pos-method { padding: 8px 4px; font-size: 13.5px; gap: 2px; }
+  .pos-fit .pos-method svg { height: 22px; }
+  .pos-fit .pos-pay { margin-top: 10px; padding: 12px; font-size: 15px; }
+  .pos-fit .pos-pay-row { margin-top: 8px; gap: 8px; }
+  .pos-fit .pos-pay-row button { padding: 9px; font-size: 13.5px; }
+}
+
+/* Bill preview: shown on Pay; the bill is saved only on "Print bill". */
+.pos-modal.pos-review { width: min(760px, 100%); max-height: 92vh; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.pos-review .pos-panel-head { margin: 0; }
+.pos-review-total { font-size: 20px; font-weight: 800; color: var(--g-dark); }
+.pos-review-frame { flex: 1; min-height: 320px; height: 62vh; width: 100%; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.pos-review-note { margin: 0; font-size: 13px; color: var(--text-muted); }
+.pos-review-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pos-review-actions .pos-review-print { width: auto; margin: 0 0 0 auto; padding: 12px 22px; font-size: 15px; }

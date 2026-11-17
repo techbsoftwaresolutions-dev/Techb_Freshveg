@@ -110,7 +110,7 @@ export default function Brands() {
         ) : (
           <>
             <Table
-              title="Brands"
+              title="Brands" search={false}
               columns={[
                 {
                   key: "name",

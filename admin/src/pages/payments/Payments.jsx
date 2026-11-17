@@ -98,7 +98,7 @@ function Transactions() {
       <div className="toolbar">
         <input
           type="search"
-          placeholder="Search by order code…"
+          placeholder="Search order code, payment id, customer, phone, method or amount…"
           value={filters.search}
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 200 }}
@@ -127,7 +127,7 @@ function Transactions() {
         ) : (
           <>
             <Table
-              title="Transactions"
+              title="Transactions" search={false}
               columns={[
                 {
                   key: "order",

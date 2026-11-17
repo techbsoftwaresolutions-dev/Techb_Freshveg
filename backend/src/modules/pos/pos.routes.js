@@ -356,6 +356,8 @@ router.get(
         store: store.name,
         storeId: String(store._id),
         template: settings.pos?.template || "standard",
+        // How the POS bill prints (Settings -> Print -> POS bill).
+        posTemplate: settings.print?.posTemplate || "pos_manual",
       },
     });
   })

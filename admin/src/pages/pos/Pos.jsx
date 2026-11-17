@@ -7,6 +7,8 @@ import {
   loadCatalogue, printInvoice, queued, saveCatalogue,
 } from "./billing";
 import PosTerminal from "./PosTerminal";
+import { DEFAULT_POS_TEMPLATE, posBillHtml } from "./posBill";
+import { openPrintWindow } from "../../lib/printFit";
 import "./pos.css";
 import "./pos-terminal.css";
 
@@ -126,6 +128,21 @@ export default function Pos() {
   const canDiscount = can("pos.discount");
   const scanRef = useRef(null);
   const quickRef = useRef(null);
+  // The billing screen fills the window below the top bar exactly, so the
+  // page never scrolls: the bill list and payment column scroll inside.
+  const rootRef = useRef(null);
+  const [fitHeight, setFitHeight] = useState(null);
+  useEffect(() => {
+    const fit = () => {
+      const el = rootRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setFitHeight(window.innerWidth > 1000 ? Math.max(520, window.innerHeight - top) : null);
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  });
   const charging = useRef(false);
   const billId = useRef(crypto.randomUUID());
 
@@ -141,6 +158,9 @@ export default function Pos() {
   const [cat, setCat] = useState("All");
   const [held, setHeld] = useState(() => read(HELD_KEY, []));
   const [modal, setModal] = useState(null); // "held" | "past"
+  // Pay shows the bill first; it is saved and the screen cleared only when
+  // "Print bill" is pressed — until then it can still be edited or held.
+  const [review, setReview] = useState(false);
   const [past, setPast] = useState([]);
   const [msg, setMsg] = useState(null);
   const [online, setOnline] = useState(navigator.onLine);
@@ -308,36 +328,58 @@ export default function Pos() {
     try { setPast((await api.get("/pos/sales")).items); } catch (e) { setPast([]); setMsg({ tone: "danger", text: e.message }); }
   };
 
-  const charge = async () => {
+  // The sale as it would be sent — used for the preview and the save alike.
+  const buildSale = () => ({
+    // One id per bill: pressing Pay again for the same bill is recognised by the server.
+    clientId: billId.current,
+    store: header?.storeId,
+    items: lines.map((l) => ({ variantId: l.id, quantity: l.qty, ...(l.price !== (l.basePrice ?? l.price) ? { unitPrice: l.price } : {}) })),
+    discount: bill.discount,
+    // Change is not revenue: the payments recorded always add up to the bill total.
+    payments: method === "split" ? splitPayments(split, bill.total) : [{ method, amount: bill.total }],
+    customerPhone: customer?.phone || undefined,
+    customerName: customer?.name || undefined,
+    soldAt: new Date().toISOString(),
+  });
+
+  // A preview of an emptied bill (held or cleared) closes itself.
+  useEffect(() => {
+    if (review && !lines.length) setReview(false);
+  }, [review, lines.length]);
+
+  // Step 1 (Pay / F9): show the bill. Nothing is saved or cleared yet.
+  const charge = () => {
+    if (!canPay || charging.current) return;
+    setReview(true);
+  };
+
+  // Step 2 ("Print bill" / F9 in the preview): save, print, then clear for
+  // the next customer. The print window opens right away, before the save, so
+  // the browser does not block it as a pop-up; the bill is written into it
+  // once the server has given it its number.
+  const confirmPrint = async () => {
     if (!canPay || charging.current) return;
     charging.current = true; // synchronous: a double click or held F9 cannot start a second save
     setBusy(true);
-    const sale = {
-      // One id per bill: pressing Pay again for the same bill is recognised by the server.
-      clientId: billId.current,
-      store: header?.storeId,
-      items: lines.map((l) => ({ variantId: l.id, quantity: l.qty, ...(l.price !== (l.basePrice ?? l.price) ? { unitPrice: l.price } : {}) })),
-      discount: bill.discount,
-      // Change is not revenue: the payments recorded always add up to the bill total.
-      payments: method === "split" ? splitPayments(split, bill.total) : [{ method, amount: bill.total }],
-      customerPhone: customer?.phone || undefined,
-      customerName: customer?.name || undefined,
-      soldAt: new Date().toISOString(),
-    };
+    const printWin = openPrintWindow();
+    const sale = buildSale();
     try {
       const { order } = await api.post("/pos/sales", sale);
-      printInvoice(order, header);
+      printInvoice(order, header, { win: printWin });
       setMsg({ tone: "ok", text: `Billed ${order.invoiceNo} - ${money(order.pricing.total)}` });
+      setReview(false);
       reset();
     } catch (err) {
       if (!isOffline(err)) {
+        printWin?.close();
         setMsg({ tone: "danger", text: err.message });
       } else {
         // No connection: keep the bill, print a provisional receipt, sync later.
         enqueue(sale);
-        printInvoice(provisional(sale, lines, bill), header, { provisional: true });
+        printInvoice(provisional(sale, lines, bill), header, { provisional: true, win: printWin });
         setMsg({ tone: "warn", text: "Offline - bill saved on this device and will sync automatically" });
         refreshCounts();
+        setReview(false);
         reset();
       }
     }
@@ -347,9 +389,13 @@ export default function Pos() {
 
   // F2 new, F3 hold, F4 past bills, F9 pay. Handler always sees the latest state via the ref.
   const keys = useRef();
-  keys.current = { newBill, hold, openPast, charge };
+  keys.current = { newBill, hold, openPast, charge: review ? confirmPrint : charge, review, closeReview: () => setReview(false) };
   useEffect(() => {
     const on = (e) => {
+      if (e.key === "Escape" && keys.current.review) {
+        keys.current.closeReview();
+        return;
+      }
       const fn = { F2: "newBill", F3: "hold", F4: "openPast", F9: "charge" }[e.key];
       if (!fn) return;
       e.preventDefault();
@@ -375,7 +421,11 @@ export default function Pos() {
   };
 
   return (
-    <div className={`pos pos--${header?.template || "standard"}`}>
+    <div
+      ref={rootRef}
+      className={`pos pos--${header?.template || "standard"}${fitHeight ? " pos-fit" : ""}`}
+      style={fitHeight ? { height: fitHeight } : undefined}
+    >
       {terminal ? <PosTerminal p={ctx} /> : (<>
       <div className="pos-head">
         <div>
@@ -449,7 +499,7 @@ export default function Pos() {
             </div>
           )}
 
-          <div className="pos-panel">
+          <div className="pos-panel pos-bill">
             <div className="pos-panel-head">
               <h2><span className="pos-h-ico"><Ico n="bag" size={18} /></span> Bill Items <span className="pos-count">{lines.length}</span></h2>
               <div style={{ display: "flex", gap: 8 }}>
@@ -531,7 +581,7 @@ export default function Pos() {
           </div>
         </div>
 
-        <div className="pos-panel">
+        <div className="pos-panel pos-payment">
           <div className="pos-panel-head"><h2><span className="pos-h-ico"><Ico n="card" size={18} /></span> Payment</h2></div>
           <div className="pos-sum"><span>Subtotal</span><b>{money(bill.gross)}</b></div>
           {canDiscount && (
@@ -568,7 +618,7 @@ export default function Pos() {
           )}
 
           <button className="pos-pay" disabled={!canPay} onClick={charge}>
-            <Ico n="printer" /> {busy ? "Saving..." : "Take Payment & Print Invoice (F9)"}
+            <Ico n="printer" /> {busy ? "Saving..." : "Take Payment & Print Bill (F9)"}
           </button>
           <div className="pos-pay-row">
             <button disabled={!lines.length} onClick={hold}><Ico n="bookmark" size={16} /> Hold Bill (F3)</button>
@@ -578,6 +628,30 @@ export default function Pos() {
       </div>
 
       </>)}
+
+      {review && lines.length ? (
+        <div className="pos-modal-bg" onClick={() => !busy && setReview(false)}>
+          <div className="pos-modal pos-review" role="dialog" aria-modal="true" aria-label="Bill preview" onClick={(e) => e.stopPropagation()}>
+            <div className="pos-panel-head">
+              <h2><span className="pos-h-ico"><Ico n="printer" size={18} /></span> Bill preview</h2>
+              <span className="pos-review-total">{money(bill.total)}</span>
+            </div>
+            <iframe
+              className="pos-review-frame"
+              title="Bill preview"
+              srcDoc={posBillHtml(provisional(buildSale(), lines, bill), header, header?.posTemplate || DEFAULT_POS_TEMPLATE, { preview: true })}
+            />
+            <p className="pos-review-note">The bill is saved and the screen cleared only when you press <b>Print bill</b>. Until then you can go back and change it, or hold it.</p>
+            <div className="pos-review-actions">
+              <button className="pos-sm-btn" disabled={busy} onClick={() => setReview(false)}>Back to bill (Esc)</button>
+              <button className="pos-sm-btn" disabled={busy} onClick={() => { setReview(false); hold(); }}><Ico n="bookmark" size={16} /> Hold bill</button>
+              <button className="pos-pay pos-review-print" disabled={busy || !canPay} onClick={confirmPrint}>
+                <Ico n="printer" /> {busy ? "Saving..." : "Print bill (F9)"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {modal && (
         <div className="pos-modal-bg" onClick={() => setModal(null)}>
@@ -624,16 +698,31 @@ function splitPayments(split, total) {
 }
 
 // What the receipt shows when the server could not be reached.
+// GST in each rate's lines (prices include GST): taxable value and tax.
+function gstSplit(lines) {
+  const byRate = new Map();
+  for (const l of lines) {
+    if (!l.taxRatePct) continue;
+    const gross = Math.round(l.price * l.qty);
+    const taxable = Math.round((gross * 100) / (100 + l.taxRatePct));
+    const cur = byRate.get(l.taxRatePct) || { rate: l.taxRatePct, taxableValue: 0, tax: 0 };
+    cur.taxableValue += taxable;
+    cur.tax += gross - taxable;
+    byRate.set(l.taxRatePct, cur);
+  }
+  return [...byRate.values()];
+}
+
 function provisional(sale, lines, bill) {
   return {
     placedAt: sale.soldAt,
     cashierName: "",
-    customerSnapshot: { phone: sale.customerPhone },
+    customerSnapshot: { phone: sale.customerPhone, name: sale.customerName },
     items: lines.map((l) => ({
       name: l.productName, variantName: l.name, quantity: l.qty, unitPrice: l.price,
       lineTotal: Math.round(l.price * l.qty), taxRatePct: l.taxRatePct,
     })),
-    pricing: { subtotal: bill.gross, offerDiscount: bill.discount, roundOff: bill.roundOff, total: bill.total, taxBreakup: [] },
+    pricing: { subtotal: bill.gross, offerDiscount: bill.discount, roundOff: bill.roundOff, total: bill.total, taxBreakup: gstSplit(lines) },
     posPayments: sale.payments,
   };
 }

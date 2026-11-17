@@ -1,5 +1,6 @@
+import { DEFAULT_POS_TEMPLATE, posBillHtml } from "./posBill";
+import { printReceipt } from "../../lib/printFit";
 import { api, ApiError } from "../../api/client";
-import { rupees } from "../../components/ui";
 
 // ---- Bill maths (mirrors backend/src/modules/pos; the server stays the authority) ----
 
@@ -68,53 +69,17 @@ export async function flushQueue() {
   }
 }
 
-// ---- Invoice printing ----
+// ---- Bill printing ----
 
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const money = (p) => rupees(p, { decimals: true });
-
-// 80mm thermal-friendly receipt. `order` is the server order, or a provisional
-// one built on the till while offline (provisional = true).
-export function printInvoice(order, header, { provisional = false } = {}) {
-  const w = window.open("", "_blank", "width=380,height=700");
-  if (!w) return false;
-  const when = new Date(order.placedAt || Date.now()).toLocaleString("en-IN");
-  const rows = order.items
-    .map(
-      (i) => `<tr><td>${esc(i.name)}${i.variantName ? ` (${esc(i.variantName)})` : ""}<br><small>${i.quantity} x ${money(i.unitPrice)}${i.taxRatePct ? ` &middot; GST ${i.taxRatePct}%` : ""}</small></td><td class="r">${money(i.lineTotal)}</td></tr>`
-    )
-    .join("");
-  const p = order.pricing;
-  const gst = (p.taxBreakup || [])
-    .filter((b) => b.rate)
-    .map((b) => {
-      const half = b.tax / 2;
-      return `<tr><td>${b.rate}% on ${money(b.taxableValue)}</td><td class="r">CGST ${money(half)} + SGST ${money(b.tax - half)}</td></tr>`;
-    })
-    .join("");
-  w.document.write(`<!doctype html><title>${esc(order.invoiceNo || "Invoice")}</title>
-<style>
-body{font:12px/1.4 monospace;width:72mm;margin:0 auto;padding:6px}
-h1{font-size:15px;text-align:center;margin:0}.c{text-align:center}.r{text-align:right}
-table{width:100%;border-collapse:collapse}td{padding:2px 0;vertical-align:top}
-hr{border:0;border-top:1px dashed #000;margin:6px 0}.b{font-weight:bold;font-size:14px}
-@media print{@page{margin:0}}
-</style>
-<h1>${esc(header?.name)}</h1>
-<div class="c">${esc(header?.address)}<br>${header?.phone ? `Ph: ${esc(header.phone)}<br>` : ""}${header?.gstin ? `GSTIN: ${esc(header.gstin)}` : ""}</div>
-<hr><div class="c"><b>TAX INVOICE</b></div>
-<div>${provisional ? "Invoice no: assigned on sync" : `Invoice: ${esc(order.invoiceNo)}`}<br>Date: ${when}<br>Cashier: ${esc(order.cashierName)}${order.customerSnapshot?.phone ? `<br>Customer: ${esc(order.customerSnapshot.phone)}` : ""}</div>
-<hr><table>${rows}</table><hr>
-<table>
-<tr><td>Subtotal</td><td class="r">${money(p.subtotal)}</td></tr>
-${p.offerDiscount ? `<tr><td>Discount</td><td class="r">-${money(p.offerDiscount)}</td></tr>` : ""}
-${gst}
-${p.roundOff ? `<tr><td>Round off</td><td class="r">${money(p.roundOff)}</td></tr>` : ""}
-<tr class="b"><td>TOTAL</td><td class="r">${money(p.total)}</td></tr>
-</table><hr>
-<div>${(order.posPayments || []).map((x) => `${esc(x.method.toUpperCase())}: ${money(x.amount)}`).join("<br>")}</div>
-<hr><div class="c">${provisional ? "PROVISIONAL - recorded offline<br>" : ""}Thank you! Visit again.</div>
-<script>window.onload=()=>{window.print()}</script>`);
-  w.document.close();
-  return true;
+// Prints the POS bill in the format chosen in Settings -> Print -> POS bill
+// (header.posTemplate; manual A5 bill by default). `order` is the server
+// order, or a provisional one built on the till while offline.
+export function printInvoice(order, header, { provisional = false, win = null } = {}) {
+  const template = header?.posTemplate || DEFAULT_POS_TEMPLATE;
+  const html = posBillHtml(order, header, template, { provisional });
+  // Thermal receipts: cut to the bill's exact length (80mm / 58mm wide).
+  // A5/A4 bills: that sheet. Both from their own window, which closes after
+  // printing — Chrome ignores the page size of a bill printed inside the page.
+  const width = template === "pos_thermal_58" ? 58 : template === "pos_thermal" ? 80 : null;
+  return printReceipt(html, width, { win });
 }

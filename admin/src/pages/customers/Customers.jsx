@@ -48,7 +48,7 @@ export default function Customers() {
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input
             type="search"
-            placeholder="Search by name, phone or email…"
+            placeholder="Search name, phone, email, address or pincode…"
             value={filters.search}
             onChange={(e) => set("search", e.target.value)}
           />
@@ -62,7 +62,7 @@ export default function Customers() {
         ) : (
           <>
             <Table
-              title="Customers"
+              title="Customers" search={false}
               columns={[
                 {
                   key: "name",
