@@ -8,6 +8,7 @@ import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { api } from "../../api/client";
 import { mimeOf, saveFile, stampedName } from "../../lib/saveFile";
+import { printReceipt } from "../../lib/printFit";
 
 const BRAND = "HosurBasket";
 const INK = [30, 30, 30];
@@ -651,6 +652,14 @@ export function fitPageToContent(win) {
 
 // Prints the invoice (not the admin screen) through a hidden frame.
 export function printInvoice(inv) {
+  const html = invoiceHtml(inv);
+  // Counter bills (80mm): printed at their exact length from their own small
+  // window — Chrome ignores the page size of a frame inside the admin page,
+  // which put the bill on an A4 sheet with the date and URL around it.
+  if (themeOf(inv.template)?.receipt) {
+    printReceipt(html, 80, { marginMm: 3, selector: ".rc" });
+    return;
+  }
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   // A counter bill is laid out at its real paper width so its height can be measured exactly.
@@ -664,7 +673,7 @@ export function printInvoice(inv) {
     win.print();
     setTimeout(() => frame.remove(), 1000);
   };
-  frame.srcdoc = invoiceHtml(inv);
+  frame.srcdoc = html;
 }
 
 // Word opens HTML saved with the msword type as a normal editable document.

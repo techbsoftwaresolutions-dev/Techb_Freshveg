@@ -1,5 +1,6 @@
+import { DEFAULT_POS_TEMPLATE, posBillHtml } from "./posBill";
+import { printReceipt } from "../../lib/printFit";
 import { api, ApiError } from "../../api/client";
-import { rupees } from "../../components/ui";
 
 // ---- Bill maths (mirrors backend/src/modules/pos; the server stays the authority) ----
 
@@ -68,7 +69,7 @@ export async function flushQueue() {
   }
 }
 
-// ---- Invoice printing ----
+// ---- Bill printing ----
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const money = (p) => rupees(p, { decimals: true });

@@ -98,7 +98,7 @@ export default function Attributes() {
 
       <Card tight>
         <Table
-          title="Attributes"
+          title="Attributes" search={false}
           columns={[
             {
               key: "name",

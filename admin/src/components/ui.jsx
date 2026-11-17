@@ -1,7 +1,9 @@
 import DatePicker from "./DatePicker";
 import { createContext, isValidElement, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import * as XLSX from "xlsx";
+// xlsx-js-style: the same API as xlsx, but it writes cell styles (centring,
+// fills, borders) that the free xlsx build silently drops.
+import * as XLSX from "xlsx-js-style";
 import Sparkline from "./Sparkline";
 import { IconDownload } from "./Icons";
 import { toast } from "./toast";
@@ -330,200 +332,196 @@ function escapeHtml(value) {
 // free way to generate a file client-side, so it opens a print-formatted
 // window instead and lets the browser's own "Save as PDF" do the encoding —
 // the standard zero-dependency way to offer a PDF export from the browser.
+// One look for every download (XLSX, PDF, Word): the table starts with a
+// green header row, every cell centred with thin borders,
+// light banding, and Status coloured (Active green, Low Stock yellow,
+// Inactive red). CSV is plain text — it carries the same columns and values.
+const EXPORT_STYLE = {
+  brand: "1B7A3A",
+  brandDark: "145A2B",
+  border: "D9DED9",
+  band: "F5F8F5",
+  tones: {
+    active: { fill: "DCFCE7", text: "166534" },
+    "low stock": { fill: "FEF08A", text: "854D0E" },
+    inactive: { fill: "FEE2E2", text: "991B1B" },
+    "out of stock": { fill: "FEE2E2", text: "991B1B" },
+  },
+};
+const toneOf = (header, value) =>
+  String(header).toLowerCase() === "status" ? EXPORT_STYLE.tones[String(value ?? "").trim().toLowerCase()] || null : null;
+
+// A value Excel may treat as a number: up to 9 digits (with an optional
+// decimal part), no leading zero. Anything longer is a code, not an amount.
+const isPlainNumber = (v) =>
+  typeof v === "number" || (typeof v === "string" && /^-?(0|[1-9]\d{0,8})(\.\d+)?$/.test(v.trim()));
+
 function exportRows(columns, rows, format, title) {
   const cols = columns.filter((c) => c.exportable !== false);
-  const headers = cols.map((c) => c.label);
-  const lines = rows.map((row) =>
-    cols.map((c) => {
+  // Every download starts with a serial number column (1, 2, 3…).
+  const headers = ["S.No", ...cols.map((c) => c.label)];
+  const lines = rows.map((row, index) => [
+    index + 1,
+    ...cols.map((c) => {
       if (typeof c.exportValue === "function") return c.exportValue(row);
       return textOf(c.render ? c.render(row) : row[c.key]);
-    })
-  );
-  const base = stampedName(title);
-  const heading = escapeHtml(title || "Export");
+    }),
+  ]);
+  // Picture cells for Word and PDF (e.g. a QR code): a column's exportImage
+  // gives an image URL; CSV and Excel keep the text value instead.
+  const images = rows.map((row) => [
+    null,
+    ...cols.map((c) => (typeof c.exportImage === "function" ? c.exportImage(row) || null : null)),
+  ]);
+  const name = title || "Export";
+  const base = stampedName(name);
 
   if (format === "csv") {
     const esc = (v) => {
-      const s = String(v ?? "");
-      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      const str = String(v ?? "");
+      // A long digit string (barcode) is written as ="…" so Excel keeps it as
+      // text instead of 8.9E+12.
+      if (/^\d{10,}$/.test(str) || /^0\d+$/.test(str)) return `="${str}"`;
+      return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
     };
     const csv = [headers, ...lines].map((row) => row.map(esc).join(",")).join("\r\n");
-    // Prepend UTF-8 BOM (\uFEFF) so Excel opens UTF-8 symbols (like ₹) cleanly without garbled characters (â‚¹)
-    downloadBlob("\uFEFF" + csv, `${base}.csv`, "text/csv;charset=utf-8;");
+    // UTF-8 BOM so Excel shows ₹ correctly instead of â‚¹.
+    downloadBlob("﻿" + csv, `${base}.csv`, "text/csv;charset=utf-8;");
     return;
   }
 
   if (format === "xlsx") {
-    try {
-      // Plain numbers go in as numbers so Excel can sum and sort them.
-      const cell = (v) => (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v.trim()) ? Number(v) : v);
-      const sheet = XLSX.utils.aoa_to_sheet([headers, ...lines.map((row) => row.map(cell))]);
-      sheet["!cols"] = headers.map((h, i) => ({
-        wch: Math.min(50, Math.max(String(h).length, ...lines.map((row) => String(row[i] ?? "").length)) + 4),
-      }));
+    const S = EXPORT_STYLE;
+    const line = (rgb) => ({ style: "thin", color: { rgb } });
+    const box = (rgb) => ({ top: line(rgb), bottom: line(rgb), left: line(rgb), right: line(rgb) });
+    const center = { horizontal: "center", vertical: "center", wrapText: true };
+    // Plain numbers go in as numbers so Excel can sum and sort them.
+    // Plain numbers (stock, counts) go in as numbers so Excel can sum and sort
+    // them; long digit strings — barcodes, codes — stay text, or Excel shows
+    // 8901234567890 as 8.9E+12 and drops leading zeros.
+    const value = (v) => (isPlainNumber(v) ? Number(v) : v ?? "");
 
-      // Project color: Fresh green (#1b7a3a)
-      if (sheet["!ref"]) {
-        const range = XLSX.utils.decode_range(sheet["!ref"]);
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-          const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
-          if (sheet[cellAddress]) {
-            sheet[cellAddress].s = {
-              fill: { fgColor: { rgb: "1B7A3A" } },
-              font: { color: { rgb: "FFFFFF" }, bold: true, sz: 11 },
-              alignment: { horizontal: "center", vertical: "center" },
-            };
-          }
-        }
-      }
+    // The table starts on row 1 with the header — no title lines above it.
+    const sheet = XLSX.utils.aoa_to_sheet([headers, ...lines.map((row) => row.map(value))]);
+    const put = (r, c, style) => {
+      const ref = XLSX.utils.encode_cell({ r, c });
+      if (!sheet[ref]) sheet[ref] = { t: "s", v: "" };
+      sheet[ref].s = style;
+    };
+    headers.forEach((_, c) =>
+      put(0, c, {
+        fill: { patternType: "solid", fgColor: { rgb: S.brand } },
+        font: { bold: true, sz: 11, color: { rgb: "FFFFFF" } },
+        alignment: center,
+        border: box(S.brandDark),
+      })
+    );
+    lines.forEach((row, i) =>
+      row.forEach((cell, c) => {
+        const tone = toneOf(headers[c], cell);
+        put(1 + i, c, {
+          fill: { patternType: "solid", fgColor: { rgb: tone ? tone.fill : i % 2 ? S.band : "FFFFFF" } },
+          font: { sz: 11, bold: Boolean(tone), color: { rgb: tone ? tone.text : "1F2937" } },
+          alignment: center,
+          border: box(S.border),
+        });
+      })
+    );
+    sheet["!cols"] = headers.map((h, i) => ({
+      wch: Math.min(48, Math.max(8, String(h).length, ...lines.map((row) => String(row[i] ?? "").length)) + 4),
+    }));
+    sheet["!rows"] = [{ hpt: 24 }, ...lines.map(() => ({ hpt: 20 }))];
+    // Header stays in view while scrolling down the sheet.
+    sheet["!freeze"] = { xSplit: 0, ySplit: 1 };
 
-      // Color code Status column: Yellow for Low Stock, Green for Active, Red for Inactive
-      const statusColIdx = headers.findIndex((h) => String(h).toLowerCase() === "status");
-      if (statusColIdx !== -1 && sheet["!ref"]) {
-        for (let R = 1; R <= lines.length; ++R) {
-          const val = String(lines[R - 1]?.[statusColIdx] ?? "").trim();
-          const cellAddress = XLSX.utils.encode_cell({ r: R, c: statusColIdx });
-          if (sheet[cellAddress]) {
-            if (val === "Low Stock") {
-              sheet[cellAddress].s = {
-                fill: { fgColor: { rgb: "FEF08A" } },
-                font: { color: { rgb: "854D0E" }, bold: true },
-              };
-            } else if (val === "Active") {
-              sheet[cellAddress].s = {
-                fill: { fgColor: { rgb: "DCFCE7" } },
-                font: { color: { rgb: "166534" }, bold: true },
-              };
-            } else if (val === "Inactive" || val === "Out of Stock") {
-              sheet[cellAddress].s = {
-                fill: { fgColor: { rgb: "FEE2E2" } },
-                font: { color: { rgb: "991B1B" }, bold: true },
-              };
-            }
-          }
-        }
-      }
-
-      const book = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(book, sheet, (title || "Export").replace(/[\\/?*[\]:]/g, " ").slice(0, 31));
-      const bytes = XLSX.write(book, { bookType: "xlsx", type: "array" });
-      downloadBlob(
-        new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
-        `${base}.xlsx`
-      );
-    } catch (err) {
-      console.warn("[export] XLSX error, falling back to CSV:", err);
-      const esc = (v) => {
-        const s = String(v ?? "");
-        return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-      };
-      const csv = [headers, ...lines].map((row) => row.map(esc).join(",")).join("\r\n");
-      downloadBlob("\uFEFF" + csv, `${base}.csv`);
-    }
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, String(name).replace(/[\\/?*[\]:]/g, " ").slice(0, 31));
+    const bytes = XLSX.write(book, { bookType: "xlsx", type: "array", cellStyles: true });
+    downloadBlob(
+      new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+      `${base}.xlsx`
+    );
     return;
   }
 
+  // Word and PDF: the same table as HTML, styled to match the Excel file.
+  const S = EXPORT_STYLE;
+  const cellBase = `padding:7px 10px;border:1px solid #${S.border};text-align:center;vertical-align:middle;`;
   const tableHtml = `
-    <table border="1" cellspacing="0" cellpadding="8" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:12px;border:1px solid #e5e7eb;">
-      <thead>
-        <tr>
-          ${headers.map((h) => `<th style="background:#1b7a3a;color:#ffffff;text-align:left;padding:8px 10px;font-weight:bold;font-size:12px;border:1px solid #145a2b;">${escapeHtml(h)}</th>`).join("")}
-        </tr>
-      </thead>
-      <tbody>
-        ${lines.map((row) => `
-          <tr>
-            ${row.map((cell, colIdx) => {
-              const h = String(headers[colIdx] || "").toLowerCase();
-              let style = "padding:6px 10px;border:1px solid #e5e7eb;";
-              const textVal = String(cell || "").trim();
-              if (h === "status" || textVal === "Low Stock" || textVal === "Active" || textVal === "Inactive" || textVal === "Out of Stock") {
-                if (textVal === "Low Stock") {
-                  style += "background:#fef08a;color:#854d0e;font-weight:bold;";
-                } else if (textVal === "Active") {
-                  style += "background:#dcfce7;color:#166534;font-weight:bold;";
-                } else if (textVal === "Inactive" || textVal === "Out of Stock") {
-                  style += "background:#fee2e2;color:#991b1b;font-weight:bold;";
+    <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:12px;">
+      <thead><tr>${headers
+        .map(
+          (h) =>
+            `<th style="background:#${S.brand};color:#ffffff;font-weight:bold;padding:9px 10px;border:1px solid #${S.brandDark};text-align:center;vertical-align:middle;">${escapeHtml(h)}</th>`
+        )
+        .join("")}</tr></thead>
+      <tbody>${lines
+        .map(
+          (row, rowIdx) =>
+            `<tr>${row
+              .map((cell, colIdx) => {
+                const tone = toneOf(headers[colIdx], cell);
+                const bg = tone ? `#${tone.fill}` : rowIdx % 2 ? `#${S.band}` : "#ffffff";
+                const style = `${cellBase}background:${bg};color:${tone ? `#${tone.text}` : "#1f2937"};${tone ? "font-weight:bold;" : ""}`;
+                const picture = images[rowIdx]?.[colIdx];
+                if (picture) {
+                  return `<td style="${style}"><img src="${escapeHtml(picture)}" width="64" height="64" alt="" style="display:block;margin:0 auto 2px;" /><div style="font-size:10px;color:#555555;">${escapeHtml(cell)}</div></td>`;
                 }
-              }
-              return `<td style="${style}">${escapeHtml(cell)}</td>`;
-            }).join("")}
-          </tr>
-        `).join("")}
-      </tbody>
+                return `<td style="${style}">${escapeHtml(cell)}</td>`;
+              })
+              .join("")}</tr>`
+        )
+        .join("")}</tbody>
     </table>`;
 
   if (format === "word") {
     const doc = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-      <head><meta charset="utf-8"><title>${heading}</title></head>
-      <body><h2 style="font-family:Arial,sans-serif;color:#1b7a3a;">${heading}</h2>${tableHtml}</body></html>`;
-    downloadBlob(doc, `${base}.doc`);
+      <head><meta charset="utf-8"><title>${escapeHtml(name)}</title></head>
+      <body>${tableHtml}</body></html>`;
+    downloadBlob("﻿" + doc, `${base}.doc`);
     return;
   }
 
   if (format === "pdf") {
-    const win = window.open("", "_blank");
-    if (!win) {
-      // Fallback if browser popup blocker blocked window.open
-      const iframe = document.createElement("iframe");
-      iframe.style.position = "fixed";
-      iframe.style.right = "0";
-      iframe.style.bottom = "0";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "0";
-      document.body.appendChild(iframe);
-      const doc = iframe.contentWindow.document;
-      doc.open();
-      doc.write(`<html><head><title>${escapeHtml(base)}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-          h2 { margin: 0 0 16px; color: #1b7a3a; }
-          table { border-collapse: collapse; width: 100%; font-size: 12px; }
-          th { background: #1b7a3a !important; color: #ffffff !important; font-weight: bold; padding: 8px 10px; border: 1px solid #145a2b; }
-          td { padding: 6px 10px; border: 1px solid #e5e7eb; }
-          @media print {
-            @page { margin: 12mm; }
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            th { background: #1b7a3a !important; color: #ffffff !important; }
-          }
-        </style></head>
-        <body><h2>${heading}</h2>${tableHtml}</body></html>`);
-      doc.close();
-      setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        setTimeout(() => {
-          if (iframe.parentNode) document.body.removeChild(iframe);
-        }, 3000);
-      }, 500);
-      return;
-    }
-    win.document.write(`<html><head><title>${escapeHtml(base)}</title>
+    const page = `<html><head><meta charset="utf-8"><title>${escapeHtml(base)}</title>
       <style>
         body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-        h2 { margin: 0 0 16px; color: #1b7a3a; }
-        table { border-collapse: collapse; width: 100%; font-size: 12px; }
-        th { background: #1b7a3a !important; color: #ffffff !important; font-weight: bold; padding: 8px 10px; border: 1px solid #145a2b; }
-        td { padding: 6px 10px; border: 1px solid #e5e7eb; }
         @media print {
           @page { margin: 12mm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          th { background: #1b7a3a !important; color: #ffffff !important; }
+          body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          tr { page-break-inside: avoid; }
+          thead { display: table-header-group; }
         }
       </style></head>
-      <body><h2>${heading}</h2>${tableHtml}</body></html>`);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 300);
+      <body>${tableHtml}</body></html>`;
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(page);
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 300);
+      return;
+    }
+    // Pop-up blocked: print from a hidden frame instead.
+    const frame = document.createElement("iframe");
+    frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+    document.body.appendChild(frame);
+    frame.contentWindow.document.open();
+    frame.contentWindow.document.write(page);
+    frame.contentWindow.document.close();
+    setTimeout(() => {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+      setTimeout(() => frame.remove(), 3000);
+    }, 500);
   }
 }
 
 const EXPORT_FORMATS = [
   { format: "csv", label: "CSV" },
-  { format: "xlsx", label: "Excel (XLSX)" },
-  { format: "word", label: "Word" },
+  { format: "xlsx", label: "XLSX" },
   { format: "pdf", label: "PDF" },
+  { format: "word", label: "Word" },
 ];
 
 // One download icon, sat at the right end of the header row; the three
@@ -571,7 +569,7 @@ function ExportMenu({ columns, rows, title }) {
   };
 
   return (
-    <div className="export-menu" ref={rootRef} onKeyDown={onKeyDown} onClick={(e) => e.stopPropagation()}>
+    <div className="menu-part" ref={rootRef} onKeyDown={onKeyDown} onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
         className="btn ghost icon-btn"
@@ -605,6 +603,127 @@ function ExportMenu({ columns, rows, title }) {
   );
 }
 
+// The table's column picker: a checkbox per column, to show only the ones
+// wanted. The choice is remembered per table (by its title) in this browser,
+// and downloads export exactly the columns on show.
+function ColumnsMenu({ columns, hidden, onChange }) {
+  const [pos, setPos] = useState(null);
+  const rootRef = useRef(null);
+  const open = pos !== null;
+  const pickable = columns.filter((c) => c.label);
+  const shownCount = pickable.filter((c) => !hidden.includes(c.key)).length;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = () => setPos(null);
+    const onDown = (event) => {
+      if (rootRef.current && !rootRef.current.contains(event.target)) close();
+    };
+    const onKey = (event) => event.key === "Escape" && close();
+    // Scrolling the column list itself must not close it — only the page or
+    // the table moving under it does (the list is pinned to the button).
+    const onScroll = (event) => {
+      if (rootRef.current && event.target instanceof Node && rootRef.current.contains(event.target)) return;
+      // The page or table scrolled: keep the list open and pinned under its
+      // button; close only once the button has scrolled out of sight.
+      const button = rootRef.current?.querySelector("button");
+      if (!button) return close();
+      const r = button.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > window.innerHeight) return close();
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    };
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", close);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const toggleOpen = (event) => {
+    event.stopPropagation();
+    if (open) return setPos(null);
+    const r = event.currentTarget.getBoundingClientRect();
+    setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+  };
+  const flip = (key) => {
+    const on = !hidden.includes(key);
+    if (on && shownCount <= 1) return; // keep at least one column
+    onChange(on ? [...hidden, key] : hidden.filter((k) => k !== key));
+  };
+
+  return (
+    <div className="menu-part" ref={rootRef} onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        className={`btn ghost icon-btn${hidden.length ? " has-hidden" : ""}`}
+        title={hidden.length ? `Columns (${hidden.length} hidden)` : "Choose columns"}
+        aria-label="Choose columns"
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={toggleOpen}
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+          <circle cx="9" cy="6" r="2" fill="currentColor" />
+          <circle cx="15" cy="12" r="2" fill="currentColor" />
+          <circle cx="7" cy="18" r="2" fill="currentColor" />
+        </svg>
+        {hidden.length ? <span className="cols-dot" aria-hidden="true" /> : null}
+      </button>
+      {open ? (
+        <div className="export-menu-pop cols-pop" style={pos}>
+          <div className="cols-head">
+            <strong>Columns</strong>
+            {hidden.length ? (
+              <button type="button" className="cols-reset" onClick={() => onChange([])}>
+                Show all
+              </button>
+            ) : null}
+          </div>
+          {pickable.map((col) => {
+            const on = !hidden.includes(col.key);
+            return (
+              <label key={col.key} className={`cols-item${on ? " on" : ""}`}>
+                <input type="checkbox" checked={on} onChange={() => flip(col.key)} disabled={on && shownCount <= 1} />
+                <span>{col.label}</span>
+              </label>
+            );
+          })}
+          <p className="cols-note">Downloads include only the ticked columns.</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// Which columns a table hides, remembered per table title in this browser.
+function useHiddenColumns(title) {
+  const key = `table-cols:${title || "table"}`;
+  const [hidden, setHidden] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(saved) ? saved : [];
+    } catch {
+      return [];
+    }
+  });
+  const update = (next) => {
+    setHidden(next);
+    try {
+      if (next.length) localStorage.setItem(key, JSON.stringify(next));
+      else localStorage.removeItem(key);
+    } catch {
+      // storage blocked: the choice lasts until the page is left
+    }
+  };
+  return [hidden, update];
+}
+
 // `title` names the export (filename + heading) — any page can pass one,
 // but every page works without it (falls back to "export"), so adding
 // sorting and download buttons here reaches every list in the app without
@@ -612,17 +731,58 @@ function ExportMenu({ columns, rows, title }) {
 // `onReorder(fromIndex, toIndex)` turns on drag-to-reorder: each row gets a grip
 // handle in a leading column. Dragging is off while a column sort is active,
 // because the rows on screen are then not in their saved order.
-export function Table({ columns, rows, empty, onRowClick, keyOf, title, onReorder }) {
+// Everything a row says, as lower-case text for the table's search box:
+// every column as shown or exported (even hidden ones) plus the row's own
+// stored fields, so a phone number or code that isn't on screen still matches.
+function rowText(row, columns) {
+  const parts = [];
+  for (const col of columns) {
+    try {
+      const value = typeof col.exportValue === "function" ? col.exportValue(row) : textOf(col.render ? col.render(row) : row[col.key]);
+      if (value != null && value !== "") parts.push(String(value));
+    } catch {
+      // a column that cannot render for this row adds nothing
+    }
+  }
+  const walk = (value, depth) => {
+    if (value == null || depth > 3) return;
+    if (typeof value === "string" || typeof value === "number") parts.push(String(value));
+    else if (Array.isArray(value)) value.slice(0, 50).forEach((v) => walk(v, depth + 1));
+    else if (typeof value === "object") Object.values(value).forEach((v) => walk(v, depth + 1));
+  };
+  walk(row, 0);
+  return parts.join(" ").toLowerCase();
+}
+
+// `search` (default on): a box above the table that filters its rows by
+// anything in them. Pages whose list is searched on the server pass
+// search={false} and keep their own box.
+export function Table({ columns: allColumns, rows, empty, onRowClick, keyOf, title, onReorder, search = true }) {
+  const [hidden, setHidden] = useHiddenColumns(title);
+  const [query, setQuery] = useState("");
+  // Columns the user unticked are left out of the table and of downloads.
+  // Columns with no heading (row actions) are never hidden.
+  const columns = allColumns.filter((c) => !c.label || !hidden.includes(c.key));
   const [sort, setSort] = useState({ key: null, dir: 1 });
   const [drag, setDrag] = useState({ from: null, over: null });
   const reorderable = Boolean(onReorder) && !sort.key;
 
+  const matchedRows = useMemo(() => {
+    const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!terms.length) return rows;
+    // Every word must appear somewhere in the row ("amul 500" finds Amul 500 g).
+    return rows.filter((row) => {
+      const text = rowText(row, allColumns);
+      return terms.every((t) => text.includes(t));
+    });
+  }, [rows, query, allColumns]);
+
   const sortedRows = useMemo(() => {
-    if (!sort.key) return rows;
+    if (!sort.key) return matchedRows;
     const col = columns.find((c) => c.key === sort.key);
-    if (!col) return rows;
-    return [...rows].sort((a, b) => compareValues(valueOf(a, col), valueOf(b, col)) * sort.dir);
-  }, [rows, sort, columns]);
+    if (!col) return matchedRows;
+    return [...matchedRows].sort((a, b) => compareValues(valueOf(a, col), valueOf(b, col)) * sort.dir);
+  }, [matchedRows, sort, columns]);
 
   function toggleSort(key) {
     setSort((current) => (current.key === key ? { key, dir: -current.dir } : { key, dir: 1 }));
@@ -630,7 +790,30 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title, onReorde
 
   if (!rows.length) return empty || <Empty title="Nothing here yet" />;
 
+  // Dragging rows is off while a search narrows the list.
+  const canDrag = reorderable && !query.trim();
+
   return (
+    <>
+    {search ? (
+      <div className="table-search">
+        <span className="search-field">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Search ${title ? title.toLowerCase() : "this list"}…`}
+            aria-label={`Search ${title || "this list"}`}
+          />
+        </span>
+        {query.trim() ? (
+          <span className="table-search-count">
+            {sortedRows.length} of {rows.length}
+          </span>
+        ) : null}
+      </div>
+    ) : null}
     <div className="table-wrap">
       <table className="data">
         <thead>
@@ -650,7 +833,12 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title, onReorde
                   {sortable && sort.key === col.key ? (
                     <span className="sort-arrow">{sort.dir === 1 ? " ▲" : " ▼"}</span>
                   ) : null}
-                  {last ? <ExportMenu columns={columns} rows={sortedRows} title={title} /> : null}
+                  {last ? (
+                    <div className="export-menu">
+                      <ColumnsMenu columns={allColumns} hidden={hidden} onChange={setHidden} />
+                      <ExportMenu columns={columns} rows={sortedRows} title={title} />
+                    </div>
+                  ) : null}
                 </th>
               );
             })}
@@ -663,15 +851,15 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title, onReorde
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               style={onRowClick ? { cursor: "pointer" } : undefined}
               className={[drag.from === index ? "dragging" : "", drag.over === index && drag.from !== index ? "drop-target" : ""].filter(Boolean).join(" ") || undefined}
-              draggable={reorderable || undefined}
-              onDragStart={reorderable ? (e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(index)); setDrag({ from: index, over: index }); } : undefined}
-              onDragOver={reorderable ? (e) => { e.preventDefault(); if (drag.over !== index) setDrag((d) => ({ ...d, over: index })); } : undefined}
-              onDrop={reorderable ? (e) => { e.preventDefault(); if (drag.from !== null && drag.from !== index) onReorder(drag.from, index); setDrag({ from: null, over: null }); } : undefined}
-              onDragEnd={reorderable ? () => setDrag({ from: null, over: null }) : undefined}
+              draggable={canDrag || undefined}
+              onDragStart={canDrag ? (e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(index)); setDrag({ from: index, over: index }); } : undefined}
+              onDragOver={canDrag ? (e) => { e.preventDefault(); if (drag.over !== index) setDrag((d) => ({ ...d, over: index })); } : undefined}
+              onDrop={canDrag ? (e) => { e.preventDefault(); if (drag.from !== null && drag.from !== index) onReorder(drag.from, index); setDrag({ from: null, over: null }); } : undefined}
+              onDragEnd={canDrag ? () => setDrag({ from: null, over: null }) : undefined}
             >
               {onReorder ? (
                 <td className="drag-td" onClick={(e) => e.stopPropagation()}>
-                  <span className={`drag-handle${reorderable ? "" : " off"}`} title={reorderable ? "Drag to reorder" : "Clear the column sort to reorder"} aria-hidden="true">⋮⋮</span>
+                  <span className={`drag-handle${canDrag ? "" : " off"}`} title={canDrag ? "Drag to reorder" : query.trim() ? "Clear the search to reorder" : "Clear the column sort to reorder"} aria-hidden="true">⋮⋮</span>
                 </td>
               ) : null}
               {columns.map((col) => (
@@ -681,9 +869,17 @@ export function Table({ columns, rows, empty, onRowClick, keyOf, title, onReorde
               ))}
             </tr>
           ))}
+          {!sortedRows.length ? (
+            <tr>
+              <td colSpan={columns.length + (onReorder ? 1 : 0)} className="table-nomatch">
+                No matches for “{query.trim()}”
+              </td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 

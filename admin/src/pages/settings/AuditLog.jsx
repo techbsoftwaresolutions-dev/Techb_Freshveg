@@ -140,7 +140,7 @@ export default function AuditLog() {
         ) : (
           <>
             <Table
-              title="Audit log"
+              title="Audit log" search={false}
               columns={[
                 {
                   key: "when",

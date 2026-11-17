@@ -4,6 +4,7 @@ import { api } from "../../api/client";
 import { Banner, Field, Loading, Tabs } from "../../components/ui";
 import { Affix, FormSection, Segmented, SwitchRow } from "../../components/FormKit";
 import { DEFAULT_TEMPLATE, INVOICE_TEMPLATES, invoiceHtml, sampleInvoice } from "../orders/invoice";
+import { DEFAULT_POS_TEMPLATE, POS_TEMPLATES as POS_BILL_TEMPLATES, posBillHtml, samplePosBill } from "../pos/posBill";
 
 // One settings document, edited a section at a time — so two admins working on
 // different areas do not overwrite each other with a whole-document save.
@@ -30,6 +31,9 @@ export default function General() {
   const [settings, setSettings] = useState(null);
   const [section, setSection] = useState("company");
   const [draft, setDraft] = useState({});
+  // Settings -> Print has two sets of formats: the online-order invoice and
+  // the POS (walk-in) bill. This picks which one the page is showing.
+  const [printKind, setPrintKind] = useState("invoice");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -402,9 +406,19 @@ export default function General() {
           // One page: all templates in a column on the left, the live preview
           // of the picked one on the right.
           <FitToScreen className="print-layout">
-            <div className="print-list" role="radiogroup" aria-label="Invoice template">
-              {Object.entries(INVOICE_TEMPLATES).map(([key, tpl]) => {
-                const on = (draft.invoiceTemplate || DEFAULT_TEMPLATE) === key;
+            <div className="print-list" role="radiogroup" aria-label={printKind === "pos" ? "POS bill format" : "Invoice template"}>
+              <div className="print-kind" role="tablist" aria-label="Which bill">
+                <button type="button" role="tab" aria-selected={printKind === "invoice"} className={printKind === "invoice" ? "on" : ""} onClick={() => setPrintKind("invoice")}>
+                  Online invoice
+                </button>
+                <button type="button" role="tab" aria-selected={printKind === "pos"} className={printKind === "pos" ? "on" : ""} onClick={() => setPrintKind("pos")}>
+                  POS bill
+                </button>
+              </div>
+              {(printKind === "pos" ? Object.entries(POS_BILL_TEMPLATES) : Object.entries(INVOICE_TEMPLATES)).map(([key, tpl]) => {
+                const field = printKind === "pos" ? "posTemplate" : "invoiceTemplate";
+                const fallback = printKind === "pos" ? DEFAULT_POS_TEMPLATE : DEFAULT_TEMPLATE;
+                const on = (draft[field] || fallback) === key;
                 return (
                   <button
                     key={key}
@@ -413,7 +427,7 @@ export default function General() {
                     aria-checked={on}
                     title={tpl.description}
                     className={`print-item${on ? " on" : ""}`}
-                    onClick={() => setDraft((d) => ({ ...d, invoiceTemplate: key }))}
+                    onClick={() => setDraft((d) => ({ ...d, [field]: key }))}
                   >
                     <span className="print-item-head">
                       <i className="print-dot" style={{ background: `rgb(${tpl.accent.join(",")})` }} />
@@ -424,7 +438,11 @@ export default function General() {
                 );
               })}
             </div>
-            <InvoicePreview template={draft.invoiceTemplate || DEFAULT_TEMPLATE} />
+            {printKind === "pos" ? (
+              <InvoicePreview key="pos" pos template={draft.posTemplate || DEFAULT_POS_TEMPLATE} />
+            ) : (
+              <InvoicePreview key="invoice" template={draft.invoiceTemplate || DEFAULT_TEMPLATE} />
+            )}
           </FitToScreen>
         ) : null}
 
@@ -469,13 +487,21 @@ function FitToScreen({ className, children }) {
 // scale from there, and only the preview area scrolls when zoomed in.
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
 
-function InvoicePreview({ template }) {
-  const html = useMemo(() => invoiceHtml(sampleInvoice(template)), [template]);
-  const receipt = Boolean(INVOICE_TEMPLATES[template]?.receipt);
+// On-screen widths of the POS bill pages (A4/A5 sheets, 80/58mm receipts).
+const POS_PAGE_W = { A4: 820, A5: 600, "80mm": 380, "58mm": 300 };
+
+function InvoicePreview({ template, pos = false }) {
+  const html = useMemo(() => {
+    if (!pos) return invoiceHtml(sampleInvoice(template));
+    const sample = samplePosBill();
+    return posBillHtml(sample.order, sample.header, template);
+  }, [template, pos]);
+  // POS bills are always measured to their real height, like a receipt.
+  const receipt = pos || Boolean(INVOICE_TEMPLATES[template]?.receipt);
   // A4 pages use a fixed sheet; an 80mm bill is a narrow strip whose length
   // depends on its content, so it is measured once the frame has loaded.
   const [billH, setBillH] = useState(RECEIPT_H);
-  const pageW = receipt ? RECEIPT_W : PAGE_W;
+  const pageW = pos ? POS_PAGE_W[POS_BILL_TEMPLATES[template]?.page] || 600 : receipt ? RECEIPT_W : PAGE_W;
   const pageH = receipt ? billH : PAGE_H;
   const box = useRef(null);
   const [area, setArea] = useState(null); // inner size of the preview area
@@ -503,7 +529,8 @@ function InvoicePreview({ template }) {
     try {
       // The bill element's own height: the document's scrollHeight would
       // never drop below the frame's current height.
-      const bill = event.currentTarget.contentDocument?.querySelector(".rc");
+      const doc = event.currentTarget.contentDocument;
+      const bill = doc?.querySelector(".rc") || (pos ? doc?.body : null);
       const h = bill?.getBoundingClientRect().height;
       if (h) setBillH(Math.ceil(h) + 4);
     } catch {

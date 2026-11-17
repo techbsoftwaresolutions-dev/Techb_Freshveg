@@ -246,7 +246,7 @@ export default function Inventory() {
         ) : (
           <>
             <Table
-              title="Stock levels"
+              title="Stock levels" search={false}
               columns={[
                 {
                   key: "product",
@@ -423,7 +423,7 @@ function ExpiringTable({ rows, days = 3 }) {
 
   return (
     <Table
-      title="Expiring stock"
+      title="Expiring stock" search={false}
       columns={[
         {
           key: "product",

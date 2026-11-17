@@ -41,7 +41,12 @@ router.get(
     }
     if (req.query.search) {
       const rx = new RegExp(escapeRegex(req.query.search), "i");
-      filter.$or = [{ name: rx }, { phone: rx }, { email: rx }, { referralCode: rx }];
+      filter.$or = [
+        { name: rx }, { phone: rx }, { email: rx }, { referralCode: rx },
+        // Their saved addresses: house / street, area, city, pincode.
+        { "addresses.line1": rx }, { "addresses.line2": rx }, { "addresses.landmark": rx },
+        { "addresses.city": rx }, { "addresses.pincode": rx },
+      ];
     }
 
     const result = await paginate(User, filter, req.query, {

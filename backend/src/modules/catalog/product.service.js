@@ -149,6 +149,41 @@ function soldLoose(categoryValue, isSplitIntoPacks) {
   return categoryValue < 1 ? 1 : categoryValue;
 }
 
+// Product codes must be unique: a barcode or SKU already used by another
+// product (or twice in this one) is refused before anything is saved —
+// scanning at the till and the QR code both look a product up by it, so two
+// products sharing one would ring up the wrong item.
+async function assertCodesUnique(product, variantPayloads) {
+  const seen = new Map();
+  for (const payload of variantPayloads) {
+    for (const raw of [payload.barcode, payload.sku]) {
+      const code = String(raw || "").trim();
+      if (!code) continue;
+      const key = code.toUpperCase();
+      if (seen.has(key) && seen.get(key) !== payload) {
+        throw ApiError.conflict(`Product code ${code} is used twice in this product. Give each size its own code.`);
+      }
+      seen.set(key, payload);
+    }
+  }
+  if (!seen.size) return;
+  const codes = [...seen.keys()];
+  const raw = variantPayloads.flatMap((p) => [p.barcode, p.sku]).map((c) => String(c || "").trim()).filter(Boolean);
+  const clash = await Variant.findOne({
+    product: { $ne: product._id },
+    status: { $ne: "archived" },
+    $or: [{ sku: { $in: codes } }, { barcode: { $in: [...new Set([...raw, ...codes])] } }],
+  })
+    .populate("product", "name status")
+    .lean();
+  if (clash && clash.product?.status !== "archived") {
+    const taken = codes.find((c) => c === clash.sku) || raw.find((c) => c === clash.barcode) || clash.barcode || clash.sku;
+    throw ApiError.conflict(
+      `Product code ${taken} is already used by "${clash.product?.name || "another product"}". Product codes must be unique.`
+    );
+  }
+}
+
 async function replaceVariants(product, variantPayloads, schema = null) {
   const resolved = schema || (await resolveCategorySchema(product.category));
   const axisFields = resolved.variantAxes;
@@ -162,6 +197,8 @@ async function replaceVariants(product, variantPayloads, schema = null) {
   // writing to the same one (that is how a second pack used to overwrite the first).
   const keptIds = new Set();
   let sequence = 0;
+
+  await assertCodesUnique(product, variantPayloads);
 
   for (const payload of variantPayloads) {
     sequence += 1;

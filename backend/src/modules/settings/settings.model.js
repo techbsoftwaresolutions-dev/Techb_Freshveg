@@ -119,6 +119,13 @@ const settingsSchema = new mongoose.Schema(
         ],
         default: "receipt",
       },
+      // The POS (walk-in, manual) bill — its own formats, separate from the
+      // online-order invoice above. Chosen in Settings -> Print -> POS bill.
+      posTemplate: {
+        type: String,
+        enum: ["pos_manual", "pos_manual_a4", "pos_thermal", "pos_thermal_58"],
+        default: "pos_manual",
+      },
     },
 
     website: {

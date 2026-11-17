@@ -117,7 +117,23 @@ export default function Orders() {
 
   // Server-paginated, 20 per page. Cached and shared; the previous page stays on screen while the
   // next one loads; refreshed in the background every 30 s while the tab is visible.
-  const ordersQ = useApi("/orders", { ...filters, ...range, limit: 20 }, { refreshMs: 30000 });
+  // Search box: anything on the bill (order id, bill no, customer, phone,
+  // item, code, amount). Sent a moment after typing stops. While searching,
+  // all dates are looked through — a bill being looked up is rarely today's.
+  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQ(search.trim());
+      setFilters((f) => ({ ...f, page: 1 }));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+  const ordersQ = useApi(
+    "/orders",
+    { ...filters, ...(q ? { q, from: "", to: "" } : range), limit: 20 },
+    { refreshMs: 30000 }
+  );
   const data = ordersQ.data || { items: [], meta: null };
   const loading = ordersQ.loading;
 
@@ -158,6 +174,16 @@ export default function Orders() {
       />
 
       <div className="toolbar products-filters">
+        <span className="search-field orders-search">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input
+            type="search"
+            placeholder="Search order no, bill no, customer, phone, item or amount…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search orders"
+          />
+        </span>
         <Select
           aria-label="Order status"
           value={filters.status}
@@ -174,6 +200,7 @@ export default function Orders() {
           ))}
         </Select>
         <span className="spacer" />
+        {q ? <span className="muted orders-search-note">Searching all dates</span> : null}
         <DateFilter
           value={range}
           onChange={(next) => {
@@ -189,7 +216,7 @@ export default function Orders() {
         ) : (
           <>
             <Table
-              title="Orders"
+              title="Orders" search={false}
               columns={[
                 {
                   key: "code",

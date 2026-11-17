@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { getCategories, getProducts } from "@/lib/api";
+import { getCategories, getFacets, getProducts } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
-import { SortBar } from "@/components/Filters";
+import Filters, { ActiveFilters, SortBar } from "@/components/Filters";
 import DepartmentNav from "@/components/DepartmentNav";
 import EmptyState from "@/components/EmptyState";
 import InfiniteProducts from "@/components/InfiniteProducts";
+import ListingScrollMemory from "@/components/ListingScrollMemory";
 import { DeliveryBar, MobileChips, MobileRail } from "@/components/MobileBrowse";
 import { SearchHead, SearchProvider, SearchSwap } from "@/components/ListingSearch";
 
@@ -32,9 +33,24 @@ export default async function CategoriesPage({ searchParams }) {
     ...(query.sort ? { sort: query.sort } : {}),
     ...(query.offers === "true" ? { offers: "true" } : {}),
     ...(["discount", "special", "combo"].includes(query.offer) ? { offer: query.offer } : {}),
+    // The filter panel's choices: brands and price ranges (any number ticked),
+    // in stock only.
+    ...(query.brand ? { brand: query.brand } : {}),
+    ...(query.price ? { price: query.price } : {}),
+    ...(query.inStock === "true" ? { inStock: "true" } : {}),
   };
 
-  const [catalog, result] = await Promise.all([getCategories(), getProducts({ ...listQuery, page })]);
+  const [catalog, result, facetData] = await Promise.all([
+    getCategories(),
+    getProducts({ ...listQuery, page }),
+    getFacets(query.category),
+  ]);
+  const facets = {
+    filters: [],
+    brands: facetData?.brands || [],
+    priceBands: facetData?.priceBands || [],
+    availability: facetData?.availability,
+  };
 
   const departments = catalog?.categories || [];
   const products = result?.items || [];
@@ -66,6 +82,7 @@ export default async function CategoriesPage({ searchParams }) {
       </nav>
 
       <div className="split cat-layout has-rail">
+        <ListingScrollMemory />
         <MobileRail departments={departments} activeSlug={activeDepartment?.slug || null} />
 
         {/* Same dropdown panel as the category pages: All products opens to
@@ -77,10 +94,13 @@ export default async function CategoriesPage({ searchParams }) {
             activeSlug={activeDepartment?.slug || null}
             total={activeDepartment ? null : meta?.total}
           />
+          <Suspense fallback={<aside />}>
+            <Filters {...facets} />
+          </Suspense>
         </div>
 
         <div>
-          <MobileChips />
+          <MobileChips facets={facets} />
 
           <SearchSwap query={listQuery}>
           <div className="browse-head">
@@ -92,6 +112,10 @@ export default async function CategoriesPage({ searchParams }) {
               <SortBar />
             </Suspense>
           </div>
+
+          <Suspense fallback={null}>
+            <ActiveFilters {...facets} />
+          </Suspense>
 
           {products.length ? (
             <>
@@ -111,6 +135,14 @@ export default async function CategoriesPage({ searchParams }) {
                 />
               ) : null}
             </>
+          ) : query.brand || query.price || query.inStock === "true" ? (
+            <EmptyState
+              icon="box"
+              title="No products match these filters"
+              actions={[{ href: query.category ? `/c?category=${query.category}` : "/c", label: "Clear filters" }]}
+            >
+              Try another price range or brand.
+            </EmptyState>
           ) : (
             <EmptyState icon="box" title="Nothing to show yet" actions={[{ href: "/", label: "Go to home" }]}>
               Products appear here as soon as the store adds them.

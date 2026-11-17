@@ -8581,3 +8581,65 @@ body:has(.auth-page) .crumbs { display: none !important; }
 .ap-link.ap-icon { color: var(--brand); display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; }
 .ap-link.ap-icon:hover { background: var(--brand-soft); }
 .ap-actions { align-items: center; }
+
+/* ---------- New-offer popup (OfferPopup) ----------
+   Shown once when the website opens, for 2 seconds, with a close button.
+   The thin bar along the bottom runs down for those 2 seconds. */
+.op-wrap {
+  position: fixed; inset: 0; z-index: 1200;
+  display: grid; place-items: center; padding: 16px;
+  background: rgba(10, 30, 15, 0.35);
+  animation: op-fade .2s ease-out;
+}
+.op-card {
+  position: relative; width: min(440px, 100%); overflow: hidden;
+  border-radius: 20px; background: var(--surface);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+  animation: op-pop .25s cubic-bezier(.2, .9, .3, 1.2);
+}
+.op-body { display: flex; flex-direction: column; color: inherit; text-decoration: none; }
+.op-img { display: block; width: 100%; max-height: 260px; object-fit: cover; }
+.op-copy { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px 22px; }
+.op-copy strong { font-size: 20px; font-weight: 800; line-height: 1.2; color: var(--brand-dark, var(--brand)); }
+.op-copy > span:not(.op-tag) { font-size: 14px; color: var(--text-muted); }
+.op-tag {
+  align-self: flex-start; padding: 3px 10px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  color: #fff; background: var(--brand);
+}
+.op-close {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  width: 34px; height: 34px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; cursor: pointer;
+  font-size: 22px; line-height: 1; color: var(--text);
+  background: rgba(255, 255, 255, 0.92); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.op-close:hover { background: #fff; color: var(--brand); }
+.op-coupon .op-body { flex-direction: row; align-items: center; gap: 16px; padding: 22px 20px 10px; }
+.op-coupon .op-copy { padding: 0 30px 12px 0; }
+.op-badge {
+  flex: none; width: 64px; height: 64px; border-radius: 18px;
+  display: grid; place-items: center;
+  font-size: 30px; font-weight: 900; color: #fff; background: var(--brand);
+}
+.op-code {
+  display: inline-block; padding: 2px 10px; margin: 0 2px;
+  border: 1.5px dashed var(--brand); border-radius: 8px;
+  font: inherit; font-weight: 800; letter-spacing: .04em; color: var(--brand);
+  background: var(--brand-soft); cursor: pointer;
+}
+.op-timer {
+  position: absolute; left: 0; bottom: 0; height: 4px; width: 100%;
+  background: var(--brand); transform-origin: left;
+  animation-name: op-countdown; animation-timing-function: linear; animation-fill-mode: forwards;
+}
+@keyframes op-countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@keyframes op-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes op-pop { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .op-wrap, .op-card { animation: none; }
+}
+.op-min { font-size: 12px; color: var(--text-faint); }
+
+/* Edit profile: the letter avatar is not a button any more (no photo upload). */
+span.edit-profile-photo { cursor: default; }

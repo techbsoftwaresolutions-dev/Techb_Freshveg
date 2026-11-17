@@ -131,7 +131,7 @@ router.get(
     if (req.query.status) filter.status = req.query.status;
     if (req.query.search) {
       const rx = new RegExp(escapeRegex(req.query.search), "i");
-      filter.$or = [{ name: rx }, { phone: rx }, { email: rx }];
+      filter.$or = [{ name: rx }, { phone: rx }, { email: rx }, { role: rx }];
     }
 
     const result = await paginate(User, filter, req.query, {
