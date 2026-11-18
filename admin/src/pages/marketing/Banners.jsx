@@ -33,6 +33,7 @@ export default function Banners() {
 
   const [data, setData] = useState({ items: [], meta: null, placements: [] });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const [error, setError] = useState("");
@@ -75,11 +76,11 @@ export default function Banners() {
   const load = useCallback(() => {
     setLoading(true);
     api
-      .get("/banners", { page, limit: 20 })
+      .get("/banners", { page, limit })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, limit]);
 
   useEffect(() => {
     load();
@@ -191,6 +192,16 @@ export default function Banners() {
                           // editor, and these must not do that as well.
                           <div className="inline" style={{ gap: 6, justifyContent: "flex-end", flexWrap: "nowrap" }}>
                             <button
+                              className="btn sm"
+                              disabled={busyId === row.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleStatus(row);
+                              }}
+                            >
+                              {row.status === "active" ? "Pause" : "Activate"}
+                            </button>
+                            <button
                               type="button"
                               className="icon-edit"
                               title={`Edit ${row.title}`}
@@ -201,16 +212,6 @@ export default function Banners() {
                               }}
                             >
                               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" /></svg>
-                            </button>
-                            <button
-                              className="btn sm"
-                              disabled={busyId === row.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleStatus(row);
-                              }}
-                            >
-                              {row.status === "active" ? "Pause" : "Activate"}
                             </button>
                             <button
                               type="button"
@@ -240,7 +241,7 @@ export default function Banners() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={setPage} />
+            <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>

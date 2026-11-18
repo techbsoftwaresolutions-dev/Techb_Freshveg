@@ -53,7 +53,7 @@ function Report() {
   useEffect(() => {
     setLoading(true);
     api
-      .get("/delivery/report", { ...filters, ...range, limit: 20 })
+      .get("/delivery/report", { limit: 20, ...filters, ...range })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -165,7 +165,7 @@ function Report() {
               rows={data.items}
               empty={<Empty title="No runs in this window" />}
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>

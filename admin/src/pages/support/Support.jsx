@@ -25,6 +25,7 @@ export default function Support() {
   const [tab, setTab] = useState("open");
   const [data, setData] = useState({ items: [], meta: null, counts: {} });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ export default function Support() {
 
   const load = useCallback(() => {
     setLoading(true);
-    const query = { page, limit: 20 };
+    const query = { page, limit };
     if (tab === "open") query.open = "true";
     else if (tab !== "all") query.status = tab;
 
@@ -57,7 +58,7 @@ export default function Support() {
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [tab, page]);
+  }, [tab, page, limit]);
 
   useEffect(() => {
     load();
@@ -196,7 +197,7 @@ export default function Support() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={setPage} />
+            <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>

@@ -28,6 +28,7 @@ export default function Returns() {
   const [status, setStatus] = useState("RETURN_REQUESTED");
   const [data, setData] = useState({ items: [], meta: null });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [counts, setCounts] = useState({});
@@ -36,11 +37,11 @@ export default function Returns() {
   const load = useCallback(() => {
     setLoading(true);
     api
-      .get("/returns", { status, page, limit: 20 })
+      .get("/returns", { status, page, limit })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [status, page]);
+  }, [status, page, limit]);
 
   const loadCounts = useCallback(() => {
     Promise.all(
@@ -187,7 +188,7 @@ export default function Returns() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={setPage} />
+            <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>

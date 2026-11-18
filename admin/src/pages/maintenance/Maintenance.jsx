@@ -133,6 +133,7 @@ function Schedule() {
 function Assets() {
   const [data, setData] = useState({ items: [], meta: null, summary: {}, types: [] });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const [error, setError] = useState("");
@@ -140,11 +141,11 @@ function Assets() {
   const load = useCallback(() => {
     setLoading(true);
     api
-      .get("/maintenance/assets", { page, limit: 20 })
+      .get("/maintenance/assets", { page, limit })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, limit]);
 
   useEffect(() => {
     load();
@@ -199,7 +200,7 @@ function Assets() {
               onRowClick={(row) => navigate(`/maintenance/assets/${row.id}`)}
               empty={<Empty title="No assets recorded" hint="Add the freezers, scales and vehicles you want tracked." />}
             />
-            <Pagination meta={data.meta} onPage={setPage} />
+            <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>
@@ -385,6 +386,7 @@ function AssetDetail({ id, onClose }) {
 function Jobs() {
   const [data, setData] = useState({ items: [], meta: null });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [openOnly, setOpenOnly] = useState(true);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -394,11 +396,11 @@ function Jobs() {
   const load = useCallback(() => {
     setLoading(true);
     api
-      .get("/maintenance/requests", { page, limit: 20, ...(openOnly ? { open: "true" } : {}) })
+      .get("/maintenance/requests", { page, limit, ...(openOnly ? { open: "true" } : {}) })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [page, openOnly]);
+  }, [page, limit, openOnly]);
 
   useEffect(() => {
     load();
@@ -481,7 +483,7 @@ function Jobs() {
               rows={data.items}
               empty={<Empty title="No open jobs" hint="Nothing is waiting to be fixed." />}
             />
-            <Pagination meta={data.meta} onPage={setPage} />
+            <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>

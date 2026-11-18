@@ -751,7 +751,7 @@ function DeliveryLog() {
   useEffect(() => {
     setLoading(true);
     api
-      .get("/notifications/log", { ...filters, limit: 25 })
+      .get("/notifications/log", { limit: 25, ...filters })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -764,7 +764,7 @@ function DeliveryLog() {
       <div className="toolbar products-filters">
         <Select
           value={filters.event}
-          onChange={(e) => setFilters({ event: e.target.value, page: 1 })}
+          onChange={(e) => setFilters((f) => ({ ...f, event: e.target.value, page: 1 }))}
         >
           <option value="">Every event</option>
           {events.map((event) => (
@@ -867,6 +867,7 @@ function DeliveryLog() {
             <Pagination
               meta={data.meta}
               onPage={(page) => setFilters((f) => ({ ...f, page }))}
+              onLimit={(limit) => setFilters((f) => ({ ...f, limit, page: 1 }))}
             />
           </>
         )}

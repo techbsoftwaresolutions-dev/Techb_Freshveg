@@ -2,6 +2,7 @@ const express = require("express");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
 const { nextSequence } = require("../../core/sequence");
+const { paginate } = require("../../core/query");
 const { requireAuth, requirePermission } = require("../../middleware/auth");
 
 const Variant = require("../catalog/variant.model");
@@ -331,7 +332,12 @@ router.get(
     const filter = { source: "pos" };
     if (req.query.q) {
       const rx = new RegExp(escapeRegex(String(req.query.q)), "i");
-      filter.$or = [{ invoiceNo: rx }, { code: rx }, { "customerSnapshot.phone": rx }];
+      filter.$or = [{ invoiceNo: rx }, { code: rx }, { "customerSnapshot.phone": rx }, { "customerSnapshot.name": rx }, { cashierName: rx }];
+    }
+    // The Past bills page asks page by page; older callers get the latest 30.
+    if (req.query.page || req.query.limit) {
+      const { items, meta } = await paginate(Order, filter, req.query, { sort: { placedAt: -1 } });
+      return res.json({ success: true, items, meta });
     }
     const orders = await Order.find(filter).sort({ placedAt: -1 }).limit(30);
     res.json({ success: true, items: orders });

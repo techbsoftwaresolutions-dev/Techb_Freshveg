@@ -8643,3 +8643,38 @@ body:has(.auth-page) .crumbs { display: none !important; }
 
 /* Edit profile: the letter avatar is not a button any more (no photo upload). */
 span.edit-profile-photo { cursor: default; }
+
+/* ---- Order page: progress steps with a colour per step (same as the admin) ---- */
+.wtrack { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.wtrack-step { --c: #9aa1a9; display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: center; position: relative; }
+.wtrack-step.step-1:not(.pending) { --c: #2e9b3e; } /* order placed: green */
+.wtrack-step.step-2:not(.pending) { --c: #1f7fd6; } /* confirmed: blue */
+.wtrack-step.step-3:not(.pending) { --c: #8d5524; } /* preparing: brown */
+.wtrack-step.step-4:not(.pending) { --c: #e3a400; } /* out for delivery: yellow */
+.wtrack-step.step-5:not(.pending) { --c: #e8590c; } /* arrived: orange */
+.wtrack-step.step-6:not(.pending) { --c: #8b3fc6; } /* delivered: purple */
+.wtrack-step:not(:last-child)::after { content: ""; position: absolute; left: 18.5px; top: calc(50% + 20px); bottom: calc(8px - 50%); width: 3px; border-radius: 3px; background: var(--c); }
+.wtrack-step.pending:not(:last-child)::after { background: repeating-linear-gradient(to bottom, #c9c9c9 0 6px, transparent 6px 11px); }
+.wtrack-dot { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 70%, #fff), var(--c) 70%); box-shadow: 0 4px 10px color-mix(in srgb, var(--c) 35%, transparent); position: relative; z-index: 1; }
+.wtrack-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px 10px 14px; border-radius: 14px; background: color-mix(in srgb, var(--c) 9%, #fff); border: 1px solid color-mix(in srgb, var(--c) 14%, transparent); min-width: 0; }
+.wtrack-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wtrack-copy strong { font-size: 14px; font-weight: 700; }
+.wtrack-copy > span { font-size: 12.5px; color: var(--text-faint); }
+.wtrack-tag { display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: color-mix(in srgb, var(--c) 72%, #000); background: color-mix(in srgb, var(--c) 14%, #fff); white-space: nowrap; }
+.wtrack-step.done .wtrack-tag svg { background: var(--c); color: #fff; border-radius: 50%; padding: 2px; }
+.tl-line + .wtrack { margin-top: 16px; }
+@media (max-width: 640px) {
+  .wtrack-step { grid-template-columns: 34px 1fr; gap: 10px; }
+  .wtrack-dot { width: 34px; height: 34px; }
+  .wtrack-dot svg { width: 17px; height: 17px; }
+  .wtrack-step:not(:last-child)::after { left: 15.5px; top: calc(50% + 17px); bottom: calc(5px - 50%); }
+  .wtrack-box { padding: 8px 10px; }
+  .wtrack-copy strong { font-size: 13px; }
+  .wtrack-copy > span { font-size: 11.5px; }
+  .wtrack-tag { padding: 4px 8px; font-size: 11px; }
+}
+
+/* Delivered order, collapsed: the same round icons as the full list. */
+.tl-end.wtrack-step { display: flex; grid-template-columns: none; align-items: center; gap: 10px; }
+.tl-end.wtrack-step::after { display: none; }
+.tl-bar.tl-bar-color { height: 3px; border-radius: 3px; background: linear-gradient(90deg, #2e9b3e, #1f7fd6, #8d5524, #e3a400, #e8590c, #8b3fc6); }
