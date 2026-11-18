@@ -6,6 +6,7 @@ import { Banner, rupees, useConfirm } from "../../components/ui";
 import {
   clearFailed, computeBill, enqueue, failed, flushQueue, isOffline,
   loadCatalogue, printInvoice, queued, saveCatalogue,
+  customerPhone, sendBill, sendMode, wantsWhatsApp,
 } from "./billing";
 import PosTerminal from "./PosTerminal";
 import { DEFAULT_POS_TEMPLATE, posBillHtml } from "./posBill";
@@ -128,7 +129,7 @@ function MethodIcon({ k }) {
 const METHODS =[["cash", "Cash"], ["upi", "UPI"], ["card", "Card"]];
 
 export default function Pos() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const [confirm, confirmDialog] = useConfirm();
   const canDiscount = can("pos.discount");
   const scanRef = useRef(null);
@@ -168,6 +169,10 @@ export default function Pos() {
   // Pay shows the bill first; it is saved and the screen cleared only when
   // "Print bill" is pressed — until then it can still be edited or held.
   const [review, setReview] = useState(false);
+  // After the print window closes: "Did the bill print?" - { sale, invoiceNo, offline }.
+  // The sale is saved (and the screen cleared) only when the cashier says yes.
+  const [printed, setPrinted] = useState(null);
+  const [finishing, setFinishing] = useState(false);
   const [msg, setMsg] = useState(null);
   const [online, setOnline] = useState(navigator.onLine);
   const [pending, setPending] = useState(queued().length);
@@ -182,6 +187,22 @@ export default function Pos() {
   const change = receivedPaise - bill.total;
   const toPaise = (v) => Math.round((Number(v) || 0) * 100);
   const splitPaise = toPaise(split.cash) + toPaise(split.upi) + toPaise(split.card);
+  // Every bill needs the customer's 10-digit mobile number.
+  const phoneOk = /^\d{10}$/.test(customer?.phone || "") && customer.phone !== "0000000000";
+  const [needPhone, setNeedPhone] = useState(false);
+  useEffect(() => {
+    if (phoneOk) setNeedPhone(false);
+  }, [phoneOk]);
+  // The customer box is open as soon as there is something on the bill.
+  useEffect(() => {
+    if (lines.length && !customer) setCustomer({ name: "", phone: "", email: "" });
+  }, [lines.length, customer]);
+  const askPhone = () => {
+    setCustomer((c) => c || { name: "", phone: "", email: "" });
+    setNeedPhone(true);
+    setMsg({ tone: "warn", text: "Enter the customer's 10-digit mobile number to make the bill" });
+    setTimeout(() => document.querySelector(".pos-customer input[inputmode=numeric]")?.focus(), 50);
+  };
   const canPay =
     lines.length > 0 && !busy &&
     (method === "cash" ? receivedPaise >= bill.total : method === "split" ? splitPaise >= bill.total : true);
@@ -297,8 +318,8 @@ export default function Pos() {
     setCustomer((c) => ({ ...c, phone }));
     if (phone.length !== 10 || !navigator.onLine) return;
     try {
-      const { name } = await api.get("/pos/customer", { phone });
-      if (name) setCustomer((c) => (c && c.phone === phone && !c.name ? { ...c, name } : c));
+      const { name, email } = await api.get("/pos/customer", { phone });
+      if (name || email) setCustomer((c) => (c && c.phone === phone ? { ...c, name: c.name || name || "", email: c.email || email || "" } : c));
     } catch { /* offline or not found: leave the name for the cashier */ }
   };
 
@@ -316,7 +337,7 @@ export default function Pos() {
   const snapshot = () => ({ id: crypto.randomUUID(), at: Date.now(), lines, discount, customer });
 
   const hold = () => {
-    if (!lines.length) return;
+    if (!lines.length || charging.current) return;
     saveHeld([snapshot(), ...held]);
     reset();
     setMsg({ tone: "info", text: "Bill put on hold" });
@@ -344,6 +365,7 @@ export default function Pos() {
   }, [location.state]);
 
   const newBill = async () => {
+    if (charging.current) return;
     if (lines.length && !(await confirm({ title: "Clear this bill?", confirmLabel: "Clear" }))) return;
     reset();
   };
@@ -364,6 +386,7 @@ export default function Pos() {
     payments: method === "split" ? splitPayments(split, bill.total) : [{ method, amount: bill.total }],
     customerPhone: customer?.phone || undefined,
     customerName: customer?.name || undefined,
+    customerEmail: customer?.email || undefined,
     soldAt: new Date().toISOString(),
   });
 
@@ -373,48 +396,118 @@ export default function Pos() {
   }, [review, lines.length]);
 
   // Step 1 (Pay / F9): show the bill. Nothing is saved or cleared yet.
+  // "Take Payment & Print Bill" / F9: straight to the print window (no
+  // preview step). The sale is saved only after "Did the bill print?" -> Yes.
   const charge = () => {
+    if (lines.length && !phoneOk) return askPhone();
     if (!canPay || charging.current) return;
-    setReview(true);
+    confirmPrint();
   };
 
-  // Step 2 ("Print bill" / F9 in the preview): save, print, then clear for
-  // the next customer. The print window opens right away, before the save, so
-  // the browser does not block it as a pop-up; the bill is written into it
-  // once the server has given it its number.
+  // Step 2 ("Print bill" / F9 in the preview): print first, save after.
+  // The bill prints with the number it will get (asked from the server, not
+  // used up). When the print window closes the cashier is asked whether it
+  // printed - the browser cannot tell a printed bill from a cancelled one.
+  // Only "Yes" saves the sale and clears the screen; "No" leaves everything
+  // as it was, to print again. The print window opens straight from the click
+  // so the browser does not block it as a pop-up.
   const confirmPrint = async () => {
+    if (lines.length && !phoneOk) return askPhone();
     if (!canPay || charging.current) return;
-    charging.current = true; // synchronous: a double click or held F9 cannot start a second save
+    charging.current = true; // a double click or held F9 cannot start a second print
     setBusy(true);
     const printWin = openPrintWindow();
     const sale = buildSale();
+    let invoiceNo = null;
+    let offline = false;
     try {
-      const { order } = await api.post("/pos/sales", sale);
-      printInvoice(order, header, { win: printWin });
-      setMsg({ tone: "ok", text: `Billed ${order.invoiceNo} - ${money(order.pricing.total)}` });
-      setReview(false);
-      reset();
+      invoiceNo = (await api.get("/pos/next-invoice", { store: header?.storeId })).invoiceNo;
     } catch (err) {
-      if (!isOffline(err)) {
+      if (isOffline(err)) offline = true;
+      else {
         printWin?.close();
         setMsg({ tone: "danger", text: err.message });
-      } else {
-        // No connection: keep the bill, print a provisional receipt, sync later.
-        enqueue(sale);
-        printInvoice(provisional(sale, lines, bill), header, { provisional: true, win: printWin });
-        setMsg({ tone: "warn", text: "Offline - bill saved on this device and will sync automatically" });
-        refreshCounts();
-        setReview(false);
-        reset();
+        charging.current = false;
+        setBusy(false);
+        return;
       }
     }
+    const draft = { ...provisional(sale, lines, bill), invoiceNo, cashierName: user?.name || "" };
+    printInvoice(draft, header, { provisional: offline, win: printWin });
+    const ask = () => setPrinted({ sale, invoiceNo, offline });
+    if (printWin) {
+      const watch = setInterval(() => {
+        if (printWin.closed) {
+          clearInterval(watch);
+          ask();
+        }
+      }, 300);
+    } else ask();
+  };
+
+  // "No": nothing saved, the bill and its preview stay to print again.
+  const notPrinted = () => {
+    setPrinted(null);
     charging.current = false;
     setBusy(false);
   };
 
+  // "Yes, printed": now the sale is saved and the screen cleared.
+  const finishSale = async () => {
+    if (!printed || finishing) return;
+    const { sale, invoiceNo, offline } = printed;
+    setFinishing(true);
+    // WhatsApp: a tab opened now, from the click (a tab opened after the save
+    // would be blocked as a pop-up); it is pointed at the chat once saved.
+    const mode = sendMode(header);
+    const phone = customerPhone({ customerSnapshot: { phone: sale.customerPhone } });
+    const waWin = !offline && phone && wantsWhatsApp(mode) ? window.open("", "_blank") : null;
+    const done = () => {
+      setPrinted(null);
+      setReview(false);
+      reset();
+      charging.current = false;
+      setBusy(false);
+    };
+    try {
+      if (offline) throw Object.assign(new Error("offline"), { offlineBill: true });
+      const { order } = await api.post("/pos/sales", sale);
+      if (invoiceNo && order.invoiceNo !== invoiceNo) {
+        // Another till billed in between and took that number: print the
+        // bill again with the number it really got.
+        printInvoice(order, header);
+        setMsg({ tone: "warn", text: `Billed ${order.invoiceNo} (not ${invoiceNo}, another till used it) - reprinted with the right number` });
+      } else {
+        setMsg({ tone: "ok", text: `Billed ${order.invoiceNo} - ${money(order.pricing.total)}` });
+      }
+      done();
+      // Then the bill goes to the customer (Settings -> General -> POS).
+      const sent = await sendBill(order, header, { waWin, api, mode });
+      if (sent) setMsg((m) => ({ ...(m || { tone: "ok" }), text: `${m?.text || `Billed ${order.invoiceNo}`} · ${sent}` }));
+    } catch (err) {
+      waWin?.close();
+      if (err.offlineBill || isOffline(err)) {
+        // No connection: keep the bill on this device, sync later.
+        enqueue(sale);
+        setMsg({ tone: "warn", text: "Offline - bill saved on this device and will sync automatically" });
+        refreshCounts();
+        done();
+      } else {
+        setMsg({ tone: "danger", text: err.message });
+        notPrinted();
+      }
+    }
+    setFinishing(false);
+  };
+
   // F2 new, F3 hold, F4 past bills, F9 pay. Handler always sees the latest state via the ref.
   const keys = useRef();
-  keys.current = { newBill, hold, openPast, charge: review ? confirmPrint : charge, review, closeReview: () => setReview(false) };
+  keys.current = {
+    newBill, hold, openPast,
+    charge: printed ? finishSale : review ? confirmPrint : charge,
+    review: review || printed,
+    closeReview: () => (printed ? notPrinted() : charging.current ? null : setReview(false)),
+  };
   useEffect(() => {
     const on = (e) => {
       if (e.key === "Escape" && keys.current.review) {
@@ -535,8 +628,17 @@ export default function Pos() {
             {customer && (
               <div className="pos-customer">
                 <input placeholder="Customer name" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} />
-                <input placeholder="Phone (10 digits)" inputMode="numeric" maxLength={10} value={customer.phone} onChange={(e) => changePhone(e.target.value.replace(/\D/g, ""))} />
-                <button className="pos-sm-btn" onClick={() => setCustomer(null)}>Remove</button>
+                <input
+                  placeholder="Mobile number (required)"
+                  inputMode="numeric"
+                  maxLength={10}
+                  required
+                  className={needPhone && !phoneOk ? "pos-need" : ""}
+                  value={customer.phone}
+                  onChange={(e) => changePhone(e.target.value.replace(/\D/g, ""))}
+                />
+                <input placeholder="Email (to email the bill)" type="email" value={customer.email || ""} onChange={(e) => setCustomer({ ...customer, email: e.target.value })} />
+                {lines.length ? null : <button className="pos-sm-btn" onClick={() => setCustomer(null)}>Remove</button>}
               </div>
             )}
             {!lines.length ? (
@@ -642,8 +744,9 @@ export default function Pos() {
             </>
           )}
 
-          <button className="pos-pay" disabled={!canPay} onClick={charge}>
-            <Ico n="printer" /> {busy ? "Saving..." : "Take Payment & Print Bill (F9)"}
+          {lines.length && !phoneOk ? <div className="pos-need-note">Customer mobile number is required to bill.</div> : null}
+          <button className="pos-pay" disabled={!canPay && !(lines.length && !phoneOk)} onClick={charge}>
+            <Ico n="printer" /> {busy ? "Printing..." : "Take Payment & Print Bill (F9)"}
           </button>
           <div className="pos-pay-row">
             <button disabled={!lines.length} onClick={hold}><Ico n="bookmark" size={16} /> Hold Bill (F3)</button>
@@ -666,12 +769,28 @@ export default function Pos() {
               title="Bill preview"
               srcDoc={posBillHtml(provisional(buildSale(), lines, bill), header, header?.posTemplate || DEFAULT_POS_TEMPLATE, { preview: true })}
             />
-            <p className="pos-review-note">The bill is saved and the screen cleared only when you press <b>Print bill</b>. Until then you can go back and change it, or hold it.</p>
+            <p className="pos-review-note">The bill is saved and the screen cleared only after it prints and you confirm it. Until then you can go back and change it, or hold it.</p>
             <div className="pos-review-actions">
               <button className="pos-sm-btn" disabled={busy} onClick={() => setReview(false)}>Back to bill (Esc)</button>
               <button className="pos-sm-btn" disabled={busy} onClick={() => { setReview(false); hold(); }}><Ico n="bookmark" size={16} /> Hold bill</button>
               <button className="pos-pay pos-review-print" disabled={busy || !canPay} onClick={confirmPrint}>
-                <Ico n="printer" /> {busy ? "Saving..." : "Print bill (F9)"}
+                <Ico n="printer" /> {busy ? "Printing..." : "Print bill (F9)"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {printed ? (
+        <div className="pos-modal-bg">
+          <div className="pos-modal pos-printed" role="alertdialog" aria-modal="true" aria-labelledby="pos-printed-title">
+            <span className="pos-printed-ico" aria-hidden="true"><Ico n="printer" size={26} /></span>
+            <h2 id="pos-printed-title">Bill printed?</h2>
+            <p>{printed.invoiceNo ? <b>{printed.invoiceNo}</b> : "This bill"} · {money(bill.total)}</p>
+            <div className="pos-printed-actions">
+              <button className="pos-sm-btn" disabled={finishing} onClick={notPrinted}>Not printed</button>
+              <button className="pos-pay" disabled={finishing} onClick={finishSale} autoFocus>
+                {finishing ? "Saving..." : "Printed"}
               </button>
             </div>
           </div>

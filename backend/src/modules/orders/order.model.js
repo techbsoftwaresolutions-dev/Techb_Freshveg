@@ -263,6 +263,8 @@ const orderSchema = new mongoose.Schema(
     },
     cashier: objectId("User"),
     cashierName: { type: String, default: "" },
+    // How many duplicate copies of a POS bill were printed after the original.
+    posReprints: { type: Number, default: 0 },
 
     placedAt: { type: Date, default: Date.now, index: true },
   },

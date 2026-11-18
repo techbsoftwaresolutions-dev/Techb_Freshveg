@@ -4,11 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
+import { useAuth } from "@/components/Providers";
 import { img, rupees } from "@/lib/format";
 
-// The new-offer popup: shown once when someone opens the website (on any
-// screen size), for 2 seconds, then it hides by itself. It has a close button
-// for anyone who wants it gone sooner.
+// The new-offer popup: a big banner shown for 2 seconds, then it hides by
+// itself (with a close button for anyone who wants it gone sooner). It
+// appears:
+//  - once when someone opens the website (once per browser session), and
+//  - again right after they log in (on the first page after the login screen).
 //
 // What it shows, in order:
 // 1. A live "App launch" banner from the admin (Marketing -> Banners), so the
@@ -31,55 +34,77 @@ function hrefFor(target) {
   return null;
 }
 
+async function findOffer() {
+  try {
+    const { banners = [] } = await api.get("/banners/live", { placement: "app_launch" });
+    if (banners[0]) return { kind: "banner", banner: banners[0] };
+  } catch {
+    // no banner service: try the coupon
+  }
+  try {
+    const { coupon } = await api.get("/storefront/latest-coupon");
+    if (coupon?.code) return { kind: "coupon", coupon };
+  } catch {
+    // nothing to show
+  }
+  return null;
+}
+
 export default function OfferPopup() {
   const pathname = usePathname();
+  const { ready, signedIn } = useAuth();
   const [offer, setOffer] = useState(null); // { kind: "banner", banner } | { kind: "coupon", coupon }
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const timer = useRef(null);
-
-  useEffect(() => {
+  // Why it should show next: "open" (first visit this session) or "login".
+  const [want, setWant] = useState(() => {
     try {
-      if (sessionStorage.getItem(SEEN_KEY)) return undefined;
+      return sessionStorage.getItem(SEEN_KEY) ? null : "open";
     } catch {
-      // storage blocked: still show it, just possibly again next page
+      return "open"; // storage blocked: still show it
     }
-    if (QUIET.some((p) => pathname?.startsWith(p))) return undefined;
+  });
 
-    let alive = true;
-    (async () => {
-      let found = null;
-      try {
-        const { banners = [] } = await api.get("/banners/live", { placement: "app_launch" });
-        if (banners[0]) found = { kind: "banner", banner: banners[0] };
-      } catch {
-        // no banner service: try the coupon
-      }
-      if (!found) {
-        try {
-          const { coupon } = await api.get("/storefront/latest-coupon");
-          if (coupon?.code) found = { kind: "coupon", coupon };
-        } catch {
-          // nothing to show
-        }
-      }
-      if (!alive || !found) return;
-      try {
-        sessionStorage.setItem(SEEN_KEY, "1");
-      } catch {
-        // ignore
-      }
+  // A login in this tab (signed out -> signed in after the session was read)
+  // asks for the banner again.
+  const wasSignedIn = useRef(null);
+  useEffect(() => {
+    if (!ready) return;
+    if (wasSignedIn.current === false && signedIn) setWant("login");
+    wasSignedIn.current = signedIn;
+  }, [ready, signedIn]);
+
+  // Show it on the first page where it will not get in the way.
+  useEffect(() => {
+    if (!want) return;
+    // After a login it shows on whatever page the login leads to (cart,
+    // checkout included); on a plain visit it waits for a page where it
+    // will not get in the way.
+    const quiet = want === "login" ? ["/login"] : QUIET;
+    if (quiet.some((p) => pathname?.startsWith(p))) return;
+    setWant(null);
+    try {
+      sessionStorage.setItem(SEEN_KEY, "1");
+    } catch {
+      // ignore
+    }
+    findOffer().then((found) => {
+      if (!mounted.current || !found) return;
+      setCopied(false);
       setOffer(found);
       setOpen(true);
       if (found.kind === "banner") {
         api.post(`/banners/${found.banner.id}/track`, { event: "impression" }).catch(() => {});
       }
-    })();
+    });
+  }, [want, pathname]);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
     return () => {
-      alive = false;
+      mounted.current = false;
     };
-    // Only on the first page of the visit.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Hide by itself after 2 seconds.

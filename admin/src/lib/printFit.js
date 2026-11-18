@@ -1,40 +1,37 @@
-// Receipt printing at the bill's exact length.
+// Receipt printing on a thermal roll.
 //
-// A thermal bill asks for `@page { size: 80mm auto }`, but browsers do not
-// support an "auto" page height: they print on a full A4/Letter page and the
-// roll feeds out blank paper. So just before printing, the bill is measured
-// and the page is set to exactly its size (e.g. 80mm x 112mm).
+// The receipt is NOT given a custom page size (e.g. 80mm x 112mm): when the
+// printer's driver does not list that exact size, Chrome shrinks the bill
+// onto its normal paper and centres it — on an 80mm roll the right half then
+// falls off the paper. Instead the page has no margins (which also drops
+// Chrome's date / "about:blank" header and footer) and the bill itself is a
+// fixed-width column at the top-left: 72mm for 80mm rolls (their printable
+// width), 48mm for 58mm rolls. Whatever paper the printer is set to, the whole
+// bill prints, starting at the top-left, and the roll stops after it.
 //
-// Chrome only honours a page size set by a top-level window — a bill printed
-// from a frame inside the admin page comes out on A4 with the date and URL in
-// the margins. So receipts print from their own small window (printReceipt),
-// which closes itself as soon as printing is done or cancelled.
+// Chrome only applies print settings from a top-level window, so receipts
+// print from their own small window (printReceipt), which closes itself as
+// soon as printing is done or cancelled.
 
-const PX_TO_MM = 25.4 / 96;
+// The printable width of a thermal roll.
+export const printableMm = (rollMm) => (rollMm <= 58 ? 48 : 72);
 
-// Sets `doc`'s print page to `widthMm` wide and exactly as long as `el` (the
-// bill; the body by default), plus the page margins.
-export function fitPrintPage(doc, widthMm, marginMm = 0, el = null) {
+const receiptPageCss = "@page { margin: 0; } html, body { margin: 0 !important; height: auto !important; }";
+
+// For a bill printed from a frame (pop-ups blocked).
+export function fitPrintPage(doc) {
   if (!doc) return;
-  const target = el || doc.body;
-  const rect = target.getBoundingClientRect();
-  const heightPx = Math.ceil(el ? rect.height : rect.bottom) + 2;
-  const heightMm = Math.ceil(heightPx * PX_TO_MM + marginMm * 2 + 2);
   const style = doc.createElement("style");
-  style.textContent = `@page { size: ${widthMm}mm ${heightMm}mm; margin: ${marginMm}mm; } html, body { height: auto !important; }`;
+  style.textContent = receiptPageCss;
   doc.head.appendChild(style);
 }
 
-// The same, as an inline script for a bill in its own window: measures on
-// load, sets the page, prints, then closes the window.
-export const fitAndPrintScript = (widthMm, marginMm = 0, selector = "") => `<script>
+// Inline script for a bill in its own window: on load, sets the page, prints,
+// then closes the window.
+export const fitAndPrintScript = () => `<script>
 window.onload = function () {
-  var el = ${selector ? `document.querySelector(${JSON.stringify(selector)})` : "null"};
-  var r = (el || document.body).getBoundingClientRect();
-  var px = Math.ceil(el ? r.height : r.bottom) + 2;
-  var h = Math.ceil(px * ${PX_TO_MM} + ${marginMm * 2} + 2);
   var s = document.createElement("style");
-  s.textContent = "@page { size: ${widthMm}mm " + h + "mm; margin: ${marginMm}mm; } html, body { height: auto !important; }";
+  s.textContent = ${JSON.stringify(receiptPageCss)};
   document.head.appendChild(s);
   window.onafterprint = function () { window.close(); };
   setTimeout(function () { window.print(); }, 80);
@@ -57,12 +54,12 @@ export function openPrintWindow() {
 }
 
 // Prints a page (full HTML) from its own window and closes the window once
-// printing is done or cancelled. `widthMm` set = a receipt cut to the bill's
-// exact length; null = the page's own sheet size (A4/A5). `win` is a window
+// printing is done or cancelled. `widthMm` set = a thermal receipt (no page
+// margins, bill at the top-left); null = the page's own sheet size (A4/A5). `win` is a window
 // already opened with openPrintWindow(); otherwise one is opened here.
-export function printReceipt(html, widthMm, { marginMm = 0, selector = "", win = null } = {}) {
+export function printReceipt(html, widthMm, { win = null } = {}) {
   const script = widthMm
-    ? fitAndPrintScript(widthMm, marginMm, selector)
+    ? fitAndPrintScript()
     : "<script>window.onafterprint=function(){window.close()};window.onload=function(){setTimeout(function(){window.print()},80)}<\/script>";
   const page = html.includes("</body>") ? html.replace("</body>", `${script}</body>`) : html + script;
   const target = win || openPrintWindow();
@@ -80,7 +77,7 @@ export function printReceipt(html, widthMm, { marginMm = 0, selector = "", win =
   document.body.appendChild(frame);
   frame.onload = () => {
     const doc = frame.contentWindow.document;
-    if (widthMm) fitPrintPage(doc, widthMm, marginMm, selector ? doc.querySelector(selector) : null);
+    if (widthMm) fitPrintPage(doc);
     frame.contentWindow.focus();
     frame.contentWindow.print();
     setTimeout(() => frame.remove(), 1000);

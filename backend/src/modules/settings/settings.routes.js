@@ -52,7 +52,7 @@ router.get(
         // Which invoice layout staff print with — not sensitive.
         print: {
           invoiceTemplate: settings.print?.invoiceTemplate || "receipt",
-          posTemplate: settings.print?.posTemplate || "pos_manual",
+          posTemplate: settings.print?.posTemplate || "receipt",
         },
       },
     });

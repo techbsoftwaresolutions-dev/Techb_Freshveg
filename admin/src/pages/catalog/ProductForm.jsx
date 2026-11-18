@@ -614,35 +614,6 @@ export default function ProductForm() {
         </div>
 
         <div style={{ display: "grid", gap: 14 }}>
-          {schema && (
-            <Card title="Inherited from the category">
-              <div className="section-label">Capabilities</div>
-              <div className="inline" style={{ gap: 5 }}>
-                {Object.entries(schema.features)
-                  .filter(([, on]) => on)
-                  .map(([key]) => (
-                    <Pill key={key} tone="accent">
-                      {key}
-                    </Pill>
-                  ))}
-              </div>
-
-              <div className="section-label">Defaults</div>
-              <table className="data">
-                <tbody>
-                  {Object.entries(schema.defaults)
-                    .filter(([, value]) => value !== null && value !== undefined)
-                    .map(([key, value]) => (
-                      <tr key={key}>
-                        <td className="muted">{key}</td>
-                        <td className="num">{String(value)}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-
-            </Card>
-          )}
 
           {!isNew && (
             <Card title="Status">
@@ -1231,10 +1202,28 @@ function VariantEditor({ axes, variants, schema, editable, onChange, errors = { 
   const set = (index, patch) =>
     onChange(variants.map((v, i) => (i === index ? { ...v, ...patch } : v)));
 
-  const setAxis = (index, code, value) =>
+  // Picking a pack size ("500 g", "1 Litre", "Pack of 6") also fills the Pack
+  // box (what the website shows on the card) and, for g / kg sizes, the
+  // weight - so the same thing is not typed in twice.
+  const packFromOption = (value, label) => {
+    const text = `${value || ""} ${label || ""}`.toLowerCase();
+    const m = String(value || "").toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(g|kg|ml|l|pc|pcs)$/) ||
+      text.match(/(\d+(?:\.\d+)?)\s*(kg|g|ml|litre|liter|l|piece|pcs|pc)\b/) ||
+      text.match(/pack of (\d+)()/);
+    if (!m) return null;
+    const qty = Number(m[1]);
+    const unit = { litre: "l", liter: "l", piece: "pcs", pc: "pcs", "": "pcs" }[m[2]] ?? m[2];
+    const weightGrams = unit === "g" ? qty : unit === "kg" ? qty * 1000 : null;
+    return { packSize: { value: qty, unit }, ...(weightGrams ? { weightGrams } : {}) };
+  };
+
+  const setAxis = (index, code, value) => {
+    const option = axes.find((a) => a.code === code)?.options?.find((o) => o.value === value);
+    const pack = code === "pack_size" && value ? packFromOption(value, option?.label) : null;
     onChange(
-      variants.map((v, i) => (i === index ? { ...v, axis: { ...(v.axis || {}), [code]: value } } : v))
+      variants.map((v, i) => (i === index ? { ...v, ...(pack || {}), axis: { ...(v.axis || {}), [code]: value } } : v))
     );
+  };
 
   // Prices are entered in rupees but stored as integer paise.
   const money = (index, key) => (e) => {
@@ -1271,7 +1260,9 @@ function VariantEditor({ axes, variants, schema, editable, onChange, errors = { 
               {axes.map((axis) => (
                 <th key={axis.code}>{axis.label}</th>
               ))}
-              <th>Name</th>
+              <th title="Size label shown on the website, cart, bills and invoices (e.g. 500 g). Leave empty to use the pack size.">
+                Variant label
+              </th>
               <th className="num">MRP ₹</th>
               <th className="num">Selling ₹</th>
               <th className="num">Cost ₹</th>
@@ -1320,7 +1311,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange, errors = { 
                     type="text"
                     value={variant.name ?? ""}
                     onChange={(e) => set(index, { name: e.target.value })}
-                    placeholder="Auto (from pack size)"
+                    placeholder="Auto, e.g. 500 g"
                     disabled={!editable}
                     style={{ width: 130 }}
                   />

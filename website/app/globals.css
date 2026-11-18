@@ -8678,3 +8678,52 @@ span.edit-profile-photo { cursor: default; }
 .tl-end.wtrack-step { display: flex; grid-template-columns: none; align-items: center; gap: 10px; }
 .tl-end.wtrack-step::after { display: none; }
 .tl-bar.tl-bar-color { height: 3px; border-radius: 3px; background: linear-gradient(90deg, #2e9b3e, #1f7fd6, #8d5524, #e3a400, #e8590c, #8b3fc6); }
+
+/* Offer popup as a big banner (overrides the small card above). */
+.op-card { width: min(760px, 100%); border-radius: 24px; }
+.op-img { max-height: min(420px, 55vh); }
+.op-copy { padding: 22px 28px 26px; gap: 6px; }
+.op-copy strong { font-size: clamp(22px, 3.2vw, 32px); }
+.op-copy > span:not(.op-tag) { font-size: 15.5px; }
+.op-coupon { background: linear-gradient(120deg, #0f5a2a 0%, #1f7a35 55%, #5f9e1f 100%); color: #fff; }
+.op-coupon .op-body { padding: clamp(28px, 5vw, 48px) clamp(22px, 5vw, 48px) clamp(24px, 4vw, 40px); gap: clamp(16px, 3vw, 30px); }
+.op-coupon .op-copy { padding: 0 24px 0 0; }
+.op-coupon .op-badge { width: clamp(76px, 12vw, 120px); height: clamp(76px, 12vw, 120px); border-radius: 28px; font-size: clamp(38px, 6vw, 60px); background: rgba(255, 255, 255, 0.16); border: 2px solid rgba(255, 255, 255, 0.35); }
+.op-coupon .op-tag { background: #ffd54a; color: #3a2a00; }
+.op-coupon .op-copy strong { color: #fff; font-size: clamp(28px, 5vw, 46px); }
+.op-coupon .op-copy > span:not(.op-tag), .op-coupon .op-min { color: rgba(255, 255, 255, 0.88); }
+.op-coupon .op-code { color: #fff; border-color: #ffd54a; background: rgba(255, 255, 255, 0.14); font-size: 1.05em; }
+.op-coupon .op-timer { background: #ffd54a; height: 5px; }
+@media (max-width: 560px) {
+  .op-coupon .op-body { flex-direction: column; align-items: flex-start; }
+  .op-coupon .op-copy { padding: 0; }
+}
+
+/* Phone: the favourite heart on product cards — a little smaller, and the
+   photo starts below the heart / discount row so neither sits on the picture. */
+@media (max-width: 720px) {
+  .card .wishlist-btn,
+  .split.cat-layout .card .wishlist-btn { width: 34px !important; height: 34px !important; top: 4px !important; right: 4px !important; }
+  .card .wishlist-btn svg,
+  .split.cat-layout .card .wishlist-btn svg { width: 20px !important; height: 20px !important; }
+  .card .card-media img { padding: 36px 8px 4px !important; }
+}
+
+/* The Filters button icon in brand green, like Sort by and Offers. */
+.filters-trigger > svg:first-child { color: var(--brand); }
+
+/* Returns page: "How returns work" folds open and shut. */
+.returns-how summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; font-size: 17px; font-weight: 700; }
+.returns-how summary::-webkit-details-marker { display: none; }
+.returns-how summary svg { flex: none; color: var(--brand); transition: transform .2s; }
+.returns-how[open] summary svg { transform: rotate(180deg); }
+.returns-how p { margin: 10px 0 0; }
+
+/* Department page (e.g. Fresh Vegetables): smaller subcategory circles.
+   Desktop / tablet - the phone uses its own category rail. */
+@media (min-width: 721px) {
+  .top-cats.aisle-tiles { gap: 16px; margin-bottom: 14px; }
+  .top-cats.aisle-tiles > .top-cat { flex: 0 0 auto; min-width: 84px; gap: 6px; }
+  .top-cats.aisle-tiles .top-cat-icon { width: 68px; height: 68px; flex-basis: 68px; box-shadow: 0 0 0 4px #f3f4f5, inset 0 0 0 2px #fff; }
+  .top-cats.aisle-tiles .top-cat-name { font-size: 12.5px; max-width: none; white-space: nowrap; }
+}

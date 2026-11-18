@@ -283,3 +283,17 @@ img.pos-thumb { border: 1px solid var(--border); padding: 2px; box-sizing: borde
 .pos-review-note { margin: 0; font-size: 13px; color: var(--text-muted); }
 .pos-review-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pos-review-actions .pos-review-print { width: auto; margin: 0 0 0 auto; padding: 12px 22px; font-size: 15px; }
+
+/* "Did the bill print?" after the print window closes. */
+.pos-printed { width: min(420px, 100%); text-align: center; padding: 24px 22px 20px; z-index: 61; }
+.pos-printed-ico { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--g-soft, #e8f5ec); color: var(--g, #1b7a3a); margin-bottom: 10px; }
+.pos-printed h2 { margin: 0 0 6px; font-size: 20px; }
+.pos-printed p { margin: 0 0 18px; color: var(--text-muted); line-height: 1.5; }
+.pos-printed p b { color: var(--text); }
+.pos-printed-actions { display: flex; gap: 10px; }
+.pos-printed-actions > * { flex: 1; justify-content: center; }
+.pos-printed-actions .pos-pay { margin: 0; padding: 12px; font-size: 15px; }
+
+/* Customer mobile number is required on every bill. */
+.pos-customer input.pos-need { border-color: var(--danger, #c62828) !important; box-shadow: 0 0 0 3px rgba(198, 40, 40, .15); }
+.pos-need-note { margin: 0 0 8px; padding: 7px 10px; border-radius: 10px; background: #fff4e5; color: #8a4b00; font-size: 13px; font-weight: 600; }

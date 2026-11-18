@@ -191,6 +191,7 @@ export default function PosTerminal({ p }) {
               <div className="pos-customer">
                 <input placeholder="Customer name" value={p.customer.name} onChange={(e) => p.setCustomer({ ...p.customer, name: e.target.value })} />
                 <input placeholder="Phone (10 digits)" inputMode="numeric" maxLength={10} value={p.customer.phone} onChange={(e) => p.changePhone(e.target.value.replace(/\D/g, ""))} />
+                <input placeholder="Email (to email the bill)" type="email" value={p.customer.email || ""} onChange={(e) => p.setCustomer({ ...p.customer, email: e.target.value })} />
                 <button className="pos-sm-btn" onClick={() => { p.setCustomer(null); setSub(null); }}>Remove</button>
               </div>
             )}

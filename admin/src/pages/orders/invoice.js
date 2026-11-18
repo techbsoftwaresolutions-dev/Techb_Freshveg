@@ -171,7 +171,19 @@ export async function loadInvoiceSetup(store) {
     api.get("/settings/public").catch(() => null),
   ]);
   const company = pub?.settings?.company || {};
-  const header = pos?.header?.name ? pos.header : { name: company.name || BRAND, phone: company.supportPhone || "" };
+  // Settings -> General -> Company is what prints; the POS header (company
+  // first, store details where the company ones are blank) when it can be read.
+  const header = pos?.header?.name
+    ? pos.header
+    : {
+        name: company.name || BRAND,
+        legalName: company.legalName && company.legalName !== company.name ? company.legalName : "",
+        phone: company.supportPhone || "",
+        email: company.supportEmail || "",
+        address: company.address || "",
+        gstin: company.gstin || "",
+        fssai: company.fssai || "",
+      };
   return { header, template: pub?.settings?.print?.invoiceTemplate || DEFAULT_TEMPLATE };
 }
 
@@ -192,13 +204,11 @@ export function buildInvoice(order, header, { packLabel = (i) => i.variantName |
   const summary = [["Subtotal", p.subtotal]];
   if (p.catalogueSavings > 0) summary.push(["Catalogue savings", -p.catalogueSavings]);
   if (p.offerDiscount > 0) summary.push(["Offer discount", -p.offerDiscount]);
-  summary.push(["Delivery charge", p.deliveryFree ? 0 : p.deliveryCharge, p.deliveryFree ? "Free" : null]);
+  // A counter (POS) sale has no delivery.
+  if (order.source !== "pos") summary.push(["Delivery charge", p.deliveryFree ? 0 : p.deliveryCharge, p.deliveryFree ? "Free" : null]);
   if (p.packagingCharge > 0) summary.push(["Packaging", p.packagingCharge]);
-  for (const b of (p.taxBreakup || []).filter((x) => x.rate)) {
-    const half = b.tax / 2;
-    summary.push([`CGST @ ${b.rate / 2}%`, half, null, true]);
-    summary.push([`SGST @ ${b.rate / 2}%`, b.tax - half, null, true]);
-  }
+  // No CGST / SGST lines in the totals (prices already include GST): the
+  // bill reads Subtotal -> TOTAL.
   if (p.walletApplied > 0) summary.push(["Wallet", -p.walletApplied]);
   if (p.loyaltyApplied > 0) summary.push([`Loyalty (${p.loyaltyPointsUsed} pts)`, -p.loyaltyApplied]);
   if (p.roundOff) summary.push(["Round off", p.roundOff]);
@@ -215,6 +225,9 @@ export function buildInvoice(order, header, { packLabel = (i) => i.variantName |
       address: header?.address || "",
       phone: header?.phone || "",
       gstin: header?.gstin || "",
+      legalName: header?.legalName || "",
+      email: header?.email || "",
+      fssai: header?.fssai || "",
     },
     customer: {
       name: order.customerSnapshot?.name || "",
@@ -231,10 +244,11 @@ export function buildInvoice(order, header, { packLabel = (i) => i.variantName |
     lines,
     // `included` marks tax rows: already inside the line prices, shown for
     // the GST record rather than added on top.
-    summary: summary.map(([label, value, text, included]) => ({
+    summary: summary.map(([label, value, text, included, tax]) => ({
       label,
       value,
       included: Boolean(included),
+      tax: Boolean(tax),
       text: text || (value < 0 ? `- ${rs(-value)}` : rs(value)),
     })),
     total: p.total,
@@ -314,7 +328,7 @@ export async function invoicePdf(inv) {
     if (logo) doc.addImage(logo, "PNG", x, y, w, w * LOGO_RATIO);
     else font("bold", 18, A).text(inv.seller.name, x, y + 8);
   };
-  const sellerInfo = [inv.seller.address, inv.seller.phone ? `Phone: ${inv.seller.phone}` : "", inv.seller.gstin ? `GSTIN: ${inv.seller.gstin}` : ""].filter(Boolean);
+  const sellerInfo = [inv.seller.legalName, inv.seller.address, inv.seller.phone ? `Phone: ${inv.seller.phone}` : "", inv.seller.email ? `Email: ${inv.seller.email}` : "", inv.seller.gstin ? `GSTIN: ${inv.seller.gstin}` : "", inv.seller.fssai ? `FSSAI: ${inv.seller.fssai}` : ""].filter(Boolean);
   // No-logo templates: the store name set in type, with its details under it.
   const brandBlock = (x, y) => {
     font("bold", 20, A).text(inv.seller.name, x, y + 7);
@@ -372,7 +386,9 @@ export async function invoicePdf(inv) {
   const sellerLines = [
     ...(inv.seller.address ? doc.splitTextToSize(inv.seller.address, boxW - 8) : []),
     inv.seller.phone ? `Phone: ${inv.seller.phone}` : "",
+    inv.seller.email ? `Email: ${inv.seller.email}` : "",
     inv.seller.gstin ? `GSTIN: ${inv.seller.gstin}` : "",
+    inv.seller.fssai ? `FSSAI: ${inv.seller.fssai}` : "",
   ].filter(Boolean);
   const buyerLines = [
     inv.customer.phone ? `Phone: ${inv.customer.phone}` : "",
@@ -519,7 +535,7 @@ export function invoiceHtml(inv, { forWord = false } = {}) {
   const fs = (pt) => `${(pt * t.scale).toFixed(1)}pt`;
   const family = t.font === "times" ? 'Georgia, "Times New Roman", serif' : '"Segoe UI", Calibri, Arial, sans-serif';
   const logoPx = Math.round(t.logoW * 3.4);
-  const sellerInfo = [esc(inv.seller.address), inv.seller.phone ? `Phone: ${esc(inv.seller.phone)}` : "", inv.seller.gstin ? `GSTIN: ${esc(inv.seller.gstin)}` : ""].filter(Boolean).join("<br>");
+  const sellerInfo = [esc(inv.seller.legalName), esc(inv.seller.address), inv.seller.phone ? `Phone: ${esc(inv.seller.phone)}` : "", inv.seller.email ? `Email: ${esc(inv.seller.email)}` : "", inv.seller.gstin ? `GSTIN: ${esc(inv.seller.gstin)}` : "", inv.seller.fssai ? `FSSAI: ${esc(inv.seller.fssai)}` : ""].filter(Boolean).join("<br>");
   const logo = !t.logo
     ? `<div class="brand">${esc(inv.seller.name)}</div><div class="muted brand-info">${sellerInfo}</div>`
     : `<img src="${esc(inv.logoUrl)}" alt="${esc(inv.seller.name)}" width="${logoPx}" style="width:${logoPx}px;height:auto;display:block${t.header === "center" ? ";margin:0 auto" : ""}">`;
@@ -597,6 +613,7 @@ td, th { padding: ${Math.round(6 * t.scale)}px 8px; vertical-align: top; }
 .band td { padding: 18px 20px; vertical-align: middle; }
 .logo-card { display: inline-block; background: #fff; border-radius: 10px; padding: 8px 10px; }
 .band-no { color: ${hex(tint(t.accent, 0.8))}; font-size: ${fs(10)}; margin-top: 4px; }
+.dupbar { margin: 10px 0 0; padding: 5px; text-align: center; font-weight: bold; letter-spacing: 3px; color: #b42318; border: 2px dashed #b42318; border-radius: 6px; }
 .strip { margin: 14px 0 18px; ${t.header === "center" ? `border-bottom: 1px solid ${soft};` : ""} }
 .strip.filled { background: ${tnt}; }
 .strip td { width: 25%; padding: 8px 12px; }
@@ -615,7 +632,7 @@ td, th { padding: ${Math.round(6 * t.scale)}px 8px; vertical-align: top; }
 .foot b { color: ${a}; }
 </style></head>
 <body><div class="sheet">
-${header}
+${header}${inv.duplicate ? `<div class="dupbar">${esc(inv.duplicate)}</div>` : ""}
 <table><tr>
 ${t.logo ? `<td class="party"><div class="label">SOLD BY</div><div class="name">${esc(inv.seller.name)}</div>
 <div class="muted">${sellerInfo}</div></td>
@@ -646,7 +663,7 @@ export function printInvoice(inv) {
   // window — Chrome ignores the page size of a frame inside the admin page,
   // which put the bill on an A4 sheet with the date and URL around it.
   if (themeOf(inv.template)?.receipt) {
-    printReceipt(html, 80, { marginMm: 3, selector: ".rc" });
+    printReceipt(html, 80);
     return;
   }
   const frame = document.createElement("iframe");
@@ -691,7 +708,8 @@ function gstRows(inv) {
 }
 
 // The tax table already lists GST, so that bill leaves the "(incl.)" rows out.
-const receiptSummary = (inv, t) => (t.taxTable ? inv.summary.filter((r) => !r.included) : inv.summary);
+// Every row, so the lines add up to the TOTAL printed under them.
+const receiptSummary = (inv) => inv.summary;
 const receiptWord = (t) => (t.title === "TAX INVOICE" ? "tax invoice" : "bill");
 
 // Drawn twice: once on a tall scratch page to measure, then on a page cut to
@@ -741,8 +759,11 @@ function drawReceipt(doc, inv, logo) {
     center(inv.seller.name.toUpperCase(), "bold", 13, 5.5);
   }
   if (inv.seller.address) center(inv.seller.address, "normal", 8, 3.6);
+  if (inv.seller.legalName) center(inv.seller.legalName, "normal", 8, 3.6);
   if (inv.seller.phone) center(`Ph: ${inv.seller.phone}`, "normal", 8, 3.6);
+  if (inv.seller.email) center(inv.seller.email, "normal", 8, 3.6);
   if (inv.seller.gstin) center(`GSTIN: ${inv.seller.gstin}`, "normal", 8, 3.6);
+  if (inv.seller.fssai) center(`FSSAI: ${inv.seller.fssai}`, "normal", 8, 3.6);
   y += 1.5;
   rule();
   center(t.title, "bold", 11, 5.5);
@@ -872,7 +893,7 @@ function receiptHtml(inv) {
   const family = t.font === "helvetica" ? '"Segoe UI", Arial, Helvetica, sans-serif' : '"Courier New", Courier, monospace';
   const ruleCss = { dash: "1px dashed #333", solid: "1.5px solid #111", double: "3px double #111" }[t.rule || "dash"];
   const row = (l, r, cls = "") => `<tr class="${cls}"><td>${l}</td><td class="r">${r}</td></tr>`;
-  const sellerInfo = [esc(inv.seller.address), inv.seller.phone ? `Ph: ${esc(inv.seller.phone)}` : "", inv.seller.gstin ? `GSTIN: ${esc(inv.seller.gstin)}` : ""]
+  const sellerInfo = [esc(inv.seller.legalName), [esc(inv.seller.address), inv.seller.phone ? `Ph: ${esc(inv.seller.phone)}` : ""].filter(Boolean).join(" - "), inv.seller.email ? esc(inv.seller.email) : "", inv.seller.gstin ? `GSTIN: ${esc(inv.seller.gstin)}` : "", inv.seller.fssai ? `FSSAI: ${esc(inv.seller.fssai)}` : ""]
     .filter(Boolean)
     .join("<br>");
 
@@ -881,23 +902,15 @@ function receiptHtml(inv) {
     : `<div class="shop">${esc(inv.seller.name)}</div>`;
 
   const items =
-    t.items === "columns"
-      ? `<table class="cols"><tr class="th"><td>ITEM</td><td class="c">QTY</td><td class="r">RATE</td><td class="r">AMT</td></tr>
-<tr><td colspan="4"><hr></td></tr>
+    // Every item on ONE line: the name (cut with "..." when it is too long
+    // for the roll), then qty, rate and amount in fixed columns.
+    `<table class="lines"><colgroup><col><col class="q"><col class="p"><col class="a"></colgroup>
+<tr class="th"><td>ITEM</td><td class="c">QTY</td><td class="r">RATE</td><td class="r">AMT</td></tr>
 ${inv.lines
   .map(
-    (l) => `<tr><td><b>${esc(l.name)}</b>${l.pack ? ` <span class="small">(${esc(l.pack)})</span>` : ""}${
-      t.taxTable && l.gst ? `<div class="small muted">GST ${l.gst}%</div>` : ""
-    }</td><td class="c">${l.qty}</td><td class="r">${amount(l.rate)}</td><td class="r">${amount(l.amount)}</td></tr>`
+    (l) => `<tr><td class="nm">${t.items === "columns" ? "<b>" : ""}${esc(l.name)}${l.pack ? ` (${esc(l.pack)})` : ""}${t.items === "columns" ? "</b>" : ""}</td><td class="c">${l.qty}</td><td class="r">${amount(l.rate)}</td><td class="r">${amount(l.amount)}</td></tr>`
   )
-  .join("")}</table>`
-      : `<table>${row("<b>ITEM</b>", "<b>AMOUNT</b>")}</table><hr>
-<table>${inv.lines
-          .map(
-            (l) => `<tr><td colspan="2"><b>${esc(l.name)}${l.pack ? ` (${esc(l.pack)})` : ""}</b></td></tr>
-${row(`&nbsp;&nbsp;${l.qty} x ${amount(l.rate)}${l.gst ? ` &nbsp;GST ${l.gst}%` : ""}`, amount(l.amount))}`
-          )
-          .join("")}</table>`;
+  .join("")}</table>`;
 
   const total =
     t.totalStyle === "inverse"
@@ -915,38 +928,50 @@ ${gst.map((r) => `<tr><td>${r.rate}%</td><td class="r">${amount(r.taxable)}</td>
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>${t.title === "TAX INVOICE" ? "Tax Invoice" : "Bill"} ${esc(inv.number)}</title>
 <style>
-@page { size: 80mm auto; margin: 3mm; }
+@page { margin: 0; }
 html, body { margin: 0; background: #fff; }
-body { color: #111; font: ${px(12)}/1.45 ${family}; }
-.rc { width: 72mm; margin: 0 auto; padding: 14px 0; }
+body { color: #111; font: ${px(12)}/1.2 ${family}; }
+.rc { width: 72mm; margin: 0; padding: 2mm 1.5mm; box-sizing: border-box; }
 @media screen { .rc { width: 340px; padding: 18px 20px; } }
 .c { text-align: center; } .r { text-align: right; white-space: nowrap; }
-table { width: 100%; border-collapse: collapse; } td { padding: 1px 0; vertical-align: top; }
-hr { border: 0; border-top: ${ruleCss}; margin: 6px 0; }
-.shop { font-size: ${px(17)}; font-weight: bold; text-transform: uppercase; }
-.logo { display: block; width: 60%; height: auto; margin: 0 auto 4px; filter: grayscale(1) contrast(1.2); }
-.title { font-size: ${px(15)}; font-weight: bold; letter-spacing: 3px; margin: 2px 0 4px; }
-.cols td { padding: 2px 3px 2px 0; } .cols td:last-child { padding-right: 0; }
-.cols .th td { font-weight: bold; font-size: ${px(11)}; }
-.gst td { font-size: ${px(11)}; }
-.tot td { font-size: ${px(16)}; font-weight: bold; padding: 3px 0; }
-.tot.inverse { background: #111; color: #fff; margin: 8px 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.tot.inverse td, .tot.boxed td { padding: 6px 8px; }
-.tot.boxed { border: 2px solid #111; margin: 8px 0; }
-.small { font-size: ${px(10)}; } .muted { color: #555; }
+table { width: 100%; border-collapse: collapse; } td { padding: 0; vertical-align: top; line-height: 1.2; }
+hr { border: 0; border-top: ${ruleCss}; margin: 3px 0; }
+.shop { font-size: ${px(13)}; font-weight: bold; text-transform: uppercase; line-height: 1.15; }
+.logo { display: block; width: 50%; height: auto; margin: 0 auto 2px; filter: grayscale(1) contrast(1.2); }
+.title { font-size: ${px(11)}; font-weight: bold; letter-spacing: 2px; margin: 0; }
+.cols td { padding: 0 3px 0 0; } .cols td:last-child { padding-right: 0; }
+.cols .th td, .lines .th td { font-weight: bold; font-size: ${px(9.5)}; }
+.lines { table-layout: fixed; }
+.lines col.q { width: 6mm; } .lines col.p { width: 12.5mm; } .lines col.a { width: 13.5mm; }
+.lines td { padding: 1px 0; } /* The full item name in smaller type; a very long one wraps rather than being cut. */
+.lines td.nm { white-space: normal; overflow-wrap: anywhere; padding-right: 2px; font-size: .78em; line-height: 1.15; }
+.lines td:not(.nm) { font-size: .82em; }
+.gst td { font-size: ${px(10.5)}; }
+.tot td { font-size: ${px(11)}; font-weight: bold; padding: 1px 0; }
+.tot.inverse { background: #111; color: #fff; margin: 3px 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.tot.inverse td, .tot.boxed td { padding: 2px 5px; }
+.tot.boxed { border: 1.5px solid #111; margin: 3px 0; }
+.small { font-size: ${px(10)}; line-height: 1.15; } .muted { color: #555; }
+.meta td { font-size: ${px(10)}; line-height: 1.2; }
+.dup { font-weight: bold; font-size: ${px(10)}; letter-spacing: 1px; margin-top: 1px; }
+/* Small print: shop details, the GST sum, paid by and the closing lines. */
+.seller { font-size: ${px(9)}; line-height: 1.2; }
+.sumt td { font-size: ${px(10)}; line-height: 1.2; }
+.words { font-size: ${px(9)}; }
+.thanks { font-size: ${px(10)}; line-height: 1.25; } .thanks .gen { font-size: ${px(8)}; }
 </style></head><body><div class="rc">
 <div class="c">${head}
-<div class="small">${sellerInfo}</div></div>
-<hr><div class="c title">${t.title}</div>
-<table>${row("Bill No", esc(inv.number))}${row("Date", esc(inv.date))}${row("Order", esc(inv.orderCode))}${row("Status", esc(inv.status))}
+<div class="seller">${sellerInfo}</div></div>
+<hr><div class="c title">${t.title}</div>${inv.duplicate ? `<div class="c dup">** ${esc(inv.duplicate)} **</div>` : ""}
+<table class="meta">${row("Bill No", esc(inv.number))}${row("Date", esc(inv.date))}${inv.orderCode && inv.orderCode !== inv.number ? row("Order", esc(inv.orderCode)) : ""}${row("Status", esc(inv.status))}
 ${inv.customer.name ? row("Customer", esc(inv.customer.name)) : ""}${inv.customer.phone ? row("Phone", esc(inv.customer.phone)) : ""}</table>
 <hr>${items}<hr>
-<table>${receiptSummary(inv, t).map((r) => row(esc(r.label) + (r.included ? " (incl.)" : ""), esc(r.text))).join("")}</table>
+<table class="sumt">${receiptSummary(inv, t).map((r) => row(esc(r.label) + (r.included ? " (incl.)" : ""), esc(r.text))).join("")}</table>
 ${total}
 ${taxTable}
-<div class="small">${esc(inv.words)}</div>
-<table>${row("Paid by", `${esc(inv.payment.method)} (${esc(inv.payment.status)})`)}</table>
-<hr><div class="c"><b>Thank you! Visit again.</b><br><span class="small">Computer-generated ${receiptWord(t)}</span></div>
+<div class="small words">${esc(inv.words)}</div>
+<table class="meta">${row("Paid by", esc(inv.payment.method))}</table>
+<hr><div class="c thanks"><b>Thank you! Visit again.</b><br><span class="gen">Computer-generated ${receiptWord(t)}</span></div>
 </div></body></html>`;
 }
 
@@ -957,7 +982,10 @@ export function invoiceExcelBlob(inv) {
   const rows = [
     [inv.seller.name, "", "", "", "", "", themeOf(inv.template).title],
     inv.seller.address ? [inv.seller.address] : null,
+    inv.seller.legalName ? [inv.seller.legalName] : null,
+    inv.seller.phone || inv.seller.email ? [[inv.seller.phone ? `Phone: ${inv.seller.phone}` : "", inv.seller.email ? `Email: ${inv.seller.email}` : ""].filter(Boolean).join("  |  ")] : null,
     inv.seller.gstin ? [`GSTIN: ${inv.seller.gstin}`] : null,
+    inv.seller.fssai ? [`FSSAI: ${inv.seller.fssai}`] : null,
     [],
     [noLabel, inv.number, "", "", "", "Bill to", inv.customer.name],
     [dateLabel, inv.date, "", "", "", "Phone", inv.customer.phone],

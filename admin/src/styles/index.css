@@ -3418,3 +3418,22 @@ input.switch:checked::after { transform: translateX(18px); }
 .track-step.step-6:not(.pending) { --c: #8b3fc6; } /* delivered: purple */
 .track-step.pending { --c: #9aa1a9; }
 .track-tag { color: color-mix(in srgb, var(--c) 72%, #000); }
+
+/* Settings -> General -> POS: which channels the bill is sent by. */
+.send-via { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.send-via-opt { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; font-weight: 600; background: var(--surface); }
+.send-via-opt.on { border-color: var(--accent); background: var(--accent-soft, #e8f5ec); color: var(--accent); }
+.send-via-opt input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+
+/* Products list: the product name (and its category under it) on one line,
+   cut with "..." when very long, so the table does not grow past the screen
+   (which pushed the column / download buttons out of sight). */
+.products-page:not(.reviews-page) table.data .row-with-media .stack { min-width: 0; max-width: 230px; }
+.products-page:not(.reviews-page) table.data .row-with-media .row-title,
+.products-page:not(.reviews-page) table.data .row-with-media .row-sub {
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal;
+}
+
+/* Every table: the column picker and download buttons stay pinned to the
+   right edge of the header, even when the table scrolls sideways. */
+table.data thead th.export-th { position: sticky; right: 0; z-index: 2; background: var(--surface-2); }

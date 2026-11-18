@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { Banner, Card, Empty, Loading, Pagination, Table, rupees, useConfirm } from "../../components/ui";
-import { computeBill, printInvoice } from "./billing";
+import { computeBill, customerEmail, customerPhone, printInvoice, sendBill, sendMode, wantsWhatsApp } from "./billing";
+import { openPrintWindow } from "../../lib/printFit";
 
 // Bills put on hold at the till, and bills already rung up — each on its own
 // page (they used to be pop-ups on the POS screen).
@@ -86,6 +87,38 @@ export function HoldBills() {
 
 export function PastBills() {
   const header = read(HEADER_KEY, null);
+  const [confirm, confirmDialog] = useConfirm();
+  const [notice, setNotice] = useState("");
+
+  // A bill that was already generated is never printed again as if it were
+  // new: the cashier is told, and a second copy prints as "DUPLICATE COPY"
+  // (counted on the server: copy 2, 3 ...).
+  // Send a saved bill to its customer again (as Settings -> General -> POS says).
+  const send = async (o) => {
+    // Nothing ticked in the setting: a manual Send still uses WhatsApp.
+    const mode = sendMode(header).length ? sendMode(header) : ["whatsapp"];
+    const waWin = customerPhone(o) && wantsWhatsApp(mode) ? window.open("", "_blank") : null;
+    setNotice((await sendBill(o, header, { waWin, api, mode })) || "");
+  };
+
+  const reprint = async (o) => {
+    const ok = await confirm({
+      title: "This bill was already generated",
+      message: `${o.invoiceNo || o.code} · ${money(o.pricing?.total)} · ${at(o.placedAt)}${o.posReprints ? ` · ${o.posReprints} duplicate cop${o.posReprints === 1 ? "y" : "ies"} printed before` : ""}. Print a duplicate copy? It will be marked DUPLICATE COPY.`,
+      confirmLabel: "Print duplicate",
+    });
+    if (!ok) return;
+    const win = openPrintWindow(); // straight from the click, so it is not blocked
+    let copy = (o.posReprints || 0) + 1;
+    try {
+      copy = (await api.post(`/pos/sales/${o.id}/reprint`)).copy || copy;
+    } catch {
+      // not recorded (offline): still print, marked as a duplicate
+    }
+    printInvoice(o, header, { win, duplicate: copy });
+    setData((d) => (d ? { ...d, items: d.items.map((x) => (x.id === o.id ? { ...x, posReprints: copy } : x)) } : d));
+    setNotice(`Duplicate copy ${copy > 1 ? copy + " " : ""}of ${o.invoiceNo || o.code} sent to print.`);
+  };
   const [q, setQ] = useState("");
   const [term, setTerm] = useState("");
   const [page, setPage] = useState(1);
@@ -115,8 +148,9 @@ export function PastBills() {
 
   return (
     <div className="page">
-      <Head title="Past bills" sub="Every bill rung up at the till, newest first. Reprint any of them." />
+      <Head title="Past bills" sub="Every bill rung up at the till, newest first. A bill printed again comes out marked DUPLICATE COPY." />
       <Banner tone="error">{error}</Banner>
+      <Banner tone="info">{notice}</Banner>
       <div className="toolbar" style={{ marginBottom: 12 }}>
         <span className="search-field" style={{ maxWidth: 360 }}>
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
@@ -141,14 +175,20 @@ export function PastBills() {
                 { key: "items", label: "Items", align: "right", render: (o) => (o.items || []).length, exportValue: (o) => (o.items || []).length },
                 { key: "payment", label: "Payment", render: payLabel, exportValue: payLabel },
                 { key: "total", label: "Total", align: "right", render: (o) => <strong>{money(o.pricing?.total)}</strong>, exportValue: (o) => ((o.pricing?.total || 0) / 100).toFixed(2) },
+                { key: "posReprints", label: "Copies", align: "right", render: (o) => (o.posReprints ? `1 + ${o.posReprints} dup.` : "1"), exportValue: (o) => 1 + (o.posReprints || 0) },
                 {
                   key: "actions",
                   label: "",
                   sortable: false,
                   render: (o) => (
-                    <button className="btn sm" onClick={(e) => { e.stopPropagation(); printInvoice(o, header); }}>
-                      Reprint
-                    </button>
+                    <span style={{ display: "inline-flex", gap: 6 }}>
+                      <button className="btn sm" title="Send this bill to the customer's mobile" disabled={!customerPhone(o) && !customerEmail(o)} onClick={(e) => { e.stopPropagation(); send(o); }}>
+                        Send
+                      </button>
+                      <button className="btn sm" onClick={(e) => { e.stopPropagation(); reprint(o); }}>
+                        Print duplicate
+                      </button>
+                    </span>
                   ),
                 },
               ]}
@@ -158,6 +198,7 @@ export function PastBills() {
           </>
         )}
       </Card>
+      {confirmDialog}
     </div>
   );
 }

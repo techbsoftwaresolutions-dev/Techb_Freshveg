@@ -1,4 +1,5 @@
-import { DEFAULT_POS_TEMPLATE, posBillHtml } from "./posBill";
+import { DEFAULT_POS_TEMPLATE, posBillHtml, posBillPage, posBillText } from "./posBill";
+import { whatsappUrl } from "../orders/invoice";
 import { printReceipt } from "../../lib/printFit";
 import { api, ApiError } from "../../api/client";
 
@@ -74,12 +75,102 @@ export async function flushQueue() {
 // Prints the POS bill in the format chosen in Settings -> Print -> POS bill
 // (header.posTemplate; manual A5 bill by default). `order` is the server
 // order, or a provisional one built on the till while offline.
-export function printInvoice(order, header, { provisional = false, win = null } = {}) {
+// duplicate: a reprint of a bill already generated - prints "DUPLICATE COPY".
+export function printInvoice(order, header, { provisional = false, win = null, duplicate = 0 } = {}) {
   const template = header?.posTemplate || DEFAULT_POS_TEMPLATE;
-  const html = posBillHtml(order, header, template, { provisional });
+  const html = posBillHtml(order, header, template, { provisional, duplicate });
   // Thermal receipts: cut to the bill's exact length (80mm / 58mm wide).
   // A5/A4 bills: that sheet. Both from their own window, which closes after
   // printing — Chrome ignores the page size of a bill printed inside the page.
-  const width = template === "pos_thermal_58" ? 58 : template === "pos_thermal" ? 80 : null;
+  const page = posBillPage(template);
+  const width = page === "58mm" ? 58 : page === "80mm" ? 80 : null;
   return printReceipt(html, width, { win });
+}
+
+// ---- Sending the bill to the customer ----
+
+// Settings -> General -> POS -> "Send bill to customer": any of
+// "whatsapp", "sms", "email" (none ticked = don't send).
+export const sendMode = (header) => {
+  if (Array.isArray(header?.sendBillVia)) return header.sendBillVia;
+  return { off: [], sms: ["sms"], both: ["whatsapp", "sms"] }[header?.sendBill] || ["whatsapp"];
+};
+export const wantsWhatsApp = (via) => (via || []).includes("whatsapp");
+export const customerPhone = (order) => {
+  const digits = String(order?.customerSnapshot?.phone || "").replace(/\D/g, "").slice(-10);
+  return /^\d{10}$/.test(digits) && digits !== "0000000000" ? digits : "";
+};
+export const customerEmail = (order) => {
+  const e = String(order?.customerSnapshot?.email || "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? e : "";
+};
+
+// Opens the computer's mail app with the bill typed in.
+function openMail(to, subject, body) {
+  const a = document.createElement("a");
+  a.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  a.click();
+}
+
+// Sends a saved bill by every channel ticked in the setting. WhatsApp opens a
+// chat with the message filled in (the cashier presses Send) - `waWin` is a
+// tab opened straight from the click so the browser does not block it. SMS
+// and email go out from the server; email falls back to the mail app while
+// no email service is set up. Returns a short line saying what happened.
+export async function sendBill(order, header, { waWin = null, api, mode = sendMode(header) } = {}) {
+  const via = Array.isArray(mode) ? mode : sendMode({ sendBill: mode });
+  if (!via.length) {
+    waWin?.close();
+    return "";
+  }
+  const phone = customerPhone(order);
+  const email = customerEmail(order);
+  const text = posBillText(order, header);
+  const subject = `${header?.name || "Hosur Basket"} - Bill ${order.invoiceNo || ""}`.trim();
+  const done = [];
+
+  if (via.includes("whatsapp")) {
+    if (phone) {
+      const url = whatsappUrl(phone, text);
+      if (waWin && !waWin.closed) waWin.location.href = url;
+      else window.open(url, "_blank");
+      done.push("WhatsApp opened");
+    } else {
+      waWin?.close();
+      done.push("WhatsApp: no customer mobile");
+    }
+  } else waWin?.close();
+
+  if (via.includes("sms")) {
+    if (!phone) done.push("SMS: no customer mobile");
+    else if (api) {
+      try {
+        const r = await api.post(`/pos/sales/${order.id}/sms`, { phone });
+        done.push(r.status === "sent" ? "SMS sent" : r.status === "skipped" ? `SMS not sent (${r.reason || "not set up"})` : `SMS failed (${r.error || "error"})`);
+      } catch (err) {
+        done.push(`SMS failed (${err.message})`);
+      }
+    }
+  }
+
+  if (via.includes("email")) {
+    if (!email) done.push("Email: no customer email");
+    else {
+      let sent = false;
+      if (api) {
+        try {
+          const r = await api.post(`/pos/sales/${order.id}/email`, { email, text });
+          sent = r.status === "sent";
+        } catch {
+          // fall back to the mail app below
+        }
+      }
+      if (sent) done.push("Email sent");
+      else {
+        openMail(email, subject, text.replace(/\*/g, ""));
+        done.push("Mail app opened");
+      }
+    }
+  }
+  return done.join(" · ");
 }

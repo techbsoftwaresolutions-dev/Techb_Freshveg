@@ -127,7 +127,7 @@ export default function AccountMobile({ user, initials, store, pincode, recentOr
           <IconWallet width={26} height={26} />
           <span>Wallet {rupees(user.walletBalance)}</span>
         </Link>
-        <Link href="/help" className="ah-quick-tile">
+        <Link href="/help?talk=1" className="ah-quick-tile">
           <IconHeadset width={26} height={26} />
           <span>Need help?</span>
         </Link>

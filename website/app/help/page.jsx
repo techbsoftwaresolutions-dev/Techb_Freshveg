@@ -41,14 +41,18 @@ const TOPICS = [
   },
 ];
 
-export default function HelpPage() {
+// "Need help?" on the account screen opens /help?talk=1: just the
+// "Talk to us" card, without the other help topics.
+export default async function HelpPage({ searchParams }) {
+  const talkOnly = (await searchParams)?.talk === "1";
   return (
     <div className="wrap help-page">
       <header className="page-title">
-        <h1>Help Center</h1>
-        <p>Pick what you need, or call us.</p>
+        <h1>{talkOnly ? "Need help?" : "Help Center"}</h1>
+        <p>{talkOnly ? "Call us and we will sort it out." : "Pick what you need, or call us."}</p>
       </header>
 
+      {talkOnly ? null : (
       <div className="help-grid">
         {TOPICS.map((topic) => (
           <section key={topic.title} className="panel help-card">
@@ -60,6 +64,7 @@ export default function HelpPage() {
           </section>
         ))}
       </div>
+      )}
 
       <section className="panel help-card help-call">
         <h2>Talk to us</h2>

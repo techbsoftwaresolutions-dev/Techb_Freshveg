@@ -4,7 +4,24 @@ import { api } from "../../api/client";
 import { Banner, Field, Loading, Tabs } from "../../components/ui";
 import { Affix, FormSection, Segmented, SwitchRow } from "../../components/FormKit";
 import { DEFAULT_TEMPLATE, INVOICE_TEMPLATES, invoiceHtml, sampleInvoice } from "../orders/invoice";
-import { DEFAULT_POS_TEMPLATE, POS_TEMPLATES as POS_BILL_TEMPLATES, posBillHtml, samplePosBill } from "../pos/posBill";
+import { DEFAULT_POS_TEMPLATE, POS_TEMPLATES as POS_BILL_TEMPLATES, posBillHtml, posBillPage, samplePosBill } from "../pos/posBill";
+// The POS bill can use its own formats or any of the online invoice templates:
+// the two thermal receipts (80mm, 58mm) first, then the 80mm counter
+// bills, the A4 invoices, and the manual A5 / A4 bills last.
+const invoiceEntries = Object.entries(INVOICE_TEMPLATES);
+const POS_BILL_CHOICES = Object.fromEntries([
+  ["pos_thermal", POS_BILL_TEMPLATES.pos_thermal],
+  ["pos_thermal_58", POS_BILL_TEMPLATES.pos_thermal_58],
+  ...invoiceEntries.filter(([, t]) => t.receipt),
+  ...invoiceEntries.filter(([, t]) => !t.receipt),
+  ["pos_manual", POS_BILL_TEMPLATES.pos_manual],
+  ["pos_manual_a4", POS_BILL_TEMPLATES.pos_manual_a4],
+]);
+// Online invoice: the full invoices first, the 80mm counter bills last.
+const INVOICE_CHOICES = Object.fromEntries([
+  ...invoiceEntries.filter(([, t]) => !t.receipt),
+  ...invoiceEntries.filter(([, t]) => t.receipt),
+]);
 
 // One settings document, edited a section at a time — so two admins working on
 // different areas do not overwrite each other with a whole-document save.
@@ -390,6 +407,7 @@ export default function General() {
         ) : null}
 
         {section === "pos" ? (
+          <>
           <FormSection step="1" title="Billing screen">
             <Field label="POS screen template" help={POS_TEMPLATES[draft.template || "standard"]}>
               <Select value={draft.template || "standard"} onChange={set("template")}>
@@ -400,6 +418,45 @@ export default function General() {
               </Select>
             </Field>
           </FormSection>
+          <FormSection step="2" title="Send bill to customer">
+            <Field
+              label="After a bill is saved, send it to the customer by"
+              help="Tick one, two or all three. None ticked = bills are only printed. WhatsApp opens with the customer's number and the bill typed in (the cashier presses Send). SMS needs an SMS provider connected; email goes out from the server once an email service is set up, and until then opens the mail app with the bill."
+            >
+              {(() => {
+                const via = Array.isArray(draft.sendBillVia)
+                  ? draft.sendBillVia
+                  : { off: [], sms: ["sms"], both: ["whatsapp", "sms"] }[draft.sendBill] || ["whatsapp"];
+                const toggle = (key) =>
+                  setDraft((d) => {
+                    const cur = Array.isArray(d.sendBillVia) ? d.sendBillVia : via;
+                    return { ...d, sendBillVia: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key] };
+                  });
+                const all = ["whatsapp", "sms", "email"];
+                return (
+                  <div className="send-via">
+                    {[
+                      ["whatsapp", "WhatsApp"],
+                      ["sms", "Message (SMS)"],
+                      ["email", "Email"],
+                    ].map(([key, label]) => (
+                      <label key={key} className={`send-via-opt${via.includes(key) ? " on" : ""}`}>
+                        <input type="checkbox" checked={via.includes(key)} onChange={() => toggle(key)} /> {label}
+                      </label>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn sm"
+                      onClick={() => setDraft((d) => ({ ...d, sendBillVia: all.every((k) => via.includes(k)) ? [] : all }))}
+                    >
+                      {all.every((k) => via.includes(k)) ? "Clear all" : "Select all"}
+                    </button>
+                  </div>
+                );
+              })()}
+            </Field>
+          </FormSection>
+          </>
         ) : null}
 
         {section === "print" ? (
@@ -415,7 +472,7 @@ export default function General() {
                   POS bill
                 </button>
               </div>
-              {(printKind === "pos" ? Object.entries(POS_BILL_TEMPLATES) : Object.entries(INVOICE_TEMPLATES)).map(([key, tpl]) => {
+              {(printKind === "pos" ? Object.entries(POS_BILL_CHOICES) : Object.entries(INVOICE_CHOICES)).map(([key, tpl]) => {
                 const field = printKind === "pos" ? "posTemplate" : "invoiceTemplate";
                 const fallback = printKind === "pos" ? DEFAULT_POS_TEMPLATE : DEFAULT_TEMPLATE;
                 const on = (draft[field] || fallback) === key;
@@ -497,11 +554,15 @@ function InvoicePreview({ template, pos = false }) {
     return posBillHtml(sample.order, sample.header, template);
   }, [template, pos]);
   // POS bills are always measured to their real height, like a receipt.
-  const receipt = pos || Boolean(INVOICE_TEMPLATES[template]?.receipt);
+  const receipt = pos ? posBillPage(template) !== "A4" || !INVOICE_TEMPLATES[template] : Boolean(INVOICE_TEMPLATES[template]?.receipt);
   // A4 pages use a fixed sheet; an 80mm bill is a narrow strip whose length
   // depends on its content, so it is measured once the frame has loaded.
   const [billH, setBillH] = useState(RECEIPT_H);
-  const pageW = pos ? POS_PAGE_W[POS_BILL_TEMPLATES[template]?.page] || 600 : receipt ? RECEIPT_W : PAGE_W;
+  const pageW = pos
+    ? INVOICE_TEMPLATES[template]
+      ? INVOICE_TEMPLATES[template].receipt ? RECEIPT_W : PAGE_W
+      : POS_PAGE_W[POS_BILL_TEMPLATES[template]?.page] || 600
+    : receipt ? RECEIPT_W : PAGE_W;
   const pageH = receipt ? billH : PAGE_H;
   const box = useRef(null);
   const [area, setArea] = useState(null); // inner size of the preview area
