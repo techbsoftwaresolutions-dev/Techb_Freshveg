@@ -31,6 +31,7 @@ export default function Stores() {
   const [items, setItems] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleted, setDeleted] = useState("");
@@ -43,14 +44,14 @@ export default function Stores() {
   useEffect(() => {
     setLoading(true);
     api
-      .get("/stores", { limit: 20, page })
+      .get("/stores", { limit, page })
       .then((data) => {
         setItems(data.items);
         setMeta(data.meta);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, limit]);
 
   // The API refuses when deleting would lose history or widen a rule (orders
   // on record, the default store, staff or offers tied to it alone) and says
@@ -231,7 +232,7 @@ export default function Stores() {
             />
           }
         />
-        <Pagination meta={meta} onPage={setPage} />
+        <Pagination meta={meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
       </Card>
     </div>
   );

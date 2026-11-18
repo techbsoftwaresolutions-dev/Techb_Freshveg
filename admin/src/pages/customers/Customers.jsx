@@ -26,7 +26,7 @@ export default function Customers() {
     const timer = setTimeout(() => setSearchTerm(filters.search), filters.search ? 250 : 0);
     return () => clearTimeout(timer);
   }, [filters.search]);
-  const listQ = useApi("/customers", { ...filters, search: searchTerm, limit: 20 });
+  const listQ = useApi("/customers", { limit: 20, ...filters, search: searchTerm });
   const data = listQ.data || { items: [], meta: null };
   const loading = listQ.loading;
   const load = listQ.reload;
@@ -145,7 +145,7 @@ export default function Customers() {
               onRowClick={(row) => navigate(`/customers/${row.id}`)}
               empty={<Empty title="No customers yet" hint="Accounts are created the first time someone signs in." />}
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>

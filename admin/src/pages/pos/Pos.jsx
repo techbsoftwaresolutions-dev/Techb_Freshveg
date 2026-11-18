@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, rupees, useConfirm } from "../../components/ui";
@@ -14,6 +15,10 @@ import "./pos-terminal.css";
 
 const HEADER_KEY = "pos.header";
 const HELD_KEY = "pos.held";
+// The bill being rung up, kept for this tab so opening Hold bills or Past
+// bills (their own pages) and coming back does not lose it.
+const DRAFT_KEY = "pos.draft";
+const readDraft = () => { try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY)) || {}; } catch { return {}; } };
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const money = (p) => rupees(p, { decimals: true });
 
@@ -144,24 +149,25 @@ export default function Pos() {
     return () => window.removeEventListener("resize", fit);
   });
   const charging = useRef(false);
-  const billId = useRef(crypto.randomUUID());
+  const draft = useRef(readDraft()).current;
+  const billId = useRef(draft.billId || crypto.randomUUID());
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [catalogue, setCatalogue] = useState(loadCatalogue);
   const [header, setHeader] = useState(() => read(HEADER_KEY, null));
-  const [lines, setLines] = useState([]);
+  const [lines, setLines] = useState(() => draft.lines || []);
   const [code, setCode] = useState("");
-  const [discount, setDiscount] = useState(""); // rupees
-  const [customer, setCustomer] = useState(null); // { name, phone } once "Add Customer" is used
+  const [discount, setDiscount] = useState(() => draft.discount || ""); // rupees
+  const [customer, setCustomer] = useState(() => draft.customer || null); // { name, phone } once "Add Customer" is used
   const [method, setMethod] = useState("cash");
   const [received, setReceived] = useState(""); // rupees, cash only
   const [split, setSplit] = useState({ cash: "", upi: "", card: "" }); // rupees, "Split" payment (terminal template)
   const [cat, setCat] = useState("All");
   const [held, setHeld] = useState(() => read(HELD_KEY, []));
-  const [modal, setModal] = useState(null); // "held" | "past"
   // Pay shows the bill first; it is saved and the screen cleared only when
   // "Print bill" is pressed — until then it can still be edited or held.
   const [review, setReview] = useState(false);
-  const [past, setPast] = useState([]);
   const [msg, setMsg] = useState(null);
   const [online, setOnline] = useState(navigator.onLine);
   const [pending, setPending] = useState(queued().length);
@@ -179,6 +185,13 @@ export default function Pos() {
   const canPay =
     lines.length > 0 && !busy &&
     (method === "cash" ? receivedPaise >= bill.total : method === "split" ? splitPaise >= bill.total : true);
+
+  useEffect(() => {
+    try {
+      if (lines.length || customer) sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ lines, discount, customer, billId: billId.current }));
+      else sessionStorage.removeItem(DRAFT_KEY);
+    } catch { /* storage blocked */ }
+  }, [lines, discount, customer]);
 
   const refreshCounts = () => { setPending(queued().length); setFailedCount(failed().length); };
   const saveHeld = (list) => { setHeld(list); try { localStorage.setItem(HELD_KEY, JSON.stringify(list)); } catch { /* storage blocked */ } };
@@ -315,18 +328,30 @@ export default function Pos() {
     saveHeld(lines.length ? [snapshot(), ...rest] : rest);
     setLines(h.lines); setDiscount(h.discount || ""); setCustomer(h.customer || null); setReceived("");
     billId.current = crypto.randomUUID();
-    setModal(null);
   };
+
+  // "Resume" on the Hold bills page comes back here with the bill's id.
+  useEffect(() => {
+    const id = location.state?.resume;
+    if (!id) return;
+    const h = held.find((x) => x.id === id);
+    if (h) {
+      resume(h);
+      setMsg({ tone: "info", text: "Hold bill resumed" });
+    }
+    navigate(".", { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const newBill = async () => {
     if (lines.length && !(await confirm({ title: "Clear this bill?", confirmLabel: "Clear" }))) return;
     reset();
   };
 
-  const openPast = async () => {
-    setModal("past");
-    try { setPast((await api.get("/pos/sales")).items); } catch (e) { setPast([]); setMsg({ tone: "danger", text: e.message }); }
-  };
+  const openHeld = () => navigate("/pos/hold-bills");
+  const openPast = () => navigate("/pos/past-bills");
+  // The terminal layout still asks for "held" / "past" by name.
+  const setModal = (which) => (which === "held" ? openHeld() : which === "past" ? openPast() : null);
 
   // The sale as it would be sent — used for the preview and the save alike.
   const buildSale = () => ({
@@ -438,7 +463,7 @@ export default function Pos() {
         </div>
         <div className="pos-actions">
           <button className="pos-chip-btn" onClick={newBill}><Ico n="plus" /> New Bill (F2)</button>
-          <button className="pos-chip-btn" onClick={() => setModal("held")}>
+          <button className="pos-chip-btn" onClick={openHeld}>
             <Ico n="bookmark" /> Hold Bills (F3){held.length > 0 && <span className="badge">{held.length}</span>}
           </button>
           <button className="pos-chip-btn" onClick={openPast}><Ico n="clock" /> Past Bills (F4)</button>
@@ -653,37 +678,6 @@ export default function Pos() {
         </div>
       ) : null}
 
-      {modal && (
-        <div className="pos-modal-bg" onClick={() => setModal(null)}>
-          <div className="pos-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className="pos-panel-head">
-              <h2>{modal === "held" ? "Held bills" : "Past bills"}</h2>
-              <button className="pos-sm-btn" onClick={() => setModal(null)}>Close</button>
-            </div>
-            {modal === "held" && (held.length ? held.map((h) => (
-              <div className="pos-modal-row" key={h.id}>
-                <span>{h.lines.length} item(s) - {new Date(h.at).toLocaleTimeString("en-IN")}{h.customer?.name ? ` - ${h.customer.name}` : ""}</span>
-                <span style={{ display: "flex", gap: 6 }}>
-                  <button className="pos-sm-btn" onClick={() => resume(h)}>Resume</button>
-                  <button className="pos-sm-btn danger" onClick={async () => {
-                    if (!(await confirm({ title: "Delete this held bill?", message: `${h.lines.length} item(s)`, confirmLabel: "Delete" }))) return;
-                    saveHeld(held.filter((x) => x.id !== h.id));
-                  }}>Delete</button>
-                </span>
-              </div>
-            )) : <div className="pos-empty">No held bills.</div>)}
-            {modal === "past" && (past.length ? past.map((o) => (
-              <div className="pos-modal-row" key={o.id}>
-                <span><b>{o.invoiceNo}</b><br /><small>{new Date(o.placedAt).toLocaleString("en-IN")} - {o.cashierName}</small></span>
-                <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <b>{money(o.pricing.total)}</b>
-                  <button className="pos-sm-btn" onClick={() => printInvoice(o, header)}><Ico n="printer" size={16} /> Reprint</button>
-                </span>
-              </div>
-            )) : <div className="pos-empty">No bills yet.</div>)}
-          </div>
-        </div>
-      )}
       {confirmDialog}
     </div>
   );

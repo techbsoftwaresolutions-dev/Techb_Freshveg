@@ -54,6 +54,7 @@ export default function Users() {
   const [items, setItems] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [filters, setFilters] = useState({ search: "", role: "", status: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -80,7 +81,7 @@ export default function Users() {
         setLoading(true);
         api
           .get("/staff", {
-            limit: 20,
+            limit,
             page,
             ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)),
           })
@@ -94,7 +95,7 @@ export default function Users() {
       filters.search ? 250 : 0,
     );
     return () => clearTimeout(timer);
-  }, [page, filters]);
+  }, [page, limit, filters]);
 
   // The API refuses deleting yourself or the last super admin and says why.
   async function removeUser(row) {
@@ -270,7 +271,7 @@ export default function Users() {
                 />
               }
             />
-            <Pagination meta={meta} onPage={setPage} />
+            <Pagination meta={meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>

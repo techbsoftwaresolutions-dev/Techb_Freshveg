@@ -131,7 +131,7 @@ export default function Orders() {
   }, [search]);
   const ordersQ = useApi(
     "/orders",
-    { ...filters, ...(q ? { q, from: "", to: "" } : range), limit: 20 },
+    { limit: 20, ...filters, ...(q ? { q, from: "", to: "" } : range) },
     { refreshMs: 30000 }
   );
   const data = ordersQ.data || { items: [], meta: null };
@@ -170,7 +170,7 @@ export default function Orders() {
       <Tabs
         tabs={[{ key: "online", label: "Online Orders" }, { key: "pos", label: "Walk-in Orders" }]}
         active={filters.channel}
-        onChange={(channel) => setFilters({ status: "", channel, page: 1 })}
+        onChange={(channel) => setFilters((f) => ({ limit: f.limit, status: "", channel, page: 1 }))}
       />
 
       <div className="toolbar products-filters">
@@ -377,7 +377,7 @@ export default function Orders() {
               onRowClick={(row) => navigate(`/orders/${row.id}`)}
               empty={<Empty title="No orders" hint="Orders placed from the app or website land here." />}
             />
-            <Pagination meta={data.meta} onPage={(page) => setFilters((f) => ({ ...f, page }))} />
+            <Pagination meta={data.meta} onPage={(page) => setFilters((f) => ({ ...f, page }))} onLimit={(limit) => setFilters((f) => ({ ...f, limit, page: 1 }))} />
           </>
         )}
       </Card>

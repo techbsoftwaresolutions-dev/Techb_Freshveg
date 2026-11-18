@@ -42,7 +42,7 @@ export default function Brands() {
   const load = useCallback(() => {
     setLoading(true);
     api
-      .get("/catalog/brands", { ...filters, limit: 20 })
+      .get("/catalog/brands", { limit: 20, ...filters })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -168,7 +168,7 @@ export default function Brands() {
               onRowClick={editable ? (row) => navigate(`/catalog/brands/${row.id}`) : undefined}
               empty={<Empty title="No brands" hint="Add one to enable brand filters." />}
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>

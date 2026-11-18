@@ -10,6 +10,16 @@ import {
   YAxis,
 } from "recharts";
 import { useApi } from "../api/useApi";
+
+// A till / cash register, for the POS Billing card.
+function IconPosRegister(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M7 20h10M12 16v4M7 8h4M7 11h7" />
+    </svg>
+  );
+}
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./orders/Orders";
 import {
@@ -17,6 +27,7 @@ import {
   Card,
   Empty,
   Loading,
+  Pagination,
   Pill,
   Stat,
   rupees,
@@ -167,25 +178,12 @@ const PENDING_ORDER_STATUSES = [
 // every order rather than the most recent fifty.
 const PAGE_SIZE = 5;
 
-// Footer of a dashboard list card: Previous / Next through five rows at a time.
+// Footer of a dashboard list card: the table pagination, five rows a page.
+// `page` here counts from 0.
 function Pager({ page, total, onPage }) {
   if (total <= PAGE_SIZE) return null;
-  const pageCount = Math.ceil(total / PAGE_SIZE);
-  const first = page * PAGE_SIZE + 1;
-  const last = Math.min(total, (page + 1) * PAGE_SIZE);
-  return (
-    <div className="dash-pager">
-      <button type="button" className="btn sm" disabled={page <= 0} onClick={() => onPage(page - 1)}>
-        ‹ Previous
-      </button>
-      <span className="faint">
-        {first}–{last} of {total}
-      </span>
-      <button type="button" className="btn sm" disabled={page >= pageCount - 1} onClick={() => onPage(page + 1)}>
-        Next ›
-      </button>
-    </div>
-  );
+  const meta = { page: page + 1, pages: Math.ceil(total / PAGE_SIZE), total, limit: PAGE_SIZE };
+  return <Pagination meta={meta} onPage={(p) => onPage(p - 1)} />;
 }
 
 export default function Dashboard() {
@@ -217,6 +215,27 @@ export default function Dashboard() {
   // Six small calls instead of eight big ones (the totals for products, customers and orders now
   // ride along in /reports/dashboard). Each is cached, shared and refreshed in the background by
   // TanStack Query, and every list is only as long as the card that shows it.
+  // "Good evening, …" shows for 2 seconds once after each login, then fades
+  // away; coming back to the dashboard later in the same login skips it.
+  const greetKey = `dash-greeted:${user?.id || user?._id || ""}:${user?.lastLoginAt || ""}`;
+  const [greetOn, setGreetOn] = useState(() => {
+    try {
+      return !sessionStorage.getItem(greetKey);
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    if (!greetOn) return undefined;
+    try {
+      sessionStorage.setItem(greetKey, "1");
+    } catch {
+      // storage blocked: it just shows on each visit
+    }
+    const t = setTimeout(() => setGreetOn(false), 2000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const refresh = { refreshMs: 60000 };
   const dashQ = useApi("/reports/dashboard", undefined, { ...refresh, enabled: can("reports.view") });
   const ordersQ = useApi("/orders", { limit: 15, view: "summary" }, { ...refresh, enabled: can("orders.view") });
@@ -285,32 +304,28 @@ export default function Dashboard() {
 
   return (
     <div className="page dash-page">
-      <div className="page-head dash-head">
-        <div>
+      <div className={`page-head dash-head${greetOn ? "" : " dash-head-gone"}`}>
+        <div className={`dash-greet${greetOn ? "" : " gone"}`} aria-hidden={!greetOn}>
           <h1>
             {greeting}
             {firstName ? `, ${firstName}` : ""}
           </h1>
         </div>
-        <div className="dash-head-actions">
-          {can("orders.view") && (lifetime.pendingOrders ?? 0) > 0 ? (
-            <Link className="dash-alert amber" to={`/orders?status=${PENDING_ORDER_STATUSES}`}>
-              <span className="dash-alert-dot" />
-              {lifetime.pendingOrders} pending {lifetime.pendingOrders === 1 ? "order" : "orders"}
-            </Link>
-          ) : null}
-          {can("inventory.view") && (data?.lowStockCount ?? 0) > 0 ? (
-            <Link className="dash-alert red" to="/inventory">
-              <span className="dash-alert-dot" />
-              {data.lowStockCount} low on stock
-            </Link>
-          ) : null}
-        </div>
       </div>
 
       <Banner tone="error">{error}</Banner>
 
-      <div className="grid cols-6" style={{ marginBottom: 14 }}>
+      <div className={`grid ${can("pos.sell") ? "cols-7" : "cols-6"}`} style={{ marginBottom: 14 }}>
+        {can("pos.sell") ? (
+          <Stat
+            icon={IconPosRegister}
+            hue="green"
+            label="POS Billing"
+            value="New Bill"
+            foot="Start a walk-in bill"
+            to="/pos"
+          />
+        ) : null}
         <Stat
           icon={IconWallet}
           hue="green"

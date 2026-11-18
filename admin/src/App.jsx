@@ -29,6 +29,7 @@ import General from "./pages/settings/General";
 import AuditLog from "./pages/settings/AuditLog";
 import Users, { UserFormPage } from "./pages/settings/Users";
 import Pos from "./pages/pos/Pos";
+import { HoldBills, PastBills } from "./pages/pos/PosBills";
 import Labels from "./pages/pos/Labels";
 import Import from "./pages/pos/Import";
 
@@ -84,6 +85,8 @@ function Shell() {
         <Route path="payments" element={<Guard permission="orders.view"><Payments /></Guard>} />
 
         <Route path="pos" element={<Guard permission="pos.sell"><Pos /></Guard>} />
+        <Route path="pos/hold-bills" element={<Guard permission="pos.sell"><HoldBills /></Guard>} />
+        <Route path="pos/past-bills" element={<Guard permission="pos.sell"><PastBills /></Guard>} />
         <Route path="pos/labels" element={<Guard permission="pos.manage"><Labels /></Guard>} />
         <Route path="pos/import" element={<Guard permission="pos.manage"><Import /></Guard>} />
         <Route path="inventory" element={<Guard permission="inventory.view"><Inventory /></Guard>} />

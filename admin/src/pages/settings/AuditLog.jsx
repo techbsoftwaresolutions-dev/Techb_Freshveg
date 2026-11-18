@@ -92,7 +92,7 @@ export default function AuditLog() {
     const timer = setTimeout(
       () =>
         api
-          .get("/audit", { ...filters, ...range, limit: 25 })
+          .get("/audit", { limit: 25, ...filters, ...range })
           .then(setData)
           .catch((err) => setError(err.message))
           .finally(() => setLoading(false)),
@@ -220,7 +220,7 @@ export default function AuditLog() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>

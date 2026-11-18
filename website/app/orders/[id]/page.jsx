@@ -49,6 +49,26 @@ const ORDER_PROGRESS_STAGES = [
   { label: "Delivered", statuses: ["DELIVERED"] },
 ];
 
+// Line icons for the progress steps, one per step (same as the admin).
+const TRACK_ICON_PATHS = {
+  cart: "M3 4h2l2.4 11h10.2L20 8H6.2M9 20h.01M17 20h.01",
+  clipboard: "M9 4h6v3H9zM7 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-1M9 11h6M9 15h6",
+  box: "M12 3 4 7v10l8 4 8-4V7zM4 7l8 4 8-4M12 11v10",
+  truck: "M2 6h11v10H2zM13 9h4l4 4v3h-8M6 19a2 2 0 1 0 0-.01M17 19a2 2 0 1 0 0-.01",
+  pin: "M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21zM12 7.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
+  done: "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 12l2.5 2.5 5-5",
+  check: "M5 12.5l4.5 4.5L19 7.5",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
+};
+function TrackIcon({ name, size = 18 }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={TRACK_ICON_PATHS[name]} />
+    </svg>
+  );
+}
+const TRACK_STEP_ICONS = ["cart", "clipboard", "box", "truck", "pin", "done"];
+
 function groupedProgress(timeline = [], currentStatus) {
   const currentIndex = ORDER_PROGRESS_STAGES.findIndex((stage) => stage.statuses.includes(currentStatus))
     ?? timeline.findIndex((step) => step.state === "active");
@@ -420,24 +440,19 @@ function OrderDetail() {
               // its way: every step, with what is happening now.
               const first = steps[0];
               const last = steps[steps.length - 1];
-              const tick = (
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m5 12.5 4.5 4.5L19 7.5" />
-                </svg>
-              );
               if (delivered && !showAllSteps) {
                 return (
                   <button type="button" className="tl-line" aria-expanded="false" onClick={() => setShowAllSteps(true)}>
-                    <span className="tl-end">
-                      <span className="tl-dot">{tick}</span>
+                    <span className="tl-end wtrack-step done step-1">
+                      <span className="wtrack-dot" aria-hidden="true"><TrackIcon name="cart" size={20} /></span>
                       <span>
                         <strong>Ordered</strong>
                         <small>{first?.at ? when(first.at) : ""}</small>
                       </span>
                     </span>
-                    <span className="tl-bar" aria-hidden="true" />
-                    <span className="tl-end">
-                      <span className="tl-dot">{tick}</span>
+                    <span className="tl-bar tl-bar-color" aria-hidden="true" />
+                    <span className="tl-end wtrack-step done step-6">
+                      <span className="wtrack-dot" aria-hidden="true"><TrackIcon name="done" size={20} /></span>
                       <span>
                         <strong>Delivered</strong>
                         <small>{last?.at ? when(last.at) : tracking.deliveredAt ? when(tracking.deliveredAt) : ""}</small>
@@ -453,28 +468,36 @@ function OrderDetail() {
               const shown = steps;
               return (
                 <>
-                  <ol className="timeline">
-                    {shown.map((step) => (
-                      <li key={step.status} className={`timeline-step ${step.state}`}>
-                        <span className="timeline-dot" aria-hidden="true">
-                          {step.state === "done" ? (
-                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="m5 12.5 4.5 4.5L19 7.5" />
-                            </svg>
-                          ) : null}
-                        </span>
-                        <span className="timeline-copy">
-                          <strong>{step.label}</strong>
-                          {step.at ? <span>{when(step.at)}</span> : null}
-                          {open && step.state === "active" ? (
-                            <em className="timeline-note">{stageText(tracking.status)}</em>
-                          ) : null}
-                          {open && step.status === "DELIVERED" && tracking.expectedBy ? (
-                            <em className="timeline-note">{arrivalText(tracking.expectedBy)}</em>
-                          ) : null}
-                        </span>
-                      </li>
-                    ))}
+                  <ol className="wtrack">
+                    {shown.map((step, index) => {
+                      const lastStep = index === shown.length - 1;
+                      // Reaching "Delivered" finishes the order: it reads as completed.
+                      const state = step.state === "active" && lastStep ? "done" : step.state;
+                      const n = ORDER_PROGRESS_STAGES.findIndex((stage) => stage.statuses[0] === step.status) + 1;
+                      return (
+                        <li key={step.status} className={`wtrack-step ${state} step-${n || index + 1}`}>
+                          <span className="wtrack-dot" aria-hidden="true">
+                            <TrackIcon name={TRACK_STEP_ICONS[(n || index + 1) - 1] || "box"} size={20} />
+                          </span>
+                          <div className="wtrack-box">
+                            <span className="wtrack-copy">
+                              <strong>{step.label}</strong>
+                              <span>{step.at ? when(step.at) : "—"}</span>
+                              {open && step.state === "active" ? (
+                                <em className="timeline-note">{stageText(tracking.status)}</em>
+                              ) : null}
+                              {open && step.status === "DELIVERED" && tracking.expectedBy ? (
+                                <em className="timeline-note">{arrivalText(tracking.expectedBy)}</em>
+                              ) : null}
+                            </span>
+                            <span className="wtrack-tag">
+                              <TrackIcon name={state === "done" ? "check" : state === "active" ? "truck" : "clock"} size={14} />
+                              {state === "done" ? "Completed" : state === "active" ? "In progress" : "Pending"}
+                            </span>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ol>
                   {delivered && showAllSteps ? (
                     <button

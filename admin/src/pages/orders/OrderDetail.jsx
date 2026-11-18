@@ -595,22 +595,16 @@ export default function OrderDetail() {
         </div>
 
         <div style={{ display: "grid", gap: 14 }}>
-          <Card title="Tracking">
-            <ul className="timeline">
-              {/* Steps this order skipped (a COD order never passes through
-                  "payment received") are left out rather than shown as done. */}
-              {deliveryStages(timeline, order.status)
-                .filter((step) => step.state !== "skipped")
-                .map((step) => (
-                  <li key={step.status} className={step.state}>
-                    <span className="dot">✓</span>
-                    <div className="stack">
-                      <span className="label">{step.label}</span>
-                      <span className="when">{step.at ? when(step.at) : "—"}</span>
-                    </div>
-                  </li>
-                ))}
-            </ul>
+          <Card
+            className="track-card"
+            title={
+              <h2 className="track-title">
+                <TrackIcon name="truck" size={22} />
+                Tracking
+              </h2>
+            }
+          >
+            <TrackingSteps timeline={timeline} status={order.status} />
           </Card>
 
           <Card title="Customer">
@@ -770,34 +764,89 @@ function deliveryStages(timeline, status) {
   });
 }
 
-function StageTracker({ timeline, status, statuses }) {
-  const steps = deliveryStages(timeline, status);
-  const offPath = !DELIVERY_STAGES.some((stage) => stage.statuses.includes(status));
-
-  if (offPath && ["CANCELLED", "REJECTED", "REFUNDED"].includes(status)) {
-    return (
-      <div className="stage-tracker stopped">
-        <strong>{statuses[status]?.label || status}</strong>
-        <span className="muted">This order is closed.</span>
-      </div>
-    );
-  }
-
+// Line icons for the tracking card, one per step.
+const TRACK_ICON_PATHS = {
+  cart: "M3 4h2l2.4 11h10.2L20 8H6.2M9 20h.01M17 20h.01",
+  clipboard: "M9 4h6v3H9zM7 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-1M9 11h6M9 15h6",
+  box: "M12 3 4 7v10l8 4 8-4V7zM4 7l8 4 8-4M12 11v10",
+  truck: "M2 6h11v10H2zM13 9h4l4 4v3h-8M6 19a2 2 0 1 0 0-.01M17 19a2 2 0 1 0 0-.01",
+  pin: "M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21zM12 7.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
+  done: "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 12l2.5 2.5 5-5",
+  check: "M5 12.5l4.5 4.5L19 7.5",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
+};
+function TrackIcon({ name, size = 18 }) {
   return (
-    <ol className="stage-tracker" aria-label="Order progress">
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={TRACK_ICON_PATHS[name]} />
+    </svg>
+  );
+}
+const TRACK_STEP_ICONS = ["cart", "clipboard", "box", "truck", "pin", "done"];
+
+// The order's journey as a vertical list: a coloured icon per step joined by
+// a line, the time it happened, and a Completed / In progress / Pending tag.
+function TrackingSteps({ timeline, status }) {
+  const steps = deliveryStages(timeline, status);
+  return (
+    <ol className="track-steps">
       {steps.map((step, index) => {
-        const state = step.state === "active" ? "current" : step.state === "done" ? "done" : "pending";
+        const last = index === steps.length - 1;
+        // Reaching "Delivered" finishes the order: it reads as completed, not in progress.
+        const state = step.state === "active" ? (last ? "done" : "active") : step.state;
+        const tone = state === "done" ? (last ? "final" : "done") : state;
         return (
-          <li key={step.status} className={`stage ${state}`}>
-            <span className="stage-dot" aria-hidden="true">
-              {state === "done" ? "✓" : index + 1}
+          <li key={step.status} className={`track-step ${tone} step-${index + 1}`}>
+            <span className="track-dot">
+              <TrackIcon name={TRACK_STEP_ICONS[index] || "box"} size={22} />
             </span>
-            <span className="stage-label">{step.label}</span>
-            {step.at ? <span className="stage-time">{when(step.at)}</span> : null}
+            <div className="track-box">
+              <div className="track-text">
+                <strong>{step.label}</strong>
+                <span>{step.at ? when(step.at) : "—"}</span>
+              </div>
+              <span className="track-tag">
+                <TrackIcon name={state === "done" ? "check" : state === "active" ? "truck" : "clock"} size={15} />
+                {state === "done" ? "Completed" : state === "active" ? "In progress" : "Pending"}
+              </span>
+            </div>
           </li>
         );
       })}
     </ol>
+  );
+}
+
+function StageTracker({ timeline, status }) {
+  const steps = deliveryStages(timeline, status);
+  // Only while the order is on its way: once it is delivered, cancelled,
+  // rejected, refunded or being returned, the bar is hidden.
+  if (status === "DELIVERED" || !DELIVERY_STAGES.some((stage) => stage.statuses.includes(status))) return null;
+
+  return (
+    <div className="track-row-wrap">
+      <ol className="stage-tracker track-row" aria-label="Order progress">
+        {steps.map((step, index) => {
+          const last = index === steps.length - 1;
+          // Reaching "Delivered" finishes the order: it reads as completed.
+          const state = step.state === "active" ? (last ? "done" : "active") : step.state;
+          const tone = state === "done" ? (last ? "final" : "done") : state;
+          return (
+            <li key={step.status} className={`track-step ${tone} step-${index + 1}`}>
+              <span className="track-dot">
+                <TrackIcon name={TRACK_STEP_ICONS[index] || "box"} size={22} />
+              </span>
+              <strong className="track-row-label">{step.label}</strong>
+              <span className="track-row-time">{step.at ? when(step.at) : "—"}</span>
+              <span className="track-tag">
+                <TrackIcon name={state === "done" ? "check" : state === "active" ? "truck" : "clock"} size={14} />
+                {state === "done" ? "Completed" : state === "active" ? "In progress" : "Pending"}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 

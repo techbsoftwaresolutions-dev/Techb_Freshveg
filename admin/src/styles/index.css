@@ -3344,3 +3344,77 @@ input.switch:checked::after { transform: translateX(18px); }
 .table-search .search-field { flex: 0 1 380px; }
 .table-search-count { font-size: 12.5px; color: var(--text-muted); white-space: nowrap; }
 .table-nomatch { padding: 22px 14px !important; text-align: center; color: var(--text-muted); }
+
+/* Dashboard: the greeting fades out 2s after login; the POS Billing button
+   sits first among the header actions. */
+.dash-greet { transition: opacity .45s ease, max-width .45s ease; max-width: 900px; overflow: hidden; white-space: nowrap; }
+.dash-greet.gone { opacity: 0; max-width: 0; pointer-events: none; }
+.dash-head .dash-head-actions { margin-left: auto; }
+.dash-pos-btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 999px;
+  background: linear-gradient(100deg, #167a40, #1f9a52); color: #fff; font-weight: 700; font-size: 14px;
+  box-shadow: 0 6px 16px rgba(22, 122, 64, .28); transition: transform .15s, box-shadow .15s;
+}
+.dash-pos-btn:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 10px 22px rgba(22, 122, 64, .34); }
+
+/* Dashboard header: only the greeting now; once it fades the whole strip
+   folds away so the cards move up. */
+.dash-head { transition: max-height .45s ease, margin .45s ease, opacity .45s ease; max-height: 120px; overflow: hidden; }
+.dash-head.dash-head-gone { max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; opacity: 0; }
+
+/* Stats row with the POS Billing card: seven across on wide screens. */
+.grid.cols-7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+@media (max-width: 1500px) { .grid.cols-7 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .grid.cols-7 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .grid.cols-7 { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- Order detail: Tracking card (icon steps with status tags) ---- */
+.track-card .card-head { position: relative; overflow: hidden; background: linear-gradient(100deg, var(--surface) 55%, color-mix(in srgb, #8fd16a 22%, var(--surface))); }
+.track-title { display: inline-flex; align-items: center; gap: 10px; }
+.track-title svg { color: var(--accent); }
+.track-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.track-step { --c: #2e9b3e; --bg: color-mix(in srgb, var(--c) 9%, var(--surface)); display: grid; grid-template-columns: 44px 1fr; gap: 12px; align-items: center; position: relative; }
+.track-step.done { --c: #2e9b3e; }
+.track-step.final { --c: #8b3fc6; }
+.track-step.active { --c: #1f7fd6; }
+.track-step.pending { --c: #f08c00; }
+.track-step:not(:last-child)::after { content: ""; position: absolute; left: 20.5px; top: 44px; bottom: -14px; width: 3px; border-radius: 3px; background: var(--c); }
+.track-step.pending:not(:last-child)::after { background: repeating-linear-gradient(to bottom, #c9c9c9 0 6px, transparent 6px 11px); }
+.track-dot { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 70%, #fff), var(--c) 70%); box-shadow: 0 4px 10px color-mix(in srgb, var(--c) 35%, transparent); position: relative; z-index: 1; }
+.track-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px 11px 14px; border-radius: 14px; background: var(--bg); border: 1px solid color-mix(in srgb, var(--c) 14%, transparent); min-width: 0; }
+.track-text { display: grid; gap: 2px; min-width: 0; }
+.track-text strong { font-size: 14px; font-weight: 700; color: var(--text); }
+.track-text span { font-size: 12.5px; color: var(--text-muted); }
+.track-tag { display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--surface)); white-space: nowrap; }
+.track-step.done .track-tag svg, .track-step.final .track-tag svg { background: var(--c); color: #fff; border-radius: 50%; padding: 2px; }
+
+/* ---- Order detail: the step bar at the top, same look as the Tracking card ---- */
+.stage-tracker.track-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; list-style: none; margin: 0; padding: 18px 10px 16px; }
+.track-row .track-step { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; grid-template-columns: none; padding: 0 6px; }
+.track-row .track-step::after { display: none; }
+.track-row .track-step:not(:last-child)::before { content: ""; position: absolute; top: 20.5px; left: calc(50% + 26px); right: calc(-50% + 26px); height: 3px; border-radius: 3px; background: var(--c); }
+.track-row .track-step.pending:not(:last-child)::before { background: repeating-linear-gradient(to right, #c9c9c9 0 6px, transparent 6px 11px); }
+.track-row .track-dot { margin-bottom: 6px; }
+.track-row-label { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.track-row-time { font-size: 12px; color: var(--text-muted); }
+.track-row .track-tag { margin-top: 4px; padding: 4px 10px; font-size: 11.5px; }
+@media (max-width: 900px) {
+  .stage-tracker.track-row { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 18px; }
+  .track-row .track-step:nth-child(3n)::before { display: none; }
+}
+@media (max-width: 520px) {
+  .stage-tracker.track-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .track-row .track-step:nth-child(3n)::before { display: block; }
+  .track-row .track-step:nth-child(2n)::before { display: none; }
+}
+
+/* Each step has its own colour once reached (done or in progress);
+   steps not reached yet stay grey. */
+.track-step.step-1:not(.pending) { --c: #2e9b3e; } /* order placed: green */
+.track-step.step-2:not(.pending) { --c: #1f7fd6; } /* confirmed: blue */
+.track-step.step-3:not(.pending) { --c: #8d5524; } /* preparing: brown */
+.track-step.step-4:not(.pending) { --c: #e3a400; } /* out for delivery: yellow */
+.track-step.step-5:not(.pending) { --c: #e8590c; } /* arrived: orange */
+.track-step.step-6:not(.pending) { --c: #8b3fc6; } /* delivered: purple */
+.track-step.pending { --c: #9aa1a9; }
+.track-tag { color: color-mix(in srgb, var(--c) 72%, #000); }
