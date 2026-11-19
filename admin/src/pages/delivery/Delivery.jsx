@@ -57,6 +57,21 @@ function Report() {
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    // Then keep it live (quietly, no spinner) so runs started or finished by
+    // riders appear without a page reload.
+    const refresh = () => {
+      if (document.hidden) return;
+      api
+        .get("/delivery/report", { limit: 20, ...filters, ...range }, { force: true })
+        .then(setData)
+        .catch(() => {});
+    };
+    const timer = setInterval(refresh, 15000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [filters, range]);
 
   const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));

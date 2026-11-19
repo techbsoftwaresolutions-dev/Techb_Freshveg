@@ -441,7 +441,7 @@ async function notifyOwnerStatusUpdate(order, status) {
       (callmebotKey.trim() !== "" && !callmebotKey.includes("←") && !callmebotKey.includes("paste"));
     if (!isWhatsAppOn) return;
 
-    const ownerPhone = settings?.notifications?.ownerWhatsApp || process.env.OWNER_WHATSAPP_NUMBER || "+917010272131";
+    const ownerPhone = settings?.notifications?.ownerWhatsApp || process.env.OWNER_WHATSAPP_NUMBER || "+919003597158";
     const isCOD = order.payment?.method === "cod";
     const totalFormatted = `₹${((order.pricing?.total || 0) / 100).toFixed(0)}`;
     const customerName = order.customerSnapshot?.name || "Customer";

@@ -18,7 +18,7 @@ export default {
     userInterfaceStyle: "light",
     scheme: "hosurpartner",
     icon: "./assets/icon.png",
-    splash: { image: "./assets/splash-icon.png", backgroundColor: "#FFFDF6", resizeMode: "contain" },
+    splash: { image: "./assets/splash-icon.png", backgroundColor: "#FBF3DF", resizeMode: "contain" },
     ios: { supportsTablet: false, bundleIdentifier: "com.hosurbasket.partner" },
     android: {
       package: "com.hosurbasket.partner",

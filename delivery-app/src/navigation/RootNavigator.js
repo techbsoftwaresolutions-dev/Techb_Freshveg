@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { createNavigationContainerRef, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -10,6 +10,8 @@ import { useAuth } from "../context/AuthContext";
 import { colors, type } from "../theme";
 import { Loading } from "../components/ui";
 
+import SplashScreen from "../screens/SplashScreen";
+import OnboardingScreen from "../screens/OnboardingScreen";
 import LoginScreen from "../screens/LoginScreen";
 import QueueScreen from "../screens/QueueScreen";
 import DeliveryScreen from "../screens/DeliveryScreen";
@@ -67,6 +69,10 @@ function MainTabs() {
 
 export default function RootNavigator() {
   const { signedIn, ready } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
+  // The three intro pages (Welcome -> Hosur Basket -> Delivery partner) show
+  // after the splash every time the app opens signed out, before the login.
+  const [introDone, setIntroDone] = useState(false);
 
   const openPendingNotification = useCallback(() => {
     if (!signedIn || !navigationRef.isReady() || !pendingNotificationTarget) return;
@@ -105,7 +111,12 @@ export default function RootNavigator() {
     openPendingNotification();
   }, [openPendingNotification]);
 
+  // Branded splash on every app open; it leaves once it has played and the
+  // saved sign-in is loaded, then the login (or home) screen shows.
+  if (!splashDone) return <SplashScreen ready={ready} onDone={() => setSplashDone(true)} />;
   if (!ready) return <Loading label="Starting up" />;
+  // Moves on only when the rider taps the button on each page.
+  if (!signedIn && !introDone) return <OnboardingScreen onDone={() => setIntroDone(true)} />;
 
   return (
     <NavigationContainer ref={navigationRef} onReady={openPendingNotification}>

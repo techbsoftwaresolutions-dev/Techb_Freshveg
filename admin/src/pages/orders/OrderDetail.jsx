@@ -15,6 +15,10 @@ import {
   whatsappUrl,
 } from "./invoice";
 
+// Same buckets as the customer's tracking page (website/app/orders/[id]).
+const LIVE_CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+const LIVE_RIDING = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"];
+
 export default function OrderDetail() {
   const [confirm, confirmDialog] = useConfirm();
   const { id } = useParams();
@@ -39,7 +43,8 @@ export default function OrderDetail() {
   const [deliveryTimes, setDeliveryTimes] = useState([]);
 
   const load = useCallback(async () => {
-    const data = await api.get(`/orders/${id}`);
+    // force: always ask the server - this page polls for the rider's progress.
+    const data = await api.get(`/orders/${id}`, undefined, { force: true });
     setOrder(data.order);
     setTimeline(data.timeline);
     setActions(data.actions);
@@ -52,6 +57,25 @@ export default function OrderDetail() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [load]);
+
+  // Follow the delivery live, like the customer's tracking page: when the
+  // rider starts, picks up, arrives or delivers, this page updates on its own
+  // instead of waiting for a manual refresh. Every 10s while a rider has it,
+  // 20s otherwise; stops once the order is closed and pauses in a hidden tab.
+  const liveStatus = order?.status;
+  useEffect(() => {
+    if (!liveStatus || LIVE_CLOSED.includes(liveStatus)) return undefined;
+    const riding = LIVE_RIDING.includes(liveStatus);
+    const refresh = () => {
+      if (!document.hidden) load().catch(() => {});
+    };
+    const timer = setInterval(refresh, riding ? 10000 : 20000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [liveStatus, load]);
 
   // Picks (or adds) the delivery time and tells the customer straight away.
   async function sendDeliveryTime(body) {

@@ -50,7 +50,7 @@ export default function General() {
   const [draft, setDraft] = useState({});
   // Settings -> Print has two sets of formats: the online-order invoice and
   // the POS (walk-in) bill. This picks which one the page is showing.
-  const [printKind, setPrintKind] = useState("invoice");
+  const [printKind, setPrintKind] = useState("pos");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -354,7 +354,7 @@ export default function General() {
                 <Field label="Owner WhatsApp number (with country code)">
                   <input
                     type="tel"
-                    placeholder="+917010272131"
+                    placeholder="+919003597158"
                     value={draft.ownerWhatsApp || ""}
                     onChange={set("ownerWhatsApp")}
                   />
@@ -465,11 +465,11 @@ export default function General() {
           <FitToScreen className="print-layout">
             <div className="print-list" role="radiogroup" aria-label={printKind === "pos" ? "POS bill format" : "Invoice template"}>
               <div className="print-kind" role="tablist" aria-label="Which bill">
-                <button type="button" role="tab" aria-selected={printKind === "invoice"} className={printKind === "invoice" ? "on" : ""} onClick={() => setPrintKind("invoice")}>
-                  Online invoice
-                </button>
                 <button type="button" role="tab" aria-selected={printKind === "pos"} className={printKind === "pos" ? "on" : ""} onClick={() => setPrintKind("pos")}>
                   POS bill
+                </button>
+                <button type="button" role="tab" aria-selected={printKind === "invoice"} className={printKind === "invoice" ? "on" : ""} onClick={() => setPrintKind("invoice")}>
+                  Online invoice
                 </button>
               </div>
               {(printKind === "pos" ? Object.entries(POS_BILL_CHOICES) : Object.entries(INVOICE_CHOICES)).map(([key, tpl]) => {

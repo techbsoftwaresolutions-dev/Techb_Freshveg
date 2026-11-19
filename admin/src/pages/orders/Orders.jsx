@@ -132,7 +132,8 @@ export default function Orders() {
   const ordersQ = useApi(
     "/orders",
     { limit: 20, ...filters, ...(q ? { q, from: "", to: "" } : range) },
-    { refreshMs: 30000 }
+    // 10s so a rider starting / finishing a delivery shows without a reload.
+    { refreshMs: 10000 }
   );
   const data = ordersQ.data || { items: [], meta: null };
   const loading = ordersQ.loading;
