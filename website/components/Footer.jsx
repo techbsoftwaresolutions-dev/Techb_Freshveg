@@ -1,8 +1,11 @@
 import Link from "next/link";
+import ContactUs from "./ContactUs";
+import CallButton from "./CallButton";
+import OpenCartLink from "./OpenCartLink";
 
-// Only pages that exist are linked. About, careers, FAQs and the legal pages
-// have no route yet — they join these lists when they do, rather than sitting
-// here as links that go nowhere.
+// Only pages that exist are linked. About, careers and FAQs have no route
+// yet — they join these lists when they do, rather than sitting here as
+// links that go nowhere.
 export default function Footer({ categories = [] }) {
   return (
     <footer className="footer">
@@ -10,15 +13,11 @@ export default function Footer({ categories = [] }) {
         <div className="footer-grid">
           <div className="footer-brand">
             <Link href="/" className="footer-logo">
-              <FooterMark />
-              <span>
-                <span className="footer-logo-name">FreshMart</span>
-                <span className="footer-logo-tag">Fresh Food • Better Life</span>
-              </span>
+              <img src="/logo-horizontal.png" alt="Hosur Basket — your everyday supermarket" className="footer-logo-img" width="216" height="60" />
             </Link>
             <p>
               Fresh fruit, vegetables, groceries and household essentials, delivered from your
-              neighbourhood store.
+              Hosur Basket store.
             </p>
           </div>
 
@@ -36,10 +35,11 @@ export default function Footer({ categories = [] }) {
           <div>
             <h4>Customer Care</h4>
             <ul>
-              <li><Link href="/account">Help Center</Link></li>
-              <li><Link href="/orders">Track Order</Link></li>
-              <li><Link href="/orders">Returns &amp; Refunds</Link></li>
-              <li><a href="tel:+919876543109">Contact Us</a></li>
+              <li><Link href="/help">Help Center</Link></li>
+              <li><Link href="/track-order">Track Order</Link></li>
+              <li><Link href="/returns">Returns &amp; Refunds</Link></li>
+              <li><ContactUs /></li>
+              <li><Link href="/terms">Terms &amp; Conditions</Link></li>
             </ul>
           </div>
 
@@ -48,7 +48,7 @@ export default function Footer({ categories = [] }) {
             <ul>
               <li><Link href="/account">Account</Link></li>
               <li><Link href="/orders">My Orders</Link></li>
-              <li><Link href="/cart">Cart</Link></li>
+              <li><OpenCartLink>Cart</OpenCartLink></li>
               <li><Link href="/login">Sign In</Link></li>
             </ul>
           </div>
@@ -57,27 +57,44 @@ export default function Footer({ categories = [] }) {
             <h4>Get in Touch</h4>
             <ul className="footer-contact">
               <li>
-                <a href="tel:+919876543109">+91 98765 43109</a>
+                <CallButton phone="+919003597158" label="+91 90035 97158" title="Call Hosur Basket" className="footer-link-btn">
+                  +91 90035 97158
+                </CallButton>
               </li>
-              <li>Hosur, Tamil Nadu</li>
+              <li>
+                <a href="https://hosurbasket.com">hosurbasket.com</a>
+              </li>
+              <li>
+                <address>#74/22, GKD Nagar, Avalapalli Road, Hosur 635109</address>
+              </li>
             </ul>
+            <div className="footer-social" role="group" aria-label="Social media">
+              <a className="footer-social-icon" href="https://www.facebook.com/share/1CiLbxkfMn/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                  <path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.6-1.5h1.6V4.4c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4.1v2.1H7.6v3h2.7V21h3.2z" />
+                </svg>
+              </a>
+              <a className="footer-social-icon" href="https://www.instagram.com/hosurbasket23/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+                  <circle cx="12" cy="12" r="4" />
+                  <circle cx="17.4" cy="6.6" r="1" fill="currentColor" stroke="none" />
+                </svg>
+              </a>
+              <a className="footer-social-icon" href="https://www.youtube.com/@Hosurbasket" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
+                  <path d="m10 9.2 5 2.8-5 2.8z" fill="currentColor" stroke="none" />
+                </svg>
+              </a>
+            </div>
           </div>
         </div>
 
         <div className="footer-base">
-          <span>© {new Date().getFullYear()} FreshMart. All rights reserved.</span>
-          <span>Prices include all taxes</span>
+          <span>© {new Date().getFullYear()} Hosur Basket. All rights reserved.</span>
         </div>
       </div>
     </footer>
-  );
-}
-
-function FooterMark() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true" className="footer-mark">
-      <path d="M22 44C9 42 2 31 4 14c11 1 19 8 20 20 0 4-1 7-2 10Z" fill="#6cc070" />
-      <path d="M24 44c1-14 7-26 20-32 2 17-5 29-18 32h-2Z" fill="#a5d6a7" />
-    </svg>
   );
 }

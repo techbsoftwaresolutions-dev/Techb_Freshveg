@@ -1,10 +1,11 @@
 // Channel adapters. Each one is a function that takes a rendered message and
 // tries to deliver it.
 //
-// None of them are wired to a real provider yet — there is no Firebase project
-// and no SMS account. Rather than pretend, each logs what it would have sent
-// and reports "skipped" with a reason, so the notification log tells the truth
-// and the rest of the engine can be exercised end to end.
+// Supported WhatsApp delivery options:
+// 1. CallMeBot (100% Free Gateway for personal testing, no Meta developer account required)
+// 2. Meta WhatsApp Cloud API (Official Meta API)
+// 3. Twilio WhatsApp API
+// 4. Clickable direct wa.me link & terminal logging
 
 const config = require("../../config");
 
@@ -15,19 +16,56 @@ const stub = (name, envVar) => async (message, recipient) => {
       reason: `${name} is not configured (set ${envVar})`,
     };
   }
-  // A real adapter goes here. Reaching this branch without one is a
-  // configuration mistake worth surfacing loudly rather than silently passing.
   return { status: "failed", error: `${name} adapter is not implemented yet` };
 };
 
 const push = async (message, recipient) => {
   const tokens = (recipient.devices || []).filter((d) => d.token).map((d) => d.token);
   if (!tokens.length) return { status: "skipped", reason: "No device registered" };
-  if (!process.env.FCM_SERVER_KEY) {
-    if (!config.isProd) console.log(`[push] → ${recipient.phone}: ${message.title} — ${message.body}`);
-    return { status: "skipped", reason: "Push is not configured (set FCM_SERVER_KEY)" };
+
+  const messages = tokens.map((token) => ({
+    to: token,
+    title: message.title,
+    body: message.body,
+    sound: "default",
+    priority: "high",
+    channelId: "delivery_assignments_v2",
+    data: {
+      event: message.event,
+      deeplink: message.deeplink,
+      ...(message.data || {}),
+    },
+  }));
+  let sent = 0;
+  const failures = [];
+
+  for (let index = 0; index < messages.length; index += 100) {
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-Encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(messages.slice(index, index + 100)),
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      failures.push(payload?.errors?.[0]?.message || `Expo Push API returned HTTP ${response.status}`);
+      continue;
+    }
+
+    const tickets = Array.isArray(payload.data) ? payload.data : [payload.data];
+    for (const ticket of tickets) {
+      if (ticket?.status === "ok") sent += 1;
+      else failures.push(ticket?.message || "Expo could not deliver the push notification");
+    }
   }
-  return { status: "failed", error: "FCM adapter is not implemented yet" };
+
+  if (sent === messages.length) return { status: "sent" };
+  if (sent > 0) return { status: "sent", reason: failures.join("; ") };
+  return { status: "failed", error: failures.join("; ") || "Expo did not accept the push notification" };
 };
 
 const sms = async (message, recipient) => {

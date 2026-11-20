@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"D:/TechB/fresh market/Techb_Freshveg/admin/src/pages/catalog\\\" && python - <<'PYEOF'\\np='Categories.jsx'\\ns=open(p,encoding='utf-8').read()\\ndef r(a,b):\\n    global s\\n    assert a in...",
+  "error": "Exit code 2\n/usr/bin/bash: -c: line 190: unexpected EOF while looking for matching `''",
+  "timestamp": "2026-10-06T05:39:39.548Z",
+  "retry_count": 1
+}

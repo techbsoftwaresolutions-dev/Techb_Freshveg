@@ -28,6 +28,8 @@ export default function MobileNav() {
           <Link
             key={href}
             href={href}
+            aria-haspopup={badge ? "dialog" : undefined}
+            onClick={badge ? (event) => { event.preventDefault(); window.dispatchEvent(new Event("open-cart")); } : undefined}
             className={`mobile-nav-item${here ? " current" : ""}`}
             aria-current={here ? "page" : undefined}
           >

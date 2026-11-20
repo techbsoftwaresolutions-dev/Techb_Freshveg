@@ -36,9 +36,18 @@ const userSchema = new mongoose.Schema(
       match: [/^\d{10}$/, "Phone must be 10 digits"],
     },
     email: { type: String, default: "", lowercase: true, trim: true },
+    avatar: { type: String, default: "", trim: true },
     passwordHash: { type: String, default: "", select: false },
 
     role: { type: String, enum: Object.keys(ROLES), default: "customer", index: true },
+    // Delivery partners: where they are right now, sent by the delivery app
+    // while an order is on its way. Shown on the customer's tracking map.
+    liveLocation: {
+      lat: Number,
+      lng: Number,
+      heading: Number,
+      at: Date,
+    },
     grantedPermissions: { type: [String], default: [] },
     revokedPermissions: { type: [String], default: [] },
     // Staff scoped to particular stores; empty means every store.

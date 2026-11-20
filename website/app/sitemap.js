@@ -10,6 +10,8 @@ export default async function sitemap() {
   const entries = [
     { url: SITE_URL, lastModified: now, changeFrequency: "daily", priority: 1 },
     { url: `${SITE_URL}/c`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${SITE_URL}/help`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   const categoryData = await getCategories();
@@ -26,16 +28,26 @@ export default async function sitemap() {
   };
   walk(categoryData?.categories);
 
-  // One page of products is enough for a demo catalogue; page through here
-  // when the catalogue outgrows it.
-  const productData = await getProducts({ limit: 100 });
-  for (const product of productData?.items || []) {
-    entries.push({
-      url: `${SITE_URL}/p/${product.slug}`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.7,
-    });
+  // The API caps a page at 100, so walk every page. 50 pages (5,000 products)
+  // is one sitemap file's sensible ceiling; past that, split into several.
+  const first = await getProducts({ limit: 100, page: 1 });
+  const pages = Math.min(first?.meta?.pages || 1, 50);
+  const batches = [first];
+  for (let page = 2; page <= pages; page++) {
+    batches.push(await getProducts({ limit: 100, page }));
+  }
+  const seen = new Set();
+  for (const batch of batches) {
+    for (const product of batch?.items || []) {
+      if (!product.slug || seen.has(product.slug)) continue;
+      seen.add(product.slug);
+      entries.push({
+        url: `${SITE_URL}/p/${product.slug}`,
+        lastModified: now,
+        changeFrequency: "daily",
+        priority: 0.7,
+      });
+    }
   }
 
   return entries;

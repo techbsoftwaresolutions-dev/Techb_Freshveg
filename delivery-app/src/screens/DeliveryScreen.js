@@ -1,11 +1,19 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { api } from "../api/client";
+import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { api, uploadImage } from "../api/client";
 import { colors, clockTime, formatAddress, radius, rupees, spacing, type } from "../theme";
+import QrScanModal from "../components/QrScanModal";
+import PhotoCaptureModal from "../components/PhotoCaptureModal";
 import {
   Button, Card, Divider, EmptyState, Loading, Notice, Pill,
   callNumber, openMaps,
 } from "../components/ui";
+import { ItemThumb } from "../components/ItemThumb";
+
+// The customer-QR scan step is switched off: the rider only enters the 4-digit
+// handover code, and may add an optional delivery photo. Set to true to bring
+// the QR scan back (the backend still accepts and checks a QR if one is sent).
+const QR_STEP = false;
 
 // The rider's run, one screen. Exactly one primary action is offered at a
 // time, and which one comes from the engine's `actions` list rather than from
@@ -38,6 +46,26 @@ const STEP_COPY = {
   },
 };
 
+// Orders assigned to this rider that the store is still preparing: the rider
+// can read the whole job but has nothing to press yet.
+const PREPARING = [
+  "ORDER_PLACED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "ORDER_CONFIRMED",
+  "ORDER_ACCEPTED", "PICKING", "PACKING", "READY_FOR_PICKUP",
+];
+const PREPARING_STEP = {
+  heading: "Store is preparing",
+  sub: "This order is yours. You can start once the store marks it ready.",
+  leg: "pickup",
+  action: null,
+  waiting: true,
+};
+
+// Items the store held back to deliver on another day — the rider must not
+// hand these over (or count them) on this trip.
+const isLater = (item) => Boolean(item.deferred?.expectedOn && !item.deferred?.deliveredAt);
+const laterDate = (value) =>
+  new Date(value).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+
 export default function DeliveryScreen({ route, navigation }) {
   const { orderId } = route.params;
 
@@ -47,6 +75,12 @@ export default function DeliveryScreen({ route, navigation }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [otp, setOtp] = useState("");
+  // The customer's order QR, once scanned. Required before the OTP step.
+  const [scanned, setScanned] = useState("");
+  const [scanning, setScanning] = useState(false);
+  // Optional proof photo: the local file from the camera, uploaded on confirm.
+  const [photoUri, setPhotoUri] = useState("");
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -56,7 +90,9 @@ export default function DeliveryScreen({ route, navigation }) {
         api.get("/orders/delivery/queue"),
       ]);
       setOrder(detail.order);
-      setPickup(queue.orders.find((o) => o.id === orderId)?.pickup || null);
+      setPickup(
+        [...queue.orders, ...(queue.upcoming || [])].find((o) => o.id === orderId)?.pickup || null
+      );
       setError("");
     } catch (err) {
       setError(err.message);
@@ -68,6 +104,15 @@ export default function DeliveryScreen({ route, navigation }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // While the store is still preparing it, check back so the "Start" button
+  // appears the moment the order is ready.
+  const waiting = order && PREPARING.includes(order.status);
+  useEffect(() => {
+    if (!waiting) return undefined;
+    const timer = setInterval(load, 10000);
+    return () => clearInterval(timer);
+  }, [waiting, load]);
 
   async function advance(status) {
     setBusy(true);
@@ -86,7 +131,14 @@ export default function DeliveryScreen({ route, navigation }) {
     setBusy(true);
     setError("");
     try {
-      await api.post(`/orders/${orderId}/deliver`, { otp });
+      // Upload the optional photo first; if that fails the rider can retry or
+      // remove the photo — the delivery itself is never lost.
+      const photo = photoUri ? await uploadImage(photoUri) : undefined;
+      await api.post(`/orders/${orderId}/deliver`, {
+        otp,
+        ...(photo ? { photo } : {}),
+        ...(QR_STEP && scanned ? { scanned } : {}),
+      });
       // Nothing left to do on this order, so go back to the queue rather than
       // leaving the rider on a dead screen.
       navigation.replace("Delivered", { orderId, code: order.code });
@@ -101,7 +153,7 @@ export default function DeliveryScreen({ route, navigation }) {
   if (loading) return <Loading label="Loading the order" />;
  if (!order) return<EmptyState icon="" title="Couldn't load this order" hint={error} />;
 
-  const step = STEP_COPY[order.status];
+  const step = STEP_COPY[order.status] || (PREPARING.includes(order.status) ? PREPARING_STEP : null);
 
   if (!step) {
     return (
@@ -124,6 +176,7 @@ export default function DeliveryScreen({ route, navigation }) {
         phone: order.delivery?.address?.contactPhone || order.customerSnapshot?.phone,
       };
 
+  const otpReady = !QR_STEP || Boolean(scanned);
   const collectCash = order.payment?.method === "cod" && order.payment?.status !== "paid";
 
   return (
@@ -191,13 +244,15 @@ export default function DeliveryScreen({ route, navigation }) {
         {/* Items — so a rider can check the bag at the counter */}
         <Card style={{ padding: spacing.md }}>
           <Text style={type.h3}>
-            {order.items.length} item{order.items.length === 1 ? "" : "s"}
+            {order.items.filter((i) => !isLater(i)).length} item
+            {order.items.filter((i) => !isLater(i)).length === 1 ? "" : "s"}
           </Text>
           <View style={{ marginTop: spacing.sm }}>
-            {order.items.map((item, index) => (
+            {order.items.filter((i) => !isLater(i)).map((item, index) => (
               <View key={item.id || item.sku}>
                 {index > 0 ? <Divider style={{ marginVertical: spacing.sm }} /> : null}
                 <View style={styles.itemRow}>
+                  <ItemThumb item={item} />
                   <Text style={[type.body, { flex: 1 }]} numberOfLines={2}>
                     {item.name}
                     {item.variantName ? ` · ${item.variantName}` : ""}
@@ -209,21 +264,79 @@ export default function DeliveryScreen({ route, navigation }) {
           </View>
         </Card>
 
-        {/* Handover */}
+        {order.items.some(isLater) ? (
+          <Card style={{ padding: spacing.md }}>
+            <Text style={type.h3}>Do not deliver today</Text>
+            <Text style={type.tiny}>These items come on another day.</Text>
+            <View style={{ marginTop: spacing.sm }}>
+              {order.items.filter(isLater).map((item, index) => (
+                <View key={item.id || item.sku}>
+                  {index > 0 ? <Divider style={{ marginVertical: spacing.sm }} /> : null}
+                  <View style={styles.itemRow}>
+                    <ItemThumb item={item} />
+                    <Text style={[type.body, { flex: 1 }]} numberOfLines={2}>
+                      {item.name}
+                      {item.variantName ? ` · ${item.variantName}` : ""}
+                    </Text>
+                    <Text style={type.tiny}>{laterDate(item.deferred.expectedOn)}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card>
+        ) : null}
+
+        {/* Handover: 1) optional delivery photo, 2) the customer's OTP */}
         {order.status === "ARRIVED" ? (
           <Card style={{ padding: spacing.md, gap: spacing.md }}>
+            {/* QR scan step — hidden (QR_STEP = false). Kept for easy re-enable.
+            <Text style={type.h3}>Scan customer's QR</Text>
+            {scanned ? <Notice tone="success">QR verified for {order.code}</Notice> : null}
+            <Button title={scanned ? "Scan again" : "Scan QR"} variant={scanned ? "outline" : "primary"} onPress={() => setScanning(true)} />
+            */}
+            {QR_STEP ? (
+              <>
+                <Text style={type.h3}>Step 1 · Scan customer's QR</Text>
+                {scanned ? <Notice tone="success">QR verified for {order.code}</Notice> : null}
+                <Button
+                  title={scanned ? "Scan again" : "Scan QR"}
+                  variant={scanned ? "outline" : "primary"}
+                  onPress={() => setScanning(true)}
+                />
+                <Divider />
+              </>
+            ) : null}
+
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              <Text style={type.h3}>Delivery photo</Text>
+              <Pill>Optional</Pill>
+            </View>
+            <Text style={type.small}>Take a quick photo of the order at the door as proof of delivery.</Text>
+            {photoUri ? (
+              <View style={styles.photoRow}>
+                <Image source={{ uri: photoUri }} style={styles.photoThumb} />
+                <View style={{ flex: 1, gap: spacing.sm }}>
+                  <Button title="Retake" variant="outline" onPress={() => setPhotoOpen(true)} />
+                  <Button title="Remove" variant="ghost" onPress={() => setPhotoUri("")} />
+                </View>
+              </View>
+            ) : (
+              <Button title="Take photo" variant="outline" onPress={() => setPhotoOpen(true)} />
+            )}
+
+            <Divider />
+
             <Text style={type.h3}>Handover code</Text>
-            <Text style={type.small}>
-              Ask the customer to read the 4-digit code from their order screen.
-            </Text>
+            <Text style={type.small}>Ask the customer to read the 4-digit code from their order screen.</Text>
             <TextInput
               value={otp}
+              editable={otpReady}
               onChangeText={(text) => setOtp(text.replace(/\D/g, "").slice(0, 4))}
               placeholder="0000"
               placeholderTextColor={colors.textFaint}
               keyboardType="number-pad"
               maxLength={4}
-              style={styles.otpInput}
+              style={[styles.otpInput, !otpReady && { opacity: 0.45 }]}
             />
           </Card>
         ) : null}
@@ -244,6 +357,25 @@ export default function DeliveryScreen({ route, navigation }) {
         />
       </ScrollView>
 
+      <PhotoCaptureModal
+        visible={photoOpen}
+        onClose={() => setPhotoOpen(false)}
+        onCaptured={(uri) => {
+          setPhotoUri(uri);
+          setPhotoOpen(false);
+        }}
+      />
+
+      <QrScanModal
+        visible={scanning}
+        expected={`HBORDER:${order.code}`}
+        onClose={() => setScanning(false)}
+        onScanned={(value) => {
+          setScanned(value);
+          setScanning(false);
+        }}
+      />
+
       {/* One primary action, always in the same place under the thumb. */}
       <View style={styles.actionBar}>
         {order.status === "ARRIVED" ? (
@@ -251,9 +383,11 @@ export default function DeliveryScreen({ route, navigation }) {
             title="Confirm delivery"
             subtitle={collectCash ? `after collecting ${rupees(order.pricing?.total)}` : undefined}
             loading={busy}
-            disabled={otp.length !== 4}
+            disabled={!otpReady || otp.length !== 4}
             onPress={handOver}
           />
+        ) : step.waiting ? (
+          <Button title="Waiting for the store to finish…" disabled onPress={load} />
         ) : (
           <Button
             title={step.action.label}
@@ -351,6 +485,9 @@ const styles = StyleSheet.create({
   payPrepaid: { backgroundColor: colors.successSoft, borderColor: colors.success },
   payLabel: { fontSize: 12, fontWeight: "800", letterSpacing: 1.2, color: colors.textMuted },
   payAmount: { fontSize: 30, fontWeight: "800", color: colors.text },
+
+  photoRow: { flexDirection: "row", gap: spacing.md, alignItems: "center" },
+  photoThumb: { width: 96, height: 96, borderRadius: radius.md, backgroundColor: colors.border },
 
   itemRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   itemQty: { ...type.body, fontWeight: "800", minWidth: 46, textAlign: "right" },

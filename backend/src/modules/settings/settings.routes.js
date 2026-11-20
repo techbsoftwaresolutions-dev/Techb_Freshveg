@@ -49,6 +49,11 @@ router.get(
           slotsEnabled: settings.delivery.slotsEnabled,
           liveTrackingEnabled: settings.delivery.liveTrackingEnabled,
         },
+        // Which invoice layout staff print with — not sensitive.
+        print: {
+          invoiceTemplate: settings.print?.invoiceTemplate || "receipt",
+          posTemplate: settings.print?.posTemplate || "receipt",
+        },
       },
     });
   })
@@ -72,7 +77,7 @@ router.patch(
   asyncHandler(async (req, res) => {
     const allowed = [
       "company", "tax", "payment", "loyalty", "referral",
-      "delivery", "notifications", "app", "website",
+      "delivery", "notifications", "app", "website", "pos", "print",
     ];
     const { section } = req.params;
     if (!allowed.includes(section)) {

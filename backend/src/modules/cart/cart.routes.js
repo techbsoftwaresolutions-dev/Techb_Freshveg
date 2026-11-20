@@ -17,6 +17,29 @@ const ownerOf = (req) => ({
   storeId: req.body.store || req.query.store || req.headers["x-store-id"] || null,
 });
 
+// Changes to one cart run one at a time. Two "add" taps that arrive together
+// would otherwise both read the cart without the item and both push it — a
+// duplicate line — or one save would overwrite the other's quantity. Each
+// change waits for the previous one on the same cart to finish responding.
+// ponytail: in-process queue — right for a single API process; with several
+// instances, switch to Mongoose optimisticConcurrency on the cart and retry.
+const queues = new Map();
+function oneAtATime(req, res, next) {
+  if (req.method === "GET") return next();
+  const { userId, sessionId, storeId } = ownerOf(req);
+  const key = `${userId || sessionId}|${storeId}`;
+  const previous = queues.get(key) || Promise.resolve();
+  let done;
+  const tail = previous.then(() => new Promise((resolve) => (done = resolve)));
+  queues.set(key, tail);
+  res.once("close", () => {
+    done?.();
+    if (queues.get(key) === tail) queues.delete(key);
+  });
+  previous.then(() => (res.writableEnded || res.destroyed ? done() : next()));
+}
+router.use(oneAtATime);
+
 const loadCart = asyncHandler(async (req, _res, next) => {
   req.cart = await cartService.getOrCreateCart(ownerOf(req));
   next();
@@ -91,7 +114,17 @@ router.post(
 
     if (!applied) {
       const rejection = preview.offers.rejected.find((o) => o.code === code);
-      throw ApiError.badRequest(rejection?.reason || "That coupon is not valid for this cart", {
+      // The engine only considers active offers, so a code that exists but is
+      // draft/paused/expired has no rejection entry. Say what is actually wrong.
+      let reason = rejection?.reason;
+      if (!reason) {
+        const Offer = require("../pricing/offer.model");
+        const offer = await Offer.findOne({ requiresCode: true, code });
+        if (!offer) reason = "That coupon code is not valid";
+        else if (offer.status !== "active") reason = "This coupon is not active";
+        else reason = "That coupon is not valid for this cart";
+      }
+      throw ApiError.badRequest(reason, {
         code,
         shortfall: rejection?.shortfall,
       });

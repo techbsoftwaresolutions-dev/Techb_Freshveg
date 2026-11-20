@@ -1,32 +1,55 @@
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { createNavigationContainerRef, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
+import * as Notifications from "expo-notifications";
 
 import { useAuth } from "../context/AuthContext";
 import { colors, type } from "../theme";
 import { Loading } from "../components/ui";
 
+import SplashScreen from "../screens/SplashScreen";
+import OnboardingScreen from "../screens/OnboardingScreen";
 import LoginScreen from "../screens/LoginScreen";
 import QueueScreen from "../screens/QueueScreen";
 import DeliveryScreen from "../screens/DeliveryScreen";
 import DeliveredScreen from "../screens/DeliveredScreen";
-import HistoryScreen from "../screens/HistoryScreen";
+import DeliveredDetailScreen from "../screens/DeliveredDetailScreen";
+import OrdersScreen from "../screens/OrdersScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import DeliveryNotificationsScreen from "../screens/DeliveryNotificationsScreen";
 
 const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
+let pendingNotificationTarget = null;
+let handledNotificationId = null;
 
-const ICONS = { Queue: "\u{1F6F5}", History: "\u{1F4CB}", Profile: "\u{1F464}" };
+function notificationTarget(response) {
+  const data = response?.notification?.request?.content?.data || {};
+  const deeplinkOrderId = /^delivery:(.+)$/.exec(String(data.deeplink || ""))?.[1];
+  const orderId = data.orderId || deeplinkOrderId;
+  return orderId
+    ? { name: "Delivery", params: { orderId: String(orderId) } }
+    : { name: "Notifications" };
+}
+
+// [active, inactive] icon per tab.
+const ICONS = {
+  Queue: ["home", "home-outline"],
+  Orders: ["clipboard", "clipboard-outline"],
+  Profile: ["person", "person-outline"],
+};
 
 function MainTabs() {
   return (
     <Tabs.Navigator
       screenOptions={({ route }) => ({
         headerShown: route.name !== "Queue",
-        tabBarIcon: ({ focused }) => (
-          <Text style={{ fontSize: 21, opacity: focused ? 1 : 0.5 }}>{ICONS[route.name]}</Text>
+        tabBarIcon: ({ focused, color }) => (
+          <Ionicons name={ICONS[route.name][focused ? 0 : 1]} size={24} color={color} />
         ),
         tabBarActiveTintColor: colors.primaryDark,
         tabBarInactiveTintColor: colors.textFaint,
@@ -37,8 +60,8 @@ function MainTabs() {
         headerShadowVisible: false,
       })}
     >
-      <Tabs.Screen name="Queue" component={QueueScreen} options={{ title: "My runs" }} />
-      <Tabs.Screen name="History" component={HistoryScreen} options={{ title: "History" }} />
+      <Tabs.Screen name="Queue" component={QueueScreen} options={{ title: "Home" }} />
+      <Tabs.Screen name="Orders" component={OrdersScreen} options={{ title: "Orders" }} />
       <Tabs.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile" }} />
     </Tabs.Navigator>
   );
@@ -46,11 +69,57 @@ function MainTabs() {
 
 export default function RootNavigator() {
   const { signedIn, ready } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
+  // The three intro pages (Welcome -> Hosur Basket -> Delivery partner) show
+  // after the splash every time the app opens signed out, before the login.
+  const [introDone, setIntroDone] = useState(false);
 
+  const openPendingNotification = useCallback(() => {
+    if (!signedIn || !navigationRef.isReady() || !pendingNotificationTarget) return;
+
+    const target = pendingNotificationTarget;
+    pendingNotificationTarget = null;
+    navigationRef.navigate(target.name, target.params);
+    Notifications.clearLastNotificationResponseAsync().catch((error) => {
+      console.warn("[notifications] Could not clear the opened notification:", error.message);
+    });
+  }, [signedIn]);
+
+  const openNotification = useCallback((response) => {
+    const request = response?.notification?.request;
+    if (!request || request.identifier === handledNotificationId) return;
+    handledNotificationId = request.identifier;
+
+    pendingNotificationTarget = notificationTarget(response);
+    openPendingNotification();
+  }, [openPendingNotification]);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(openNotification);
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) openNotification(response);
+      })
+      .catch((error) => {
+        console.warn("[notifications] Could not read the last notification response:", error.message);
+      });
+
+    return () => subscription.remove();
+  }, [openNotification]);
+
+  useEffect(() => {
+    openPendingNotification();
+  }, [openPendingNotification]);
+
+  // Branded splash on every app open; it leaves once it has played and the
+  // saved sign-in is loaded, then the login (or home) screen shows.
+  if (!splashDone) return <SplashScreen ready={ready} onDone={() => setSplashDone(true)} />;
   if (!ready) return <Loading label="Starting up" />;
+  // Moves on only when the rider taps the button on each page.
+  if (!signedIn && !introDone) return <OnboardingScreen onDone={() => setIntroDone(true)} />;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} onReady={openPendingNotification}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: { backgroundColor: colors.surface },
@@ -68,6 +137,8 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Delivery" component={DeliveryScreen} options={{ title: "Delivery" }} />
+            <Stack.Screen name="Notifications" component={DeliveryNotificationsScreen} options={{ title: "Notifications" }} />
+            <Stack.Screen name="DeliveredDetail" component={DeliveredDetailScreen} options={{ title: "Delivery details" }} />
             <Stack.Screen
               name="Delivered"
               component={DeliveredScreen}
@@ -85,9 +156,17 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: colors.surface,
     borderTopColor: colors.border,
-    height: 62,
-    paddingBottom: 7,
-    paddingTop: 7,
+    height: 72,
+    paddingBottom: 12,
+    paddingTop: 8,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderTopWidth: 0,
+    shadowColor: "#0A2A14",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 12,
   },
   tabLabel: { fontSize: 11.5, fontWeight: "700" },
 });

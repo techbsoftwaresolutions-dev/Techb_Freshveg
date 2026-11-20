@@ -48,7 +48,7 @@ router.get(
     if (req.query.kind === "offer") filter.requiresCode = false;
 
     const result = await paginate(Offer, filter, req.query, {
-      defaultSort: { priority: -1, createdAt: -1 },
+      defaultSort: { editedAt: -1, createdAt: -1 },
       populate: { path: "conditions.categories", select: "name slug" },
     });
 
@@ -63,6 +63,17 @@ router.get(
   })
 );
 
+// Fields the admin gets back in a response but that are never the client's to
+// set. `isLive` in particular is a *method* on the document: copying the
+// `isLive: true` the list sends back onto it replaces the method with a
+// boolean, and the next `offer.isLive()` throws "isLive is not a function".
+const READ_ONLY = ["id", "_id", "__v", "isLive", "createdAt", "updatedAt", "createdBy", "editedAt"];
+function clean(body) {
+  const out = { ...body };
+  for (const key of READ_ONLY) delete out[key];
+  return out;
+}
+
 router.post(
   "/",
   canManage,
@@ -70,7 +81,7 @@ router.post(
     if (req.body.requiresCode && !req.body.code) {
       throw ApiError.badRequest("A coupon needs a code");
     }
-    const offer = await Offer.create({ ...req.body, createdBy: req.user.id });
+    const offer = await Offer.create({ ...clean(req.body), createdBy: req.user.id, editedAt: new Date() });
     res.status(201).json({ success: true, offer });
   })
 );
@@ -84,9 +95,11 @@ router.patch(
 
     // usedCount is a running total the checkout increments; letting it be
     // patched would let someone reset a limited coupon by editing it.
-    delete req.body.limits?.usedCount;
+    const body = clean(req.body);
+    delete body.limits?.usedCount;
 
-    Object.assign(offer, req.body);
+    offer.set(body);
+    offer.editedAt = new Date();
     await offer.save();
     res.json({ success: true, offer: { ...offer.toJSON(), isLive: offer.isLive() } });
   })

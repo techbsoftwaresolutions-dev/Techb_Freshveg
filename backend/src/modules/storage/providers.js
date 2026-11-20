@@ -1,12 +1,9 @@
-const path = require("path");
-const fs = require("fs/promises");
 const crypto = require("crypto");
-const config = require("../../config");
 
-// One interface, several places to put a file. The upload route only ever sees
-// `save()` — whether the bytes land on this machine's disk or in Cloudinary is
-// an environment choice, and adding S3 later touches this file and nothing
-// else.
+// Every uploaded image goes to Cloudinary and nowhere else. There is no
+// local-disk fallback on purpose: a disk URL carries this machine's address
+// (localhost, a LAN IP that changes with the network), so it breaks the moment
+// the API moves — and order lines snapshot the URL, so it stays broken.
 //
 // Keys come from the environment, never from the settings document: a settings
 // row ends up in backups, logs and admin screens.
@@ -18,41 +15,6 @@ const CONTENT_TYPE = {
   png: "image/png",
   webp: "image/webp",
   gif: "image/gif",
-};
-
-/**
- * Local disk. The default, because a single-store business does not need a CDN
- * on day one, and because `npm run demo` has to work with no accounts at all.
- *
- * Files are served back by app.js from the same directory.
- */
-const local = {
-  name: "local",
-  configured: true,
-
-  get root() {
-    return process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
-  },
-
-  async save(buffer, extension, folder) {
-    const safeFolder = folderName(folder);
-    const directory = path.join(this.root, safeFolder);
-    await fs.mkdir(directory, { recursive: true });
-
-    const name = `${Date.now().toString(36)}_${crypto.randomBytes(6).toString("hex")}.${extension}`;
-    await fs.writeFile(path.join(directory, name), buffer);
-
-    return {
-      provider: "local",
-      // Absolute, not "/uploads/...": this URL is stored on the product (or
-      // banner, or review) and rendered by the storefront and admin apps, which
-      // run on different origins than this API — a relative path would resolve
-      // against their origin, not this server's, and 404.
-      url: `${config.publicUrl}/uploads/${safeFolder}/${name}`,
-      path: `${safeFolder}/${name}`,
-      bytes: buffer.length,
-    };
-  },
 };
 
 /**
@@ -122,7 +84,7 @@ const cloudinary = {
       // it names the wrong signature, the bad folder, the exceeded quota.
       const reason = payload?.error?.message || `HTTP ${response.status}`;
       const error = new Error(`Cloudinary rejected the upload: ${reason}`);
-      error.statusCode = 502;
+      error.status = 502;
       throw error;
     }
 
@@ -142,16 +104,24 @@ function folderName(folder) {
   return String(folder || "misc").replace(/[^a-z0-9-]/gi, "").slice(0, 24) || "misc";
 }
 
+const REQUIRED = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
+
+/** Names of the Cloudinary variables that are not set — empty when ready. */
+const missingConfig = () => REQUIRED.filter((key) => !process.env[key]);
+
 /**
- * Whichever provider is configured, falling back to local disk.
- *
- * Deliberately not an error when Cloudinary is half-configured: the shop
- * keeps working on local disk, and `GET /uploads/config` says which one is
- * actually in use rather than leaving it to be guessed from a URL.
+ * The storage provider. Throws (503) rather than falling back when Cloudinary
+ * is not fully configured, naming the missing variables — a silent fallback is
+ * exactly how images ended up on local disk unnoticed.
  */
 function resolve() {
-  if (process.env.STORAGE_PROVIDER === "local") return local;
-  return cloudinary.configured ? cloudinary : local;
+  const missing = missingConfig();
+  if (missing.length) {
+    const error = new Error(`Image storage is not configured — set ${missing.join(", ")} in the API's .env`);
+    error.status = 503;
+    throw error;
+  }
+  return cloudinary;
 }
 
-module.exports = { resolve, local, cloudinary, MAX_BYTES, CONTENT_TYPE };
+module.exports = { resolve, missingConfig, cloudinary, MAX_BYTES, CONTENT_TYPE };

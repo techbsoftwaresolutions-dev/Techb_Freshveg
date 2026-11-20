@@ -21,6 +21,11 @@ const PERMISSIONS = {
   "delivery.view": "View delivery assignments",
   "delivery.fulfil": "Pick up and deliver assigned orders",
 
+  // Point of sale
+  "pos.sell": "Use the POS billing screen",
+  "pos.discount": "Give discounts at the POS",
+  "pos.manage": "Print labels, import products and stock from Excel",
+
   // Customers
   "customers.view": "View customers",
   "customers.manage": "Edit customers, wallet and loyalty",
@@ -39,10 +44,9 @@ const ALL = Object.keys(PERMISSIONS);
 
 const ROLES = {
   super_admin: { label: "Super Admin", permissions: ALL },
-  admin: {
-    label: "Admin",
-    permissions: ALL.filter((p) => p !== "users.manage"),
-  },
+  // Admin can manage staff too (Settings → Users), but the Users screen stops
+  // an admin creating, editing or promoting anyone to super admin.
+  admin: { label: "Admin", permissions: ALL },
   store_manager: {
     label: "Store Manager",
     permissions: [
@@ -51,7 +55,12 @@ const ROLES = {
       "orders.view", "orders.manage", "orders.assign",
       "customers.view", "reports.view",
       "marketing.view", "delivery.view",
+      "pos.sell", "pos.discount", "pos.manage",
     ],
+  },
+  cashier: {
+    label: "Cashier",
+    permissions: ["catalog.view", "inventory.view", "orders.view", "pos.sell"],
   },
   picker: {
     label: "Picker / Packer",

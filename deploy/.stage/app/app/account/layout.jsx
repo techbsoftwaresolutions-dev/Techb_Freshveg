@@ -1,0 +1,11 @@
+// A "use client" page cannot export metadata, so the title for this route
+// lives in a thin server layout alongside it.
+export const metadata = {
+  title: "Your account",
+  description: "Your profile, saved addresses, wallet and loyalty points.",
+  robots: { index: false, follow: false },
+};
+
+export default function Layout({ children }) {
+  return children;
+}

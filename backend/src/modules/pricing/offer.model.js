@@ -82,6 +82,9 @@ const offerSchema = new mongoose.Schema(
 
     status: { type: String, enum: ["draft", "active", "paused", "expired"], default: "draft", index: true },
     isFeatured: { type: Boolean, default: false },
+    // Set only when an admin adds or saves the offer (not when checkout bumps
+    // usedCount), so "latest first" on the storefront means latest *edited*.
+    editedAt: { type: Date, default: Date.now, index: true },
     createdBy: objectId("User"),
   },
   baseOptions
@@ -90,6 +93,12 @@ const offerSchema = new mongoose.Schema(
 offerSchema.index({ code: 1 }, { unique: true, sparse: true });
 offerSchema.index({ status: 1, requiresCode: 1, "schedule.endsAt": 1 });
 offerSchema.index({ "conditions.categories": 1, status: 1 });
+
+// An auto offer has no code. Stored as "" it would count as a value under the
+// unique sparse index, so the second auto offer would clash with the first.
+offerSchema.pre("validate", function dropEmptyCode() {
+  if (!this.requiresCode || !this.code) this.code = undefined;
+});
 
 offerSchema.statics.TYPES = OFFER_TYPES;
 

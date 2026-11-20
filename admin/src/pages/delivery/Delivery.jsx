@@ -1,11 +1,13 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import {
-  Banner, Card, DateRange, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
+  Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
+import DateFilter, { defaultRange } from "../../components/DateFilter";
 
 export default function Delivery() {
   // The tab lives in the URL, so coming back from a zone or slot page lands
@@ -43,7 +45,7 @@ export default function Delivery() {
 
 function Report() {
   const [data, setData] = useState({ items: [], meta: null, summary: {} });
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(defaultRange);
   const [filters, setFilters] = useState({ status: "", pincode: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,10 +53,25 @@ function Report() {
   useEffect(() => {
     setLoading(true);
     api
-      .get("/delivery/report", { ...filters, ...range, limit: 20 })
+      .get("/delivery/report", { limit: 20, ...filters, ...range })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    // Then keep it live (quietly, no spinner) so runs started or finished by
+    // riders appear without a page reload.
+    const refresh = () => {
+      if (document.hidden) return;
+      api
+        .get("/delivery/report", { limit: 20, ...filters, ...range }, { force: true })
+        .then(setData)
+        .catch(() => {});
+    };
+    const timer = setInterval(refresh, 15000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [filters, range]);
 
   const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));
@@ -87,14 +104,14 @@ function Report() {
           onChange={(e) => set("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
           style={{ width: 130 }}
         />
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All runs</option>
           <option value="DELIVERED">Delivered</option>
           <option value="OUT_FOR_DELIVERY,ARRIVED,PICKED_UP">In progress</option>
           <option value="CANCELLED,REJECTED">Cancelled</option>
-        </select>
+        </Select>
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={setRange} />
       </div>
 
       <Card tight>
@@ -103,6 +120,7 @@ function Report() {
         ) : (
           <>
             <Table
+              title="Delivery report"
               columns={[
                 {
                   key: "code",
@@ -162,7 +180,7 @@ function Report() {
               rows={data.items}
               empty={<Empty title="No runs in this window" />}
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>
@@ -172,7 +190,7 @@ function Report() {
 
 function Partners() {
   const [partners, setPartners] = useState([]);
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(defaultRange);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -188,7 +206,7 @@ function Partners() {
     <>
       <div className="toolbar">
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={setRange} />
       </div>
 
       <Card tight>
@@ -196,6 +214,7 @@ function Partners() {
           <Loading />
         ) : (
           <Table
+            title="Delivery partners"
             columns={[
               {
                 key: "partner",
@@ -274,9 +293,6 @@ function Zones() {
       <Banner tone="error">{error}</Banner>
 
       <div className="toolbar">
-        <span className="muted" style={{ fontSize: 13 }}>
-          Zones override a store's flat delivery charge for particular pincodes.
-        </span>
         <span className="spacer" />
         {canManage ? (
           <button className="btn primary" onClick={() => navigate("/delivery/zones/new")}>+ New zone</button>
@@ -288,6 +304,7 @@ function Zones() {
           <Loading />
         ) : (
           <Table
+            title="Delivery zones"
             columns={[
               {
                 key: "name",
@@ -427,9 +444,9 @@ function ZoneModal({ zone, onClose, onSaved }) {
           <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Hosur town centre" />
         </Field>
         <Field label="Store">
-          <select value={form.store} onChange={(e) => setForm({ ...form, store: e.target.value })}>
+          <Select value={form.store} onChange={(e) => setForm({ ...form, store: e.target.value })}>
             {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
 
@@ -471,17 +488,17 @@ function ZoneModal({ zone, onClose, onSaved }) {
       </div>
 
       <div className="grid cols-3">
-        <Field label="Extra minutes" help="Added to the store's prep time.">
+        <Field label="Extra minutes">
           <input type="number" value={form.extraMinutes} onChange={(e) => setForm({ ...form, extraMinutes: Number(e.target.value) })} />
         </Field>
-        <Field label="Priority" help="Checked highest first, so a specific zone can sit inside a general one.">
+        <Field label="Priority">
           <input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} />
         </Field>
         <Field label="Status">
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
             <option value="active">Active</option>
             <option value="paused">Paused</option>
-          </select>
+          </Select>
         </Field>
       </div>
 
@@ -532,9 +549,9 @@ function Slots() {
       <Banner tone="error">{error}</Banner>
 
       <div className="toolbar">
-        <select value={store} onChange={(e) => setStore(e.target.value)}>
+        <Select value={store} onChange={(e) => setStore(e.target.value)}>
           {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        </Select>
         <span className="spacer" />
         {canManage ? (
           <button className="btn primary" onClick={() => navigate(`/delivery/slots/new?store=${store}`)}>+ New slot</button>
@@ -546,6 +563,7 @@ function Slots() {
           <Loading />
         ) : (
           <Table
+            title="Delivery slots"
             columns={[
               {
                 key: "label",
@@ -687,7 +705,7 @@ function SlotModal({ slot, onClose, onSaved }) {
         </Field>
       </div>
 
-      <Field label="Days" help="None selected means every day.">
+      <Field label="Days">
         <div className="inline" style={{ gap: 4 }}>
           {DAYS.map((name, day) => (
             <button
@@ -702,10 +720,10 @@ function SlotModal({ slot, onClose, onSaved }) {
       </Field>
 
       <div className="grid cols-3">
-        <Field label="Capacity" help="Orders this window can take.">
+        <Field label="Capacity">
           <input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} />
         </Field>
-        <Field label="Cut-off (minutes)" help="How long before it opens booking closes.">
+        <Field label="Cut-off (minutes)">
           <input type="number" value={form.cutoffMinutes} onChange={(e) => setForm({ ...form, cutoffMinutes: Number(e.target.value) })} />
         </Field>
         <Field label="Surcharge (₹)">

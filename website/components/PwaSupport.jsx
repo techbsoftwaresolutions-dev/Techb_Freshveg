@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { detectPlatform, promptInstall, useInstallPrompt } from "@/lib/install-prompt";
 
 const DISMISS_KEY = "freshmart.install.dismissedAt";
 // Asked at most once a fortnight — a banner that comes back on every visit is
@@ -9,44 +10,35 @@ const DISMISS_FOR_MS = 14 * 24 * 60 * 60 * 1000;
 
 // Registers the service worker and offers "Install app" on phones.
 //
-// The worker is only registered in a production build. In `next dev` the
-// build files are not content-hashed, so caching them would serve yesterday's
-// code after an edit.
+// The worker is only registered in a production build (or with
+// NEXT_PUBLIC_PWA_DEV=1). In `next dev` the build files are not content-hashed,
+// so caching them would serve yesterday's code after an edit.
 export default function PwaSupport() {
-  const [installEvent, setInstallEvent] = useState(null);
-  const [showIosHint, setShowIosHint] = useState(false);
+  const { mounted, canPrompt, installed } = useInstallPrompt();
+  const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    // Set NEXT_PUBLIC_PWA_DEV=1 in .env.local to try installing from `next dev`.
+    const enabled = process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_PWA_DEV === "1";
+    if (enabled && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/", updateViaCache: "none" })
+        .catch(() => {});
+    } else if ("serviceWorker" in navigator) {
+      // Dev: a worker left over from an earlier production run on this address
+      // would keep serving old, un-hashed dev files — remove it and its cache,
+      // then reload once so this tab shows the current code.
+      navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+        if (!registrations.length) return;
+        await Promise.all(registrations.map((r) => r.unregister()));
+        if (window.caches) {
+          const keys = await caches.keys();
+          await Promise.all(keys.filter((k) => k.startsWith("freshmart-")).map((k) => caches.delete(k)));
+        }
+        window.location.reload();
+      }).catch(() => {});
     }
-
-    // Already running as the installed app: nothing to offer.
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-    if (standalone || recentlyDismissed()) return undefined;
-
-    // Chrome and Edge on Android hand over an install prompt we can trigger
-    // from our own button.
-    const onPrompt = (event) => {
-      event.preventDefault();
-      setInstallEvent(event);
-    };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-
-    // Safari on iPhone has no prompt at all — installing is Share → Add to
-    // Home Screen, so the most that can be done is to say so.
-    const ua = window.navigator.userAgent;
-    const isIos = /iphone|ipad|ipod/i.test(ua) && !/crios|fxios/i.test(ua);
-    if (isIos) setShowIosHint(true);
-
-    const onInstalled = () => setInstallEvent(null);
-    window.addEventListener("appinstalled", onInstalled);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
+    setDismissed(recentlyDismissed());
   }, []);
 
   const dismiss = () => {
@@ -55,32 +47,31 @@ export default function PwaSupport() {
     } catch {
       // Private mode — the banner just comes back next visit.
     }
-    setInstallEvent(null);
-    setShowIosHint(false);
+    setDismissed(true);
   };
 
   const install = async () => {
-    if (!installEvent) return;
-    installEvent.prompt();
-    const { outcome } = await installEvent.userChoice.catch(() => ({ outcome: "dismissed" }));
+    const outcome = await promptInstall();
     if (outcome !== "accepted") dismiss();
-    setInstallEvent(null);
   };
 
-  if (!installEvent && !showIosHint) return null;
+  // Safari on iPhone has no prompt at all — installing is Share → Add to Home
+  // Screen, so the most that can be done is to say so.
+  const showIosHint = mounted && detectPlatform() === "ios" && !/crios|fxios/i.test(navigator.userAgent);
+  if (!mounted || installed || dismissed || (!canPrompt && !showIosHint)) return null;
 
   return (
-    <div className="install-bar" role="dialog" aria-label="Install the FreshMart app">
-      <img src="/app-icon/192" alt="" className="install-bar-icon" width="40" height="40" />
+    <div className={`install-bar${canPrompt ? " has-btn" : ""}`} role="dialog" aria-label="Install the Hosur Basket app">
+      <img src="/icons/icon-192.png?v=3" alt="" className="install-bar-icon" width="40" height="40" />
       <div className="install-bar-copy">
-        <strong>Get the FreshMart app</strong>
+        <strong>Get the Hosur Basket app</strong>
         <span>
-          {installEvent
+          {canPrompt
             ? "Faster ordering, right from your home screen."
             : "Tap Share, then “Add to Home Screen”."}
         </span>
       </div>
-      {installEvent ? (
+      {canPrompt ? (
         <button type="button" className="install-bar-btn" onClick={install}>
           Install
         </button>

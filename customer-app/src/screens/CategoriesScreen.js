@@ -1,18 +1,33 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../components/AppText";
 import { api } from "../api/client";
-import { colors, radius, spacing, type } from "../theme";
+import { useStore } from "../context/StoreContext";
+import { colors, fontFamily, radius, rupees, spacing, type } from "../theme";
 import { EmptyState, Loading, Notice } from "../components/ui";
+
+// A small, repeating palette for the department and subcategory icon tiles —
+// categories don't carry a brand color of their own, so this is what stands
+// in for the mockup's per-department gradients (no SVG/gradient library in
+// this project, so flat color is the honest equivalent).
+const RAIL_COLORS = ["#E8714A", "#53925E", "#E8B957", "#D98AA0", "#6E8CB2", "#9A7B56"];
+const STAT_COLORS = ["#6D5DF6", "#E6912A", "#1FA98C", "#D9663F", "#2F6BE0", "#C97B8C"];
 
 // Departments down the left, their subcategories on the right — the layout
 // every Indian grocery app converged on, because it fits a deep tree on a
 // narrow screen. The tree itself comes from the engine, so a new department
 // appears here on its own.
 export default function CategoriesScreen({ navigation }) {
+  const { store } = useStore();
   const [categories, setCategories] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Tile width is worked out from the space actually there, so two always fit
+  // side by side — percentages plus a gap can add up to just over 100% and
+  // push the second tile onto its own line on some phones.
+  const [gridWidth, setGridWidth] = useState(0);
+  const tileWidth = gridWidth ? Math.floor((gridWidth - spacing.sm) / 2) : "48%";
 
   useEffect(() => {
     api
@@ -29,21 +44,39 @@ export default function CategoriesScreen({ navigation }) {
   }
 
   const active = categories[activeIndex];
+  const freeDeliveryAbove = store?.freeDeliveryAbove ?? store?.settings?.freeDeliveryAbove;
+  const freeDeliveryOn = (store?.freeDeliveryEnabled ?? store?.settings?.freeDeliveryEnabled) !== false;
 
   return (
+    // Two independent columns: the department list on the left scrolls on its
+    // own, and the right panel keeps its own scroll — swiping one never moves
+    // the other.
     <View style={styles.screen}>
       {/* Departments */}
-      <ScrollView style={styles.rail} contentContainerStyle={{ paddingVertical: spacing.sm }}>
+      <ScrollView
+        style={styles.rail}
+        contentContainerStyle={{ paddingTop: spacing.sm, paddingBottom: 170 }}
+        showsVerticalScrollIndicator
+        persistentScrollbar
+        nestedScrollEnabled
+        overScrollMode="always"
+        alwaysBounceVertical
+      >
         {categories.map((category, index) => {
           const isActive = index === activeIndex;
+          const tileColor = RAIL_COLORS[index % RAIL_COLORS.length];
           return (
-            <Pressable
-              key={category.id}
-              onPress={() => setActiveIndex(index)}
-              style={[styles.railItem, isActive && styles.railItemActive]}
-            >
+            <Pressable key={category.id} onPress={() => setActiveIndex(index)} style={[styles.railItem, isActive && styles.railItemActive]}>
               {isActive ? <View style={styles.railMarker} /> : null}
-<Text style={{ fontSize: 22}}>{category.icon ||""}</Text>
+              <View style={[styles.railRing, isActive && styles.railRingActive]}>
+                <View style={[styles.railIcon, { backgroundColor: category.image ? "#fff" : tileColor }]}>
+                  {category.image ? (
+                    <Image source={{ uri: category.image }} style={styles.railIconImage} resizeMode="cover" />
+                  ) : (
+                    <Text style={styles.railIconGlyph}>{category.icon || "•"}</Text>
+                  )}
+                </View>
+              </View>
               <Text style={[styles.railLabel, isActive && styles.railLabelActive]} numberOfLines={2}>
                 {category.name}
               </Text>
@@ -53,36 +86,60 @@ export default function CategoriesScreen({ navigation }) {
       </ScrollView>
 
       {/* Subcategories */}
-      <ScrollView style={styles.panel} contentContainerStyle={{ padding: spacing.md }}>
-        <Pressable
-          style={styles.allButton}
-          onPress={() =>
-            navigation.navigate("ProductList", { slug: active.slug, title: active.name })
-          }
-        >
-          <Text style={styles.allText}>
-            Browse all {active.name} {active.productCount ? `(${active.productCount})` : ""} →
-          </Text>
+      <ScrollView style={styles.panel} contentContainerStyle={styles.panelContent} showsVerticalScrollIndicator={false}>
+        <Text style={styles.panelTitle} numberOfLines={1}>
+          {active.name}
+        </Text>
+
+        <Pressable style={styles.ctaCard} onPress={() => navigation.navigate("ProductList", { slug: active.slug, title: active.name })}>
+          <View style={styles.ctaTextWrap}>
+            <Text style={styles.ctaKicker}>Browse all</Text>
+            <Text style={styles.ctaText} numberOfLines={2}>
+              {active.productCount ? `${active.productCount} products` : "See everything"}
+            </Text>
+          </View>
+          <View style={styles.ctaArrow}>
+            <Text style={styles.ctaArrowGlyph}>→</Text>
+          </View>
         </Pressable>
 
+        <View style={styles.pillRow}>
+          <Pressable
+            style={styles.pill}
+            onPress={() => navigation.navigate("ProductList", { slug: active.slug, title: active.name, openFilter: true })}
+          >
+            <Text style={styles.pillText}>Filter</Text>
+          </Pressable>
+          <Pressable
+            style={styles.pill}
+            onPress={() => navigation.navigate("ProductList", { slug: active.slug, title: active.name, openSort: true })}
+          >
+            <Text style={styles.pillText}>Sort by ▾</Text>
+          </Pressable>
+        </View>
+
         {active.children?.length ? (
-          <View style={styles.grid}>
-            {active.children.map((child) => (
+          <View style={styles.grid} onLayout={(e) => setGridWidth(Math.floor(e.nativeEvent.layout.width))}>
+            {active.children.map((child, index) => (
               <Pressable
                 key={child.id}
-                style={styles.tile}
-                onPress={() =>
-                  navigation.navigate("ProductList", { slug: child.slug, title: child.name })
-                }
+                style={[styles.tile, { width: tileWidth }]}
+                onPress={() => navigation.navigate("ProductList", { slug: child.slug, title: child.name })}
               >
-                <View style={styles.tileIcon}>
-<Text style={{ fontSize: 26}}>{child.icon ||""}</Text>
+                <View style={[styles.tileIcon, { backgroundColor: child.image ? "#fff" : STAT_COLORS[index % STAT_COLORS.length] }]}>
+                  {child.image ? (
+                    <Image source={{ uri: child.image }} style={styles.tileIconImage} resizeMode="cover" />
+                  ) : (
+                    <Text style={styles.tileIconGlyph}>{child.icon || "•"}</Text>
+                  )}
                 </View>
-                <Text style={styles.tileLabel} numberOfLines={2}>
+                <Text style={styles.tileTitle} numberOfLines={2}>
                   {child.name}
                 </Text>
                 {child.productCount ? (
-                  <Text style={type.tiny}>{child.productCount} {child.productCount === 1 ? "item" : "items"}</Text>
+                  <Text style={styles.tileSub}>
+                    {child.productCount} {child.productCount === 1 ? "item" : "items"}
+                  </Text>
                 ) : null}
               </Pressable>
             ))}
@@ -92,6 +149,14 @@ export default function CategoriesScreen({ navigation }) {
             {active.name} has no subcategories — tap above to see everything in it.
           </Notice>
         )}
+
+        {freeDeliveryOn && freeDeliveryAbove ? (
+          <View style={styles.promoStrip}>
+            <Text style={styles.promoText}>
+              🚚 Free delivery on orders above <Text style={styles.promoBold}>{rupees(freeDeliveryAbove)}</Text>
+            </Text>
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -100,41 +165,79 @@ export default function CategoriesScreen({ navigation }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, flexDirection: "row", backgroundColor: colors.bg },
 
-  rail: { width: 92, backgroundColor: colors.surfaceAlt },
-  railItem: { alignItems: "center", paddingVertical: spacing.md, paddingHorizontal: 6, gap: 4 },
-  railItemActive: { backgroundColor: colors.surface },
-  railMarker: {
-    position: "absolute",
-    left: 0,
-    top: 10,
-    bottom: 10,
-    width: 3,
-    backgroundColor: colors.primary,
-    borderTopRightRadius: 3,
-    borderBottomRightRadius: 3,
+  rail: { width: 84, flexGrow: 0, flexShrink: 0, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border },
+  railItem: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 4, gap: 6 },
+  railItemActive: { backgroundColor: colors.primarySoft },
+  railMarker: { position: "absolute", left: 0, top: 12, bottom: 12, width: 3.5, backgroundColor: colors.primary, borderTopRightRadius: 3, borderBottomRightRadius: 3 },
+  railRing: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    padding: 3,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "transparent",
+    shadowColor: "#0B0F1A",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  railLabel: { ...type.tiny, textAlign: "center", fontWeight: "600" },
-  railLabelActive: { color: colors.primaryDark },
+  railRingActive: { borderColor: colors.primary },
+  railIcon: { flex: 1, borderRadius: 24, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  railIconImage: { width: "100%", height: "100%" },
+  railIconGlyph: { fontSize: 20, color: "#fff" },
+  railLabel: { fontSize: 10.5, lineHeight: 13, fontFamily: fontFamily.semibold, color: colors.textMuted, textAlign: "center" },
+  railLabelActive: { color: colors.primaryDark, fontFamily: fontFamily.bold },
 
-  panel: { flex: 1, backgroundColor: colors.surface },
-  allButton: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.md,
-    padding: spacing.md,
+  panel: { flex: 1, backgroundColor: colors.bg },
+  panelContent: { padding: spacing.md, paddingBottom: spacing.xxl },
+  panelTitle: { fontSize: 17, fontFamily: fontFamily.extrabold, color: colors.text, marginBottom: spacing.sm },
+
+  ctaCard: {
+    backgroundColor: colors.primary,
+    borderRadius: 18,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: spacing.md,
   },
-  allText: { color: colors.primaryDark, fontWeight: "700", fontSize: 13.5 },
+  ctaTextWrap: { flex: 1, minWidth: 0, paddingRight: spacing.sm },
+  ctaKicker: { fontSize: 11, fontFamily: fontFamily.bold, color: "rgba(255,255,255,0.8)", letterSpacing: 0.6, textTransform: "uppercase" },
+  ctaText: { fontSize: 17, lineHeight: 22, fontFamily: fontFamily.extrabold, color: "#fff", marginTop: 1 },
+  ctaArrow: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  ctaArrowGlyph: { fontSize: 16, fontFamily: fontFamily.bold, color: colors.primaryDark },
 
-  grid: { flexDirection: "row", flexWrap: "wrap" },
-  tile: { width: "33.33%", alignItems: "center", marginBottom: spacing.lg, paddingHorizontal: 4 },
-  tileIcon: {
-    width: 62,
-    height: 62,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceAlt,
+  pillRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
+  pill: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 32, alignItems: "center", justifyContent: "center" },
+  pillText: { fontSize: 12, fontFamily: fontFamily.semibold, color: colors.textMuted },
+
+  // Two to a row — a tile with a round picture, its name and how many items.
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  tile: {
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 5,
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    gap: 6,
   },
-  tileLabel: { ...type.tiny, color: colors.text, fontWeight: "600", textAlign: "center" },
+  tileIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  tileIconImage: { width: "100%", height: "100%" },
+  tileIconGlyph: { fontSize: 24, color: "#fff" },
+  tileTitle: { fontSize: 13, lineHeight: 16, fontFamily: fontFamily.bold, color: colors.text, textAlign: "center", minHeight: 16 },
+  tileSub: { fontSize: 10.5, fontFamily: fontFamily.semibold, color: colors.textMuted },
+
+  promoStrip: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    marginTop: spacing.lg,
+  },
+  promoText: { fontSize: 12, fontFamily: fontFamily.semibold, color: colors.text },
+  promoBold: { fontFamily: fontFamily.extrabold, color: colors.primaryDark },
 });

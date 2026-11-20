@@ -1,7 +1,11 @@
+import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
-import { Banner, Card, Empty, Loading, Pagination, Pill, Table, rupees, when } from "../../components/ui";
+import { useApi } from "../../api/useApi";
+import { useAuth } from "../../context/AuthContext";
+import DateFilter, { defaultRange } from "../../components/DateFilter";
+import { Banner, Card, ConfirmDialog, Empty, Loading, Modal, Pagination, Pill, Table, Tabs, rupees, when } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
 // stage added to the engine shows up here without a frontend change.
@@ -19,15 +23,41 @@ export function statusTone(status, statuses) {
   return GROUP_TONE[statuses?.[status]?.group] || undefined;
 }
 
+// Orders that are finished can no longer be handed to a rider.
+const CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+
+const AV_TONES = ["green", "blue", "amber", "violet", "pink", "indigo"];
+export function Avatar({ name = "", size = 34 }) {
+  const tone = AV_TONES[[...name].reduce((n, ch) => n + ch.charCodeAt(0), 0) % AV_TONES.length];
+  return (
+    <span className={`cat-avatar letter ${tone}`} style={{ width: size, height: size, borderRadius: size * 0.32, fontSize: size * 0.42 }}>
+      {(name || "?").trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
 export default function Orders() {
   const navigate = useNavigate();
+  const { can, user } = useAuth();
+  // Deleting an order is for admins only (the API enforces it too).
+  const canDelete = ["admin", "super_admin"].includes(user?.role);
+  const [confirming, setConfirming] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [notice, setNotice] = useState("");
+  const canAssign = can("orders.assign");
+  const [partners, setPartners] = useState([]);
+  const [assigningId, setAssigningId] = useState(null);
+  // Which row's Delivery cell is being edited, and the rider picked so far.
+  const [editing, setEditing] = useState({ id: null, partner: "" });
   const [searchParams] = useSearchParams();
-  const [data, setData] = useState({ items: [], meta: null });
   const [statuses, setStatuses] = useState({});
   // A dashboard card (e.g. "Pending Orders") links here with ?status=..., so
   // that lands on the matching bucket instead of always opening on "All".
-  const [filters, setFilters] = useState({ status: searchParams.get("status") || "", page: 1 });
-  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ status: searchParams.get("status") || "", channel: "online", page: 1 });
+  // The calendar button next to the status chips: { from, to } as yyyy-mm-dd.
+  // Arriving from a dashboard link (?status=...) means "show me all of these",
+  // so the day filter starts at All Time instead of hiding older orders.
+  const [range, setRange] = useState(defaultRange);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -39,14 +69,74 @@ export default function Orders() {
       .catch(() => {});
   }, []);
 
+  // Active delivery boys for the dropdown in the Delivery column.
   useEffect(() => {
-    setLoading(true);
+    if (!canAssign) return;
     api
-      .get("/orders", { ...filters, limit: 20 })
-      .then(setData)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [filters]);
+      .get("/orders/delivery/partners")
+      .then(({ partners: list }) => setPartners(list))
+      .catch(() => {});
+  }, [canAssign]);
+
+  // Re-reads the current page (also done automatically after any save, and every 30 s).
+  function load() {
+    return ordersQ.reload();
+  }
+
+  async function removeOrder(order) {
+    setDeleting(true);
+    setError("");
+    setNotice("");
+    try {
+      await api.delete(`/orders/${order.id}`);
+      setConfirming(null);
+      setNotice(`Order ${order.code} was deleted.`);
+      await load();
+    } catch (err) {
+      setError(err.message);
+      setConfirming(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function assign(order, partnerId) {
+    if (!partnerId) return;
+    setAssigningId(order.id);
+    setError("");
+    try {
+      await api.post(`/orders/${order.id}/assign`, { partner: partnerId });
+      setEditing({ id: null, partner: "" });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAssigningId(null);
+    }
+  }
+
+  // Server-paginated, 20 per page. Cached and shared; the previous page stays on screen while the
+  // next one loads; refreshed in the background every 30 s while the tab is visible.
+  // Search box: anything on the bill (order id, bill no, customer, phone,
+  // item, code, amount). Sent a moment after typing stops. While searching,
+  // all dates are looked through — a bill being looked up is rarely today's.
+  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQ(search.trim());
+      setFilters((f) => ({ ...f, page: 1 }));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+  const ordersQ = useApi(
+    "/orders",
+    { limit: 20, ...filters, ...(q ? { q, from: "", to: "" } : range) },
+    // 10s so a rider starting / finishing a delivery shows without a reload.
+    { refreshMs: 10000 }
+  );
+  const data = ordersQ.data || { items: [], meta: null };
+  const loading = ordersQ.loading;
 
   // A handful of useful buckets rather than all 19 statuses as chips. The
   // "Pending" value must match PENDING_ORDER_STATUSES in Dashboard.jsx
@@ -68,25 +158,57 @@ export default function Orders() {
   ];
 
   return (
-    <div className="page">
+    <div className="page products-page orders-page">
       <div className="page-head">
         <div>
           <h1>Orders</h1>
         </div>
       </div>
 
-      <Banner tone="error">{error}</Banner>
+      <Banner tone="error">{error || (ordersQ.error && !ordersQ.data ? ordersQ.error.message : "")}</Banner>
+      <Banner tone="ok">{notice}</Banner>
 
-      <div className="toolbar">
-        {buckets.map((bucket) => (
-          <button
-            key={bucket.label}
-            className={`btn sm${filters.status === bucket.value ? " primary" : ""}`}
-            onClick={() => setFilters({ status: bucket.value, page: 1 })}
-          >
-            {bucket.label}
-          </button>
-        ))}
+      <Tabs
+        tabs={[{ key: "online", label: "Online Orders" }, { key: "pos", label: "Walk-in Orders" }]}
+        active={filters.channel}
+        onChange={(channel) => setFilters((f) => ({ limit: f.limit, status: "", channel, page: 1 }))}
+      />
+
+      <div className="toolbar products-filters">
+        <span className="search-field orders-search">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input
+            type="search"
+            placeholder="Search order no, bill no, customer, phone, item or amount…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search orders"
+          />
+        </span>
+        <Select
+          aria-label="Order status"
+          value={filters.status}
+          onChange={(e) => {
+            const value = e.target.value;
+            // Pending orders are whatever is still open, however old, so
+            // that bucket (and All) looks across all time.
+            if (value === buckets.find((b) => b.label === "Pending").value) setRange({ from: "", to: "" });
+            setFilters((f) => ({ ...f, status: value, page: 1 }));
+          }}
+        >
+          {buckets.map((b) => (
+            <option key={b.label} value={b.value}>{b.value ? b.label : "All statuses"}</option>
+          ))}
+        </Select>
+        <span className="spacer" />
+        {q ? <span className="muted orders-search-note">Searching all dates</span> : null}
+        <DateFilter
+          value={range}
+          onChange={(next) => {
+            setRange(next);
+            setFilters((f) => ({ ...f, page: 1 }));
+          }}
+        />
       </div>
 
       <Card tight>
@@ -95,6 +217,7 @@ export default function Orders() {
         ) : (
           <>
             <Table
+              title="Orders" search={false}
               columns={[
                 {
                   key: "code",
@@ -110,17 +233,20 @@ export default function Orders() {
                   key: "customer",
                   label: "Customer",
                   render: (row) => (
-                    <div className="stack">
-                      <span className="row-title">{row.customerSnapshot?.name || "—"}</span>
-                      <span className="row-sub">{row.customerSnapshot?.phone}</span>
-                    </div>
+                    <span className="person-cell">
+                      <Avatar name={row.customerSnapshot?.name} />
+                      <span className="stack">
+                        <span className="row-title">{row.customerSnapshot?.name || "—"}</span>
+                        <span className="row-sub">{row.customerSnapshot?.phone}</span>
+                      </span>
+                    </span>
                   ),
                 },
                 {
                   key: "items",
                   label: "Items",
                   align: "right",
-                  render: (row) => row.items?.length || 0,
+                  render: (row) => <span className="count-pill">{row.items?.length || 0}</span>,
                 },
                 {
                   key: "total",
@@ -133,7 +259,7 @@ export default function Orders() {
                   label: "Payment",
                   render: (row) => (
                     <div className="stack">
-                      <span className="nowrap">{row.payment?.method?.toUpperCase()}</span>
+                      <span className="nowrap pay-method">{row.payment?.method?.toUpperCase()}</span>
                       <Pill tone={row.payment?.status === "paid" ? "ok" : "warn"}>
                         {row.payment?.status}
                       </Pill>
@@ -152,22 +278,123 @@ export default function Orders() {
                 {
                   key: "partner",
                   label: "Delivery",
-                  render: (row) =>
-                    row.delivery?.partnerName ? (
-                      <span className="muted">{row.delivery.partnerName}</span>
-                    ) : (
-                      <span className="faint">—</span>
-                    ),
+                  render: (row) => {
+                    const assigned = row.delivery?.partner ? String(row.delivery.partner) : "";
+                    // Riders for this order's store (a rider with no store set works for all).
+                    const choices = partners.filter(
+                      (p) => !p.stores?.length || p.stores.includes(String(row.store))
+                    );
+                    if (!canAssign || CLOSED.includes(row.status)) {
+                      return row.delivery?.partnerName ? (
+                        <span className="person-cell"><Avatar name={row.delivery.partnerName} size={26} /><span>{row.delivery.partnerName}</span></span>
+                      ) : (
+                        <span className="faint">—</span>
+                      );
+                    }
+                    if (editing.id !== row.id) {
+                      return (
+                        <div className="row-actions" onClick={(e) => e.stopPropagation()}>
+                          {row.delivery?.partnerName ? (
+                            <span className="person-cell"><Avatar name={row.delivery.partnerName} size={26} /><span>{row.delivery.partnerName}</span></span>
+                          ) : (
+                            <span className="faint">—</span>
+                          )}
+                          <button
+                            className="btn sm"
+                            onClick={() => setEditing({ id: row.id, partner: assigned })}
+                          >
+                            {assigned ? "Edit" : "Assign"}
+                          </button>
+                        </div>
+                      );
+                    }
+                    const busy = assigningId === row.id;
+                    return (
+                      <div className="row-actions" onClick={(e) => e.stopPropagation()} style={{ flexWrap: "nowrap" }}>
+                        <Select
+                          value={editing.partner}
+                          disabled={busy}
+                          onChange={(e) => setEditing({ id: row.id, partner: e.target.value })}
+                          aria-label="Delivery boy"
+                          style={{ minWidth: 140 }}
+                        >
+                          <option value="">Select delivery boy</option>
+                          {row.delivery?.partnerName && !choices.some((p) => p.id === assigned) ? (
+                            <option value={assigned}>{row.delivery.partnerName}</option>
+                          ) : null}
+                          {choices.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </Select>
+                        <button
+                          className="btn sm primary"
+                          disabled={!editing.partner || editing.partner === assigned || busy}
+                          onClick={() => assign(row, editing.partner)}
+                        >
+                          {busy ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          className="btn sm"
+                          disabled={busy}
+                          onClick={() => setEditing({ id: null, partner: "" })}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    );
+                  },
                 },
+                ...(canDelete
+                  ? [
+                      {
+                        key: "actions",
+                        label: "Actions",
+                        align: "right",
+                        exportable: false,
+                        sortable: false,
+                        render: (row) => (
+                          <button
+                            type="button"
+                            className="icon-delete"
+                            title={`Delete ${row.code}`}
+                            aria-label={`Delete ${row.code}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirming(row);
+                            }}
+                          >
+                            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+                            </svg>
+                          </button>
+                        ),
+                      },
+                    ]
+                  : []),
               ]}
-              rows={data.items}
+              rows={data.items.map((row) => ({ ...row, partner: row.delivery?.partnerName || "" }))}
               onRowClick={(row) => navigate(`/orders/${row.id}`)}
               empty={<Empty title="No orders" hint="Orders placed from the app or website land here." />}
             />
-            <Pagination meta={data.meta} onPage={(page) => setFilters((f) => ({ ...f, page }))} />
+            <Pagination meta={data.meta} onPage={(page) => setFilters((f) => ({ ...f, page }))} onLimit={(limit) => setFilters((f) => ({ ...f, limit, page: 1 }))} />
           </>
         )}
       </Card>
+
+      {confirming && (
+        <ConfirmDialog
+          title="Delete this order?"
+          message={confirming.code}
+          confirmLabel="Delete"
+          onAnswer={(yes) => {
+            const row = confirming;
+            setConfirming(null);
+            if (yes && !deleting) removeOrder(row);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,9 +1,9 @@
-const crypto = require("crypto");
 const Product = require("./product.model");
 const Variant = require("./variant.model");
 const Category = require("./category.model");
 const ApiError = require("../../core/ApiError");
 const { uniqueSlug, slugify } = require("../../core/slugify");
+const { nextSequence } = require("../../core/sequence");
 const { resolveCategorySchema, validateAgainstSchema } = require("./schema.service");
 
 // Products are written *through* their category's resolved schema. Nothing here
@@ -34,20 +34,44 @@ function applyCategoryDefaults(product, defaults, payload = {}) {
   return product;
 }
 
-function buildSku(product, axisValues, sequence) {
-  const base = slugify(product.name).toUpperCase().replace(/-/g, "").slice(0, 10);
-  const axis = axisValues
-    .map((a) => slugify(a.value).toUpperCase().replace(/-/g, "").slice(0, 6))
-    .join("-");
-  // name + axis + sequence alone are deterministic: if a variant is ever
-  // (re)created instead of matched to its existing row below — the axis
-  // fingerprint match can miss, e.g. after a variant's axis fields are
-  // edited — the exact same SKU is generated again and collides with the
-  // one already stored, which is exactly the "record with this sku already
-  // exists" error this was producing. A short random tail makes every
-  // generated SKU unique regardless, so a missed match can never collide.
-  const suffix = crypto.randomBytes(3).toString("hex").toUpperCase();
-  return [base, axis, sequence ? String(sequence) : "", suffix].filter(Boolean).join("-");
+
+// Product codes: a short form of the product's name, a dash, and a running
+// number that is unique across the whole catalogue:
+//   Oreo Cream Biscuits -> OCB-001, Apple -> APP-002, Banana -> BANA-003
+// Short form: one word -> its first 3 letters (4 for a word of 6+ letters);
+// several words -> the first letter of each. Anything in brackets ("(500 g)")
+// and apostrophes are ignored.
+function shortCode(name) {
+  const words = String(name || "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/['’`]/g, "") // Haldiram's -> Haldirams
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean);
+  if (!words.length) return "ITEM";
+  if (words.length === 1) {
+    const w = words[0];
+    return w.slice(0, w.length >= 6 ? 4 : 3);
+  }
+  return words.map((w) => w[0]).join("").slice(0, 6);
+}
+
+// The running number comes from one counter ("productCode"), started above
+// the highest number already on a code, so a number is never handed out twice.
+async function nextProductCode(name) {
+  const base = shortCode(name);
+  const [top] = await Variant.aggregate([
+    { $match: { sku: { $regex: /-\d+$/ } } },
+    { $project: { n: { $toLong: { $arrayElemAt: [{ $split: ["$sku", "-"] }, -1] } } } },
+    { $sort: { n: -1 } },
+    { $limit: 1 },
+  ]);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const n = await nextSequence("productCode", { floor: top?.n || 0 });
+    const code = `${base}-${String(n).padStart(3, "0")}`;
+    if (!(await Variant.exists({ $or: [{ sku: code }, { barcode: code }] }))) return code;
+  }
+  return `${base}-${Date.now().toString().slice(-6)}`;
 }
 
 async function createProduct(payload, actor = null) {
@@ -149,16 +173,56 @@ function soldLoose(categoryValue, isSplitIntoPacks) {
   return categoryValue < 1 ? 1 : categoryValue;
 }
 
+// Product codes must be unique: a barcode or SKU already used by another
+// product (or twice in this one) is refused before anything is saved —
+// scanning at the till and the QR code both look a product up by it, so two
+// products sharing one would ring up the wrong item.
+async function assertCodesUnique(product, variantPayloads) {
+  const seen = new Map();
+  for (const payload of variantPayloads) {
+    for (const raw of [payload.barcode, payload.sku]) {
+      const code = String(raw || "").trim();
+      if (!code) continue;
+      const key = code.toUpperCase();
+      if (seen.has(key) && seen.get(key) !== payload) {
+        throw ApiError.conflict(`Product code ${code} is used twice in this product. Give each size its own code.`);
+      }
+      seen.set(key, payload);
+    }
+  }
+  if (!seen.size) return;
+  const codes = [...seen.keys()];
+  const raw = variantPayloads.flatMap((p) => [p.barcode, p.sku]).map((c) => String(c || "").trim()).filter(Boolean);
+  const clash = await Variant.findOne({
+    product: { $ne: product._id },
+    status: { $ne: "archived" },
+    $or: [{ sku: { $in: codes } }, { barcode: { $in: [...new Set([...raw, ...codes])] } }],
+  })
+    .populate("product", "name status")
+    .lean();
+  if (clash && clash.product?.status !== "archived") {
+    const taken = codes.find((c) => c === clash.sku) || raw.find((c) => c === clash.barcode) || clash.barcode || clash.sku;
+    throw ApiError.conflict(
+      `Product code ${taken} is already used by "${clash.product?.name || "another product"}". Product codes must be unique.`
+    );
+  }
+}
+
 async function replaceVariants(product, variantPayloads, schema = null) {
   const resolved = schema || (await resolveCategorySchema(product.category));
   const axisFields = resolved.variantAxes;
   // More than one variant means the product is merchandised as packs/options.
   const isSplitIntoPacks = variantPayloads.length > 1;
   const existing = await Variant.find({ product: product._id });
+  const byId = new Map(existing.map((v) => [String(v._id), v]));
   const byAxisKey = new Map(existing.map((v) => [v.axisKey, v]));
 
-  const keptKeys = new Set();
+  // Which stored variants this save has claimed, so two rows can never end up
+  // writing to the same one (that is how a second pack used to overwrite the first).
+  const keptIds = new Set();
   let sequence = 0;
+
+  await assertCodesUnique(product, variantPayloads);
 
   for (const payload of variantPayloads) {
     sequence += 1;
@@ -177,8 +241,7 @@ async function replaceVariants(product, variantPayloads, schema = null) {
       attributes = clean;
     }
 
-    const axisKey = axisValues.map((a) => `${a.code}=${a.value}`).sort().join("|");
-    keptKeys.add(axisKey);
+    const axisKey = Variant.keyFor(axisValues, payload.name);
 
     const fields = {
       product: product._id,
@@ -197,10 +260,7 @@ async function replaceVariants(product, variantPayloads, schema = null) {
       weightGrams: payload.weightGrams ?? 0,
       minOrderQty: payload.minOrderQty ?? soldLoose(resolved.defaults.minOrderQty, isSplitIntoPacks),
       maxOrderQty: payload.maxOrderQty ?? resolved.defaults.maxOrderQty ?? 50,
-      // A fractional step is a *loose* concept: 0.25 kg of tomatoes makes
-      // sense, a quarter of a sealed 1 KG pack does not. So a category's
-      // fractional step only reaches a product that is sold as one thing;
-      // a product split into packs steps in whole packs.
+      // The variant model rounds both of these to whole units on save.
       stepQty: payload.stepQty ?? soldLoose(resolved.defaults.stepQty, isSplitIntoPacks),
       lowStockThreshold: payload.lowStockThreshold ?? resolved.defaults.lowStockThreshold ?? 5,
       media: payload.media || [],
@@ -208,19 +268,30 @@ async function replaceVariants(product, variantPayloads, schema = null) {
       isDefault: Boolean(payload.isDefault),
     };
 
-    const found = byAxisKey.get(axisKey);
+    // Match the row to its stored variant by id first (the admin sends it), then
+    // by fingerprint. A lone variant sent without either still lands on the
+    // product's one existing variant, as it always has.
+    let found = (payload.id && byId.get(String(payload.id))) || byAxisKey.get(axisKey) || null;
+    if (!found && variantPayloads.length === 1) {
+      const live = existing.filter((v) => v.status !== "archived");
+      if (live.length === 1) found = live[0];
+    }
+    if (found && keptIds.has(String(found._id))) found = null;
+
     if (found) {
       Object.assign(found, fields);
       await found.save();
+      keptIds.add(String(found._id));
     } else {
-      await Variant.create({
+      const created = await Variant.create({
         ...fields,
-        sku: payload.sku || buildSku(product, axisValues, existing.length + sequence),
+        sku: payload.sku || (await nextProductCode(product.name)),
       });
+      keptIds.add(String(created._id));
     }
   }
 
-  const removed = existing.filter((v) => !keptKeys.has(v.axisKey));
+  const removed = existing.filter((v) => !keptIds.has(String(v._id)));
   if (removed.length) {
     await Variant.updateMany({ _id: { $in: removed.map((v) => v._id) } }, { status: "archived" });
   }
@@ -236,7 +307,7 @@ async function refreshRollup(productId) {
   if (!variants.length) {
     await Product.findByIdAndUpdate(productId, {
       priceFrom: 0, priceTo: 0, mrpFrom: 0, maxDiscountPct: 0,
-      variantCount: 0, inStock: false, defaultVariant: null,
+      variantCount: 0, totalStock: 0, inStock: false, defaultVariant: null,
     });
     return null;
   }
@@ -247,6 +318,7 @@ async function refreshRollup(productId) {
     (cheapest, v) => (v.sellingPrice < cheapest.sellingPrice ? v : cheapest),
     variants[0]
   );
+  const totalStock = variants.reduce((sum, v) => sum + (v.totalStock || 0), 0);
 
   const update = {
     priceFrom: Math.min(...prices),
@@ -254,6 +326,7 @@ async function refreshRollup(productId) {
     mrpFrom: Math.min(...mrps),
     maxDiscountPct: Math.max(...variants.map((v) => v.discountPct)),
     variantCount: variants.length,
+    totalStock,
     // A product switched to "sold out" stays out whatever the counts say.
     inStock: !(await Product.exists({ _id: productId, soldOut: true })) && variants.some((v) => v.inStock),
     defaultVariant: preferred._id,
@@ -269,5 +342,6 @@ module.exports = {
   replaceVariants,
   refreshRollup,
   applyCategoryDefaults,
-  buildSku,
+  nextProductCode,
+  shortCode,
 };

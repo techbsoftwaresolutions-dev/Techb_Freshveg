@@ -1,6 +1,8 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
+import { toast } from "../../components/Toaster";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -26,6 +28,7 @@ export default function Returns() {
   const [status, setStatus] = useState("RETURN_REQUESTED");
   const [data, setData] = useState({ items: [], meta: null });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [counts, setCounts] = useState({});
@@ -34,11 +37,11 @@ export default function Returns() {
   const load = useCallback(() => {
     setLoading(true);
     api
-      .get("/returns", { status, page, limit: 20 })
+      .get("/returns", { status, page, limit })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [status, page]);
+  }, [status, page, limit]);
 
   const loadCounts = useCallback(() => {
     Promise.all(
@@ -65,7 +68,7 @@ export default function Returns() {
   }
 
   return (
-    <div className="page">
+    <div className="page products-page orders-page">
       <div className="page-head">
         <div>
           <h1>Returns</h1>
@@ -101,6 +104,7 @@ export default function Returns() {
         ) : (
           <>
             <Table
+              title="Returns"
               columns={[
                 {
                   key: "code",
@@ -184,7 +188,7 @@ export default function Returns() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={setPage} />
+            <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>
@@ -202,7 +206,7 @@ export function ReturnPage() {
       backLabel="Returns"
       load={async (id) => (id ? (await api.get(`/orders/${id}`)).order || null : null)}
       render={(order, back) => (
-        <ReturnModal order={order} canManage={can("orders.manage")} onClose={back} onDone={back} />
+        <ReturnModal order={order} canManage={can("orders.manage")} onClose={back} />
       )}
     />
   );
@@ -221,7 +225,17 @@ function nextAction(status) {
   return null;
 }
 
-function ReturnModal({ order, canManage, onClose, onDone }) {
+// What the admin is told after each step (the page stays put and updates).
+const DONE_MESSAGE = {
+  approve: "Return approved",
+  decline: "Return rejected",
+  collected: "Return marked as collected",
+  refund: "Refund issued",
+};
+
+function ReturnModal({ order: initial, canManage, onClose }) {
+  // The order as it stands now: replaced by the server's copy after each step.
+  const [order, setOrder] = useState(initial);
   const step = nextAction(order.status);
   const returned = (order.items || []).filter((item) => item.itemStatus === "returned");
 
@@ -234,12 +248,15 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Declining asks for a reason first — the customer is shown it.
+  const [declining, setDeclining] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
 
   async function run(action) {
     setBusy(true);
     setError("");
     try {
-      const body = { note, reason: note };
+      const body = action === "decline" ? { reason: declineReason.trim() } : { note, reason: note };
       if (action === "collected") {
         body.restock = restock;
         body.damaged = damaged;
@@ -248,8 +265,12 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
         body.amount = Math.round(amount * 100);
         body.destination = destination;
       }
-      await api.post(`/returns/orders/${order.id}/${action}`, body);
-      onDone();
+      const res = await api.post(`/returns/orders/${order.id}/${action}`, body);
+      if (res?.order) setOrder(res.order);
+      setNote("");
+      setDeclining(false);
+      setDeclineReason("");
+      toast.success(DONE_MESSAGE[action] || "Done");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -271,13 +292,21 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
       wide
       footer={
         <>
-          <button className="btn" onClick={onClose}>Close</button>
-          {canManage && order.status === "RETURN_REQUESTED" ? (
-            <button className="btn danger" disabled={busy} onClick={() => run("decline")}>
+          {declining ? (
+            <>
+              <button className="btn" disabled={busy} onClick={() => setDeclining(false)}>Back</button>
+              <button className="btn danger" disabled={busy || !declineReason.trim()} onClick={() => run("decline")}>
+                {busy ? "Declining…" : "Decline return"}
+              </button>
+            </>
+          ) : null}
+          {!declining ? <button className="btn" onClick={onClose}>Close</button> : null}
+          {!declining && canManage && order.status === "RETURN_REQUESTED" ? (
+            <button className="btn danger" disabled={busy} onClick={() => { setError(""); setDeclining(true); }}>
               Decline
             </button>
           ) : null}
-          {canManage && step ? (
+          {!declining && canManage && step ? (
             <button className="btn primary" disabled={busy} onClick={() => run(step.key)}>
               {busy ? "Working…" : step.key === "approve" ? "Approve return" : step.label}
             </button>
@@ -286,6 +315,37 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
       }
     >
       <Banner tone="error">{error}</Banner>
+      {order.returnRequest?.attempts ? (
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>
+          Request {order.returnRequest.attempts} of 5 on this order
+          {order.returnRequest.declineReason ? ` · last declined: "${order.returnRequest.declineReason}"` : ""}
+        </p>
+      ) : null}
+      {declining ? (
+        <div className="decline-box">
+          <div className="section-label">Why are you declining? The customer will see this.</div>
+          <div className="decline-chips">
+            {[
+              "Photo doesn't show any damage",
+              "Photo is unclear — please send a clearer one",
+              "Item matches what was ordered",
+              "Item was used or consumed",
+            ].map((r) => (
+              <button key={r} type="button" className={declineReason === r ? "on" : ""} onClick={() => setDeclineReason(r)}>
+                {r}
+              </button>
+            ))}
+          </div>
+          <textarea
+            rows={3}
+            maxLength={300}
+            value={declineReason}
+            onChange={(e) => setDeclineReason(e.target.value)}
+            placeholder="Write the reason for the customer"
+            autoFocus
+          />
+        </div>
+      ) : null}
 
       <div className="grid cols-3" style={{ marginBottom: 14 }}>
         <div className="stack">
@@ -306,6 +366,7 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
 
       <div className="section-label">Lines coming back</div>
       <Table
+        title="Return items"
         columns={[
           {
             key: "name",
@@ -359,6 +420,45 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
         </>
       ) : null}
 
+      {order.returnRequest?.history?.length ? (
+        <>
+          <div className="section-label" style={{ marginTop: 10 }}>
+            Customer requests ({order.returnRequest.history.length})
+          </div>
+          <div className="return-requests">
+            {order.returnRequest.history.map((r, i) => (
+              <div key={i} className="return-request">
+                <div className="return-request-head">
+                  <strong>#{i + 1} · {(r.items || []).join(", ") || "Items"}</strong>
+                  <span className="muted">{r.at ? new Date(r.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : ""}</span>
+                </div>
+                {r.reason ? <p className="muted" style={{ margin: "4px 0 6px", fontSize: 13 }}>{r.reason}</p> : null}
+                {r.photos?.length ? (
+                  <div className="return-photos">
+                    {r.photos.map((src) => (
+                      <a key={src} href={src} target="_blank" rel="noreferrer" title="Open full size">
+                        <img src={src} alt="Return photo from the customer" />
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : order.returnRequest?.photos?.length ? (
+        <>
+          <div className="section-label" style={{ marginTop: 10 }}>Customer photos</div>
+          <div className="return-photos">
+            {order.returnRequest.photos.map((src) => (
+              <a key={src} href={src} target="_blank" rel="noreferrer" title="Open full size">
+                <img src={src} alt="Return photo from the customer" />
+              </a>
+            ))}
+          </div>
+        </>
+      ) : null}
+
       {canManage && step ? (
         <>
           <Divider style={{ margin: "14px 0" }} />
@@ -377,7 +477,7 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
 
           {step.key === "refund" ? (
             <div className="grid cols-2">
-              <Field label="Refund amount (₹)" help="Defaults to the value of the returned lines only.">
+              <Field label="Refund amount (₹)">
                 <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
               </Field>
               <Field
@@ -388,11 +488,11 @@ function ReturnModal({ order, canManage, onClose, onDone }) {
                     : "Back to the card or UPI it came from, or into the wallet for an instant refund."
                 }
               >
-                <select value={destination} onChange={(e) => setDestination(e.target.value)}>
+                <Select value={destination} onChange={(e) => setDestination(e.target.value)}>
                   {order.payment?.method !== "cod" ? <option value="source">Original payment method</option> : null}
                   <option value="wallet">Store wallet</option>
                   <option value="cash">Cash handed back</option>
-                </select>
+                </Select>
               </Field>
             </div>
           ) : null}

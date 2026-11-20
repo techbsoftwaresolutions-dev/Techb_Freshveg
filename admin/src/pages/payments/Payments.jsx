@@ -1,9 +1,11 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+import DateFilter, { defaultRange } from "../../components/DateFilter";
 import {
-  Banner, Card, DateRange, Empty, Loading, Pagination, Pill, Stat, Table, Tabs, rupees, when,
+  Banner, Card, Empty, Loading, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
 
 const STATUS_TONE = {
@@ -44,9 +46,23 @@ export default function Payments() {
   );
 }
 
+// A full date and time for a payment, e.g. "26 Oct 2026, 04:35:12 pm". Shown as
+// its own column so every payment says exactly when it happened.
+const stamp = (value) =>
+  value
+    ? new Date(value).toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "—";
+
 function Transactions() {
   const [data, setData] = useState({ items: [], meta: null, totals: null });
-  const [range, setRange] = useState({ from: "", to: "" });
+  const [range, setRange] = useState(defaultRange);
   const [filters, setFilters] = useState({ status: "", method: "", search: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -56,7 +72,7 @@ function Transactions() {
     const timer = setTimeout(
       () =>
         api
-          .get("/payments", { ...filters, ...range, limit: 20 })
+          .get("/payments", { limit: 20, ...filters, ...range })
           .then(setData)
           .catch((err) => setError(err.message))
           .finally(() => setLoading(false)),
@@ -82,27 +98,27 @@ function Transactions() {
       <div className="toolbar">
         <input
           type="search"
-          placeholder="Search by order code…"
+          placeholder="Search order code, payment id, customer, phone, method or amount…"
           value={filters.search}
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 200 }}
         />
-        <select value={filters.method} onChange={(e) => set("method", e.target.value)}>
+        <Select value={filters.method} onChange={(e) => set("method", e.target.value)}>
           <option value="">All methods</option>
           <option value="cod">Cash on delivery</option>
           <option value="upi">UPI</option>
           <option value="card">Card</option>
           <option value="netbanking">Net banking</option>
-        </select>
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+        </Select>
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All statuses</option>
           <option value="captured">Captured</option>
           <option value="pending">Pending</option>
           <option value="failed">Failed</option>
           <option value="refunded">Refunded</option>
-        </select>
+        </Select>
         <span className="spacer" />
-        <DateRange value={range} onChange={setRange} />
+        <DateFilter value={range} onChange={(next) => { setRange(next); setFilters((f) => ({ ...f, page: 1 })); }} />
       </div>
 
       <Card tight>
@@ -111,6 +127,7 @@ function Transactions() {
         ) : (
           <>
             <Table
+              title="Transactions" search={false}
               columns={[
                 {
                   key: "order",
@@ -118,9 +135,13 @@ function Transactions() {
                   render: (row) => (
                     <div className="stack">
                       <Link to={`/orders/${row.order}`} className="mono">{row.orderCode}</Link>
-                      <span className="row-sub">{when(row.createdAt)}</span>
                     </div>
                   ),
+                },
+                {
+                  key: "createdAt",
+                  label: "Date & time",
+                  render: (row) => <span style={{ whiteSpace: "nowrap" }}>{stamp(row.createdAt)}</span>,
                 },
                 {
                   key: "method",
@@ -172,9 +193,9 @@ function Transactions() {
                 },
               ]}
               rows={data.items}
-              empty={<Empty title="No payments in this window" />}
+              empty={<Empty title="No payments in this period" />}
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>
@@ -185,29 +206,38 @@ function Transactions() {
 function Refunds() {
   const [data, setData] = useState({ items: [], meta: null });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     api
-      .get("/payments/refunds", { page, limit: 20 })
+      .get("/payments/refunds", { page, limit })
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, limit]);
 
   if (loading) return <Loading />;
 
   return (
     <Card tight>
       <Table
+        title="Refunds"
         columns={[
           {
             key: "order",
             label: "Order",
             render: (row) => (
               <div className="stack">
-                <Link to={`/orders/${row.order}`} className="mono">{row.orderCode}</Link>
+                {row.orderExists === false ? (
+                  <span className="inline" style={{ gap: 8 }}>
+                    <span className="mono muted">{row.orderCode}</span>
+                    <Pill tone="danger">Order deleted</Pill>
+                  </span>
+                ) : (
+                  <Link to={`/orders/${row.order}`} className="mono">{row.orderCode}</Link>
+                )}
                 <span className="row-sub">{when(row.createdAt)}</span>
               </div>
             ),
@@ -237,7 +267,7 @@ function Refunds() {
         rows={data.items}
         empty={<Empty title="No refunds yet" hint="Refunds raised from an order or a support ticket show up here." />}
       />
-      <Pagination meta={data.meta} onPage={setPage} />
+      <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
     </Card>
   );
 }
@@ -297,6 +327,7 @@ function CashOnDelivery({ canManage }) {
 
       <Card tight>
         <Table
+          title="Cash to collect"
           columns={[
             {
               key: "partner",

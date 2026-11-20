@@ -1,11 +1,47 @@
+import { Platform } from "react-native";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// A rider's phone is never on your dev machine: on a real device API_BASE_URL
-// has to be a host that phone can reach (your LAN IP in development).
-// localhost only works on a simulator or the `expo start --web` build.
-export const API_BASE_URL =
-  Constants.expoConfig?.extra?.apiBaseUrl || "http://localhost:5055";
+
+// Where the API is.
+//
+// In development the phone loads this app from Expo running on your computer,
+// so Expo already knows the computer's current address (hostUri, e.g.
+// "192.168.1.36:8081"). The API runs on that same computer, so we use that
+// address with the API port — it stays right when the router hands the
+// computer a new IP, with nothing to edit in .env.
+//
+// API_BASE_URL in .env still wins when it points somewhere real (a hosted
+// server); a LAN/localhost value there is treated as "this computer" and
+// replaced by the live address. Release builds use API_BASE_URL as is.
+const configured = (Constants.expoConfig?.extra?.apiBaseUrl || "").replace(/\/+$/, "");
+
+function devMachineHost() {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    Constants.expoGoConfig?.debuggerHost ||
+    Constants.manifest2?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest?.debuggerHost ||
+    "";
+  const host = hostUri.split(":")[0];
+  // An IP or localhost — not a tunnel host (expo start --tunnel), which can't reach the API.
+  return /^(localhost|\d{1,3}(\.\d{1,3}){3})$/.test(host) ? host : null;
+}
+
+const isLocal = (url) =>
+  !url || /^https?:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(url);
+
+function resolveApiBase() {
+  const host = __DEV__ ? devMachineHost() : null;
+  if (host && isLocal(configured)) {
+    const port = configured.match(/:(\d+)$/)?.[1] || "5055";
+    return `http://${host}:${port}`;
+  }
+  return configured || "http://localhost:5055";
+}
+
+export const API_BASE_URL = resolveApiBase();
+if (__DEV__) console.log(`[api] ${API_BASE_URL}`);
 
 const BASE = `${API_BASE_URL}/api/v1`;
 
@@ -123,6 +159,86 @@ async function request(method, path, { body, query, retry = true } = {}) {
   }
 
   return payload;
+}
+
+// Upload one photo (a local file uri from the camera) and get back its URL.
+// The backend takes the image as the raw request body.
+//
+// On a phone, `fetch(uri).blob()` can hand back an empty blob for a camera
+// file, which the server then rejects ("Send the image as the raw request
+// body"). React Native's XMLHttpRequest can send the file straight from its
+// uri as the raw body, so that is used on devices; the browser build keeps
+// the blob route.
+function guessType(uri) {
+  const ext = String(uri).split("?")[0].split(".").pop().toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
+function sendFile(url, uri, type, token) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Content-Type", type);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.onload = () => {
+      let payload = {};
+      try {
+        payload = JSON.parse(xhr.responseText);
+      } catch {
+        /* non-JSON reply */
+      }
+      resolve({ status: xhr.status, payload });
+    };
+    xhr.onerror = () => reject(new Error("network"));
+    xhr.ontimeout = () => reject(new Error("network"));
+    xhr.timeout = 60000;
+    xhr.send({ uri });
+  });
+}
+
+export async function uploadImage(uri, folder = "proof") {
+  const session = await loadSession();
+  const url = `${BASE}/uploads?folder=${encodeURIComponent(folder)}`;
+  let status;
+  let payload;
+
+  if (Platform.OS === "web") {
+    let blob;
+    try {
+      blob = await (await fetch(uri)).blob();
+    } catch {
+      throw new ApiError(0, "Couldn't read the photo. Take it again.");
+    }
+    if (!blob.size) throw new ApiError(0, "The photo was empty. Take it again.");
+    const type = ["image/jpeg", "image/png", "image/webp"].includes(blob.type) ? blob.type : "image/jpeg";
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": type,
+          ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+        },
+        body: blob,
+      });
+      status = response.status;
+      payload = await response.json().catch(() => ({}));
+    } catch {
+      throw new ApiError(0, "No connection. The photo was not uploaded — try again.");
+    }
+  } else {
+    try {
+      ({ status, payload } = await sendFile(url, uri, guessType(uri), session?.accessToken));
+    } catch {
+      throw new ApiError(0, "No connection. The photo was not uploaded — try again.");
+    }
+  }
+
+  if (status < 200 || status >= 300 || payload.success === false || !payload.url) {
+    throw new ApiError(status, payload.error?.message || "Photo upload failed");
+  }
+  return payload.url;
 }
 
 export const api = {

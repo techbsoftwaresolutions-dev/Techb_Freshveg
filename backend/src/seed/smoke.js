@@ -247,8 +247,8 @@ async function main() {
 
   const loose = await call("GET", "/storefront/products/potato-loose");
   check(
-    "a loose product inherits the department's quarter-kilo step",
-    loose.variants[0].stepQty === 0.25 && loose.variants[0].minOrderQty === 0.25,
+    "a loose product is also carted in whole units",
+    loose.variants[0].stepQty === 1 && loose.variants[0].minOrderQty === 1,
     { step: loose.variants[0]?.stepQty, min: loose.variants[0]?.minOrderQty }
   );
   check("cost price never reaches the storefront", tomato.variants.every((v) => v.costPrice === undefined));
@@ -457,13 +457,27 @@ async function main() {
   });
 
   const User = require("../modules/auth/user.model");
+  const NotificationTemplate = require("../modules/notifications/notificationTemplate.model");
   const partner = await User.findOne({ role: "delivery_partner" });
+  await NotificationTemplate.deleteOne({ event: "ASSIGNED_TO_DELIVERY", audience: "delivery_partner" });
 
   const assigned = await call("POST", `/orders/${orderId}/assign`, {
     token: adminToken,
     body: { partner: partner._id.toString() },
   });
   check("delivery partner assigned", assigned.order?.status === "ASSIGNED_TO_DELIVERY", assigned.error);
+  const Notification = require("../modules/notifications/notification.model");
+  const partnerAlert = await Notification.findOne({
+    user: partner._id,
+    event: "ASSIGNED_TO_DELIVERY",
+    orderCode: assigned.order?.code,
+  }).lean();
+  check("assignment creates a delivery-partner notification", Boolean(partnerAlert), partnerAlert);
+  check(
+    "assignment notification attempts push delivery",
+    Boolean(partnerAlert?.channels.some((channel) => channel.channel === "push")),
+    partnerAlert?.channels
+  );
 
   const partnerOtp = await call("POST", "/auth/otp/request", {
     body: { phone: partner.phone, role: "delivery_partner" },
@@ -473,6 +487,12 @@ async function main() {
   });
   const partnerToken = partnerLogin.accessToken;
   check("delivery partner signs in", Boolean(partnerToken), partnerLogin.error);
+  const testPush = await call("POST", "/notifications/test-push", { token: partnerToken, body: {} });
+  check(
+    "delivery partner can check push registration",
+    testPush.result?.status === "skipped" && testPush.result.reason === "No device registered",
+    testPush.result
+  );
 
   const queue = await call("GET", "/orders/delivery/queue", { token: partnerToken });
   check("the order shows in the partner's queue", queue.orders.length === 1, queue.stats);
