@@ -656,6 +656,17 @@ ${t.logo ? `<td class="party"><div class="label">SOLD BY</div><div class="name">
 </div></body></html>`;
 }
 
+// Cuts the printed page to the bill's own length. Chrome ignores "@page size: 80mm auto" and falls
+// back to a default paper length, which feeds blank paper (or leaves a blank tail) after the bill.
+export function fitPageToContent(win) {
+  const doc = win.document;
+  const style = doc.createElement("style");
+  style.textContent = "@media screen { .rc { width: 72mm !important; } }"; // same width as print, so the height matches
+  doc.head.appendChild(style);
+  const mm = Math.ceil((doc.documentElement.scrollHeight * 25.4) / 96) + 2;
+  style.textContent += ` @page { size: 80mm ${mm}mm; margin: 0; }`;
+}
+
 // Prints the invoice (not the admin screen) through a hidden frame.
 export function printInvoice(inv) {
   const html = invoiceHtml(inv);
@@ -668,10 +679,13 @@ export function printInvoice(inv) {
   }
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
-  frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+  // A counter bill is laid out at its real paper width so its height can be measured exactly.
+  const isReceipt = themeOf(inv.template).receipt;
+  frame.style.cssText = `position:fixed;right:0;bottom:0;width:${isReceipt ? "80mm" : "0"};height:${isReceipt ? "200px" : "0"};border:0;visibility:hidden`;
   document.body.appendChild(frame);
   frame.onload = () => {
     const win = frame.contentWindow;
+    if (isReceipt) fitPageToContent(win);
     win.focus();
     win.print();
     setTimeout(() => frame.remove(), 1000);
