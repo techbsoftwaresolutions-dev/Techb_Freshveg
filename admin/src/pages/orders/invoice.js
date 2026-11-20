@@ -930,35 +930,35 @@ ${gst.map((r) => `<tr><td>${r.rate}%</td><td class="r">${amount(r.taxable)}</td>
 <style>
 @page { margin: 0; }
 html, body { margin: 0; background: #fff; }
-body { color: #111; font: ${px(12)}/1.2 ${family}; }
+body { color: #000; font: ${px(15)}/1.25 ${family}; }
 .rc { width: 72mm; margin: 0; padding: 2mm 1.5mm; box-sizing: border-box; }
 @media screen { .rc { width: 340px; padding: 18px 20px; } }
 .c { text-align: center; } .r { text-align: right; white-space: nowrap; }
 table { width: 100%; border-collapse: collapse; } td { padding: 0; vertical-align: top; line-height: 1.2; }
-hr { border: 0; border-top: ${ruleCss}; margin: 3px 0; }
-.shop { font-size: ${px(13)}; font-weight: bold; text-transform: uppercase; line-height: 1.15; }
+hr { border: 0; border-top: ${ruleCss}; margin: 5px 0; }
+.shop { font-size: ${px(20)}; font-weight: bold; text-transform: uppercase; line-height: 1.15; }
 .logo { display: block; width: 50%; height: auto; margin: 0 auto 2px; filter: grayscale(1) contrast(1.2); }
-.title { font-size: ${px(11)}; font-weight: bold; letter-spacing: 2px; margin: 0; }
+.title { font-size: ${px(16)}; font-weight: bold; letter-spacing: 2px; margin: 0; }
 .cols td { padding: 0 3px 0 0; } .cols td:last-child { padding-right: 0; }
-.cols .th td, .lines .th td { font-weight: bold; font-size: ${px(9.5)}; }
+.cols .th td, .lines .th td { font-weight: bold; font-size: ${px(13)}; }
 .lines { table-layout: fixed; }
-.lines col.q { width: 6mm; } .lines col.p { width: 12.5mm; } .lines col.a { width: 13.5mm; }
+.lines col.q { width: 6.5mm; } .lines col.p { width: 17mm; } .lines col.a { width: 19.5mm; }
 .lines td { padding: 1px 0; } /* The full item name in smaller type; a very long one wraps rather than being cut. */
-.lines td.nm { white-space: normal; overflow-wrap: anywhere; padding-right: 2px; font-size: .78em; line-height: 1.15; }
-.lines td:not(.nm) { font-size: .82em; }
-.gst td { font-size: ${px(10.5)}; }
-.tot td { font-size: ${px(11)}; font-weight: bold; padding: 1px 0; }
+.lines td.nm { white-space: normal; overflow-wrap: anywhere; padding-right: 2px; font-size: ${px(14)}; font-weight: bold; line-height: 1.2; }
+.lines td:not(.nm) { font-size: ${px(13)}; }
+.gst td { font-size: ${px(13)}; }
+.tot td { font-size: ${px(18)}; font-weight: bold; padding: 1px 0; }
 .tot.inverse { background: #111; color: #fff; margin: 3px 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .tot.inverse td, .tot.boxed td { padding: 2px 5px; }
 .tot.boxed { border: 1.5px solid #111; margin: 3px 0; }
-.small { font-size: ${px(10)}; line-height: 1.15; } .muted { color: #555; }
-.meta td { font-size: ${px(10)}; line-height: 1.2; }
-.dup { font-weight: bold; font-size: ${px(10)}; letter-spacing: 1px; margin-top: 1px; }
+.small { font-size: ${px(13)}; line-height: 1.2; } .muted { color: #000; }
+.meta td { font-size: ${px(14)}; line-height: 1.3; }
+.dup { font-weight: bold; font-size: ${px(14)}; letter-spacing: 1px; margin-top: 1px; }
 /* Small print: shop details, the GST sum, paid by and the closing lines. */
-.seller { font-size: ${px(9)}; line-height: 1.2; }
-.sumt td { font-size: ${px(10)}; line-height: 1.2; }
-.words { font-size: ${px(9)}; }
-.thanks { font-size: ${px(10)}; line-height: 1.25; } .thanks .gen { font-size: ${px(8)}; }
+.seller { font-size: ${px(13)}; line-height: 1.25; }
+.sumt td { font-size: ${px(14)}; line-height: 1.3; }
+.words { font-size: ${px(13)}; }
+.thanks { font-size: ${px(15)}; line-height: 1.3; } .thanks .gen { font-size: ${px(12)}; }
 </style></head><body><div class="rc">
 <div class="c">${head}
 <div class="seller">${sellerInfo}</div></div>

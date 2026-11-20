@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useApi } from "../../api/useApi";
 import { useAuth } from "../../context/AuthContext";
-import DateFilter, { todayRange } from "../../components/DateFilter";
+import DateFilter, { defaultRange } from "../../components/DateFilter";
 import { Banner, Card, ConfirmDialog, Empty, Loading, Modal, Pagination, Pill, Table, Tabs, rupees, when } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
@@ -57,7 +57,7 @@ export default function Orders() {
   // The calendar button next to the status chips: { from, to } as yyyy-mm-dd.
   // Arriving from a dashboard link (?status=...) means "show me all of these",
   // so the day filter starts at All Time instead of hiding older orders.
-  const [range, setRange] = useState(() => (searchParams.get("status") ? { from: "", to: "" } : todayRange()));
+  const [range, setRange] = useState(defaultRange);
   const [error, setError] = useState("");
 
   useEffect(() => {

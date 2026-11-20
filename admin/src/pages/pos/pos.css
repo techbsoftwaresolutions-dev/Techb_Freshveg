@@ -294,6 +294,6 @@ img.pos-thumb { border: 1px solid var(--border); padding: 2px; box-sizing: borde
 .pos-printed-actions > * { flex: 1; justify-content: center; }
 .pos-printed-actions .pos-pay { margin: 0; padding: 12px; font-size: 15px; }
 
-/* Customer mobile number is required on every bill. */
+/* A half-typed customer mobile number (it is optional, but must be 10 digits). */
 .pos-customer input.pos-need { border-color: var(--danger, #c62828) !important; box-shadow: 0 0 0 3px rgba(198, 40, 40, .15); }
 .pos-need-note { margin: 0 0 8px; padding: 7px 10px; border-radius: 10px; background: #fff4e5; color: #8a4b00; font-size: 13px; font-weight: 600; }

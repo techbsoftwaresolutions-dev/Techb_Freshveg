@@ -208,27 +208,27 @@ function thermal(order, header, { provisional, width, preview, duplicate }) {
 html, body { margin: 0; padding: 0; }
 /* A fixed column at the top-left, as wide as the roll can print (72mm on
    80mm paper, 48mm on 58mm) — never centred, so nothing falls off the edge. */
-body { font: ${narrow ? 10.5 : 12}px/1.2 monospace; width: ${narrow ? 48 : 72}mm; padding: 2mm 1.5mm; color: #000; }
-h1 { font-size: ${narrow ? 12 : 13}px; line-height: 1.2; text-align: center; margin: 0 0 1px; }
-.ttl { font-size: ${narrow ? 10 : 11}px; letter-spacing: 1px; }
+body { font: ${narrow ? 13 : 15}px/1.25 "Courier New", monospace; font-weight: 500; width: ${narrow ? 48 : 72}mm; padding: 2mm 1.5mm; color: #000; }
+h1 { font-size: ${narrow ? 17 : 20}px; line-height: 1.2; text-align: center; margin: 0 0 1px; }
+.ttl { font-size: ${narrow ? 14 : 16}px; letter-spacing: 1px; }
 .c { text-align: center; } .r { text-align: right; white-space: nowrap; padding-left: 6px; }
-.meta { font-size: .85em; line-height: 1.2; }
-.dup { font-weight: bold; font-size: .9em; letter-spacing: 1px; margin: 1px 0; }
+.meta { font-size: ${narrow ? 12.5 : 14}px; line-height: 1.3; }
+.dup { font-weight: bold; font-size: ${narrow ? 12.5 : 14}px; letter-spacing: 1px; margin: 1px 0; }
 /* Small print: shop details, the GST sum and the closing line. */
-.seller { font-size: .78em; line-height: 1.2; }
-tr.sm td { font-size: .85em; }
-.thanks { font-size: .82em; }
+.seller { font-size: ${narrow ? 11.5 : 13}px; line-height: 1.25; }
+tr.sm td { font-size: ${narrow ? 12.5 : 14}px; }
+.thanks { font-size: ${narrow ? 13 : 15}px; font-weight: bold; }
 table { width: 100%; border-collapse: collapse; table-layout: auto; } td { padding: 0; vertical-align: top; line-height: 1.2; word-break: break-word; }
 .items { table-layout: fixed; }
-.items col.q { width: 6mm; } .items col.p { width: 12.5mm; } .items col.a { width: ${narrow ? 12.5 : 13.5}mm; }
-.items td { padding: 1px 0; } .items .th td { font-weight: bold; font-size: .8em; }
+.items col.q { width: 6.5mm; } .items col.p { width: 17mm; } .items col.a { width: ${narrow ? 17 : 19.5}mm; }
+.items td { padding: 1px 0; } .items .th td { font-weight: bold; font-size: ${narrow ? 11.5 : 13}px; }
 /* One line per item: a long name is cut with "..." rather than wrapping. */
 /* The full item name in smaller type; a very long one wraps rather than being cut. */
-.items td.nm { white-space: normal; overflow-wrap: anywhere; padding-right: 2px; font-size: .78em; line-height: 1.15; }
-.items td:not(.nm) { font-size: .82em; }
+.items td.nm { white-space: normal; overflow-wrap: anywhere; padding-right: 2px; font-size: ${narrow ? 12.5 : 14}px; font-weight: bold; line-height: 1.2; }
+.items td:not(.nm) { font-size: ${narrow ? 12 : 13}px; } .items td.r { padding-left: 4px; }
 small { font-size: .88em; line-height: 1.15; }
-hr { border: 0; border-top: 1px dashed #000; margin: 3px 0; }
-.b td { font-weight: bold; font-size: ${narrow ? 10.5 : 11}px; padding-top: 1px; }
+hr { border: 0; border-top: 1px dashed #000; margin: 5px 0; }
+.b td { font-weight: bold; font-size: ${narrow ? 15 : 18}px; padding-top: 1px; }
 </style></head><body>
 <h1>${esc(header?.name)}</h1>
 <div class="c seller">${[

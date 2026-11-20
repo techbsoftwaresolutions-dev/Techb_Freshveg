@@ -20,9 +20,9 @@ const PRESETS = [
   { key: "month", label: "Last 1 Month" },
 ];
 
-// What every list and report opens on: today only. Pick another range from
-// the field to see more.
-export const todayRange = () => rangeFor("today");
+// What every list and report opens on: All Time (no date limit). Pick Today
+// or another range from the field to narrow it down.
+export const defaultRange = () => rangeFor("all");
 
 function rangeFor(key) {
   if (key === "all") return { from: "", to: "" };

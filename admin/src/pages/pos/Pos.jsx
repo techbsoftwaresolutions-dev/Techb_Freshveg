@@ -187,8 +187,9 @@ export default function Pos() {
   const change = receivedPaise - bill.total;
   const toPaise = (v) => Math.round((Number(v) || 0) * 100);
   const splitPaise = toPaise(split.cash) + toPaise(split.upi) + toPaise(split.card);
-  // Every bill needs the customer's 10-digit mobile number.
-  const phoneOk = /^\d{10}$/.test(customer?.phone || "") && customer.phone !== "0000000000";
+  // The customer's mobile number is optional: leave it empty, or give all 10
+  // digits (a half-typed number is not saved on the bill).
+  const phoneOk = !customer?.phone || (/^\d{10}$/.test(customer.phone) && customer.phone !== "0000000000");
   const [needPhone, setNeedPhone] = useState(false);
   useEffect(() => {
     if (phoneOk) setNeedPhone(false);
@@ -200,7 +201,7 @@ export default function Pos() {
   const askPhone = () => {
     setCustomer((c) => c || { name: "", phone: "", email: "" });
     setNeedPhone(true);
-    setMsg({ tone: "warn", text: "Enter the customer's 10-digit mobile number to make the bill" });
+    setMsg({ tone: "warn", text: "Enter the full 10-digit mobile number, or leave it empty" });
     setTimeout(() => document.querySelector(".pos-customer input[inputmode=numeric]")?.focus(), 50);
   };
   const canPay =
@@ -629,10 +630,9 @@ export default function Pos() {
               <div className="pos-customer">
                 <input placeholder="Customer name" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} />
                 <input
-                  placeholder="Mobile number (required)"
+                  placeholder="Mobile number"
                   inputMode="numeric"
                   maxLength={10}
-                  required
                   className={needPhone && !phoneOk ? "pos-need" : ""}
                   value={customer.phone}
                   onChange={(e) => changePhone(e.target.value.replace(/\D/g, ""))}
@@ -744,7 +744,7 @@ export default function Pos() {
             </>
           )}
 
-          {lines.length && !phoneOk ? <div className="pos-need-note">Customer mobile number is required to bill.</div> : null}
+          {lines.length && !phoneOk ? <div className="pos-need-note">Mobile number needs all 10 digits (or leave it empty).</div> : null}
           <button className="pos-pay" disabled={!canPay && !(lines.length && !phoneOk)} onClick={charge}>
             <Ico n="printer" /> {busy ? "Printing..." : "Take Payment & Print Bill (F9)"}
           </button>

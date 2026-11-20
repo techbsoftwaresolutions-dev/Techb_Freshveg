@@ -1,22 +1,35 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import { Animated, Easing, Image, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import LottieView from "lottie-react-native";
 
 // Intro page 3: a little map in a circle. The delivery rider rides along the
-// route (the dots light up behind him) to the customer's pin, the pin pulses
-// and a tick pops when he arrives. Then it starts again.
+// route (the dots light up behind him): straight up the road, turns left,
+// up again, turns right and on to the customer's pin. He slows down at each
+// corner and the scooter turns to point along the new road. He is drawn from
+// above (like the rider on a delivery-tracking map) so he looks right whichever
+// way he points. The pin pulses and a tick pops when he arrives. Then it
+// starts again.
 // All positions are fractions of `size` so it scales to any screen.
 
 const G = { deep: "#0A5A29", dark: "#0F7A38", main: "#16A04A", mid: "#4CC274", soft: "#BFE8CC" };
 
-// Route on the map (x, y as fractions): up the left road, along the middle
-// road, up the right road to the customer's house.
+// Route on the map (x, y as fractions): straight up the right road, left
+// along the middle road, up the left road, then right along the top road
+// towards the customer's house.
 const ROUTE = [
-  [0.3, 0.98],
-  [0.3, 0.66],
+  [0.7, 0.9],
   [0.7, 0.66],
-  [0.7, 0.5],
+  [0.3, 0.66],
+  [0.3, 0.34],
+  [0.47, 0.34],
+];
+// Which way the scooter points on each leg, in degrees (0 = up the screen,
+// -90 = left, 90 = right). It turns a quarter turn at each corner.
+const HEADING = [
+  0, // straight up
+  -90, // turn left
+  0, // turn right, up again
+  90, // turn right, to the customer
 ];
 // The pin sits just past the end of the route, so the rider stops in front of
 // it instead of covering it.
@@ -24,6 +37,80 @@ const PIN = [0.7, 0.24];
 const LENS = ROUTE.slice(1).map(([x, y], i) => Math.hypot(x - ROUTE[i][0], y - ROUTE[i][1]));
 const TOTAL = LENS.reduce((a, b) => a + b, 0);
 const STOPS = LENS.reduce((acc, l) => [...acc, acc[acc.length - 1] + l / TOTAL], [0]);
+const RIDE_MS = 5600; // whole route
+// Turning: around each corner the scooter swings a quarter turn to the new road.
+const TURN = 0.03;
+const TURN_IN = [0];
+const ANGLE_OUT = [`${HEADING[0]}deg`];
+HEADING.forEach((h, i) => {
+  if (i === 0) return;
+  TURN_IN.push(STOPS[i] - TURN, STOPS[i] + TURN);
+  ANGLE_OUT.push(`${HEADING[i - 1]}deg`, `${h}deg`);
+});
+TURN_IN.push(1);
+ANGLE_OUT.push(`${HEADING[HEADING.length - 1]}deg`);
+
+// The rider seen from above, nose pointing up. Each part is a rounded box in
+// fractions of the scooter's length: x, y, w, h, corner radius r, colour c.
+// Drawn in order, so later parts sit on top.
+const LOGO = require("../../assets/logo-mark.png");
+const SKIN = "#F5A97F";
+const TYRE = "#263238";
+const SCOOTER_W = 0.6; // width as a fraction of the length
+const SCOOTER = [
+  { x: 0.1, y: 0.05, w: 0.46, h: 0.93, r: 0.2, c: "rgba(10,60,30,0.16)" }, // shadow
+  { x: 0.17, y: -0.13, w: 0.26, h: 0.17, r: 0.13, c: "rgba(255,226,120,0.5)" }, // headlight glow
+  { x: 0.235, y: 0, w: 0.13, h: 0.2, r: 0.06, c: TYRE }, // front wheel
+  { x: 0.235, y: 0.8, w: 0.13, h: 0.2, r: 0.06, c: TYRE }, // back wheel
+  { x: 0.16, y: 0.1, w: 0.28, h: 0.74, r: 0.14, c: G.main }, // scooter body
+  { x: 0.19, y: 0.09, w: 0.22, h: 0.13, r: 0.09, c: G.deep }, // front shield
+  { x: 0.25, y: 0.085, w: 0.1, h: 0.035, r: 0.02, c: "#FFF4C2" }, // headlamp
+  { x: 0.09, y: 0.56, w: 0.42, h: 0.4, r: 0.05, c: "#FFFFFF", b: G.deep }, // delivery box
+  { x: 0.12, y: 0.6, w: 0.36, h: 0.32, logo: true }, // HB logo on the box lid
+  { x: 0.03, y: 0.205, w: 0.54, h: 0.045, r: 0.02, c: "#37474F" }, // handlebar
+  { x: 0.075, y: 0.215, w: 0.075, h: 0.24, r: 0.035, c: SKIN }, // left arm
+  { x: 0.45, y: 0.215, w: 0.075, h: 0.24, r: 0.035, c: SKIN }, // right arm
+  { x: 0.055, y: 0.19, w: 0.1, h: 0.075, r: 0.035, c: SKIN }, // left hand
+  { x: 0.445, y: 0.19, w: 0.1, h: 0.075, r: 0.035, c: SKIN }, // right hand
+  { x: 0.06, y: 0.37, w: 0.48, h: 0.19, r: 0.09, c: G.dark }, // shoulders (green T-shirt)
+  { x: 0.165, y: 0.3, w: 0.27, h: 0.27, r: 0.135, c: G.main }, // helmet
+  { x: 0.205, y: 0.305, w: 0.19, h: 0.07, r: 0.035, c: G.deep }, // visor, at the front
+  { x: 0.25, y: 0.42, w: 0.1, h: 0.06, r: 0.03, c: "rgba(255,255,255,0.45)" }, // helmet shine
+];
+
+function Scooter({ length }) {
+  const L = length;
+  return (
+    <View style={{ width: L * SCOOTER_W, height: L }}>
+      {SCOOTER.map((p, i) =>
+        p.logo ? (
+          <Image
+            key={i}
+            source={LOGO}
+            resizeMode="contain"
+            style={{ position: "absolute", left: p.x * L, top: p.y * L, width: p.w * L, height: p.h * L }}
+          />
+        ) : (
+          <View
+            key={i}
+            style={{
+              position: "absolute",
+              left: p.x * L,
+              top: p.y * L,
+              width: p.w * L,
+              height: p.h * L,
+              borderRadius: p.r * L,
+              backgroundColor: p.c,
+              borderWidth: p.b ? Math.max(1, L * 0.015) : 0,
+              borderColor: p.b,
+            }}
+          />
+        )
+      )}
+    </View>
+  );
+}
+
 // Dots every ~6% of the size along the route, with the progress at which each is reached.
 const DOTS = (() => {
   const out = [];
@@ -55,7 +142,15 @@ export default function MapToLocation({ size }) {
         ]),
         Animated.timing(fade, { toValue: 1, duration: 250, useNativeDriver: true }),
         Animated.delay(250),
-        Animated.timing(ride, { toValue: 1, duration: 3600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        // one leg at a time, slowing into each corner and pulling away again
+        ...LENS.map((l, i) =>
+          Animated.timing(ride, {
+            toValue: STOPS[i + 1],
+            duration: (RIDE_MS * l) / TOTAL,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          })
+        ),
         Animated.timing(arrive, { toValue: 1, duration: 450, easing: Easing.out(Easing.back(2)), useNativeDriver: true }),
         Animated.delay(1400),
         Animated.timing(fade, { toValue: 0, duration: 300, useNativeDriver: true }),
@@ -78,7 +173,8 @@ export default function MapToLocation({ size }) {
   const s = size;
   const px = (f) => f * s;
   const along = (i) => ride.interpolate({ inputRange: STOPS, outputRange: ROUTE.map((p) => px(p[i])) });
-  const riderSize = s * 0.34;
+  const scooter = s * 0.24; // length of the scooter
+  const heading = ride.interpolate({ inputRange: TURN_IN, outputRange: ANGLE_OUT });
   const road = s * 0.085;
 
   return (
@@ -156,26 +252,18 @@ export default function MapToLocation({ size }) {
         <Ionicons name="location" size={px(0.18)} color={G.deep} />
       </Animated.View>
 
-      {/* The rider moving along the route */}
+      {/* The rider moving along the route, centred on the road and pointing along it */}
       <Animated.View
         pointerEvents="none"
         style={{
           position: "absolute",
-          left: -riderSize / 2,
-          top: -riderSize * 0.72,
-          width: riderSize,
-          height: riderSize,
+          left: -(scooter * SCOOTER_W) / 2,
+          top: -scooter / 2,
           opacity: fade,
-          transform: [{ translateX: along(0) }, { translateY: along(1) }],
+          transform: [{ translateX: along(0) }, { translateY: along(1) }, { rotate: heading }],
         }}
       >
-        <LottieView
-          source={require("../../assets/lottie/welcome-rider.json")}
-          autoPlay
-          loop
-          resizeMode="contain"
-          style={{ width: riderSize * 1.6, height: riderSize * 1.6, marginLeft: -riderSize * 0.3, marginTop: -riderSize * 0.3, transform: [{ scaleX: -1 }] }}
-        />
+        <Scooter length={scooter} />
       </Animated.View>
 
       {/* Arrived tick */}
