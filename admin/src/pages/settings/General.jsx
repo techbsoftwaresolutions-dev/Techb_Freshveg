@@ -3,12 +3,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { Banner, Field, Loading, Tabs } from "../../components/ui";
 import { Affix, FormSection, Segmented, SwitchRow } from "../../components/FormKit";
-import { DEFAULT_TEMPLATE, INVOICE_TEMPLATES, invoiceHtml, sampleInvoice } from "../orders/invoice";
+import { DEFAULT_TEMPLATE, INVOICE_TEMPLATES, RECEIPT_FONT, invoiceHtml, sampleInvoice } from "../orders/invoice";
 import { DEFAULT_POS_TEMPLATE, POS_TEMPLATES as POS_BILL_TEMPLATES, posBillHtml, posBillPage, samplePosBill } from "../pos/posBill";
 // The POS bill can use its own formats or any of the online invoice templates:
 // the two thermal receipts (80mm, 58mm) first, then the 80mm counter
 // bills, the A4 invoices, and the manual A5 / A4 bills last.
-const invoiceEntries = Object.entries(INVOICE_TEMPLATES);
+// The invoice thermal receipts are left out here: the POS bill has its own.
+const invoiceEntries = Object.entries(INVOICE_TEMPLATES).filter(([, t]) => !t.thermal);
+const thermalEntries = Object.entries(INVOICE_TEMPLATES).filter(([, t]) => t.thermal);
 const POS_BILL_CHOICES = Object.fromEntries([
   ["pos_thermal", POS_BILL_TEMPLATES.pos_thermal],
   ["pos_thermal_58", POS_BILL_TEMPLATES.pos_thermal_58],
@@ -17,8 +19,10 @@ const POS_BILL_CHOICES = Object.fromEntries([
   ["pos_manual", POS_BILL_TEMPLATES.pos_manual],
   ["pos_manual_a4", POS_BILL_TEMPLATES.pos_manual_a4],
 ]);
-// Online invoice: the full invoices first, the 80mm counter bills last.
+// Online invoice: the thermal receipts (80mm, 58mm) first, then the full
+// invoices, the 80mm counter bills last.
 const INVOICE_CHOICES = Object.fromEntries([
+  ...thermalEntries,
   ...invoiceEntries.filter(([, t]) => !t.receipt),
   ...invoiceEntries.filter(([, t]) => t.receipt),
 ]);
@@ -79,7 +83,7 @@ export default function General() {
     try {
       const data = await api.patch(`/settings/${section}`, draft);
       setSettings(data.settings);
-      setNotice("Saved. Every client picks this up on its next read.");
+      setNotice("Saved");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -472,6 +476,42 @@ export default function General() {
                   Online invoice
                 </button>
               </div>
+              {(() => {
+                // Font size of the 80mm / 58mm receipts: a preset or a size typed in.
+                const tpl = printKind === "pos" ? draft.posTemplate || DEFAULT_POS_TEMPLATE : draft.invoiceTemplate || DEFAULT_TEMPLATE;
+                const isReceipt = printKind === "pos" ? posBillPage(tpl) === "80mm" || posBillPage(tpl) === "58mm" : Boolean(INVOICE_TEMPLATES[tpl]?.receipt);
+                if (!isReceipt) return null;
+                const field = printKind === "pos" ? "posFontSize" : "invoiceFontSize";
+                const value = draft[field] ?? RECEIPT_FONT.medium;
+                const setSize = (v) => setDraft((d) => ({ ...d, [field]: v }));
+                const clamp = (v) => Math.min(RECEIPT_FONT.max, Math.max(RECEIPT_FONT.min, Math.round(Number(v) || RECEIPT_FONT.medium)));
+                return (
+                  <div className="print-font">
+                    <span className="print-font-label">Font size</span>
+                    <div className="print-font-presets" role="radiogroup" aria-label="Font size">
+                      {[["small", "Small"], ["medium", "Medium"], ["large", "Large"]].map(([k, label]) => (
+                        <button key={k} type="button" role="radio" aria-checked={Number(value) === RECEIPT_FONT[k]} className={Number(value) === RECEIPT_FONT[k] ? "on" : ""} onClick={() => setSize(RECEIPT_FONT[k])}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <label className="print-font-custom">
+                      <span>Custom</span>
+                      <button type="button" aria-label="Smaller" disabled={Number(value) <= RECEIPT_FONT.min} onClick={() => setSize(clamp(Number(value) - 1))}>−</button>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        aria-label="Font size in px"
+                        value={value}
+                        onChange={(e) => setSize(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                        onBlur={() => setSize(clamp(value))}
+                      />
+                      <button type="button" aria-label="Larger" disabled={Number(value) >= RECEIPT_FONT.max} onClick={() => setSize(clamp(Number(value) + 1))}>+</button>
+                      <span>px</span>
+                    </label>
+                  </div>
+                );
+              })()}
               {(printKind === "pos" ? Object.entries(POS_BILL_CHOICES) : Object.entries(INVOICE_CHOICES)).map(([key, tpl]) => {
                 const field = printKind === "pos" ? "posTemplate" : "invoiceTemplate";
                 const fallback = printKind === "pos" ? DEFAULT_POS_TEMPLATE : DEFAULT_TEMPLATE;
@@ -496,9 +536,9 @@ export default function General() {
               })}
             </div>
             {printKind === "pos" ? (
-              <InvoicePreview key="pos" pos template={draft.posTemplate || DEFAULT_POS_TEMPLATE} />
+              <InvoicePreview key="pos" pos template={draft.posTemplate || DEFAULT_POS_TEMPLATE} fontSize={draft.posFontSize} />
             ) : (
-              <InvoicePreview key="invoice" template={draft.invoiceTemplate || DEFAULT_TEMPLATE} />
+              <InvoicePreview key="invoice" template={draft.invoiceTemplate || DEFAULT_TEMPLATE} fontSize={draft.invoiceFontSize} />
             )}
           </FitToScreen>
         ) : null}
@@ -547,12 +587,12 @@ const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
 // On-screen widths of the POS bill pages (A4/A5 sheets, 80/58mm receipts).
 const POS_PAGE_W = { A4: 820, A5: 600, "80mm": 380, "58mm": 300 };
 
-function InvoicePreview({ template, pos = false }) {
+function InvoicePreview({ template, pos = false, fontSize }) {
   const html = useMemo(() => {
-    if (!pos) return invoiceHtml(sampleInvoice(template));
+    if (!pos) return invoiceHtml(sampleInvoice(template, fontSize));
     const sample = samplePosBill();
-    return posBillHtml(sample.order, sample.header, template);
-  }, [template, pos]);
+    return posBillHtml(sample.order, { ...sample.header, posFontSize: fontSize }, template);
+  }, [template, pos, fontSize]);
   // POS bills are always measured to their real height, like a receipt.
   const receipt = pos ? posBillPage(template) !== "A4" || !INVOICE_TEMPLATES[template] : Boolean(INVOICE_TEMPLATES[template]?.receipt);
   // A4 pages use a fixed sheet; an 80mm bill is a narrow strip whose length
@@ -562,7 +602,7 @@ function InvoicePreview({ template, pos = false }) {
     ? INVOICE_TEMPLATES[template]
       ? INVOICE_TEMPLATES[template].receipt ? RECEIPT_W : PAGE_W
       : POS_PAGE_W[POS_BILL_TEMPLATES[template]?.page] || 600
-    : receipt ? RECEIPT_W : PAGE_W;
+    : receipt ? (INVOICE_TEMPLATES[template]?.width === 58 ? POS_PAGE_W["58mm"] : RECEIPT_W) : PAGE_W;
   const pageH = receipt ? billH : PAGE_H;
   const box = useRef(null);
   const [area, setArea] = useState(null); // inner size of the preview area

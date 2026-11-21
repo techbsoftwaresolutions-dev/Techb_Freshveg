@@ -457,6 +457,7 @@ router.get(
           : { off: [], sms: ["sms"], both: ["whatsapp", "sms"] }[settings.pos?.sendBill] || ["whatsapp"],
         // How the POS bill prints (Settings -> Print -> POS bill).
         posTemplate: settings.print?.posTemplate || "receipt",
+        posFontSize: settings.print?.posFontSize || 10,
       },
     });
   })

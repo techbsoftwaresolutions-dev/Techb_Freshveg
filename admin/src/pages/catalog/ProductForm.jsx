@@ -317,7 +317,7 @@ export default function ProductForm() {
         ? await api.patch(`/catalog/products/${existingId}`, payload)
         : await api.post("/catalog/products", payload);
 
-      setNotice("Saved.");
+      setNotice("Saved");
       toast.success("Product saved");
       if (isNew) {
         // Stay locked: we are about to leave this page for the saved product.

@@ -227,8 +227,10 @@ img.pos-thumb { border: 1px solid var(--border); padding: 2px; box-sizing: borde
    .pos-fit gets its height from Pos.jsx (window height minus the top bar).
    Header and scan bar keep their size; the bill list takes the free height
    and scrolls inside; the payment column scrolls inside if it ever must. */
-.pos-total { font-size: 22px; padding: 11px 16px; margin: 6px 0 12px; border-radius: 14px; }
-.pos-total span:first-child { font-size: 13px; }
+.pos-total { font-size: 18px; padding: 9px 14px; margin: 6px 0 12px; border-radius: 12px; }
+.pos-total span:first-child { font-size: 12px; }
+.pos-payment .pos-sum > span:first-child { white-space: nowrap; margin-right: 12px; }
+.pos-payment .pos-sum input { flex: 1; min-width: 0; max-width: 160px; }
 @media (min-width: 1001px) {
   .pos.pos-fit { display: flex; flex-direction: column; gap: 10px; padding: 12px 18px 14px; overflow: hidden; }
   .pos-fit > .pos-head { flex: none; }

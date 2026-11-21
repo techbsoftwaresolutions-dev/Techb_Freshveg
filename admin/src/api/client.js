@@ -143,7 +143,7 @@ async function send(method, path, { body, query, retry = true } = {}) {
   // Numbering an invoice (on print / download) is background work too.
   const quiet = path.startsWith("/auth") || path.startsWith("/notifications") || body?.dryRun === true || path.endsWith("/invoice-number");
   if (method !== "GET" && !quiet) {
-    toast(payload.message || (method === "DELETE" ? "Deleted successfully" : method === "PATCH" ? "Saved successfully" : "Done"), "ok", true);
+    toast(payload.message || (method === "DELETE" ? "Deleted successfully" : method === "PATCH" ? "Saved" : "Done"), "ok", true);
   }
   return payload;
 }

@@ -288,7 +288,7 @@ export default function Categories() {
       const s = await api.get(`/catalog/categories/${selectedId}/schema`);
       setSchema(s);
       await loadTree();
-      setNotice("Saved. Every product form in this category updated.");
+      setNotice("Saved");
     } catch (err) {
       setError(err.message);
     } finally {

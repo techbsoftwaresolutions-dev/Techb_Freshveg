@@ -6,8 +6,9 @@
 // while offline): items[], pricing{}, posPayments[], invoiceNo, placedAt,
 // cashierName, customerSnapshot. `header` is the shop: name, address, phone,
 // gstin, store.
-import { INVOICE_TEMPLATES, buildInvoice, invoiceHtml, invoiceText } from "../orders/invoice";
+import { INVOICE_TEMPLATES, buildInvoice, invoiceHtml, invoiceText, receiptScale, unitText } from "../orders/invoice";
 import { rupees } from "../../components/ui";
+import { fitSheetCss } from "../../lib/printFit";
 import { amountInWords } from "../orders/invoice";
 
 export const POS_TEMPLATES = {
@@ -86,7 +87,8 @@ function manualBill(order, header, { provisional, a4, preview, duplicate }) {
     .map(
       (i, n) => `<tr>
         <td class="c">${n + 1}</td>
-        <td>${esc(i.name)}${i.variantName ? ` <span class="v">(${esc(i.variantName)})</span>` : ""}</td>
+        <td>${esc(i.name)}</td>
+        <td class="c">${esc(unitText(i.variantName)) || "-"}</td>
         <td class="c">${esc(i.quantity)}</td>
         <td class="r">${plain(i.unitPrice)}</td>
         ${a4 ? `<td class="c">${i.taxRatePct ? `${i.taxRatePct}%` : "-"}</td>` : ""}
@@ -94,7 +96,7 @@ function manualBill(order, header, { provisional, a4, preview, duplicate }) {
       </tr>`
     )
     .join("");
-  const blanks = Array.from({ length: fill }, () => `<tr class="blank"><td></td><td></td><td></td><td></td>${a4 ? "<td></td>" : ""}<td></td></tr>`).join("");
+  const blanks = Array.from({ length: fill }, () => `<tr class="blank"><td></td><td></td><td></td><td></td><td></td>${a4 ? "<td></td>" : ""}<td></td></tr>`).join("");
   const gstTable =
     a4 && gst.length
       ? `<table class="gst">
@@ -107,11 +109,16 @@ function manualBill(order, header, { provisional, a4, preview, duplicate }) {
             .join("")}</tbody>
         </table>`
       : "";
-  const cols = a4 ? 6 : 5;
+  const cols = a4 ? 7 : 6;
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(order.invoiceNo || "Bill")}</title>
 <style>
-@page { size: ${a4 ? "A4" : "A5"}; margin: 10mm; }
+/* Page margin 0 so the browser prints no date / URL header and footer; the
+   margin is padding inside the page instead. */
+/* Printed whole on any paper with no browser date / URL header and footer
+   (see fitSheetCss); the page margin is padding inside the page instead. */
+${fitSheetCss(a4 ? 210 : 148)}
+@media print { body { padding: 10mm; } }
 * { box-sizing: border-box; }
 body { margin: 0; font: ${a4 ? 12 : 11}px/1.4 "Segoe UI", Arial, Helvetica, sans-serif; color: #1a1a1a; }
 /* Designed bill: green letterhead band, info cards, striped rows, total bar. */
@@ -170,7 +177,7 @@ table { width: 100%; border-collapse: collapse; }
     <div><b>Phone:</b> ${esc(customer.phone || "")}</div>
   </div>
   <table class="items">
-    <thead><tr><th style="width:${a4 ? 44 : 34}px">S.No</th><th>Item</th><th style="width:${a4 ? 54 : 40}px">Qty</th><th style="width:${a4 ? 80 : 64}px">Rate</th>${a4 ? '<th style="width:54px">GST</th>' : ""}<th style="width:${a4 ? 92 : 72}px">Amount</th></tr></thead>
+    <thead><tr><th style="width:${a4 ? 44 : 34}px">S.No</th><th>Item</th><th style="width:${a4 ? 70 : 54}px">Unit</th><th style="width:${a4 ? 54 : 40}px">Qty</th><th style="width:${a4 ? 80 : 64}px">Rate</th>${a4 ? '<th style="width:54px">GST</th>' : ""}<th style="width:${a4 ? 92 : 72}px">Amount</th></tr></thead>
     <tbody>${rows}${blanks}</tbody>
   </table>
   <div class="sum">
@@ -196,9 +203,14 @@ table { width: 100%; border-collapse: collapse; }
 function thermal(order, header, { provisional, width, preview, duplicate }) {
   const { p, date, time, gst, pay, customer } = parts(order);
   const narrow = width === 58;
+  // Settings -> Print -> POS bill -> Font size.
+  const scale = receiptScale(header?.posFontSize);
+  const fz = (n) => `${Math.round(n * scale * 10) / 10}px`;
+  // Bill details as label (left) / value (right) rows, like the counter bill.
+  const kv = (l, v) => `<tr><td class="k">${l}</td><td class="v">${v}</td></tr>`;
   const rows = (order.items || [])
     .map(
-      (i) => `<tr><td class="nm">${esc(i.name)}${i.variantName ? ` (${esc(i.variantName)})` : ""}</td><td class="c">${esc(i.quantity)}</td>${narrow ? "" : `<td class="r">${plain(i.unitPrice)}</td>`}<td class="r">${plain(i.lineTotal)}</td></tr>`
+      (i) => `<tr><td class="nm">${esc(i.name)}</td><td class="u">${esc(unitText(i.variantName))}</td><td class="c">${esc(i.quantity)}</td>${narrow ? "" : `<td class="r">${plain(i.unitPrice)}</td>`}<td class="r">${plain(i.lineTotal)}</td></tr>`
     )
     .join("");
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(order.invoiceNo || "Bill")}</title>
@@ -206,29 +218,31 @@ function thermal(order, header, { provisional, width, preview, duplicate }) {
 @page { margin: 0; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
-/* A fixed column at the top-left, as wide as the roll can print (72mm on
-   80mm paper, 48mm on 58mm) — never centred, so nothing falls off the edge. */
-body { font: ${narrow ? 13 : 15}px/1.25 "Courier New", monospace; font-weight: 500; width: ${narrow ? 48 : 72}mm; padding: 2mm 1.5mm; color: #000; }
-h1 { font-size: ${narrow ? 17 : 20}px; line-height: 1.2; text-align: center; margin: 0 0 1px; }
-.ttl { font-size: ${narrow ? 14 : 16}px; letter-spacing: 1px; }
+/* A fixed column, as wide as the roll can print (72mm on
+   80mm paper, 48mm on 58mm), at the top-left when printed. */
+body { font: ${fz(narrow ? 13 : 15)}/1.25 "Courier New", monospace; font-weight: 500; width: ${narrow ? 48 : 72}mm; padding: 2mm 1.5mm; color: #000; }
+@media screen { body { margin: 0 auto !important; } } /* centred in the preview only; prints at the top-left */
+h1 { font-size: ${fz(narrow ? 17 : 20)}; line-height: 1.2; text-align: center; margin: 0 0 1px; }
+.ttl { font-size: ${fz(narrow ? 14 : 16)}; letter-spacing: 1px; }
 .c { text-align: center; } .r { text-align: right; white-space: nowrap; padding-left: 6px; }
-.meta { font-size: ${narrow ? 12.5 : 14}px; line-height: 1.3; }
-.dup { font-weight: bold; font-size: ${narrow ? 12.5 : 14}px; letter-spacing: 1px; margin: 1px 0; }
+.meta { font-size: ${fz(narrow ? 12.5 : 14)}; line-height: 1.3; }
+.meta td.k { white-space: nowrap; padding-right: 8px; } .meta td.v { text-align: right; overflow-wrap: anywhere; }
+.dup { font-weight: bold; font-size: ${fz(narrow ? 12.5 : 14)}; letter-spacing: 1px; margin: 1px 0; }
 /* Small print: shop details, the GST sum and the closing line. */
-.seller { font-size: ${narrow ? 11.5 : 13}px; line-height: 1.25; }
-tr.sm td { font-size: ${narrow ? 12.5 : 14}px; }
-.thanks { font-size: ${narrow ? 13 : 15}px; font-weight: bold; }
+.seller { font-size: ${fz(narrow ? 11.5 : 13)}; line-height: 1.25; }
+tr.sm td { font-size: ${fz(narrow ? 12.5 : 14)}; }
+.thanks { font-size: ${fz(narrow ? 13 : 15)}; font-weight: bold; }
 table { width: 100%; border-collapse: collapse; table-layout: auto; } td { padding: 0; vertical-align: top; line-height: 1.2; word-break: break-word; }
-.items { table-layout: fixed; }
-.items col.q { width: 6.5mm; } .items col.p { width: 17mm; } .items col.a { width: ${narrow ? 17 : 19.5}mm; }
-.items td { padding: 1px 0; } .items .th td { font-weight: bold; font-size: ${narrow ? 11.5 : 13}px; }
+.items { table-layout: auto; } /* number columns shrink to their numbers; the name gets the rest */
+.items col.u, .items col.q, .items col.p, .items col.a { width: 1%; } .items td.u { white-space: nowrap; padding: 1px 4px 1px 2px; } .items td.c { white-space: nowrap; padding: 1px 2px; }
+.items td { padding: 1px 0; } .items .th td { font-weight: bold; font-size: ${fz(narrow ? 11.5 : 13)}; }
 /* One line per item: a long name is cut with "..." rather than wrapping. */
 /* The full item name in smaller type; a very long one wraps rather than being cut. */
-.items td.nm { white-space: normal; overflow-wrap: anywhere; padding-right: 2px; font-size: ${narrow ? 12.5 : 14}px; font-weight: bold; line-height: 1.2; }
-.items td:not(.nm) { font-size: ${narrow ? 12 : 13}px; } .items td.r { padding-left: 4px; }
+.items td.nm { white-space: normal; word-break: normal; overflow-wrap: break-word; padding-right: 3px; font-size: ${fz(narrow ? 12.5 : 14)}; font-weight: bold; line-height: 1.2; }
+.items td:not(.nm) { font-size: ${fz(narrow ? 12 : 13)}; } .items td.r { padding-left: 5px; }
 small { font-size: .88em; line-height: 1.15; }
 hr { border: 0; border-top: 1px dashed #000; margin: 5px 0; }
-.b td { font-weight: bold; font-size: ${narrow ? 15 : 18}px; padding-top: 1px; }
+.b td { font-weight: bold; font-size: ${fz(narrow ? 15 : 18)}; padding-top: 1px; }
 </style></head><body>
 <h1>${esc(header?.name)}</h1>
 <div class="c seller">${[
@@ -241,14 +255,14 @@ hr { border: 0; border-top: 1px dashed #000; margin: 5px 0; }
 ].filter(Boolean).join("<br>")}</div>
 <hr><div class="c ttl"><b>${narrow ? "BILL" : "TAX INVOICE"}</b></div>
 ${duplicate ? `<div class="c dup">** ${dupText(duplicate)} **</div>` : ""}
-<div class="meta">${preview ? "Bill no: given when printed" : provisional ? "Bill no: on sync" : `Bill: ${esc(order.invoiceNo || "-")}`}<br>${date} ${time}${order.cashierName ? `<br>Cashier: ${esc(order.cashierName)}` : ""}${customer.name ? `<br>Customer: ${esc(customer.name)}` : ""}${customer.phone ? `<br>Phone: ${esc(customer.phone)}` : ""}</div>
-<hr><table class="items"><colgroup><col><col class="q">${narrow ? "" : '<col class="p">'}<col class="a"></colgroup>
-<tr class="th"><td>ITEM</td><td class="c">QTY</td>${narrow ? "" : '<td class="r">RATE</td>'}<td class="r">AMT</td></tr>${rows}</table><hr>
+<table class="meta">${kv("Bill No", preview ? "Given when printed" : provisional ? "On sync" : esc(order.invoiceNo || "-"))}${kv("Date", `${date} ${time}`)}${order.cashierName ? kv("Cashier", esc(order.cashierName)) : ""}${customer.name ? kv("Customer", esc(customer.name)) : ""}${customer.phone ? kv("Phone", esc(customer.phone)) : ""}</table>
+<hr><table class="items"><colgroup><col><col class="u"><col class="q">${narrow ? "" : '<col class="p">'}<col class="a"></colgroup>
+<tr class="th"><td>ITEM</td><td class="u">UNIT</td><td class="c">QTY</td>${narrow ? "" : '<td class="r">RATE</td>'}<td class="r">AMT</td></tr>${rows}</table><hr>
 <table>
 ${totalRows(p).map(([l, v]) => `<tr class="sm"><td>${l}</td><td class="r">${v}</td></tr>`).join("")}
 <tr class="b"><td>TOTAL</td><td class="r">${money(p.total)}</td></tr>
 </table><hr>
-${pay ? `<div class="meta">Paid by: ${esc(pay)}</div><hr>` : ""}
+${pay ? `<table class="meta">${kv("Paid by", esc(pay))}</table><hr>` : ""}
 <div class="c thanks">${provisional ? "PROVISIONAL - recorded offline<br>" : ""}Thank you! Visit again.</div>
 </body></html>`;
 }
@@ -322,7 +336,7 @@ function posAsInvoice(order, header, template, { provisional, preview, duplicate
       customerSnapshot: { ...(order.customerSnapshot || {}), name: realName(order.customerSnapshot?.name) },
     },
     header,
-    { template, statusLabel: "Paid" }
+    { template, statusLabel: "Paid", fontSize: header?.posFontSize }
   );
   inv.number = order.invoiceNo || (preview ? "Given when printed" : provisional ? "Provisional (on sync)" : order.code || "-");
   inv.payment = { method: pays.join(" + ") || "CASH", status: "paid", txn: "" };

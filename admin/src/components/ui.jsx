@@ -487,8 +487,8 @@ function exportRows(columns, rows, format, title) {
       <style>
         body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
         @media print {
-          @page { margin: 12mm; }
-          body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @page { margin: 0; } /* no browser date / URL header and footer */
+          body { padding: 12mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           tr { page-break-inside: avoid; }
           thead { display: table-header-group; }
         }

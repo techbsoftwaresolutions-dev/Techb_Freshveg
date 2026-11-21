@@ -8,7 +8,7 @@ import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { api } from "../../api/client";
 import { mimeOf, saveFile, stampedName } from "../../lib/saveFile";
-import { printReceipt } from "../../lib/printFit";
+import { fitSheetCss, printReceipt } from "../../lib/printFit";
 
 const BRAND = "HosurBasket";
 const INK = [30, 30, 30];
@@ -38,6 +38,20 @@ const CLOSED = ["CANCELLED", "REJECTED", "REFUNDED"];
 //   taxTable: true = GST summary (taxable / CGST / SGST per rate)
 // Counter bills come first: they are what the shop prints most.
 export const INVOICE_TEMPLATES = {
+  // The POS thermal receipt layout (pages/pos/posBill.js) for online orders.
+  //   thermal: true = that layout; width: paper width in mm (80 or 58).
+  thermal: {
+    label: "Thermal Receipt (80mm)",
+    description: "The narrow till receipt for 80mm thermal printers.",
+    title: "TAX INVOICE", logo: false, receipt: true, thermal: true, width: 80,
+    accent: [17, 17, 17], font: "courier", rule: "dash", items: "columns", totalStyle: "plain", scale: 1, logoW: 0,
+  },
+  thermal_58: {
+    label: "Thermal Receipt (58mm)",
+    description: "A compact till receipt for small 58mm printers.",
+    title: "BILL", logo: false, receipt: true, thermal: true, width: 58,
+    accent: [80, 80, 80], font: "courier", rule: "dash", items: "columns", totalStyle: "plain", scale: 1, logoW: 0,
+  },
   receipt: {
     label: "Counter Bill",
     description: "Narrow till-style bill for 80mm thermal printers.",
@@ -184,10 +198,33 @@ export async function loadInvoiceSetup(store) {
         gstin: company.gstin || "",
         fssai: company.fssai || "",
       };
-  return { header, template: pub?.settings?.print?.invoiceTemplate || DEFAULT_TEMPLATE };
+  return {
+    header,
+    template: pub?.settings?.print?.invoiceTemplate || DEFAULT_TEMPLATE,
+    fontSize: pub?.settings?.print?.invoiceFontSize || RECEIPT_FONT.medium,
+  };
 }
 
-export function buildInvoice(order, header, { packLabel = (i) => i.variantName || "", statusLabel, template } = {}) {
+// Receipt font size (Settings -> Print): the base px size of an 80mm / 58mm
+// bill's body text. Every size on the bill scales with it (the layouts are
+// drawn at a 15px base).
+// The pack / unit of an item in its own column: "500 g", "5 kg", "1 pcs",
+// "1 pack". Any spelling of piece(s) / pc / nos prints as "pcs".
+export const unitText = (pack) =>
+  String(pack || "")
+    .trim()
+    .replace(/(\d)\s*([a-z])/gi, "$1 $2")
+    .replace(/\b(pieces?|pcs?|nos?|numbers?)\b\.?/gi, "pcs")
+    .replace(/\s+/g, " ");
+
+export const RECEIPT_FONT = { small: 8, medium: 10, large: 12, min: 5, max: 20 };
+const RECEIPT_BASE = 15;
+export const receiptScale = (px) => {
+  const n = Number(px) || RECEIPT_FONT.medium;
+  return Math.min(RECEIPT_FONT.max, Math.max(RECEIPT_FONT.min, n)) / RECEIPT_BASE;
+};
+
+export function buildInvoice(order, header, { packLabel = (i) => i.variantName || "", statusLabel, template, fontSize } = {}) {
   const p = order.pricing || {};
   const a = order.delivery?.address || {};
   const lines = order.items.map((item, index) => ({
@@ -215,6 +252,7 @@ export function buildInvoice(order, header, { packLabel = (i) => i.variantName |
 
   return {
     template: templateKey(template),
+    fontSize: fontSize || RECEIPT_FONT.medium,
     number: order.invoiceNo || order.code,
     orderCode: order.code,
     date: dateText(order.placedAt),
@@ -258,7 +296,7 @@ export function buildInvoice(order, header, { packLabel = (i) => i.variantName |
 }
 
 // A believable order for the Settings preview.
-export function sampleInvoice(template) {
+export function sampleInvoice(template, fontSize) {
   return buildInvoice(
     {
       code: "ORD-000123",
@@ -278,7 +316,7 @@ export function sampleInvoice(template) {
       },
     },
     { name: BRAND, address: "Bagalur Road, Hosur, Tamil Nadu 635109", phone: "9876543210", gstin: "33ABCDE1234F1Z5" },
-    { statusLabel: "Delivered", template }
+    { statusLabel: "Delivered", template, fontSize }
   );
 }
 
@@ -411,7 +449,8 @@ export async function invoicePdf(inv) {
   // Items table on a fixed column grid (widths add up to 180mm).
   const cols = [
     { title: "#", w: 10, align: "center" },
-    { title: "Item description", w: 80, align: "left" },
+    { title: "Item description", w: 62, align: "left" },
+    { title: "Unit", w: 18, align: "center" },
     { title: "Qty", w: 16, align: "center" },
     { title: "Rate (Rs.)", w: 26, align: "right" },
     { title: "GST", w: 16, align: "center" },
@@ -446,7 +485,7 @@ export async function invoicePdf(inv) {
   inv.lines.forEach((line, i) => {
     font("bold", 9.5);
     const nameLines = doc.splitTextToSize(line.name, cols[1].w - 6);
-    const sub = [line.pack, line.sku].filter(Boolean).join("  |  ");
+    const sub = line.sku || "";
     const h = 6 * s + nameLines.length * lh + (sub ? 4 * s : 0);
     if (y + h > 262) {
       doc.addPage();
@@ -459,10 +498,11 @@ export async function invoicePdf(inv) {
     if (sub) font("normal", 8, [120, 120, 120]).text(sub, at(cols[1]), base + nameLines.length * lh);
     font("normal", 9.5);
     doc.text(String(line.no), at(cols[0]), base, { align: "center" });
-    doc.text(String(line.qty), at(cols[2]), base, { align: "center" });
-    doc.text(amount(line.rate), at(cols[3]), base, { align: "right" });
-    doc.text(line.gst ? `${line.gst}%` : "-", at(cols[4]), base, { align: "center" });
-    font("bold", 9.5).text(amount(line.amount), at(cols[5]), base, { align: "right" });
+    doc.text(unitText(line.pack) || "-", at(cols[2]), base, { align: "center" });
+    doc.text(String(line.qty), at(cols[3]), base, { align: "center" });
+    doc.text(amount(line.rate), at(cols[4]), base, { align: "right" });
+    doc.text(line.gst ? `${line.gst}%` : "-", at(cols[5]), base, { align: "center" });
+    font("bold", 9.5).text(amount(line.amount), at(cols[6]), base, { align: "right" });
     y += h;
     doc.setDrawColor(228, 232, 230).setLineWidth(0.2).line(M, y, R, y);
   });
@@ -508,8 +548,8 @@ export async function invoicePdf(inv) {
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     doc.setDrawColor(220, 226, 222).setLineWidth(0.3).line(M, 279, R, 279);
-    font("bold", 9.5, A).text(`Thank you for shopping with ${inv.seller.name}!`, 105, 284.5, { align: "center" });
-    font("normal", 7.5, [130, 130, 130]).text(`This is a computer-generated ${docWord(t)} and does not require a signature.`, 105, 289, { align: "center" });
+    font("bold", 9.5, A).text("Thank you! Visit again.", 105, 285.5, { align: "center" });
+    font("normal", 7.5, [130, 130, 130]);
     doc.text(`Page ${i} of ${pages}`, R, 289, { align: "right" });
   }
   return doc;
@@ -563,8 +603,8 @@ export function invoiceHtml(inv, { forWord = false } = {}) {
     .map(
       (l, i) => `<tr class="${t.stripes && i % 2 ? "alt" : ""}">
 <td class="c">${l.no}</td>
-<td><b>${esc(l.name)}</b>${l.pack || l.sku ? `<br><span class="sub">${esc([l.pack, l.sku].filter(Boolean).join("  |  "))}</span>` : ""}</td>
-<td class="c">${l.qty}</td><td class="r">${amount(l.rate)}</td><td class="c">${l.gst ? `${l.gst}%` : "-"}</td><td class="r"><b>${amount(l.amount)}</b></td></tr>`
+<td><b>${esc(l.name)}</b>${l.sku ? `<br><span class="sub">${esc(l.sku)}</span>` : ""}</td>
+<td class="c">${esc(unitText(l.pack)) || "-"}</td><td class="c">${l.qty}</td><td class="r">${amount(l.rate)}</td><td class="c">${l.gst ? `${l.gst}%` : "-"}</td><td class="r"><b>${amount(l.amount)}</b></td></tr>`
     )
     .join("");
   const sums = inv.summary
@@ -591,7 +631,11 @@ export function invoiceHtml(inv, { forWord = false } = {}) {
   return `<!doctype html><html${forWord ? ' xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"' : ""}>
 <head><meta charset="utf-8"><title>Invoice ${esc(inv.number)}</title>
 <style>
-@page { size: A4; margin: 12mm; }
+/* Printed whole on any paper with no browser date / URL header and footer
+   (see fitSheetCss); the page margin is padding inside the page instead.
+   Word keeps its own A4 margin. */
+${forWord ? "@page { size: A4; margin: 12mm; }" : `${fitSheetCss(210)}
+@media print { body { padding: 12mm; } }`}
 * { box-sizing: border-box; }
 body { margin: 0; background: #fff; font-family: ${family}; font-size: ${fs(10)}; color: #1e1e1e; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .sheet { max-width: 780px; margin: 0 auto; padding: 24px 0; }
@@ -641,7 +685,7 @@ ${t.logo ? `<td class="party"><div class="label">SOLD BY</div><div class="name">
 <div class="muted">${[inv.customer.phone ? `Phone: ${esc(inv.customer.phone)}` : "", esc(inv.customer.address)].filter(Boolean).join("<br>")}</div></td>
 </tr></table>
 <table class="items">
-<thead><tr><th class="c" style="width:6%">#</th><th style="text-align:left">Item description</th><th class="c" style="width:9%">Qty</th><th class="r" style="width:14%">Rate (Rs.)</th><th class="c" style="width:9%">GST</th><th class="r" style="width:17%">Amount (Rs.)</th></tr></thead>
+<thead><tr><th class="c" style="width:6%">#</th><th style="text-align:left">Item description</th><th class="c" style="width:10%">Unit</th><th class="c" style="width:8%">Qty</th><th class="r" style="width:14%">Rate (Rs.)</th><th class="c" style="width:9%">GST</th><th class="r" style="width:17%">Amount (Rs.)</th></tr></thead>
 <tbody>${items}</tbody></table>
 <table style="margin-top:16px"><tr>
 <td style="width:52%;padding:4px 16px 0 0">
@@ -651,8 +695,7 @@ ${t.logo ? `<td class="party"><div class="label">SOLD BY</div><div class="name">
 </td>
 <td style="padding:0"><table class="sum">${sums}<tr class="grand"><td>Grand Total</td><td class="r">${rs(inv.total)}</td></tr></table></td>
 </tr></table>
-<div class="foot"><b>Thank you for shopping with ${esc(inv.seller.name)}!</b><br>
-<span class="muted" style="font-size:8pt">This is a computer-generated ${docWord(t)} and does not require a signature.</span></div>
+<div class="foot"><b>Thank you! Visit again.</b></div>
 </div></body></html>`;
 }
 
@@ -667,30 +710,14 @@ export function fitPageToContent(win) {
   style.textContent += ` @page { size: 80mm ${mm}mm; margin: 0; }`;
 }
 
-// Prints the invoice (not the admin screen) through a hidden frame.
+// Prints the invoice (not the admin screen) from its own window. Chrome
+// ignores the page settings of a frame inside the admin page, which printed
+// the bill with the date, title and admin URL around it.
 export function printInvoice(inv) {
   const html = invoiceHtml(inv);
-  // Counter bills (80mm): printed at their exact length from their own small
-  // window — Chrome ignores the page size of a frame inside the admin page,
-  // which put the bill on an A4 sheet with the date and URL around it.
-  if (themeOf(inv.template)?.receipt) {
-    printReceipt(html, 80);
-    return;
-  }
-  const frame = document.createElement("iframe");
-  frame.setAttribute("aria-hidden", "true");
-  // A counter bill is laid out at its real paper width so its height can be measured exactly.
-  const isReceipt = themeOf(inv.template).receipt;
-  frame.style.cssText = `position:fixed;right:0;bottom:0;width:${isReceipt ? "80mm" : "0"};height:${isReceipt ? "200px" : "0"};border:0;visibility:hidden`;
-  document.body.appendChild(frame);
-  frame.onload = () => {
-    const win = frame.contentWindow;
-    if (isReceipt) fitPageToContent(win);
-    win.focus();
-    win.print();
-    setTimeout(() => frame.remove(), 1000);
-  };
-  frame.srcdoc = html;
+  // Counter bills (80mm / 58mm): at their exact length. A4: that sheet.
+  const t = themeOf(inv.template);
+  printReceipt(html, t?.receipt ? t.width || 80 : null);
 }
 
 // Word opens HTML saved with the msword type as a normal editable document.
@@ -730,10 +757,12 @@ const receiptWord = (t) => (t.title === "TAX INVOICE" ? "tax invoice" : "bill");
 // exactly that length, so a thermal printer doesn't feed blank paper.
 function drawReceipt(doc, inv, logo) {
   const t = themeOf(inv.template);
-  const k = t.small ? 0.88 : 1; // type scale
-  const M = 5;
-  const R = 75;
-  const C = 40;
+  // Layout is drawn for 80mm paper and scaled across for a narrower roll.
+  const sx = (t.width || 80) / 80;
+  const k = (t.small ? 0.88 : 1) * (sx < 1 ? 0.82 : 1) * receiptScale(inv.fontSize); // type scale
+  const M = 5 * sx;
+  const R = 75 * sx;
+  const C = 40 * sx;
   const CW = R - M;
   let y = 8;
   const f = (style, size, color = [17, 17, 17]) =>
@@ -790,12 +819,14 @@ function drawReceipt(doc, inv, logo) {
   y += 1;
   rule();
 
-  if (t.items === "columns") {
-    // Item | Qty | Rate | Amount on one line; long names wrap under Item.
-    const QX = 46; // qty centre
-    const RX = 61; // rate right edge
+  {
+    // Item | Unit | Qty | Rate | Amount on one line; long names wrap under Item.
+    const UX = 33 * sx; // unit left edge
+    const QX = 48 * sx; // qty centre
+    const RX = 62 * sx; // rate right edge
     f("bold", 7.5);
     doc.text("ITEM", M, y);
+    doc.text("UNIT", UX, y);
     doc.text("QTY", QX, y, { align: "center" });
     doc.text("RATE", RX, y, { align: "right" });
     doc.text("AMT", R, y, { align: "right" });
@@ -803,9 +834,10 @@ function drawReceipt(doc, inv, logo) {
     rule();
     for (const l of inv.lines) {
       f("bold", 8);
-      const rows = doc.splitTextToSize(`${l.name}${l.pack ? ` (${l.pack})` : ""}`, 36);
+      const rows = doc.splitTextToSize(l.name, (UX - M) - 1.5);
       doc.text(rows, M, y);
       f("normal", 8);
+      doc.text(unitText(l.pack), UX, y);
       doc.text(String(l.qty), QX, y, { align: "center" });
       doc.text(amount(l.rate), RX, y, { align: "right" });
       doc.text(amount(l.amount), R, y, { align: "right" });
@@ -816,20 +848,6 @@ function drawReceipt(doc, inv, logo) {
         y += 2.8 * k;
       }
       y += 0.9;
-    }
-  } else {
-    f("bold", 8);
-    doc.text("ITEM", M, y);
-    doc.text("AMOUNT", R, y, { align: "right" });
-    y += 3;
-    rule();
-    for (const l of inv.lines) {
-      f("bold", 9);
-      const rows = doc.splitTextToSize(`${l.name}${l.pack ? ` (${l.pack})` : ""}`, CW);
-      doc.text(rows, M, y);
-      y += rows.length * 3.8 * k;
-      lr(`  ${l.qty} x ${amount(l.rate)}${l.gst ? `  GST ${l.gst}%` : ""}`, amount(l.amount));
-      y += 1.2;
     }
   }
   rule();
@@ -861,16 +879,16 @@ function drawReceipt(doc, inv, logo) {
     if (rows.length) {
       f("bold", 7.5);
       doc.text("GST%", M, y);
-      doc.text("TAXABLE", 34, y, { align: "right" });
-      doc.text("CGST", 54, y, { align: "right" });
+      doc.text("TAXABLE", 34 * sx, y, { align: "right" });
+      doc.text("CGST", 54 * sx, y, { align: "right" });
       doc.text("SGST", R, y, { align: "right" });
       y += 3;
       rule();
       for (const r of rows) {
         f("normal", 7.5);
         doc.text(`${r.rate}%`, M, y);
-        doc.text(amount(r.taxable), 34, y, { align: "right" });
-        doc.text(amount(r.cgst), 54, y, { align: "right" });
+        doc.text(amount(r.taxable), 34 * sx, y, { align: "right" });
+        doc.text(amount(r.cgst), 54 * sx, y, { align: "right" });
         doc.text(amount(r.sgst), R, y, { align: "right" });
         y += 3.6 * k;
       }
@@ -894,16 +912,87 @@ function drawReceipt(doc, inv, logo) {
 async function receiptPdf(inv) {
   const t = themeOf(inv.template);
   const logo = t.logo ? await logoDataUrl(inv.logoUrl) : null;
-  const scratch = new jsPDF({ unit: "mm", format: [80, 1000] });
+  const w = t.width || 80;
+  const scratch = new jsPDF({ unit: "mm", format: [w, 1000] });
   const height = drawReceipt(scratch, inv, logo);
-  const doc = new jsPDF({ unit: "mm", format: [80, Math.max(height, 80)] });
+  const doc = new jsPDF({ unit: "mm", format: [w, Math.max(height, 80)] });
   drawReceipt(doc, inv, logo);
   return doc;
 }
 
+// The POS thermal receipt layout (see posBill.js thermal()) for an online
+// order: shop, bill details, one line per item, totals, how it was paid.
+function thermalHtml(inv, t) {
+  const narrow = t.width === 58;
+  const scale = receiptScale(inv.fontSize);
+  const fz = (n) => `${Math.round(n * scale * 10) / 10}px`;
+  const rows = inv.lines
+    .map((l) => `<tr><td class="nm">${esc(l.name)}</td><td class="u">${esc(unitText(l.pack))}</td><td class="c">${esc(l.qty)}</td>${narrow ? "" : `<td class="r">${amount(l.rate)}</td>`}<td class="r">${amount(l.amount)}</td></tr>`)
+    .join("");
+  const seller = [
+    inv.seller.legalName ? esc(inv.seller.legalName) : "",
+    [esc(inv.seller.address), inv.seller.phone ? `Ph: ${esc(inv.seller.phone)}` : ""].filter(Boolean).join(" - "),
+    inv.seller.email ? esc(inv.seller.email) : "",
+    inv.seller.gstin ? `GSTIN: ${esc(inv.seller.gstin)}` : "",
+    inv.seller.fssai ? `FSSAI: ${esc(inv.seller.fssai)}` : "",
+  ].filter(Boolean).join("<br>");
+  // Bill details as label (left) / value (right) rows, like the counter bill.
+  const kv = (l, v) => `<tr><td class="k">${l}</td><td class="v">${v}</td></tr>`;
+  const meta = [
+    kv("Bill No", esc(inv.number || "-")),
+    kv("Date", esc(inv.date)),
+    inv.orderCode && inv.orderCode !== inv.number ? kv("Order", esc(inv.orderCode)) : "",
+    inv.customer.name ? kv("Customer", esc(inv.customer.name)) : "",
+    inv.customer.phone ? kv("Phone", esc(inv.customer.phone)) : "",
+    inv.customer.address ? kv("Address", esc(inv.customer.address)) : "",
+  ].join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(inv.number || "Bill")}</title>
+<style>
+@page { margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #fff; }
+/* A fixed column, as wide as the roll can print (72mm on
+   80mm paper, 48mm on 58mm), so nothing falls off the edge. */
+.rc { font: ${fz(narrow ? 13 : 15)}/1.25 "Courier New", monospace; font-weight: 500; width: ${narrow ? 48 : 72}mm; padding: 2mm 1.5mm; color: #000; }
+@media screen { .rc { margin: 0 auto; } } /* centred in the preview only; prints at the top-left */
+h1 { font-size: ${fz(narrow ? 17 : 20)}; line-height: 1.2; text-align: center; margin: 0 0 1px; }
+.ttl { font-size: ${fz(narrow ? 14 : 16)}; letter-spacing: 1px; }
+.c { text-align: center; } .r { text-align: right; white-space: nowrap; padding-left: 6px; }
+.meta { font-size: ${fz(narrow ? 12.5 : 14)}; line-height: 1.3; }
+.meta td.k { white-space: nowrap; padding-right: 8px; } .meta td.v { text-align: right; overflow-wrap: anywhere; }
+.dup { font-weight: bold; font-size: ${fz(narrow ? 12.5 : 14)}; letter-spacing: 1px; margin: 1px 0; }
+.seller { font-size: ${fz(narrow ? 11.5 : 13)}; line-height: 1.25; }
+tr.sm td { font-size: ${fz(narrow ? 12.5 : 14)}; }
+.thanks { font-size: ${fz(narrow ? 13 : 15)}; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; } td { padding: 0; vertical-align: top; line-height: 1.2; word-break: break-word; }
+.items { table-layout: auto; } /* number columns shrink to their numbers; the name gets the rest */
+.items col.u, .items col.q, .items col.p, .items col.a { width: 1%; } .items td.u { white-space: nowrap; padding: 1px 4px 1px 2px; } .items td.c { white-space: nowrap; padding: 1px 2px; }
+.items td { padding: 1px 0; } .items .th td { font-weight: bold; font-size: ${fz(narrow ? 11.5 : 13)}; }
+.items td.nm { white-space: normal; word-break: normal; overflow-wrap: break-word; padding-right: 3px; font-size: ${fz(narrow ? 12.5 : 14)}; font-weight: bold; }
+.items td:not(.nm) { font-size: ${fz(narrow ? 12 : 13)}; } .items td.r { padding-left: 5px; }
+hr { border: 0; border-top: 1px dashed #000; margin: 5px 0; }
+.b td { font-weight: bold; font-size: ${fz(narrow ? 15 : 18)}; padding-top: 1px; }
+</style></head><body><div class="rc">
+<h1>${esc(inv.seller.name)}</h1>
+<div class="c seller">${seller}</div>
+<hr><div class="c ttl"><b>${esc(t.title)}</b></div>
+${inv.duplicate ? `<div class="c dup">** ${esc(inv.duplicate)} **</div>` : ""}
+<table class="meta">${meta}</table>
+<hr><table class="items"><colgroup><col><col class="u"><col class="q">${narrow ? "" : '<col class="p">'}<col class="a"></colgroup>
+<tr class="th"><td>ITEM</td><td class="u">UNIT</td><td class="c">QTY</td>${narrow ? "" : '<td class="r">RATE</td>'}<td class="r">AMT</td></tr>${rows}</table><hr>
+<table>
+${receiptSummary(inv).map((r) => `<tr class="sm"><td>${esc(r.label)}</td><td class="r">${esc(r.text)}</td></tr>`).join("")}
+<tr class="b"><td>TOTAL</td><td class="r">${rs(inv.total)}</td></tr>
+</table><hr>
+<table class="meta">${kv("Paid by", esc(inv.payment.method))}</table><hr>
+<div class="c thanks">Thank you! Visit again.</div>
+</div></body></html>`;
+}
+
 function receiptHtml(inv) {
   const t = themeOf(inv.template);
-  const px = (n) => `${Math.round(n * (t.small ? 0.9 : 1) * 10) / 10}px`;
+  if (t.thermal) return thermalHtml(inv, t);
+  const px = (n) => `${Math.round(n * (t.small ? 0.9 : 1) * receiptScale(inv.fontSize) * 10) / 10}px`;
   const family = t.font === "helvetica" ? '"Segoe UI", Arial, Helvetica, sans-serif' : '"Courier New", Courier, monospace';
   const ruleCss = { dash: "1px dashed #333", solid: "1.5px solid #111", double: "3px double #111" }[t.rule || "dash"];
   const row = (l, r, cls = "") => `<tr class="${cls}"><td>${l}</td><td class="r">${r}</td></tr>`;
@@ -918,11 +1007,11 @@ function receiptHtml(inv) {
   const items =
     // Every item on ONE line: the name (cut with "..." when it is too long
     // for the roll), then qty, rate and amount in fixed columns.
-    `<table class="lines"><colgroup><col><col class="q"><col class="p"><col class="a"></colgroup>
-<tr class="th"><td>ITEM</td><td class="c">QTY</td><td class="r">RATE</td><td class="r">AMT</td></tr>
+    `<table class="lines"><colgroup><col><col class="u"><col class="q"><col class="p"><col class="a"></colgroup>
+<tr class="th"><td>ITEM</td><td class="u">UNIT</td><td class="c">QTY</td><td class="r">RATE</td><td class="r">AMT</td></tr>
 ${inv.lines
   .map(
-    (l) => `<tr><td class="nm">${t.items === "columns" ? "<b>" : ""}${esc(l.name)}${l.pack ? ` (${esc(l.pack)})` : ""}${t.items === "columns" ? "</b>" : ""}</td><td class="c">${l.qty}</td><td class="r">${amount(l.rate)}</td><td class="r">${amount(l.amount)}</td></tr>`
+    (l) => `<tr><td class="nm">${t.items === "columns" ? "<b>" : ""}${esc(l.name)}${t.items === "columns" ? "</b>" : ""}</td><td class="u">${esc(unitText(l.pack))}</td><td class="c">${l.qty}</td><td class="r">${amount(l.rate)}</td><td class="r">${amount(l.amount)}</td></tr>`
   )
   .join("")}</table>`;
 
@@ -946,7 +1035,7 @@ ${gst.map((r) => `<tr><td>${r.rate}%</td><td class="r">${amount(r.taxable)}</td>
 html, body { margin: 0; background: #fff; }
 body { color: #000; font: ${px(15)}/1.25 ${family}; }
 .rc { width: 72mm; margin: 0; padding: 2mm 1.5mm; box-sizing: border-box; }
-@media screen { .rc { width: 340px; padding: 18px 20px; } }
+@media screen { .rc { width: 340px; padding: 18px 20px; margin: 0 auto; } }
 .c { text-align: center; } .r { text-align: right; white-space: nowrap; }
 table { width: 100%; border-collapse: collapse; } td { padding: 0; vertical-align: top; line-height: 1.2; }
 hr { border: 0; border-top: ${ruleCss}; margin: 5px 0; }
@@ -955,10 +1044,10 @@ hr { border: 0; border-top: ${ruleCss}; margin: 5px 0; }
 .title { font-size: ${px(16)}; font-weight: bold; letter-spacing: 2px; margin: 0; }
 .cols td { padding: 0 3px 0 0; } .cols td:last-child { padding-right: 0; }
 .cols .th td, .lines .th td { font-weight: bold; font-size: ${px(13)}; }
-.lines { table-layout: fixed; }
-.lines col.q { width: 6.5mm; } .lines col.p { width: 17mm; } .lines col.a { width: 19.5mm; }
+.lines { table-layout: auto; } /* number columns shrink to their numbers; the name gets the rest */
+.lines col.u, .lines col.q, .lines col.p, .lines col.a { width: 1%; } .lines td.u { white-space: nowrap; padding: 1px 4px 1px 2px; } .lines td.c { white-space: nowrap; padding: 1px 2px; } .lines td.r { padding-left: 5px; }
 .lines td { padding: 1px 0; } /* The full item name in smaller type; a very long one wraps rather than being cut. */
-.lines td.nm { white-space: normal; overflow-wrap: anywhere; padding-right: 2px; font-size: ${px(14)}; font-weight: bold; line-height: 1.2; }
+.lines td.nm { white-space: normal; word-break: normal; overflow-wrap: break-word; padding-right: 3px; font-size: ${px(14)}; font-weight: bold; line-height: 1.2; }
 .lines td:not(.nm) { font-size: ${px(13)}; }
 .gst td { font-size: ${px(13)}; }
 .tot td { font-size: ${px(18)}; font-weight: bold; padding: 1px 0; }
@@ -1006,8 +1095,8 @@ export function invoiceExcelBlob(inv) {
     ["Order No", inv.orderCode, "", "", "", "Address", inv.customer.address],
     ["Status", inv.status, "", "", "", "Payment", `${inv.payment.method} (${inv.payment.status})`],
     [],
-    ["#", "Item description", "Pack", "SKU", "Qty", "Rate (Rs.)", "GST %", "Amount (Rs.)"],
-    ...inv.lines.map((l) => [l.no, l.name, l.pack, l.sku, l.qty, l.rate / 100, l.gst, l.amount / 100]),
+    ["#", "Item description", "Unit", "SKU", "Qty", "Rate (Rs.)", "GST %", "Amount (Rs.)"],
+    ...inv.lines.map((l) => [l.no, l.name, unitText(l.pack), l.sku, l.qty, l.rate / 100, l.gst, l.amount / 100]),
     [],
     ...inv.summary.map((r) => ["", "", "", "", "", "", r.label + (r.included ? " (incl.)" : ""), (r.value || 0) / 100]),
     ["", "", "", "", "", "", "Grand Total", (inv.total || 0) / 100],

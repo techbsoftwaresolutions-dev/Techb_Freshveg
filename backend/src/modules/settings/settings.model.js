@@ -120,6 +120,7 @@ const settingsSchema = new mongoose.Schema(
         // "compact" is a retired template, kept so older saved values still load.
         // receipt* are the 80mm counter bills; "receipt" is the default.
         enum: [
+          "thermal", "thermal_58",
           "receipt", "receipt_bold", "receipt_compact", "receipt_logo", "receipt_gst", "receipt_modern",
           "classic", "modern", "elegant", "minimal", "compact",
         ],
@@ -137,6 +138,10 @@ const settingsSchema = new mongoose.Schema(
         ],
         default: "receipt",
       },
+      // Base font size (px) of the 80mm / 58mm receipts: Small 8, Medium 10,
+      // Large 12, or any size typed in (5-20).
+      posFontSize: { type: Number, min: 5, max: 20, default: 10 },
+      invoiceFontSize: { type: Number, min: 5, max: 20, default: 10 },
     },
 
     website: {

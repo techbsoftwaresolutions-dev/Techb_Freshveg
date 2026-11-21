@@ -3334,6 +3334,18 @@ input.switch:checked::after { transform: translateX(18px); }
 .print-kind button { padding: 8px 6px; border: 0; border-radius: 9px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--text-muted); background: none; cursor: pointer; }
 .print-kind button.on { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgba(16, 24, 20, .12); }
 @media (max-width: 860px) { .print-kind { grid-column: 1 / -1; } }
+/* Settings -> Print: receipt font size (presets + a typed size). */
+.print-font { flex: none; display: grid; gap: 6px; padding: 10px; margin-bottom: 4px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface); }
+.print-font-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.print-font-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; border-radius: 10px; background: var(--surface-2); }
+.print-font-presets button { padding: 6px 4px; border: 0; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 650; color: var(--text-muted); background: none; cursor: pointer; }
+.print-font-presets button.on { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgba(16, 24, 20, .12); }
+.print-font-custom { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-muted); }
+.print-font-custom > span:first-child { margin-right: auto; }
+.print-font-custom button { width: 28px; height: 28px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.print-font-custom button:disabled { opacity: .4; cursor: default; }
+.print-font-custom input { width: 44px; height: 28px; text-align: center; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-weight: 650; }
+@media (max-width: 860px) { .print-font { grid-column: 1 / -1; } }
 
 /* Orders: search box before the status filter. */
 .orders-search { flex: 1 1 320px; max-width: 460px; }

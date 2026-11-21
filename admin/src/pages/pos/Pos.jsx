@@ -22,6 +22,11 @@ const DRAFT_KEY = "pos.draft";
 const readDraft = () => { try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY)) || {}; } catch { return {}; } };
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const money = (p) => rupees(p, { decimals: true });
+// Text-box amounts: digits and one decimal point, at most 2 decimals.
+const cleanAmount = (v) => {
+  const [whole, ...rest] = v.replace(/[^\d.]/g, "").split(".");
+  return rest.length ? `${whole}.${rest.join("").slice(0, 2)}` : whole;
+};
 
 // Small inline icons: the shared icon set has no barcode / hold / printer glyphs.
 const PATHS = {
@@ -709,12 +714,11 @@ export default function Pos() {
         </div>
 
         <div className="pos-panel pos-payment">
-          <div className="pos-panel-head"><h2><span className="pos-h-ico"><Ico n="card" size={18} /></span> Payment</h2></div>
           <div className="pos-sum"><span>Subtotal</span><b>{money(bill.gross)}</b></div>
           {canDiscount && (
             <div className="pos-sum">
               <span>Discount (Rs)</span>
-              <input type="number" min="0" placeholder="0.00" value={discount} onChange={(e) => setDiscount(e.target.value)} aria-label="Discount in rupees" />
+              <input type="text" inputMode="decimal" placeholder="0.00" value={discount} onChange={(e) => setDiscount(cleanAmount(e.target.value))} aria-label="Discount in rupees" />
             </div>
           )}
           <div className="pos-sum"><span>GST (Included)</span><b>{money(bill.tax)}</b></div>
@@ -734,7 +738,7 @@ export default function Pos() {
             <>
               <div className="pos-sum">
                 <span>Cash Received (Rs)</span>
-                <input type="number" min="0" value={received} onChange={(e) => setReceived(e.target.value)} aria-label="Cash received" />
+                <input type="text" inputMode="decimal" placeholder="0.00" value={received} onChange={(e) => setReceived(cleanAmount(e.target.value))} aria-label="Cash received" />
               </div>
               <div className="pos-sum">
                 <button className="pos-sm-btn" disabled={!lines.length} onClick={() => setReceived(String(bill.total / 100))}>Exact amount</button>

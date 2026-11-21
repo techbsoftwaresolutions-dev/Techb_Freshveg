@@ -197,7 +197,7 @@ export default function OrderDetail() {
     // applies to the very next print or download.
     // The invoice gets its own number (STORE/FY/00001), separate from the
     // order number; the server issues it the first time it is needed.
-    const [{ header, template }, invoiceNo] = await Promise.all([
+    const [{ header, template, fontSize }, invoiceNo] = await Promise.all([
       loadInvoiceSetup(order.store),
       order.invoiceNo
         ? order.invoiceNo
@@ -206,6 +206,7 @@ export default function OrderDetail() {
     if (invoiceNo && invoiceNo !== order.invoiceNo) setOrder((o) => (o ? { ...o, invoiceNo } : o));
     return buildInvoice({ ...order, invoiceNo: invoiceNo || order.invoiceNo }, header, {
       template,
+      fontSize,
       packLabel: (item) => formatPackSize(item.packSize, item.variantName),
       statusLabel: statuses[order.status]?.label,
     });

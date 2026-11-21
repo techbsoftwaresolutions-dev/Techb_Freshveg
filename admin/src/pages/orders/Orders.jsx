@@ -169,7 +169,7 @@ export default function Orders() {
       <Banner tone="ok">{notice}</Banner>
 
       <Tabs
-        tabs={[{ key: "online", label: "Online Orders" }, { key: "pos", label: "Walk-in Orders" }]}
+        tabs={[{ key: "online", label: "Online Invoice" }, { key: "pos", label: "POS Bill" }]}
         active={filters.channel}
         onChange={(channel) => setFilters((f) => ({ limit: f.limit, status: "", channel, page: 1 }))}
       />

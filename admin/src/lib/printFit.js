@@ -13,6 +13,22 @@
 // print from their own small window (printReceipt), which closes itself as
 // soon as printing is done or cancelled.
 
+// A bill laid out at a fixed sheet width (A4 = 210mm, A5 = 148mm) printed on
+// whatever paper the printer has, whole and with no browser header / footer:
+// the page has no margin and no fixed size (a size the printer lacks gets
+// shrunk with a border, where the browser prints its date and URL), and the
+// bill zooms itself down to the printer's page width - the print "width"
+// media query is that width. Steps of 5mm, the smallest matching one wins.
+export function fitSheetCss(sheetMm) {
+  const rules = [];
+  for (let w = Math.floor(sheetMm / 5) * 5; w >= 30; w -= 5) {
+    rules.push(`@media print and (max-width: ${w}mm) { body { zoom: ${((w - 1) / sheetMm).toFixed(3)}; } }`);
+  }
+  return `@page { margin: 0; }
+@media print { body { width: ${sheetMm}mm; } }
+${rules.join("\n")}`;
+}
+
 // The printable width of a thermal roll.
 export const printableMm = (rollMm) => (rollMm <= 58 ? 48 : 72);
 
