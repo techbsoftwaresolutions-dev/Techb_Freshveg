@@ -51,6 +51,11 @@ export const getProduct = (slug) => get(`/storefront/products/${slug}`, { revali
 export const search = (q, query) =>
   get("/storefront/search", { query: { q, ...query }, revalidate: 10 });
 
+// Brands, price ranges and stock for the all-products listing (optionally one
+// department) — what a category landing returns for its own shelf.
+export const getFacets = (category) =>
+  get("/storefront/facets", { query: category ? { category } : {}, revalidate: 30 });
+
 export const getBanners = (placement) =>
   get("/banners/live", { query: { placement }, revalidate: 30 });
 

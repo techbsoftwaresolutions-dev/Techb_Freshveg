@@ -83,7 +83,7 @@ export default function AccountPage() {
       </header>
 
       <section className="account-hero">
-        <span className="avatar" aria-hidden="true">{user.avatar ? <img className="avatar-photo" src={user.avatar} alt="" /> : initials}</span>
+        <span className="avatar" aria-hidden="true">{initials}</span>
         <div className="account-hero-copy">
           <strong>{user.name || "Add your name"}</strong>
           <span>
@@ -101,10 +101,11 @@ export default function AccountPage() {
       </section>
 
       <div className="stat-tiles">
-        <div className="stat-tile">
+        <Link href="/account/wallet" className="stat-tile stat-tile-link">
           <span>Wallet balance</span>
           <strong>{rupees(user.walletBalance)}</strong>
-        </div>
+          <em>View history →</em>
+        </Link>
         <div className="stat-tile">
           <span>Loyalty points</span>
           <strong>{user.loyaltyPoints ?? 0}</strong>

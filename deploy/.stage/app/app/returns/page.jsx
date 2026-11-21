@@ -64,7 +64,7 @@ export default function ReturnsPage() {
 
           <div className="order-list">
             {list.map((order) => (
-              <OrderCard key={order.id} order={order} />
+              <OrderCard key={order.id} order={order} returnAction />
             ))}
           </div>
           <p className="orders-count">

@@ -24,7 +24,7 @@ export const metadata = {
   // segment, so the brand is spelled out here rather than appended.
   title: "Hosur Basket — fresh fruit, vegetables & groceries delivered",
   description:
-    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your neighbourhood Hosur Basket store.",
+    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your Hosur Basket store.",
   alternates: { canonical: "/" },
 };
 
