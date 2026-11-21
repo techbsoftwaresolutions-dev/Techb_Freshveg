@@ -2,6 +2,7 @@ const express = require("express");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
 const { nextSequence } = require("../../core/sequence");
+const { paginate } = require("../../core/query");
 const { requireAuth, requirePermission } = require("../../middleware/auth");
 
 const Variant = require("../catalog/variant.model");
@@ -132,9 +133,9 @@ router.get(
 
 // ---- Billing --------------------------------------------------------------
 
-function financialYear(d = new Date()) {
-  const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
-  return `${String(y).slice(2)}-${String(y + 1).slice(2)}`;
+// The date part of an invoice number: DD-MM-YY (same as online invoices).
+function invoiceDay(d) {
+  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(2)}`;
 }
 
 async function walkInCustomer(phone, name) {
@@ -252,14 +253,14 @@ router.post(
     const now = soldAt ? new Date(soldAt) : new Date();
     const dayCode = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
     const [invSeq, daySeq] = await Promise.all([
-      nextSequence(`invoice:${store.code}:${financialYear(now)}`),
+      nextSequence(`invoice:${store.code}:${invoiceDay(now)}`),
       nextSequence(`pos:${dayCode}`),
     ]);
     const actor = actorOf(req);
 
     const orderData = {
       code: `POS-${dayCode}-${String(daySeq).padStart(4, "0")}`,
-      invoiceNo: `${store.code}/${financialYear(now)}/${String(invSeq).padStart(5, "0")}`,
+      invoiceNo: `${store.code}/${invoiceDay(now)}/${String(invSeq).padStart(4, "0")}`,
       posClientId: clientId,
       customer: customer._id,
       customerSnapshot: { name: customerName || customer.name, phone: customerPhone || "" },
@@ -331,7 +332,12 @@ router.get(
     const filter = { source: "pos" };
     if (req.query.q) {
       const rx = new RegExp(escapeRegex(String(req.query.q)), "i");
-      filter.$or = [{ invoiceNo: rx }, { code: rx }, { "customerSnapshot.phone": rx }];
+      filter.$or = [{ invoiceNo: rx }, { code: rx }, { "customerSnapshot.phone": rx }, { "customerSnapshot.name": rx }, { cashierName: rx }];
+    }
+    // The Past bills page asks page by page; older callers get the latest 30.
+    if (req.query.page || req.query.limit) {
+      const { items, meta } = await paginate(Order, filter, req.query, { sort: { placedAt: -1 } });
+      return res.json({ success: true, items, meta });
     }
     const orders = await Order.find(filter).sort({ placedAt: -1 }).limit(30);
     res.json({ success: true, items: orders });
@@ -356,6 +362,8 @@ router.get(
         store: store.name,
         storeId: String(store._id),
         template: settings.pos?.template || "standard",
+        // How the POS bill prints (Settings -> Print -> POS bill).
+        posTemplate: settings.print?.posTemplate || "pos_manual",
       },
     });
   })

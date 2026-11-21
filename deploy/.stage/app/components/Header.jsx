@@ -337,7 +337,9 @@ export default function Header({ categories = [] }) {
         </div>
       </div>
 
-      <nav className="catbar" aria-label="Categories" ref={catbarRef}>
+      {/* The category bar stays off the home page (the page has its own
+          category tiles); every other page shows it. */}
+      <nav className={`catbar${pathname === "/" ? " catbar-off" : ""}`} aria-label="Categories" ref={catbarRef}>
         <div className="wrap catbar-layout">
           <div className="catbar-scroll" ref={catScrollRef}>
             <button

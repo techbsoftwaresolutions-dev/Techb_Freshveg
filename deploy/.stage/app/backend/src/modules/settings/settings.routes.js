@@ -50,7 +50,10 @@ router.get(
           liveTrackingEnabled: settings.delivery.liveTrackingEnabled,
         },
         // Which invoice layout staff print with — not sensitive.
-        print: { invoiceTemplate: settings.print?.invoiceTemplate || "classic" },
+        print: {
+          invoiceTemplate: settings.print?.invoiceTemplate || "receipt",
+          posTemplate: settings.print?.posTemplate || "pos_manual",
+        },
       },
     });
   })
