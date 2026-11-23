@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AddressMap from "@/components/AddressMap";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import AddressForm from "@/components/AddressForm";
@@ -148,8 +149,11 @@ export default function SavedAddresses({ selectedId, onSelect }) {
                     </div>
                   ) : (
                     <div className="ap-actions">
-                      <button type="button" className="ap-link" onClick={() => { setEditing(address); setMode("form"); }}>
-                        Edit
+                      <button type="button" className="ap-link ap-icon" onClick={() => { setEditing(address); setMode("form"); }} aria-label="Edit address" title="Edit address">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                          <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Z" />
+                          <path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z" />
+                        </svg>
                       </button>
                       <button type="button" className="ap-link danger" onClick={() => setConfirmId(address.id)}>
                         Delete
@@ -187,6 +191,7 @@ export default function SavedAddresses({ selectedId, onSelect }) {
               ) : null}
               <span className="addr-text">{fullAddress(current)}</span>
             </div>
+            <AddressMap address={current} onSaved={refreshUser} />
           </div>
         ) : (
           <>

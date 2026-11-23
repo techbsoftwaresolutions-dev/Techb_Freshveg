@@ -10,6 +10,9 @@ import { rupees, when } from "@/lib/format";
 import { payWithRazorpay } from "@/lib/razorpay";
 import EmptyState from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ReturnRequest from "@/components/ReturnRequest";
+import OrderTrackMap from "@/components/OrderTrackMap";
+import { arrivalText, stageText } from "@/lib/orderStatus";
 
 // The customer's order QR is switched off: the delivery partner only needs the OTP.
 const SHOW_QR = false;
@@ -45,6 +48,26 @@ const ORDER_PROGRESS_STAGES = [
   { label: "Executive arrived at location", statuses: ["ARRIVED"] },
   { label: "Delivered", statuses: ["DELIVERED"] },
 ];
+
+// Line icons for the progress steps, one per step (same as the admin).
+const TRACK_ICON_PATHS = {
+  cart: "M3 4h2l2.4 11h10.2L20 8H6.2M9 20h.01M17 20h.01",
+  clipboard: "M9 4h6v3H9zM7 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-1M9 11h6M9 15h6",
+  box: "M12 3 4 7v10l8 4 8-4V7zM4 7l8 4 8-4M12 11v10",
+  truck: "M2 6h11v10H2zM13 9h4l4 4v3h-8M6 19a2 2 0 1 0 0-.01M17 19a2 2 0 1 0 0-.01",
+  pin: "M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21zM12 7.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
+  done: "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 12l2.5 2.5 5-5",
+  check: "M5 12.5l4.5 4.5L19 7.5",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
+};
+function TrackIcon({ name, size = 18 }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={TRACK_ICON_PATHS[name]} />
+    </svg>
+  );
+}
+const TRACK_STEP_ICONS = ["cart", "clipboard", "box", "truck", "pin", "done"];
 
 function groupedProgress(timeline = [], currentStatus) {
   const currentIndex = ORDER_PROGRESS_STAGES.findIndex((stage) => stage.statuses.includes(currentStatus))
@@ -129,6 +152,9 @@ function OrderDetail() {
   }, [justPlaced]);
 
   const [tracking, setTracking] = useState(null);
+  // Once delivered, the progress shows just "Order placed" and "Delivered";
+  // this opens the full step-by-step history.
+  const [showAllSteps, setShowAllSteps] = useState(false);
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -154,7 +180,9 @@ function OrderDetail() {
       if (!lastStatus.current && CLOSED.includes(status)) {
         setToast((t) => (t && t.at === 0 ? null : t));
       }
-      if (lastStatus.current && status && status !== lastStatus.current) {
+      if (lastStatus.current === "RETURN_REQUESTED" && status === "DELIVERED") {
+        setToast({ title: "Return declined", text: "See the reason below the bill.", tone: "bad", at: Date.now() });
+      } else if (lastStatus.current && status && status !== lastStatus.current) {
         const [title, text] = STATUS_TOAST[status] || [track.tracking.statusLabel, ""];
         setToast({ title, text, tone: ["CANCELLED", "REJECTED"].includes(status) ? "bad" : "ok", at: Date.now() });
       }
@@ -192,7 +220,9 @@ function OrderDetail() {
     clearInterval(poller.current);
     if (!tracking || CLOSED.includes(tracking.status)) return undefined;
     // Not while the tab is hidden; catch up as soon as the shopper comes back.
-    poller.current = setInterval(() => { if (!document.hidden) load(); }, 20000);
+    // Every 10s while a rider is bringing it (the map follows them), else 20s.
+    const riding = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"].includes(tracking.status);
+    poller.current = setInterval(() => { if (!document.hidden) load(); }, riding ? 10000 : 20000);
     const onVisible = () => { if (!document.hidden) load(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(poller.current); document.removeEventListener("visibilitychange", onVisible); };
@@ -346,15 +376,15 @@ function OrderDetail() {
             </span>
             <div>
               <h1>{tracking.statusLabel}</h1>
-              {tracking.expectedBy && !CLOSED.includes(tracking.status) ? (
+              {!CLOSED.includes(tracking.status) ? (
                 <p>
-                  Expected by{" "}
-                  <strong>
-                    {new Date(tracking.expectedBy).toLocaleTimeString("en-IN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </strong>
+                  {stageText(tracking.status)}
+                  {tracking.expectedBy ? (
+                    <>
+                      {" · "}
+                      <strong>{arrivalText(tracking.expectedBy)}</strong>
+                    </>
+                  ) : null}
                 </p>
               ) : null}
             </div>
@@ -375,7 +405,9 @@ function OrderDetail() {
             </div>
           ) : null}
 
-          {tracking.partner ? (
+          {/* Only while the order is on its way: once delivered (or
+              cancelled) there is no one to call. */}
+          {tracking.partner && !CLOSED.includes(tracking.status) ? (
             <div className="panel partner-card">
               <span className="avatar small" aria-hidden="true">
                 {tracking.partner.name?.[0]?.toUpperCase() || "?"}
@@ -392,28 +424,97 @@ function OrderDetail() {
             </div>
           ) : null}
 
+          {tracking.map && !CLOSED.includes(tracking.status) && !/^RETURN|^PAYMENT_PENDING$/.test(tracking.status) ? (
+            <OrderTrackMap map={tracking.map} status={tracking.status} />
+          ) : null}
+
           <div className="panel">
             <h3>Order progress</h3>
-            <ol className="timeline">
-              {/* Steps the order skipped — a COD order never passes through
-                  "payment received" — are left out, not shown as done. */}
-              {groupedProgress(tracking.timeline, order?.status)
-                .map((step) => (
-                  <li key={step.status} className={`timeline-step ${step.state}`}>
-                    <span className="timeline-dot" aria-hidden="true">
-                      {step.state === "done" ? (
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="m5 12.5 4.5 4.5L19 7.5" />
-                        </svg>
-                      ) : null}
+            {(() => {
+              const delivered = tracking.status === "DELIVERED";
+              const open = !CLOSED.includes(tracking.status);
+              const steps = groupedProgress(tracking.timeline, order?.status).map((step) =>
+                delivered && step.status === "DELIVERED" ? { ...step, state: "done" } : step
+              );
+              // Delivered: one line (Ordered -> Delivered) until tapped. On
+              // its way: every step, with what is happening now.
+              const first = steps[0];
+              const last = steps[steps.length - 1];
+              if (delivered && !showAllSteps) {
+                return (
+                  <button type="button" className="tl-line" aria-expanded="false" onClick={() => setShowAllSteps(true)}>
+                    <span className="tl-end wtrack-step done step-1">
+                      <span className="wtrack-dot" aria-hidden="true"><TrackIcon name="cart" size={20} /></span>
+                      <span>
+                        <strong>Ordered</strong>
+                        <small>{first?.at ? when(first.at) : ""}</small>
+                      </span>
                     </span>
-                    <span className="timeline-copy">
-                      <strong>{step.label}</strong>
-                      {step.at ? <span>{when(step.at)}</span> : null}
+                    <span className="tl-bar tl-bar-color" aria-hidden="true" />
+                    <span className="tl-end wtrack-step done step-6">
+                      <span className="wtrack-dot" aria-hidden="true"><TrackIcon name="done" size={20} /></span>
+                      <span>
+                        <strong>Delivered</strong>
+                        <small>{last?.at ? when(last.at) : tracking.deliveredAt ? when(tracking.deliveredAt) : ""}</small>
+                      </span>
                     </span>
-                  </li>
-                ))}
-            </ol>
+                    <svg className="tl-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                    <span className="sr-only">Show all updates</span>
+                  </button>
+                );
+              }
+              const shown = steps;
+              return (
+                <>
+                  <ol className="wtrack">
+                    {shown.map((step, index) => {
+                      const lastStep = index === shown.length - 1;
+                      // Reaching "Delivered" finishes the order: it reads as completed.
+                      const state = step.state === "active" && lastStep ? "done" : step.state;
+                      const n = ORDER_PROGRESS_STAGES.findIndex((stage) => stage.statuses[0] === step.status) + 1;
+                      return (
+                        <li key={step.status} className={`wtrack-step ${state} step-${n || index + 1}`}>
+                          <span className="wtrack-dot" aria-hidden="true">
+                            <TrackIcon name={TRACK_STEP_ICONS[(n || index + 1) - 1] || "box"} size={20} />
+                          </span>
+                          <div className="wtrack-box">
+                            <span className="wtrack-copy">
+                              <strong>{step.label}</strong>
+                              <span>{step.at ? when(step.at) : "—"}</span>
+                              {open && step.state === "active" ? (
+                                <em className="timeline-note">{stageText(tracking.status)}</em>
+                              ) : null}
+                              {open && step.status === "DELIVERED" && tracking.expectedBy ? (
+                                <em className="timeline-note">{arrivalText(tracking.expectedBy)}</em>
+                              ) : null}
+                            </span>
+                            <span className="wtrack-tag">
+                              <TrackIcon name={state === "done" ? "check" : state === "active" ? "truck" : "clock"} size={14} />
+                              {state === "done" ? "Completed" : state === "active" ? "In progress" : "Pending"}
+                            </span>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                  {delivered && showAllSteps ? (
+                    <button
+                      type="button"
+                      className="timeline-toggle"
+                      aria-expanded={showAllSteps}
+                      onClick={() => setShowAllSteps((v) => !v)}
+                    >
+                      Show less
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ transform: "rotate(180deg)" }}>
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  ) : null}
+                </>
+              );
+            })()}
           </div>
         </div>
 
@@ -440,6 +541,7 @@ function OrderDetail() {
                       <span>
                         {item.variantName ? `${item.variantName} · ` : ""}×{item.quantity}
                       </span>
+                      {item.itemStatus === "returned" ? <span className="item-returned">Return requested</span> : null}
                       {item.deferred?.expectedOn ? (
                         <span className={`item-later${item.deferred.deliveredAt ? " done" : ""}`}>
                           {item.deferred.deliveredAt ? "Delivered later" : `Arriving ${laterDate(item.deferred.expectedOn)}`}
@@ -502,6 +604,20 @@ function OrderDetail() {
                 {" · "}
                 {order.payment.status.replace(/_/g, " ").toLowerCase()}
               </p>
+
+              {["DELIVERED", "RETURN_REQUESTED"].includes(tracking.status) ? (
+                <ReturnRequest
+                  key={tracking.status}
+                  pending={tracking.status === "RETURN_REQUESTED"}
+                  orderId={id}
+                  items={order.items}
+                  autoOpen={params.get("return") === "1"}
+                  onDone={async () => {
+                    await load();
+                    setToast({ title: "Return requested", text: "", tone: "ok", at: Date.now() });
+                  }}
+                />
+              ) : null}
 
               {canCancel ? (
                 <button

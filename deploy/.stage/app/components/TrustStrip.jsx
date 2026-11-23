@@ -9,21 +9,17 @@ export default function TrustStrip({ prepTimeMinutes }) {
           <span className="assurance-icon"><IconLeaf /></span>
           <span>
             <strong>Fresh Produce</strong>
-            <span>Sourced daily from the local market</span>
+            <span>Sourced daily, direct from farmers</span>
           </span>
         </li>
         <li>
           <span className="assurance-icon"><IconTruck /></span>
           <span>
             <strong>Fast Delivery</strong>
-            {/* A number only when the page knows the real one — never a
-                guessed "30 minutes" on a page that has no store to ask. */}
+            {/* No minutes promised here, only "fast"; next-day stores still
+                say so, since "fast" would be wrong for them. */}
             <span>
-              {prepTimeMinutes
-                ? prepTimeMinutes >= 1440
-                  ? "Delivered the next day"
-                  : `Out of the store in about ${prepTimeMinutes} minutes`
-                : "Straight from your neighbourhood store"}
+              {prepTimeMinutes >= 1440 ? "Delivered the next day" : "Fast delivery to your doorstep"}
             </span>
           </span>
         </li>

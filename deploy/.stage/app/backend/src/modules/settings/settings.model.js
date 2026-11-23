@@ -112,8 +112,19 @@ const settingsSchema = new mongoose.Schema(
       invoiceTemplate: {
         type: String,
         // "compact" is a retired template, kept so older saved values still load.
-        enum: ["classic", "modern", "elegant", "minimal", "receipt", "compact"],
-        default: "classic",
+        // receipt* are the 80mm counter bills; "receipt" is the default.
+        enum: [
+          "receipt", "receipt_bold", "receipt_compact", "receipt_logo", "receipt_gst", "receipt_modern",
+          "classic", "modern", "elegant", "minimal", "compact",
+        ],
+        default: "receipt",
+      },
+      // The POS (walk-in, manual) bill — its own formats, separate from the
+      // online-order invoice above. Chosen in Settings -> Print -> POS bill.
+      posTemplate: {
+        type: String,
+        enum: ["pos_manual", "pos_manual_a4", "pos_thermal", "pos_thermal_58"],
+        default: "pos_manual",
       },
     },
 
