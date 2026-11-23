@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { categoryImage, img } from "@/lib/format";
 import CategoryIcon from "./CategoryIcon";
+import SideScrollTop from "./SideScrollTop";
 
 // Desktop department list for a category page, drawn as the same kind of panel
 // as the Filters below it. "All products" is a dropdown holding every
@@ -9,8 +10,14 @@ import CategoryIcon from "./CategoryIcon";
 // you're in starts open. Phones use the icon rail instead.
 export default function DepartmentNav({ departments = [], activeSlug = null, total = null }) {
   const onAll = activeSlug === null;
+  const isInside = (department) =>
+    department.slug === activeSlug || department.children?.some((child) => child.slug === activeSlug);
+  // The department you're in comes first (open, right under "View all
+  // products"); the rest keep their order below it.
+  const ordered = [...departments.filter(isInside), ...departments.filter((d) => !isInside(d))];
   return (
     <nav className="dept-nav dept-panel" aria-label="Categories">
+      <SideScrollTop slug={activeSlug} />
       <div className="filters-head">
         <h3>Categories</h3>
       </div>
@@ -33,9 +40,8 @@ export default function DepartmentNav({ departments = [], activeSlug = null, tot
             View all products
           </Link>
 
-          {departments.map((department) => {
-            const inside =
-              department.slug === activeSlug || department.children?.some((child) => child.slug === activeSlug);
+          {ordered.map((department) => {
+            const inside = isInside(department);
             const aisles = department.children || [];
             return (
               <details key={department.id} className="dept-section" open={inside || undefined}>

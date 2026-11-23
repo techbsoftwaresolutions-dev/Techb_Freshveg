@@ -645,6 +645,8 @@ router.get(
         // The admin's own badge text first, so the header matches the home-page card.
         value: offer.badge || value,
         minCartValue: offer.conditions?.minCartValue || 0,
+        // The picture uploaded for the offer (shown in the new-offer popup).
+        image: offer.image || "",
       },
     });
   })
