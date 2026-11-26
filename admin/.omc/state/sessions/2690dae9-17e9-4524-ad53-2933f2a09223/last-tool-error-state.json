@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__plugin_playwright_playwright__browser_handle_dialog",
+  "tool_input_preview": "{\"accept\":false}",
+  "error": "### Error\nError: The tool \"browser_handle_dialog\" can only be used when there is related modal state present.\n### Page\n- Page URL: http://localhost:5191/settings/stores\n- Page Title: Hosur Basket Admin\n- Console: 1 errors, 0 warnings\n### Events\n- New console entries: .playwright-mcp\\console-2026-10-07T11-53-26-153Z.log#L1-L4",
+  "timestamp": "2026-10-07T11:53:36.634Z",
+  "retry_count": 1
+}

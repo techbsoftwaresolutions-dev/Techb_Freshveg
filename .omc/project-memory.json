@@ -1,0 +1,429 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1791279548199,
+  "projectRoot": "D:\\TechB\\fresh market\\Techb_Freshveg",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "admin": {
+      "path": "admin",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1791279548076,
+      "keyFiles": [
+        "index.html",
+        "package-lock.json",
+        "package.json",
+        "vite.config.js"
+      ]
+    },
+    "backend": {
+      "path": "backend",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1791279548077,
+      "keyFiles": [
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "customer-app": {
+      "path": "customer-app",
+      "purpose": null,
+      "fileCount": 7,
+      "lastAccessed": 1791279548078,
+      "keyFiles": [
+        "app.config.js",
+        "App.js",
+        "babel.config.js",
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "delivery-app": {
+      "path": "delivery-app",
+      "purpose": null,
+      "fileCount": 7,
+      "lastAccessed": 1791279548079,
+      "keyFiles": [
+        "app.config.js",
+        "App.js",
+        "babel.config.js",
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "website": {
+      "path": "website",
+      "purpose": null,
+      "fileCount": 7,
+      "lastAccessed": 1791279548080,
+      "keyFiles": [
+        "jsconfig.json",
+        "next.config.mjs",
+        "package-lock.json",
+        "package.json",
+        "server.js"
+      ]
+    },
+    "admin\\dist": {
+      "path": "admin\\dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 1,
+      "lastAccessed": 1791279548081,
+      "keyFiles": [
+        "index.html"
+      ]
+    },
+    "admin\\node_modules": {
+      "path": "admin\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1791279548082,
+      "keyFiles": []
+    },
+    "admin\\src": {
+      "path": "admin\\src",
+      "purpose": "Source code",
+      "fileCount": 2,
+      "lastAccessed": 1791279548085,
+      "keyFiles": [
+        "App.jsx",
+        "main.jsx"
+      ]
+    },
+    "backend\\node_modules": {
+      "path": "backend\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1791279548091,
+      "keyFiles": []
+    },
+    "backend\\src": {
+      "path": "backend\\src",
+      "purpose": "Source code",
+      "fileCount": 2,
+      "lastAccessed": 1791279548092,
+      "keyFiles": [
+        "app.js",
+        "server.js"
+      ]
+    },
+    "customer-app\\node_modules": {
+      "path": "customer-app\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1791279548108,
+      "keyFiles": []
+    },
+    "customer-app\\src": {
+      "path": "customer-app\\src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1791279548122,
+      "keyFiles": []
+    },
+    "delivery-app\\node_modules": {
+      "path": "delivery-app\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1791279548128,
+      "keyFiles": []
+    },
+    "website\\app": {
+      "path": "website\\app",
+      "purpose": "Application code",
+      "fileCount": 9,
+      "lastAccessed": 1791279548131,
+      "keyFiles": [
+        "apple-icon.jsx",
+        "globals.css",
+        "icon.svg"
+      ]
+    },
+    "website\\components": {
+      "path": "website\\components",
+      "purpose": "UI components",
+      "fileCount": 27,
+      "lastAccessed": 1791279548136,
+      "keyFiles": [
+        "AddToCart.jsx",
+        "BannerCarousel.jsx",
+        "Carousel.jsx"
+      ]
+    },
+    "website\\lib": {
+      "path": "website\\lib",
+      "purpose": "Library code",
+      "fileCount": 4,
+      "lastAccessed": 1791279548157,
+      "keyFiles": [
+        "api.js",
+        "app-icon.jsx",
+        "client-api.js"
+      ]
+    },
+    "website\\node_modules": {
+      "path": "website\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1791279548166,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "website/app/globals.css",
+      "accessCount": 6,
+      "lastAccessed": 1791291922189,
+      "type": "directory"
+    },
+    {
+      "path": "admin/src/pages/inventory/Inventory.jsx",
+      "accessCount": 5,
+      "lastAccessed": 1791363385243,
+      "type": "file"
+    },
+    {
+      "path": "website/app/c/[slug]/page.jsx",
+      "accessCount": 4,
+      "lastAccessed": 1791192711416,
+      "type": "file"
+    },
+    {
+      "path": "website/components/FreeDeliveryProgress.jsx",
+      "accessCount": 4,
+      "lastAccessed": 1791358405130,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/config/db.js",
+      "accessCount": 3,
+      "lastAccessed": 1791077683499,
+      "type": "file"
+    },
+    {
+      "path": "website/components/Providers.jsx",
+      "accessCount": 3,
+      "lastAccessed": 1791359392872,
+      "type": "directory"
+    },
+    {
+      "path": "website",
+      "accessCount": 3,
+      "lastAccessed": 1791359397096,
+      "type": "directory"
+    },
+    {
+      "path": "admin/src",
+      "accessCount": 2,
+      "lastAccessed": 1791183196139,
+      "type": "directory"
+    },
+    {
+      "path": "admin/src/pages/catalog/ProductForm.jsx",
+      "accessCount": 2,
+      "lastAccessed": 1791185560218,
+      "type": "file"
+    },
+    {
+      "path": "website/components/Filters.jsx",
+      "accessCount": 2,
+      "lastAccessed": 1791192705991,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 2,
+      "lastAccessed": 1791359413454,
+      "type": "directory"
+    },
+    {
+      "path": "admin/src/pages/Dashboard.jsx",
+      "accessCount": 2,
+      "lastAccessed": 1791363359497,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/inventory/inventory.routes.js",
+      "accessCount": 2,
+      "lastAccessed": 1791363379497,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/config/index.js",
+      "accessCount": 1,
+      "lastAccessed": 1791077684625,
+      "type": "file"
+    },
+    {
+      "path": "backend/.env.example",
+      "accessCount": 1,
+      "lastAccessed": 1791077685776,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/pricing/pricing.service.js",
+      "accessCount": 1,
+      "lastAccessed": 1791078556873,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/pricing/offer.model.js",
+      "accessCount": 1,
+      "lastAccessed": 1791078558395,
+      "type": "file"
+    },
+    {
+      "path": "website/app/cart/page.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791078559795,
+      "type": "file"
+    },
+    {
+      "path": "website/components/HomeCartSidebar.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791078561104,
+      "type": "file"
+    },
+    {
+      "path": "customer-app/src/screens/CartScreen.js",
+      "accessCount": 1,
+      "lastAccessed": 1791078562342,
+      "type": "file"
+    },
+    {
+      "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/2976aeaa-5e7c-41e8-83f0-7e6112ba4b4b/scratchpad/inspect-order.js",
+      "accessCount": 1,
+      "lastAccessed": 1791098368114,
+      "type": "file"
+    },
+    {
+      "path": "admin/src/styles/index.css",
+      "accessCount": 1,
+      "lastAccessed": 1791183584154,
+      "type": "file"
+    },
+    {
+      "path": "admin/src/pages/catalog/Categories.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791265120994,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/catalog/storefront.routes.js",
+      "accessCount": 1,
+      "lastAccessed": 1791281099192,
+      "type": "file"
+    },
+    {
+      "path": "website/components/ListingSearch.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791281130528,
+      "type": "file"
+    },
+    {
+      "path": "cart-320.png",
+      "accessCount": 1,
+      "lastAccessed": 1791291357589,
+      "type": "file"
+    },
+    {
+      "path": "cart-320-final.png",
+      "accessCount": 1,
+      "lastAccessed": 1791291482027,
+      "type": "file"
+    },
+    {
+      "path": "website/components/Header.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791358382807,
+      "type": "directory"
+    },
+    {
+      "path": "website/components/AddToCart.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791359392231,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/cart/cart.service.js",
+      "accessCount": 1,
+      "lastAccessed": 1791359404004,
+      "type": "file"
+    },
+    {
+      "path": "backend/src/modules/cart/cart.routes.js",
+      "accessCount": 1,
+      "lastAccessed": 1791359404551,
+      "type": "file"
+    },
+    {
+      "path": "website/components/VariantPicker.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791359405004,
+      "type": "file"
+    },
+    {
+      "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/2690dae9-17e9-4524-ad53-2933f2a09223/scratchpad/big-top.png",
+      "accessCount": 1,
+      "lastAccessed": 1791365486962,
+      "type": "file"
+    },
+    {
+      "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/2690dae9-17e9-4524-ad53-2933f2a09223/scratchpad/big-desk.png",
+      "accessCount": 1,
+      "lastAccessed": 1791365509857,
+      "type": "file"
+    },
+    {
+      "path": "website/components/AppDownload.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791368670104,
+      "type": "file"
+    },
+    {
+      "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/2690dae9-17e9-4524-ad53-2933f2a09223/scratchpad/appband.css",
+      "accessCount": 1,
+      "lastAccessed": 1791368708015,
+      "type": "file"
+    },
+    {
+      "path": "admin/src/pages/settings/Stores.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1791373870679,
+      "type": "file"
+    },
+    {
+      "path": "C:/Users/harle/AppData/Local/Temp/claude/D--TechB-fresh-market-Techb-Freshveg/2690dae9-17e9-4524-ad53-2933f2a09223/scratchpad/stores-refused.png",
+      "accessCount": 1,
+      "lastAccessed": 1791374042550,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

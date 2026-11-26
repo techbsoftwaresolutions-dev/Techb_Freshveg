@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import Select from "../../components/Select";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Field, Loading, Pill } from "../../components/ui";
+import { Banner, Card, Field, Loading, Pill, useConfirm } from "../../components/ui";
 import SchemaForm from "../../components/SchemaForm";
 import SelectMenu from "../../components/SelectMenu";
+import { suggestDetails } from "./productAutofill";
+import { toast } from "../../components/Toaster";
 
 // This screen is the point of the whole engine. Pick a category and the rest
 // of the form rebuilds itself from that category's resolved schema — which
@@ -20,9 +23,61 @@ const emptyProduct = {
   tags: [],
   status: "draft",
   isFeatured: false,
+  offer: { kind: "", title: "", discountPct: "", details: "" },
   attributes: {},
   media: [],
 };
+
+// What "Duplicate product" carries over: everything the admin typed, none of
+// what the system generated. Ids, slug, SKU and barcode are left out so the
+// create API issues fresh ones; stock lives in its own collection and is never
+// part of this payload, so the copy starts with none.
+const VARIANT_SYSTEM_FIELDS = [
+  "id", "_id", "product", "category", "categoryPath", "sku", "barcode", "axisKey",
+  "totalStock", "inStock", "createdAt", "updatedAt", "discountPct", "savings", "unitPrice",
+];
+
+// What the offer dropdown sends: only the fields that belong to the chosen kind.
+function offerPayload(offer = {}) {
+  const kind = offer.kind || "";
+  if (!kind) return { kind: "", title: "", details: "" };
+  const pct = Number(offer.discountPct);
+  return {
+    kind,
+    title: offer.title || "",
+    details: kind === "combo" ? offer.details || "" : "",
+    ...(kind === "discount" && offer.discountPct !== "" && Number.isFinite(pct) ? { discountPct: pct } : {}),
+  };
+}
+
+function duplicateOf({ product, variants }) {
+  const copy = {
+    ...emptyProduct,
+    name: product.name,
+    category: product.category?.id || product.category,
+    brand: product.brand?.id || product.brand || "",
+    shortDescription: product.shortDescription || "",
+    description: product.description || "",
+    tags: product.tags || [],
+    isFeatured: Boolean(product.isFeatured),
+    offer: { ...emptyProduct.offer, ...(product.offer || {}) },
+    attributes: product.attributes || {},
+    media: (product.media || []).map((m) => ({ ...m })),
+  };
+  const copiedVariants = variants.map((v, i) => {
+    const rest = { ...v };
+    VARIANT_SYSTEM_FIELDS.forEach((key) => delete rest[key]);
+    return {
+      ...rest,
+      _key: `new-${Date.now()}-${i}`,
+      axis: Object.fromEntries((v.axisValues || []).map((a) => [a.code, a.value])),
+    };
+  });
+  return { copy, copiedVariants };
+}
+
+// The red asterisk beside a mandatory field's label.
+const Req = () => <span style={{ color: "var(--danger)" }}> *</span>;
 
 export default function ProductForm() {
   const { id } = useParams();
@@ -30,6 +85,9 @@ export default function ProductForm() {
   const { can } = useAuth();
   const editable = can("catalog.manage");
   const isNew = id === "new";
+  const [searchParams] = useSearchParams();
+  const fromId = isNew ? searchParams.get("from") : null;
+  const [basedOn, setBasedOn] = useState("");
 
   const [product, setProduct] = useState(emptyProduct);
   const [variants, setVariants] = useState([]);
@@ -38,20 +96,45 @@ export default function ProductForm() {
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // State updates are not instant, so a quick double-click (or Save draft then
+  // Publish) used to fire two requests and create the product twice. The ref
+  // blocks the second one immediately; savedId makes any later save of a
+  // brand-new product update it instead of creating another.
+  const savingRef = useRef(false);
+  const savedIdRef = useRef(null);
+  // What was last saved (or loaded), as the JSON that would be sent; a save with
+  // an identical payload is "already saved". Re-taken whenever baselineTick changes.
+  const lastSavedRef = useRef(null);
+  const [baselineTick, setBaselineTick] = useState(0);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [notice, setNotice] = useState("");
+  // Flipped on the first failed save; from then on the checklist is re-run on
+  // every edit, so each message disappears as soon as its field is filled in.
+  const [submitted, setSubmitted] = useState(false);
+
+  // A different route (new → saved product, or another product) starts clean.
+  useEffect(() => {
+    savingRef.current = false;
+    savedIdRef.current = null;
+  }, [id, isNew, fromId]);
 
   useEffect(() => {
     Promise.all([
       api.get("/catalog/categories/tree", { status: "active" }),
       api.get("/catalog/brands", { limit: 100 }),
-      isNew ? Promise.resolve(null) : api.get(`/catalog/products/${id}`),
+      isNew && !fromId ? Promise.resolve(null) : api.get(`/catalog/products/${fromId || id}`),
     ])
       .then(([tree, brandData, detail]) => {
         setCategories(flatten(tree.tree));
         setBrands(brandData.items);
-        if (detail) {
+        if (detail && fromId) {
+          const { copy, copiedVariants } = duplicateOf(detail);
+          setProduct(copy);
+          setVariants(copiedVariants);
+          setSchema(detail.schema);
+          setBasedOn(detail.product.name);
+        } else if (detail) {
           setProduct({
             ...emptyProduct,
             ...detail.product,
@@ -63,8 +146,19 @@ export default function ProductForm() {
         }
       })
       .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [id, isNew]);
+      .finally(() => {
+        setLoading(false);
+        lastSavedRef.current = null;
+        setBaselineTick((t) => t + 1);
+      });
+  }, [id, isNew, fromId]);
+
+  // Once the product has loaded (or just been saved) its current state is the baseline.
+  useEffect(() => {
+    if (isNew || loading || !baselineTick) return;
+    lastSavedRef.current = JSON.stringify(buildPayload(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baselineTick, loading]);
 
   // Changing the category swaps the entire field set. Values whose field no
   // longer exists are dropped rather than sent to a schema that would reject
@@ -87,9 +181,11 @@ export default function ProductForm() {
       });
       // Seed one variant per axis combination the category implies, so a new
       // product is immediately sellable.
-      if (!variants.length) {
-        setVariants([blankVariant(next)]);
-      }
+      // Rows that carry no price yet (the starter row, or ones pre-filled for the
+      // previous category) belong to the old category's axes, so start fresh.
+      setVariants((vs) =>
+        !vs.length || vs.every((v) => !v.mrp && !v.sellingPrice) ? [blankVariant(next)] : vs
+      );
     } catch (err) {
       setError(err.message);
     }
@@ -97,13 +193,46 @@ export default function ProductForm() {
 
   const axes = schema?.variantAxes || [];
 
-  async function save({ publish } = {}) {
-    setSaving(true);
-    setError("");
-    setFieldErrors({});
-    setNotice("");
+  // The mandatory checklist. Returns { name, category, ..., variants: {i: {...}},
+  // attributes: {code: msg} } — empty when everything required is filled in.
+  function validate() {
+    const errs = { variants: {}, attributes: {} };
+    if (!product.name.trim()) errs.name = "Product name is required";
+    if (!product.category) errs.category = "Select a category";
+    if (!(product.shortDescription || "").trim()) errs.shortDescription = "Short description is required";
+    if (!(product.media || []).length) errs.photos = "Add at least one product photo";
 
-    const payload = {
+    if (!variants.length) errs.noVariants = "Add at least one variant with its price";
+    variants.forEach((v, i) => {
+      const row = {};
+      if (!v.mrp || v.mrp <= 0) row.mrp = "Enter MRP";
+      if (!v.sellingPrice || v.sellingPrice <= 0) row.sellingPrice = "Enter selling price";
+      else if (v.mrp > 0 && v.sellingPrice > v.mrp) row.sellingPrice = "Cannot be more than MRP";
+      if (Object.keys(row).length) errs.variants[i] = row;
+    });
+
+    for (const field of schema?.fields || []) {
+      if (!field.required || field.scope !== "product" || field.isVariantAxis) continue;
+      const value = product.attributes?.[field.code];
+      const empty =
+        value === undefined || value === null || value === "" || (Array.isArray(value) && !value.length);
+      if (empty) errs.attributes[field.code] = `${field.label} is required`;
+    }
+    return errs;
+  }
+
+  const hasErrors = (errs) =>
+    Boolean(
+      errs.name || errs.category || errs.shortDescription || errs.photos || errs.noVariants ||
+        Object.keys(errs.variants).length || Object.keys(errs.attributes).length
+    );
+
+  const formErrors = submitted ? validate() : { variants: {}, attributes: {} };
+
+  // Everything the server is sent for this product, as one object. Also what
+  // "has anything changed since the last save?" compares.
+  function buildPayload(publish) {
+    return {
       name: product.name,
       category: product.category,
       brand: product.brand || null,
@@ -111,6 +240,7 @@ export default function ProductForm() {
       description: product.description,
       tags: product.tags,
       isFeatured: product.isFeatured,
+      offer: offerPayload(product.offer),
       status: publish ? "active" : product.status,
       attributes: product.attributes,
       media: (product.media || []).map((m, index) => ({
@@ -147,24 +277,67 @@ export default function ProductForm() {
         };
       }),
     };
+  }
+
+  async function save({ publish } = {}) {
+    if (savingRef.current) return;
+    const errs = validate();
+    if (hasErrors(errs)) {
+      setSubmitted(true);
+      setNotice("");
+      setError("Please fill in the required fields marked below — nothing was saved.");
+      // Wait a tick so the inline messages exist, then bring the first one into view.
+      setTimeout(() => {
+        document.querySelector(".field .error, .photos-error, .variant-error")?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 50);
+      return;
+    }
+
+    const payload = buildPayload(publish);
+
+    // Nothing edited since the last save: say so instead of saving the same thing again.
+    if (!isNew && lastSavedRef.current && JSON.stringify(payload) === lastSavedRef.current) {
+      setNotice("");
+      toast.info("Already saved");
+      return;
+    }
+
+    savingRef.current = true;
+    setSaving(true);
+    setError("");
+    setFieldErrors({});
+    setNotice("");
 
     try {
-      const result = isNew
-        ? await api.post("/catalog/products", payload)
-        : await api.patch(`/catalog/products/${id}`, payload);
+      const existingId = isNew ? savedIdRef.current : id;
+      const result = existingId
+        ? await api.patch(`/catalog/products/${existingId}`, payload)
+        : await api.post("/catalog/products", payload);
 
-      setNotice("Saved.");
-      if (isNew) navigate(`/catalog/products/${result.product.id}`, { replace: true });
-      else {
+      setNotice("Saved");
+      toast.success("Product saved");
+      if (isNew) {
+        // Stay locked: we are about to leave this page for the saved product.
+        savedIdRef.current = result.product.id;
+        navigate(`/catalog/products/${result.product.id}`, { replace: true });
+        return;
+      } else {
         setProduct((p) => ({ ...p, ...result.product, category: product.category, brand: product.brand }));
         setVariants(result.variants);
+        setBaselineTick((t) => t + 1);
       }
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
       // A 422 carries per-field messages; hand them to the schema form so they
       // render against the right inputs.
       if (err.details) setFieldErrors(err.details);
     } finally {
+      // After creating a product we leave this page; keep the lock until then.
+      if (!(isNew && savedIdRef.current)) savingRef.current = false;
       setSaving(false);
     }
   }
@@ -174,18 +347,131 @@ export default function ProductForm() {
     [categories, product.category]
   );
 
+
+  // New product: once a category is picked and a name typed, look the product up
+  // (own catalogue → built-in guide → Open Food Facts) and fill what is still
+  // empty. A field is only overwritten if it still holds what the last lookup
+  // put there, so anything the admin typed or edited by hand is left alone.
+  const lastAuto = useRef({});
+  const productRef = useRef(product);
+  productRef.current = product;
+  const variantsRef = useRef(variants);
+  variantsRef.current = variants;
+  const [autoNote, setAutoNote] = useState(null);
+  useEffect(() => {
+    if (!isNew || fromId || !editable) return undefined;
+    const name = product.name.trim();
+    if (name.length < 3 || !product.category || !schema) {
+      setAutoNote(null);
+      return undefined;
+    }
+    let alive = true;
+    setAutoNote({ state: "loading" });
+    const timer = setTimeout(async () => {
+      let found = null;
+      try {
+        found = await suggestDetails({ name, categoryId: product.category, categoryName, schema, brands });
+      } catch {
+        found = null;
+      }
+      if (!alive) return;
+      if (!found) {
+        setAutoNote(null);
+        return;
+      }
+      const { patch } = found;
+      const last = lastAuto.current;
+      const isEmpty = (v) => v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length);
+      const free = (key, current) => isEmpty(current) || JSON.stringify(current) === JSON.stringify(last[key]);
+      const current = productRef.current;
+      const filled = [];
+      const record = {};
+      const changes = {};
+      const put = (key, label, value) => {
+        if (isEmpty(value) || !free(key, current[key])) return;
+        changes[key] = value;
+        record[key] = value;
+        filled.push(label);
+      };
+      put("shortDescription", "short description", patch.shortDescription);
+      put("description", "description", patch.description);
+      put("tags", "tags", patch.tags);
+      put("brand", "brand", patch.brand);
+      put("media", "photo", patch.media);
+      const attrs = { ...(current.attributes || {}) };
+      let attrCount = 0;
+      for (const [code, value] of Object.entries(patch.attributes || {})) {
+        if (isEmpty(value) || !free(`attr:${code}`, attrs[code])) continue;
+        attrs[code] = value;
+        record[`attr:${code}`] = value;
+        attrCount += 1;
+      }
+      if (attrCount) {
+        changes.attributes = attrs;
+        filled.push(`${attrCount} detail${attrCount > 1 ? "s" : ""}`);
+      }
+      lastAuto.current = { ...last, ...record };
+      if (Object.keys(changes).length) setProduct((p) => ({ ...p, ...changes, attributes: changes.attributes ? { ...(p.attributes || {}), ...changes.attributes } : p.attributes }));
+      const rows = found.variantRows || [];
+      const sig = (list) => JSON.stringify(list.map((v) => [v.axis || {}, v.packSize?.value ?? null, v.packSize?.unit ?? null, v.weightGrams || 0]));
+      const cur = variantsRef.current;
+      const unpriced = cur.every((v) => !v.mrp && !v.sellingPrice);
+      const starter = cur.length === 1 && !Object.keys(cur[0].axis || {}).length;
+      // Replace the variant rows only while they are still untouched: the empty
+      // starter row, or rows this lookup added earlier (no price typed since).
+      if (unpriced && (starter || sig(cur) === last.variantsSig)) {
+        if (rows.length) {
+          const defaultAt = Math.min(rows.length - 1, Math.floor(rows.length / 2));
+          const built = rows.map((row, i) => ({
+            ...blankVariant(schema),
+            _key: makeVariantKey(),
+            axis: row.axis || {},
+            ...(row.packSize?.value ? { packSize: row.packSize } : {}),
+            ...(row.weightGrams ? { weightGrams: row.weightGrams } : {}),
+            isDefault: i === defaultAt,
+          }));
+          setVariants(built);
+          lastAuto.current.variantsSig = sig(built);
+          filled.push(`${rows.length} pack size${rows.length > 1 ? "s" : ""}`);
+        } else if (last.variantsSig) {
+          setVariants([blankVariant(schema)]);
+          lastAuto.current.variantsSig = "";
+        }
+      }
+      setAutoNote(
+        filled.length
+          ? { state: "done", text: `Filled ${filled.join(", ")} from ${found.label}. Please check before saving.` }
+          : { state: "kept", text: "Details are already filled in — nothing was changed." }
+      );
+    }, 800);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.name, product.category, schema]);
+
   if (loading) return <div className="page"><Loading /></div>;
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className="page product-page">
+      <div className="page-head product-head">
         <div>
+          <button type="button" className="product-crumb" onClick={() => navigate("/catalog/products")}>
+            ← Products
+          </button>
           <h1>{isNew ? "New product" : product.name || "Product"}</h1>
+          {basedOn && <span className="faint" style={{ fontSize: 12 }}>Based on: {basedOn}</span>}
         </div>
         <div className="inline">
           <button className="btn" onClick={() => navigate("/catalog/products")}>
             Back
           </button>
+          {editable && !isNew && (
+            <button className="btn ghost" onClick={() => navigate(`/catalog/products/new?from=${id}`)}>
+              Duplicate product
+            </button>
+          )}
           {editable && (
             <>
               <button className="btn" disabled={saving || !product.category} onClick={() => save()}>
@@ -209,8 +495,14 @@ export default function ProductForm() {
       <div className="grid split">
         <div style={{ display: "grid", gap: 14 }}>
           <Card title="Basics">
+            {autoNote ? (
+              <div className={`autofill-note ${autoNote.state}`} role="status">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M19 3v4M17 5h4" /></svg>
+                <span>{autoNote.state === "loading" ? "Looking up product details…" : autoNote.text}</span>
+              </div>
+            ) : null}
             <div className="grid cols-2">
-              <Field label="Product name">
+              <Field label={<>Product name<Req /></>} error={formErrors.name}>
                 <input
                   type="text"
                   value={product.name}
@@ -219,7 +511,7 @@ export default function ProductForm() {
                   placeholder="e.g. Tomato"
                 />
               </Field>
-              <Field label="Category" help="Determines every field below.">
+              <Field label={<>Category<Req /></>} error={formErrors.category}>
                 <SelectMenu
                   value={product.category}
                   onChange={pickCategory}
@@ -241,7 +533,7 @@ export default function ProductForm() {
                   options={brands.map((b) => ({ value: b.id, label: b.name }))}
                 />
               </Field>
-              <Field label="Tags" help="Comma separated.">
+              <Field label="Tags">
                 <input
                   type="text"
                   value={(product.tags || []).join(", ")}
@@ -256,7 +548,7 @@ export default function ProductForm() {
               </Field>
             </div>
 
-            <Field label="Short description">
+            <Field label={<>Short description<Req /></>} error={formErrors.shortDescription}>
               <input
                 type="text"
                 value={product.shortDescription}
@@ -271,6 +563,11 @@ export default function ProductForm() {
                 disabled={!editable}
               />
             </Field>
+            <OfferField
+              offer={{ ...emptyProduct.offer, ...(product.offer || {}) }}
+              editable={editable}
+              onChange={(offer) => setProduct({ ...product, offer })}
+            />
             <label className="checkbox">
               <input
                 type="checkbox"
@@ -284,6 +581,7 @@ export default function ProductForm() {
 
           <MediaUploader
             media={product.media || []}
+            requiredError={formErrors.photos}
             name={product.name}
             editable={editable}
             onChange={(media) => setProduct((p) => ({ ...p, media }))}
@@ -297,7 +595,7 @@ export default function ProductForm() {
               <SchemaForm
                 groups={schema.groups}
                 values={product.attributes || {}}
-                errors={fieldErrors}
+                errors={{ ...fieldErrors, ...formErrors.attributes }}
                 onChange={(attributes) => setProduct({ ...product, attributes })}
               />
             </Card>
@@ -309,44 +607,13 @@ export default function ProductForm() {
               variants={variants}
               schema={schema}
               editable={editable}
+              errors={formErrors}
               onChange={setVariants}
             />
           )}
         </div>
 
         <div style={{ display: "grid", gap: 14 }}>
-          {schema && (
-            <Card title="Inherited from the category">
-              <div className="section-label">Capabilities</div>
-              <div className="inline" style={{ gap: 5 }}>
-                {Object.entries(schema.features)
-                  .filter(([, on]) => on)
-                  .map(([key]) => (
-                    <Pill key={key} tone="accent">
-                      {key}
-                    </Pill>
-                  ))}
-              </div>
-
-              <div className="section-label">Defaults</div>
-              <table className="data">
-                <tbody>
-                  {Object.entries(schema.defaults)
-                    .filter(([, value]) => value !== null && value !== undefined)
-                    .map(([key, value]) => (
-                      <tr key={key}>
-                        <td className="muted">{key}</td>
-                        <td className="num">{String(value)}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-
-              <p className="faint" style={{ fontSize: 12, marginBottom: 0 }}>
-                Change these under Categories → Defaults and every product here follows.
-              </p>
-            </Card>
-          )}
 
           {!isNew && (
             <Card title="Status">
@@ -449,13 +716,13 @@ function StockCard({ productId, variants, editable }) {
       title="Stock"
       actions={
         stores.length > 1 ? (
-          <select value={store} onChange={(e) => setStore(e.target.value)} style={{ fontSize: 12 }}>
+          <Select value={store} onChange={(e) => setStore(e.target.value)} style={{ fontSize: 12 }}>
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
             ))}
-          </select>
+          </Select>
         ) : null
       }
     >
@@ -506,10 +773,6 @@ function StockCard({ productId, variants, editable }) {
           })}
         </div>
       )}
-      <p className="faint" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>
-        A product only shows "In stock" on the storefront once it has real stock recorded here — creating or
-        publishing it does not set any on its own.
-      </p>
     </Card>
   );
 }
@@ -542,9 +805,106 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gi
 // is the only place that gap gets closed. Uploads go straight to the storage
 // API and land in `media` as soon as each one finishes; nothing here is
 // persisted until the product itself is saved.
-function MediaUploader({ media, name, editable, onChange }) {
+const OFFER_KINDS = [
+  { value: "", label: "No offer" },
+  { value: "discount", label: "Discount" },
+  { value: "special", label: "Special offer" },
+  { value: "combo", label: "Combo offer" },
+];
+
+// An expandable "Offer" dropdown: pick a kind and the fields for it open below.
+function OfferField({ offer, editable, onChange }) {
+  const set = (patch) => onChange({ ...offer, ...patch });
+  return (
+    <div className="offer-field">
+      <Field label="Offer">
+        <Select value={offer.kind || ""} onChange={(e) => set({ kind: e.target.value })} disabled={!editable}>
+          {OFFER_KINDS.map((k) => (
+            <option key={k.value} value={k.value}>{k.label}</option>
+          ))}
+        </Select>
+      </Field>
+
+      {offer.kind ? (
+        <div className="offer-panel">
+          {offer.kind === "discount" ? (
+            <Field label="Discount %">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={offer.discountPct ?? ""}
+                onChange={(e) => set({ discountPct: e.target.value })}
+                placeholder="e.g. 10"
+                disabled={!editable}
+              />
+            </Field>
+          ) : null}
+          <Field label={offer.kind === "combo" ? "Combo name" : "Offer title"}>
+            <input
+              type="text"
+              value={offer.title || ""}
+              maxLength={60}
+              onChange={(e) => set({ title: e.target.value })}
+              placeholder={
+                offer.kind === "combo" ? "e.g. Breakfast combo" : offer.kind === "special" ? "e.g. Festival special" : "Optional, e.g. Weekend deal"
+              }
+              disabled={!editable}
+            />
+          </Field>
+          {offer.kind === "combo" ? (
+            <Field label="What's in the combo">
+              <input
+                type="text"
+                value={offer.details || ""}
+                maxLength={200}
+                onChange={(e) => set({ details: e.target.value })}
+                placeholder="e.g. Milk 1 L + Bread + Butter 100 g"
+                disabled={!editable}
+              />
+            </Field>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MediaUploader({ media, name, editable, onChange, requiredError }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  // Index of the photo whose options popup is open, or null.
+  const [picked, setPicked] = useState(null);
+  const [confirm, confirmDialog] = useConfirm();
+  const [dragging, setDragging] = useState(false);
+  // Drag-to-reorder: which thumbnail is being dragged, and which one it is over.
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
+  // An image is being dragged over the "Add" tile itself.
+  const [addOver, setAddOver] = useState(false);
+  const pickedItem = picked !== null ? media[picked] : null;
+
+  // A file dropped slightly outside the zone would make the browser navigate
+  // to the image and lose the unsaved form — swallow those drops.
+  useEffect(() => {
+    if (!editable) return undefined;
+    const stop = (e) => {
+      if (Array.from(e.dataTransfer?.types || []).includes("Files")) e.preventDefault();
+    };
+    window.addEventListener("dragover", stop);
+    window.addEventListener("drop", stop);
+    return () => {
+      window.removeEventListener("dragover", stop);
+      window.removeEventListener("drop", stop);
+    };
+  }, [editable]);
+
+  useEffect(() => {
+    if (picked === null) return undefined;
+    const onKey = (e) => e.key === "Escape" && setPicked(null);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [picked]);
 
   async function handleFiles(fileList) {
     const files = Array.from(fileList || []);
@@ -593,100 +953,277 @@ function MediaUploader({ media, name, editable, onChange }) {
     onChange(next);
   };
 
+  // Move a photo to a new position (drop it onto another thumbnail). Dropping
+  // on the first slot makes it the primary photo.
+  const moveTo = (from, to) => {
+    if (from === null || to === null || from === to) return;
+    const next = [...media];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onChange(next);
+  };
+  const endReorder = () => { setDragIndex(null); setOverIndex(null); setAddOver(false); };
+  // An outside drop: image files from the computer, or an image dragged from
+  // another web page (arrives as a URL, which we fetch and upload).
+  const hasOutsideImage = (e) => {
+    if (dragIndex !== null) return false;
+    const types = Array.from(e.dataTransfer?.types || []);
+    return types.includes("Files") || types.includes("text/uri-list");
+  };
+  async function dropImages(dt) {
+    if (dt.files && dt.files.length) return handleFiles(dt.files);
+    const url = (dt.getData("text/uri-list") || dt.getData("text/plain") || "").split("\n")[0].trim();
+    if (!/^https?:\/\//i.test(url)) return undefined;
+    try {
+      const blob = await (await fetch(url)).blob();
+      const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+      return handleFiles([new File([blob], `image.${ext}`, { type: blob.type })]);
+    } catch {
+      setError("Couldn't read that image from the other page — save it to your computer and drop the file instead.");
+      return undefined;
+    }
+  }
+
   return (
     <Card
-      title="Photos"
-      actions={
-        editable && (
-          <label className="btn sm" style={{ cursor: uploading ? "not-allowed" : "pointer", marginBottom: 0 }}>
-            {uploading ? "Uploading…" : "+ Add photos"}
-            <input
-              type="file"
-              accept={ACCEPTED_IMAGE_TYPES.join(",")}
-              multiple
-              hidden
-              disabled={uploading}
-              onChange={(e) => {
-                handleFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-          </label>
-        )
-      }
+      title={<h2>Photos<Req /></h2>}
     >
+      {requiredError && !media.length && <div className="photos-error">{requiredError}</div>}
       <Banner tone="error">{error}</Banner>
 
+      {pickedItem ? (
+        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setPicked(null)}>
+          <div className="modal photo-options" role="dialog" aria-modal="true" aria-label="Photo options">
+            <header className="modal-head">
+              <h2>Photo {picked + 1}{picked === 0 ? " · Primary" : ""}</h2>
+              <button type="button" className="btn ghost sm" onClick={() => setPicked(null)} aria-label="Close">
+                ✕
+              </button>
+            </header>
+            <div className="modal-body">
+              <div className="media-thumb photo-options-thumb">
+                <img
+                  src={pickedItem.url}
+                  alt={pickedItem.alt || ""}
+                  style={{ objectPosition: `${pickedItem.focalX ?? 50}% ${pickedItem.focalY ?? 50}%` }}
+                />
+                {/* Where the storefront card crops this photo from — only
+                    matters once it's cropped to a square. */}
+                <div className="media-focal-grid">
+                  {FOCAL_POINTS.map(([fx, fy]) => (
+                    <button
+                      key={`${fx}-${fy}`}
+                      type="button"
+                      className={(pickedItem.focalX ?? 50) === fx && (pickedItem.focalY ?? 50) === fy ? "active" : ""}
+                      aria-label={`Crop focus: ${fy === 0 ? "top" : fy === 100 ? "bottom" : "middle"} ${fx === 0 ? "left" : fx === 100 ? "right" : "center"}`}
+                      onClick={() => setFocal(picked, fx, fy)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <footer className="modal-foot">
+              {picked !== 0 ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    makePrimary(picked);
+                    setPicked(null);
+                  }}
+                >
+                  Make primary
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn danger"
+                onClick={async () => {
+                  const index = picked;
+                  if (!(await confirm({ title: "Remove this photo?", confirmLabel: "Remove" }))) return;
+                  remove(index);
+                  setPicked(null);
+                }}
+              >
+                Remove
+              </button>
+              <button type="button" className="btn primary" onClick={() => setPicked(null)}>
+                Done
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+
+      <div
+        className={`photo-zone${dragging ? " dragging" : ""}`}
+        onDragEnter={(e) => {
+          if (!editable || !hasOutsideImage(e)) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragOver={(e) => {
+          if (!editable || !hasOutsideImage(e)) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => { setDragging(false); setAddOver(false); }}
+        onDrop={(e) => {
+          if (!editable || !hasOutsideImage(e)) return;
+          e.preventDefault();
+          setDragging(false);
+          setAddOver(false);
+          dropImages(e.dataTransfer);
+        }}
+      >
       {media.length ? (
         <div className="media-grid">
           {media.map((item, index) => (
-            <div key={`${item.url}-${index}`} className="media-item">
-              <div className="media-thumb">
+            <div
+              key={`${item.url}-${index}`}
+              className={`media-item${editable ? " draggable" : ""}${dragIndex === index ? " is-dragging" : ""}${overIndex === index && dragIndex !== null && dragIndex !== index ? " drop-target" : ""}`}
+              draggable={editable && !uploading}
+              onDragStart={(e) => {
+                setDragIndex(index);
+                e.dataTransfer.effectAllowed = "move";
+                try { e.dataTransfer.setData("text/plain", String(index)); } catch { /* ignore */ }
+              }}
+              onDragOver={(e) => {
+                if (dragIndex === null) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (overIndex !== index) setOverIndex(index);
+              }}
+              onDrop={(e) => {
+                if (dragIndex === null) return;
+                e.preventDefault();
+                e.stopPropagation();
+                moveTo(dragIndex, index);
+                endReorder();
+              }}
+              onDragEnd={endReorder}
+            >
+              {/* Click a photo to open its options: make it the main photo,
+                  remove it, or choose where its crop is centred. */}
+              <button
+                type="button"
+                className={`media-thumb media-thumb-btn${editable ? "" : " readonly"}`}
+                onClick={() => editable && setPicked(index)}
+                aria-label={editable ? `Photo ${index + 1} options` : `Photo ${index + 1}`}
+                disabled={!editable}
+              >
                 <img
                   src={item.url}
                   alt={item.alt || ""}
+                  draggable={false}
                   style={{ objectPosition: `${item.focalX ?? 50}% ${item.focalY ?? 50}%` }}
                 />
                 {index === 0 ? <span className="media-primary">Primary</span> : null}
-                {editable ? (
-                  <>
-                    {/* Where the storefront card crops this photo from — only
-                        matters once it's cropped to a square, which is why
-                        this lives right on the thumbnail instead of a
-                        separate settings panel. */}
-                    <span className="media-focal-hint">Crop focus</span>
-                    <div className="media-focal-grid">
-                      {FOCAL_POINTS.map(([fx, fy]) => (
-                        <button
-                          key={`${fx}-${fy}`}
-                          type="button"
-                          className={(item.focalX ?? 50) === fx && (item.focalY ?? 50) === fy ? "active" : ""}
-                          aria-label={`Crop focus: ${fy === 0 ? "top" : fy === 100 ? "bottom" : "middle"} ${fx === 0 ? "left" : fx === 100 ? "right" : "center"}`}
-                          onClick={() => setFocal(index, fx, fy)}
-                        />
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-                {editable ? (
-                  <div className="media-thumb-actions">
-                    {index !== 0 ? (
-                      <button type="button" className="btn ghost sm" onClick={() => makePrimary(index)}>
-                        Make primary
-                      </button>
-                    ) : null}
-                    <button type="button" className="btn ghost sm danger" onClick={() => remove(index)}>
-                      Remove
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-              {/* Shown so a stored image URL can be checked at a glance —
-                  broken photos are much faster to diagnose when the URL is
-                  right there instead of hidden behind a DevTools lookup. */}
-              <div className="media-url" title={item.url}>{item.url}</div>
+              </button>
             </div>
           ))}
+          {editable ? (
+            <label
+              className={`photo-add-tile${addOver ? " drag-over" : ""}`}
+              title="Add more photos — or drop an image here"
+              onDragEnter={(e) => {
+                if (dragIndex === null && !hasOutsideImage(e)) return;
+                e.preventDefault();
+                setAddOver(true);
+              }}
+              onDragOver={(e) => {
+                if (dragIndex === null && !hasOutsideImage(e)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = dragIndex !== null ? "move" : "copy";
+                setAddOver(true);
+              }}
+              onDragLeave={() => setAddOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setAddOver(false);
+                setDragging(false);
+                if (dragIndex !== null) {
+                  // A photo from the row dropped on Add: send it to the end.
+                  moveTo(dragIndex, media.length - 1);
+                  endReorder();
+                } else if (hasOutsideImage(e)) {
+                  dropImages(e.dataTransfer);
+                }
+              }}
+            >
+              <span>{uploading ? "…" : addOver ? "⤓" : "＋"}</span>
+              {uploading ? "Uploading" : addOver ? (dragIndex !== null ? "Move to end" : "Drop to add") : "Add"}
+              <input
+                type="file"
+                accept={ACCEPTED_IMAGE_TYPES.join(",")}
+                multiple
+                hidden
+                disabled={uploading}
+                onChange={(e) => {
+                  handleFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          ) : null}
         </div>
-      ) : (
-        <p className="faint" style={{ fontSize: 12.5, margin: 0 }}>
-          No photos yet — the storefront shows a blank tile until at least one is added.
-        </p>
-      )}
+      ) : editable ? (
+        <label className="photo-drop">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 16l4-4 3 3 4-5 5 6" />
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <circle cx="9" cy="9" r="1.3" />
+          </svg>
+          <strong>{uploading ? "Uploading…" : "Drag photos here, or click to choose"}</strong>
+          <span>JPEG, PNG, WebP or GIF · the first photo is the primary one</span>
+          <input
+            type="file"
+            accept={ACCEPTED_IMAGE_TYPES.join(",")}
+            multiple
+            hidden
+            disabled={uploading}
+            onChange={(e) => {
+              handleFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      ) : null}
+      </div>
+      {confirmDialog}
     </Card>
   );
 }
 
 // Variants are a table, not a form: the axes are columns because the category
 // decided what they are, so the editor has no fixed shape either.
-function VariantEditor({ axes, variants, schema, editable, onChange }) {
+function VariantEditor({ axes, variants, schema, editable, onChange, errors = { variants: {} } }) {
   const set = (index, patch) =>
     onChange(variants.map((v, i) => (i === index ? { ...v, ...patch } : v)));
 
-  const setAxis = (index, code, value) =>
+  // Picking a pack size ("500 g", "1 Litre", "Pack of 6") also fills the Pack
+  // box (what the website shows on the card) and, for g / kg sizes, the
+  // weight - so the same thing is not typed in twice.
+  const packFromOption = (value, label) => {
+    const text = `${value || ""} ${label || ""}`.toLowerCase();
+    const m = String(value || "").toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(g|kg|ml|l|pc|pcs)$/) ||
+      text.match(/(\d+(?:\.\d+)?)\s*(kg|g|ml|litre|liter|l|piece|pcs|pc)\b/) ||
+      text.match(/pack of (\d+)()/);
+    if (!m) return null;
+    const qty = Number(m[1]);
+    const unit = { litre: "l", liter: "l", piece: "pcs", pc: "pcs", "": "pcs" }[m[2]] ?? m[2];
+    const weightGrams = unit === "g" ? qty : unit === "kg" ? qty * 1000 : null;
+    return { packSize: { value: qty, unit }, ...(weightGrams ? { weightGrams } : {}) };
+  };
+
+  const setAxis = (index, code, value) => {
+    const option = axes.find((a) => a.code === code)?.options?.find((o) => o.value === value);
+    const pack = code === "pack_size" && value ? packFromOption(value, option?.label) : null;
     onChange(
-      variants.map((v, i) => (i === index ? { ...v, axis: { ...(v.axis || {}), [code]: value } } : v))
+      variants.map((v, i) => (i === index ? { ...v, ...(pack || {}), axis: { ...(v.axis || {}), [code]: value } } : v))
     );
+  };
 
   // Prices are entered in rupees but stored as integer paise.
   const money = (index, key) => (e) => {
@@ -705,7 +1242,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
 
   return (
     <Card
-      title="Variants & pricing"
+      title={<h2>Variants & pricing<Req /></h2>}
       actions={
         editable && (
           <button className="btn sm" onClick={() => onChange([...variants, blankVariant(schema)])}>
@@ -715,6 +1252,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
       }
       tight
     >
+      {errors.noVariants && <div className="variant-error" style={{ padding: "10px 16px" }}>{errors.noVariants}</div>}
       <div className="table-wrap">
         <table className="data">
           <thead>
@@ -722,7 +1260,9 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
               {axes.map((axis) => (
                 <th key={axis.code}>{axis.label}</th>
               ))}
-              <th>Name</th>
+              <th title="Size label shown on the website, cart, bills and invoices (e.g. 500 g). Leave empty to use the pack size.">
+                Variant label
+              </th>
               <th className="num">MRP ₹</th>
               <th className="num">Selling ₹</th>
               <th className="num">Cost ₹</th>
@@ -740,7 +1280,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                 {axes.map((axis) => (
                   <td key={axis.code}>
                     {axis.options?.length ? (
-                      <select
+                      <Select
                         value={
                           variant.axis?.[axis.code] ??
                           variant.axisValues?.find((a) => a.code === axis.code)?.value ??
@@ -755,7 +1295,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     ) : (
                       <input
                         type="text"
@@ -771,7 +1311,7 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                     type="text"
                     value={variant.name ?? ""}
                     onChange={(e) => set(index, { name: e.target.value })}
-                    placeholder="Auto (from pack size)"
+                    placeholder="Auto, e.g. 500 g"
                     disabled={!editable}
                     style={{ width: 130 }}
                   />
@@ -783,7 +1323,10 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                     onChange={money(index, "mrp")}
                     disabled={!editable}
                     style={{ width: 92 }}
+                    className={errors.variants?.[index]?.mrp ? "invalid" : undefined}
+                    placeholder="Required"
                   />
+                  {errors.variants?.[index]?.mrp && <div className="variant-error">{errors.variants[index].mrp}</div>}
                 </td>
                 <td className="num">
                   <input
@@ -792,7 +1335,12 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
                     onChange={money(index, "sellingPrice")}
                     disabled={!editable}
                     style={{ width: 92 }}
+                    className={errors.variants?.[index]?.sellingPrice ? "invalid" : undefined}
+                    placeholder="Required"
                   />
+                  {errors.variants?.[index]?.sellingPrice && (
+                    <div className="variant-error">{errors.variants[index].sellingPrice}</div>
+                  )}
                 </td>
                 <td className="num">
                   <input
@@ -864,12 +1412,6 @@ function VariantEditor({ axes, variants, schema, editable, onChange }) {
           </tbody>
         </table>
       </div>
-      {!axes.length && (
-        <p className="faint" style={{ fontSize: 12, padding: "10px 16px", margin: 0 }}>
-          This category has no variant axis, so the product has a single sellable variant. Mark an
-          attribute as a variant axis on the category to split it by size, colour and so on.
-        </p>
-      )}
     </Card>
   );
 }

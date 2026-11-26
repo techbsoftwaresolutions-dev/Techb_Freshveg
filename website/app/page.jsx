@@ -1,13 +1,19 @@
 import Link from "next/link";
+import { categoryImage, img } from "@/lib/format";
 import { getBanners, getHome } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
+import LazySection from "@/components/LazySection";
 import BannerCarousel from "@/components/BannerCarousel";
 import CategoryIcon from "@/components/CategoryIcon";
 import HomeSidebar from "@/components/HomeSidebar";
 import HeroCarousel from "@/components/HeroCarousel";
+import HomeWishlist from "@/components/HomeWishlist";
+import PromoRow from "@/components/PromoRow";
+import PromoShopLink from "@/components/PromoShopLink";
 import FlashDeal from "@/components/FlashDeal";
 import TrustStrip from "@/components/TrustStrip";
+import AppDownload from "@/components/AppDownload";
 
 // Flip to true to bring the left department sidebar back on the homepage —
 // see the comment beside its render call for what else that involves.
@@ -16,10 +22,17 @@ const SHOW_HOME_SIDEBAR = false;
 export const metadata = {
   // The layout's title template deliberately does not apply to the root
   // segment, so the brand is spelled out here rather than appended.
-  title: "FreshMart — fresh fruit, vegetables & groceries delivered",
+  title: "Hosur Basket — fresh fruit, vegetables & groceries delivered",
   description:
-    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your neighbourhood FreshMart store.",
+    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your Hosur Basket store.",
   alternates: { canonical: "/" },
+};
+
+// Hand-made art for the launch coupons; any other offer shows the image the
+// admin uploaded for it.
+const PROMO_ART = {
+  WEEKEND100: "/promo-weekend-grocery.jpg",
+  FIRST30: "/promo-fresh-vegetables-replacement.jpg",
 };
 
 // Sold-out products sink to the end of a row rather than leading it — a shelf
@@ -47,7 +60,7 @@ export default async function HomePage() {
     );
   }
 
-  const { offers = [], featured = [], rails = [], store, categories = [], flashDeal = null } = home;
+  const { offers = [], featured = [], rails = [], offerRails = [], store, categories = [], flashDeal = null } = home;
   const banners = bannerData?.banners || [];
   // The admin's own empty-state hint is the spec here: "falls back to its
   // built-in hero until you add one" — so a hero banner is optional, and
@@ -71,59 +84,19 @@ export default async function HomePage() {
         ) : null}
 
         <div className="home-main">
-          <section className="hero">
-            <div className="hero-media" aria-hidden={heroBanners.length ? undefined : "true"}>
-              {heroBanners.length ? <HeroCarousel banners={heroBanners} /> : <HeroArt />}
-            </div>
-
-            <div className="hero-main">
-              <span className="hero-eyebrow">Fresh • Healthy • Everyday</span>
-              <h1>
-                Fresh from the market, <span className="hero-accent">at your door</span>
-              </h1>
-              <p>
-                Fruit and vegetables picked today, groceries for the week, and everything else the
-                house needs — from {store?.name || "your neighbourhood store"}.
-              </p>
-              <div className="hero-cta">
-                <Link href="/c" className="btn primary lg">
-                  Shop Now
-                  <IconArrow />
-                </Link>
-                <Link href="/c" className="btn lg hero-secondary">
-                  <IconGrid />
-                  <span className="hide-narrow">Browse&nbsp;</span>Categories
-                </Link>
-              </div>
-
-              <ul className="hero-features">
-                <li>
-                  <IconLeafBadge />
-                  <span>100% Fresh<br />Products</span>
-                </li>
-                <li>
-                  <IconTruck />
-                  <span>Fast &amp; Reliable<br />Delivery</span>
-                </li>
-                <li>
-                  <IconShield />
-                  <span>Secure<br />Payments</span>
-                </li>
-              </ul>
-            </div>
-          </section>
+          <HeroCarousel banners={heroBanners} categories={categories} storeName={store?.name} fallbackArt={<HeroArt />} />
 
           {/* Departments as tiles — the one grid a returning shopper scans
               before typing a search. */}
           {departments.length ? (
-            <section className="section">
+            <section className="section home-categories">
               <SectionHead title="Shop by Category" href="/c" linkLabel="View All" />
               <nav className="top-cats" aria-label="Departments">
                 {departments.map((department) => (
                   <Link key={department.id} href={`/c/${department.slug}`} className="top-cat">
                     <span className="top-cat-icon">
-                      {department.image ? (
-                        <img src={department.image} alt="" className="top-cat-photo" />
+                      {categoryImage(department) ? (
+                        <img src={img(categoryImage(department), 160)} alt="" className="top-cat-photo" />
                       ) : (
                         <CategoryIcon name={department.name} />
                       )}
@@ -131,21 +104,21 @@ export default async function HomePage() {
                     <span className="top-cat-name">{department.name}</span>
                   </Link>
                 ))}
-                <Link href="/c" className="top-cat top-cat-more">
-                  <span className="top-cat-icon">
-                    <IconGrid />
-                  </span>
-                  <span className="top-cat-name">More</span>
-                </Link>
               </nav>
             </section>
           ) : null}
 
           {offers.length ? (
-            <div className="promo-row" id="offers">
-              {offers.slice(0, 3).map((offer, index) => (
+            <PromoRow count={Math.min(offers.length, 6)}>
+              {offers.slice(0, 6).map((offer, index) => (
                 <article key={offer.id} className={`promo tone-${index % 3}`}>
-                  {offer.image ? <img src={offer.image} alt="" className="promo-image" /> : null}
+                  {offer.image ? (
+                    <img
+                      src={PROMO_ART[offer.code] || img(offer.image, 600)}
+                      alt=""
+                      className="promo-image"
+                    />
+                  ) : null}
                   <div className="promo-copy">
                     <h3>{offer.title}</h3>
                     {offer.badge ? <span className="promo-badge">{offer.badge}</span> : null}
@@ -157,22 +130,25 @@ export default async function HomePage() {
                         </>
                       ) : null}
                     </p>
-                    <Link
+                    <PromoShopLink
                       href={offer.categorySlug ? `/c/${offer.categorySlug}` : "/c?sort=discount"}
+                      code={offer.code}
                       className="pill-btn"
                     >
                       Shop Now
                       <IconArrow />
-                    </Link>
+                    </PromoShopLink>
                   </div>
                 </article>
               ))}
-            </div>
+            </PromoRow>
           ) : null}
+
+          <HomeWishlist />
 
           {bestSellers.length ? (
             <section className="section">
-              <SectionHead title="Best Sellers" href="/c" linkLabel="View All" accent />
+              <SectionHead title="Best Sellers" href="/c" linkLabel="View All" />
               <Carousel label="Best Sellers">
                 {bestSellers.map((product) => (
                   <ProductCard key={product.id} product={product} />
@@ -181,10 +157,23 @@ export default async function HomePage() {
             </section>
           ) : null}
 
+          {/* Products the admin tagged Discount / Special offer / Combo offer,
+              each kind in its own row. A kind with no products has no row. */}
+          {offerRails.map((rail) => (
+            <section key={rail.kind} className="section offer-section" id={`offers-${rail.kind}`}>
+              <SectionHead title={rail.title} href={`/c?offer=${rail.kind}`} linkLabel="View All" />
+              <Carousel label={rail.title}>
+                {inStockFirst(rail.products).map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </Carousel>
+            </section>
+          ))}
+
           {/* Merchandising strip. Its contents are banners created in the
               admin, so the shop changes what is promoted here without a
               deploy. */}
-          <BannerCarousel banners={banners} />
+          <BannerCarousel banners={banners} categories={categories} />
 
           {flashDeal ? <FlashDeal deal={flashDeal} /> : null}
 
@@ -201,7 +190,8 @@ export default async function HomePage() {
 
           {rails
             .filter((rail) => rail.products.length >= MIN_ROW_ITEMS)
-            .map((rail) => (
+            .map((rail, railIndex) => {
+              const row = (
               <section key={rail.category.id} className="section">
                 <SectionHead
                   title={rail.category.name}
@@ -214,38 +204,14 @@ export default async function HomePage() {
                   ))}
                 </Carousel>
               </section>
-            ))}
-
-          {departments.length ? (
-            <section className="section">
-              <SectionHead title="Explore Categories" href="/c" linkLabel="View All Categories" />
-              <div className="shop-row">
-                {departments.slice(0, 5).map((department) => (
-                  <Link key={department.id} href={`/c/${department.slug}`} className="shop-card">
-                    <span className="shop-card-media">
-                      {department.image ? (
-                        <img src={department.image} alt="" />
-                      ) : (
-                        <CategoryIcon name={department.name} />
-                      )}
-                    </span>
-                    <span className="shop-card-body">
-                      <strong>{department.name}</strong>
-                      {department.description ? (
-                        <span className="shop-card-note">{department.description}</span>
-                      ) : null}
-                      <span className="shop-cue">
-                        Shop Now
-                        <IconArrow />
-                      </span>
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
+              );
+              // The first two department rows are near the top; the rest build only as you scroll to them.
+              return railIndex < 2 ? row : <LazySection key={rail.category.id}>{row}</LazySection>;
+            })}
 
           <TrustStrip prepTimeMinutes={store?.prepTimeMinutes} />
+
+          <AppDownload />
         </div>
       </div>
     </div>

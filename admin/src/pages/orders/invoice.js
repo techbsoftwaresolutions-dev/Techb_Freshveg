@@ -1,0 +1,1152 @@
+// Order invoice — one data shape, rendered from the same layout in:
+//   * PDF (jsPDF, drawn on an A4 grid),
+//   * HTML (used for Print, the Word download and the Settings preview),
+//   * Excel (plain rows for accounting).
+// The look comes from one of ten templates picked in Settings -> Print, so a
+// printed invoice, its PDF and its Word copy always match.
+import { jsPDF } from "jspdf";
+import * as XLSX from "xlsx";
+import { api } from "../../api/client";
+import { mimeOf, saveFile, stampedName } from "../../lib/saveFile";
+import { fitSheetCss, printReceipt } from "../../lib/printFit";
+
+const BRAND = "HosurBasket";
+const INK = [30, 30, 30];
+const GREY = [110, 110, 110];
+const RED = [185, 28, 28];
+const LOGO_PATH = `${import.meta.env.BASE_URL}logo-horizontal.png`;
+const LOGO_RATIO = 278 / 900; // height / width of logo-horizontal.png
+const CLOSED = ["CANCELLED", "REJECTED", "REFUNDED"];
+
+// ---- Templates -------------------------------------------------------------
+// Each template is its own kind of document:
+//   title:   the heading printed on it ("INVOICE", "TAX INVOICE", "BILL")
+//   logo:    true = brand logo; false = the store name set in type instead
+//   receipt: true = narrow 80mm till bill instead of an A4 page
+// and a set of A4 layout switches read by both renderers:
+//   header:  split (brand left, title right) | band (coloured top band) | center
+//   boxes:   filled | outline | none          (Sold by / Bill to)
+//   head:    solid | tint | line              (items table header)
+//   total:   band | line                      (grand total row)
+// Counter bills (receipt: true) have their own switches, read by drawReceipt
+// and receiptHtml:
+//   font:    courier | helvetica
+//   rule:    dash | solid | double           (separator lines)
+//   items:   stacked (name, then qty x rate) | columns (Item / Qty / Rate / Amt)
+//   totalStyle: plain | inverse (white on black) | boxed
+//   small:   true = tighter type, shorter paper
+//   taxTable: true = GST summary (taxable / CGST / SGST per rate)
+// Counter bills come first: they are what the shop prints most.
+export const INVOICE_TEMPLATES = {
+  // The POS thermal receipt layout (pages/pos/posBill.js) for online orders.
+  //   thermal: true = that layout; width: paper width in mm (80 or 58).
+  thermal: {
+    label: "Thermal Receipt (80mm)",
+    description: "The narrow till receipt for 80mm thermal printers.",
+    title: "TAX INVOICE", logo: false, receipt: true, thermal: true, width: 80,
+    accent: [17, 17, 17], font: "courier", rule: "dash", items: "columns", totalStyle: "plain", scale: 1, logoW: 0,
+  },
+  thermal_58: {
+    label: "Thermal Receipt (58mm)",
+    description: "A compact till receipt for small 58mm printers.",
+    title: "BILL", logo: false, receipt: true, thermal: true, width: 58,
+    accent: [80, 80, 80], font: "courier", rule: "dash", items: "columns", totalStyle: "plain", scale: 1, logoW: 0,
+  },
+  receipt: {
+    label: "Counter Bill",
+    description: "Narrow till-style bill for 80mm thermal printers.",
+    title: "BILL", logo: false, receipt: true,
+    accent: [17, 17, 17], font: "courier", rule: "dash", items: "stacked", totalStyle: "plain", scale: 1, logoW: 0,
+  },
+  receipt_bold: {
+    label: "Bold Total Bill",
+    description: "80mm bill with the grand total printed white on black so it stands out.",
+    title: "BILL", logo: false, receipt: true,
+    accent: [17, 17, 17], font: "courier", rule: "solid", items: "stacked", totalStyle: "inverse", scale: 1, logoW: 0,
+  },
+  receipt_compact: {
+    label: "Compact Bill",
+    description: "80mm bill with one line per item in columns and smaller type — saves paper.",
+    title: "BILL", logo: false, receipt: true, small: true,
+    accent: [17, 17, 17], font: "courier", rule: "dash", items: "columns", totalStyle: "plain", scale: 1, logoW: 0,
+  },
+  receipt_logo: {
+    label: "Logo Counter Bill",
+    description: "80mm bill with the shop logo on top and clean sans-serif type.",
+    title: "BILL", logo: true, receipt: true,
+    accent: [17, 17, 17], font: "helvetica", rule: "dash", items: "columns", totalStyle: "boxed", scale: 1, logoW: 50,
+  },
+  receipt_gst: {
+    label: "GST Counter Bill",
+    description: "80mm tax invoice with item columns and a GST summary (taxable, CGST, SGST).",
+    title: "TAX INVOICE", logo: false, receipt: true,
+    accent: [17, 17, 17], font: "courier", rule: "double", items: "columns", totalStyle: "boxed", taxTable: true, scale: 1, logoW: 0,
+  },
+  receipt_modern: {
+    label: "Modern Counter Bill",
+    description: "80mm bill in sans-serif type with solid rules and a bold black total bar.",
+    title: "BILL", logo: false, receipt: true,
+    accent: [17, 17, 17], font: "helvetica", rule: "solid", items: "stacked", totalStyle: "inverse", scale: 1, logoW: 0,
+  },
+  classic: {
+    label: "Classic Invoice",
+    description: "A4 invoice with the logo, green title, shaded address boxes and a solid green table.",
+    title: "INVOICE", logo: true,
+    accent: [22, 101, 52], font: "helvetica", header: "split", boxes: "filled", head: "solid", total: "band", stripes: true, scale: 1, logoW: 74,
+  },
+  modern: {
+    label: "Modern Tax Invoice",
+    description: "A4 tax invoice with a full-width coloured band carrying the logo, and striped rows.",
+    title: "TAX INVOICE", logo: true,
+    accent: [15, 118, 110], font: "helvetica", header: "band", boxes: "filled", head: "solid", total: "band", stripes: true, scale: 1, logoW: 58,
+  },
+  elegant: {
+    label: "Elegant Invoice",
+    description: "A4 letterhead style: logo centred, serif type and double rules.",
+    title: "INVOICE", logo: true,
+    accent: [20, 83, 45], font: "times", header: "center", boxes: "outline", head: "tint", total: "line", stripes: false, scale: 1, logoW: 72,
+  },
+  minimal: {
+    label: "Plain Bill",
+    description: "A4 bill with no logo — store name as text, black and white, saves printer ink.",
+    title: "BILL", logo: false,
+    accent: [24, 24, 27], font: "helvetica", header: "split", boxes: "none", head: "line", total: "line", stripes: false, scale: 1, logoW: 0,
+  },
+};
+export const DEFAULT_TEMPLATE = "receipt";
+// "compact" was an earlier template name; it now prints as Classic.
+const templateKey = (key) => (key === "compact" ? "classic" : INVOICE_TEMPLATES[key] ? key : DEFAULT_TEMPLATE);
+const themeOf = (key) => INVOICE_TEMPLATES[templateKey(key)];
+const isBill = (t) => t.title === "BILL" || Boolean(t.receipt);
+const docWord = (t) => (isBill(t) ? "bill" : "invoice");
+
+const tint = (rgb, amt) => rgb.map((v) => Math.round(v + (255 - v) * amt));
+const hex = (rgb) => `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+
+// Prices are integer paise. jsPDF's built-in fonts have no ₹ glyph, so every
+// format uses "Rs." to stay identical.
+const amount = (paise) =>
+  ((Number(paise) || 0) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const rs = (paise) => `Rs. ${amount(paise)}`;
+
+const dateText = (value) =>
+  value
+    ? new Date(value).toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Kolkata",
+      })
+    : "";
+
+// ---- Amount in words (Indian numbering) ------------------------------------
+
+const ONES = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve",
+  "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+const TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+const two = (n) => (n < 20 ? ONES[n] : `${TENS[Math.floor(n / 10)]}${n % 10 ? ` ${ONES[n % 10]}` : ""}`);
+const three = (n) => {
+  const h = Math.floor(n / 100);
+  const r = n % 100;
+  return [h ? `${ONES[h]} Hundred` : "", r ? two(r) : ""].filter(Boolean).join(" ");
+};
+function indian(n) {
+  if (!n) return "";
+  const crore = Math.floor(n / 1e7);
+  const lakh = Math.floor(n / 1e5) % 100;
+  const thousand = Math.floor(n / 1000) % 100;
+  return [
+    crore ? `${indian(crore)} Crore` : "",
+    lakh ? `${two(lakh)} Lakh` : "",
+    thousand ? `${two(thousand)} Thousand` : "",
+    three(n % 1000),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+export function amountInWords(paise) {
+  const total = Math.round(Math.abs(Number(paise) || 0));
+  const r = Math.floor(total / 100);
+  const p = total % 100;
+  return `Rupees ${indian(r) || "Zero"}${p ? ` and ${two(p)} Paise` : ""} Only`;
+}
+
+// ---- Data ------------------------------------------------------------------
+
+// The store letterhead (POS header endpoint, when this user may read it) and
+// the invoice template chosen in Settings -> Print. Both fall back gracefully
+// so an invoice can always be produced.
+export async function loadInvoiceSetup(store) {
+  const [pos, pub] = await Promise.all([
+    api.get("/pos/invoice-header", store ? { store } : undefined).catch(() => null),
+    api.get("/settings/public").catch(() => null),
+  ]);
+  const company = pub?.settings?.company || {};
+  // Settings -> General -> Company is what prints; the POS header (company
+  // first, store details where the company ones are blank) when it can be read.
+  const header = pos?.header?.name
+    ? pos.header
+    : {
+        name: company.name || BRAND,
+        legalName: company.legalName && company.legalName !== company.name ? company.legalName : "",
+        phone: company.supportPhone || "",
+        email: company.supportEmail || "",
+        address: company.address || "",
+        gstin: company.gstin || "",
+        fssai: company.fssai || "",
+      };
+  return {
+    header,
+    template: pub?.settings?.print?.invoiceTemplate || DEFAULT_TEMPLATE,
+    fontSize: pub?.settings?.print?.invoiceFontSize || RECEIPT_FONT.medium,
+  };
+}
+
+// Receipt font size (Settings -> Print): the base px size of an 80mm / 58mm
+// bill's body text. Every size on the bill scales with it (the layouts are
+// drawn at a 15px base).
+// The pack / unit of an item in its own column: "500 g", "5 kg", "1 pcs",
+// "1 pack". Any spelling of piece(s) / pc / nos prints as "pcs".
+export const unitText = (pack) =>
+  String(pack || "")
+    .trim()
+    .replace(/(\d)\s*([a-z])/gi, "$1 $2")
+    .replace(/\b(pieces?|pcs?|nos?|numbers?)\b\.?/gi, "pcs")
+    .replace(/\s+/g, " ");
+
+export const RECEIPT_FONT = { small: 8, medium: 10, large: 12, min: 5, max: 20 };
+const RECEIPT_BASE = 15;
+export const receiptScale = (px) => {
+  const n = Number(px) || RECEIPT_FONT.medium;
+  return Math.min(RECEIPT_FONT.max, Math.max(RECEIPT_FONT.min, n)) / RECEIPT_BASE;
+};
+
+export function buildInvoice(order, header, { packLabel = (i) => i.variantName || "", statusLabel, template, fontSize } = {}) {
+  const p = order.pricing || {};
+  const a = order.delivery?.address || {};
+  const lines = order.items.map((item, index) => ({
+    no: index + 1,
+    name: item.name,
+    sku: item.sku || "",
+    pack: packLabel(item),
+    qty: item.quantity,
+    rate: item.unitPrice,
+    gst: item.taxRatePct || 0,
+    amount: item.payable ?? item.lineTotal,
+  }));
+
+  const summary = [["Subtotal", p.subtotal]];
+  if (p.catalogueSavings > 0) summary.push(["Catalogue savings", -p.catalogueSavings]);
+  if (p.offerDiscount > 0) summary.push(["Offer discount", -p.offerDiscount]);
+  // A counter (POS) sale has no delivery.
+  if (order.source !== "pos") summary.push(["Delivery charge", p.deliveryFree ? 0 : p.deliveryCharge, p.deliveryFree ? "Free" : null]);
+  if (p.packagingCharge > 0) summary.push(["Packaging", p.packagingCharge]);
+  // No CGST / SGST lines in the totals (prices already include GST): the
+  // bill reads Subtotal -> TOTAL.
+  if (p.walletApplied > 0) summary.push(["Wallet", -p.walletApplied]);
+  if (p.loyaltyApplied > 0) summary.push([`Loyalty (${p.loyaltyPointsUsed} pts)`, -p.loyaltyApplied]);
+  if (p.roundOff) summary.push(["Round off", p.roundOff]);
+
+  return {
+    template: templateKey(template),
+    fontSize: fontSize || RECEIPT_FONT.medium,
+    number: order.invoiceNo || order.code,
+    orderCode: order.code,
+    date: dateText(order.placedAt),
+    status: statusLabel || order.status,
+    closed: CLOSED.includes(order.status),
+    seller: {
+      name: header?.name || BRAND,
+      address: header?.address || "",
+      phone: header?.phone || "",
+      gstin: header?.gstin || "",
+      legalName: header?.legalName || "",
+      email: header?.email || "",
+      fssai: header?.fssai || "",
+    },
+    customer: {
+      name: order.customerSnapshot?.name || "",
+      phone: order.customerSnapshot?.phone || "",
+      address: [a.line1, a.line2, a.landmark ? `Near ${a.landmark}` : "", [a.city, a.pincode].filter(Boolean).join(" - ")]
+        .filter(Boolean)
+        .join(", "),
+    },
+    payment: {
+      method: (order.payment?.method || "cod").toUpperCase(),
+      status: order.payment?.status || "pending",
+      txn: order.payment?.transactionId || "",
+    },
+    lines,
+    // `included` marks tax rows: already inside the line prices, shown for
+    // the GST record rather than added on top.
+    summary: summary.map(([label, value, text, included, tax]) => ({
+      label,
+      value,
+      included: Boolean(included),
+      tax: Boolean(tax),
+      text: text || (value < 0 ? `- ${rs(-value)}` : rs(value)),
+    })),
+    total: p.total,
+    words: amountInWords(p.total),
+    logoUrl: new URL(LOGO_PATH, window.location.href).href,
+  };
+}
+
+// A believable order for the Settings preview.
+export function sampleInvoice(template, fontSize) {
+  return buildInvoice(
+    {
+      code: "ORD-000123",
+      status: "DELIVERED",
+      placedAt: new Date().toISOString(),
+      customerSnapshot: { name: "Priya Raman", phone: "9876543210" },
+      delivery: { address: { line1: "12, Gandhi Road", line2: "Rayakottai Hudco", city: "Hosur", pincode: "635109" } },
+      payment: { method: "upi", status: "paid", transactionId: "UPI2611120931" },
+      items: [
+        { name: "Fresh Green Peas", sku: "FRESHGREENPEAS-1", variantName: "500 g", quantity: 2, unitPrice: 3500, payable: 7000 },
+        { name: "Whole Wheat Atta", sku: "ATTA-5KG", variantName: "5 kg", quantity: 1, unitPrice: 27500, payable: 27500, taxRatePct: 5 },
+        { name: "Amul Butter", sku: "AMUL-100", variantName: "100 g", quantity: 3, unitPrice: 5600, payable: 16800, taxRatePct: 12 },
+      ],
+      pricing: {
+        subtotal: 51300, catalogueSavings: 1000, deliveryCharge: 0, deliveryFree: true, roundOff: 0, total: 50300,
+        taxBreakup: [{ rate: 5, taxableValue: 26190, tax: 1310 }, { rate: 12, taxableValue: 15000, tax: 1800 }],
+      },
+    },
+    { name: BRAND, address: "Bagalur Road, Hosur, Tamil Nadu 635109", phone: "9876543210", gstin: "33ABCDE1234F1Z5" },
+    { statusLabel: "Delivered", template, fontSize }
+  );
+}
+
+// "Invoice ORD-000123 16-11-26 3.00 pm": the order id, then the date and time
+// of the download (see stampedName).
+const fileBase = (inv) =>
+  stampedName(`${isBill(themeOf(inv.template)) ? "Bill" : "Invoice"} ${inv.orderCode || inv.number || ""}`);
+
+
+async function logoDataUrl(url) {
+  try {
+    const blob = await (await fetch(url)).blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+const detailRows = (inv) => [
+  [isBill(themeOf(inv.template)) ? "Bill No" : "Invoice No", inv.number],
+  [isBill(themeOf(inv.template)) ? "Bill Date" : "Invoice Date", inv.date],
+  ["Order No", inv.orderCode],
+  ["Status", inv.status],
+];
+
+// ---- PDF -------------------------------------------------------------------
+
+export async function invoicePdf(inv) {
+  const t = themeOf(inv.template);
+  if (t.receipt) return receiptPdf(inv);
+  const A = t.accent;
+  const TINT = tint(A, 0.92);
+  const s = t.scale;
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const M = 15;
+  const R = 195;
+  const W = R - M; // 180mm content width
+  const logo = await logoDataUrl(inv.logoUrl);
+  const font = (style, size, color = INK) => doc.setFont(t.font, style).setFontSize(size * s).setTextColor(...color);
+  const logoH = t.logoW * LOGO_RATIO;
+  const putLogo = (x, y, w) => {
+    if (logo) doc.addImage(logo, "PNG", x, y, w, w * LOGO_RATIO);
+    else font("bold", 18, A).text(inv.seller.name, x, y + 8);
+  };
+  const sellerInfo = [inv.seller.legalName, inv.seller.address, inv.seller.phone ? `Phone: ${inv.seller.phone}` : "", inv.seller.email ? `Email: ${inv.seller.email}` : "", inv.seller.gstin ? `GSTIN: ${inv.seller.gstin}` : "", inv.seller.fssai ? `FSSAI: ${inv.seller.fssai}` : ""].filter(Boolean);
+  // No-logo templates: the store name set in type, with its details under it.
+  const brandBlock = (x, y) => {
+    font("bold", 20, A).text(inv.seller.name, x, y + 7);
+    font("normal", 9, GREY);
+    const rows = sellerInfo.flatMap((l) => doc.splitTextToSize(l, 105));
+    doc.text(rows, x, y + 13, { lineHeightFactor: 1.35 });
+    return 13 + rows.length * 4.4;
+  };
+
+  // Invoice no / date / order / status in four equal columns.
+  const detailStrip = (y, filled) => {
+    const cw = W / 4;
+    if (filled) doc.setFillColor(...TINT).roundedRect(M, y, W, 15, 2, 2, "F");
+    else doc.setDrawColor(...tint(A, 0.6)).setLineWidth(0.3).line(M, y, R, y).line(M, y + 15, R, y + 15);
+    detailRows(inv).forEach(([label, value], i) => {
+      const x = M + 4 + i * cw;
+      font("bold", 7.5, GREY).text(label.toUpperCase(), x, y + 5.5);
+      font("bold", 9.5, label === "Status" && inv.closed ? RED : INK).text(String(value), x, y + 11);
+    });
+    return y + 15;
+  };
+
+  let y;
+  if (t.header === "band") {
+    doc.setFillColor(...A).rect(0, 0, 210, 38, "F");
+    doc.setFillColor(255, 255, 255).roundedRect(M - 3, 19 - logoH / 2 - 3, t.logoW + 6, logoH + 6, 3, 3, "F");
+    putLogo(M, 19 - logoH / 2, t.logoW);
+    font("bold", 26, [255, 255, 255]).text(t.title, R, 20, { align: "right" });
+    font("normal", 10, tint(A, 0.8)).text(`# ${inv.number}`, R, 27, { align: "right" });
+    y = detailStrip(45, true) + 8;
+  } else if (t.header === "center") {
+    putLogo(105 - t.logoW / 2, 9, t.logoW);
+    y = 9 + logoH + 8;
+    font("bold", 18, A).text(t.title, 105, y, { align: "center", charSpace: 2 });
+    y += 4;
+    doc.setDrawColor(...A).setLineWidth(0.5).line(M, y, R, y).setLineWidth(0.2).line(M, y + 1.2, R, y + 1.2);
+    y = detailStrip(y + 5, false) + 8;
+  } else {
+    const brandH = t.logo ? (putLogo(M - 2, 10, t.logoW), logoH) : brandBlock(M, 10);
+    font("bold", 26, A).text(t.title, R, 20, { align: "right" });
+    let dy = 28 * (s < 1 ? 0.95 : 1);
+    for (const [label, value] of detailRows(inv)) {
+      font("normal", 9, GREY).text(label, 138, dy);
+      font("bold", 9, label === "Status" && inv.closed ? RED : INK).text(String(value), R, dy, { align: "right" });
+      dy += 5 * s;
+    }
+    y = Math.max(dy, 10 + brandH) + 3;
+    doc.setDrawColor(...A).setLineWidth(t.head === "line" ? 0.4 : 0.8).line(M, y, R, y);
+    y += 7 * s;
+  }
+
+  // Sold by / Bill to, equal width and height.
+  const boxW = (W - 6) / 2;
+  font("normal", 9);
+  const sellerLines = [
+    ...(inv.seller.address ? doc.splitTextToSize(inv.seller.address, boxW - 8) : []),
+    inv.seller.phone ? `Phone: ${inv.seller.phone}` : "",
+    inv.seller.email ? `Email: ${inv.seller.email}` : "",
+    inv.seller.gstin ? `GSTIN: ${inv.seller.gstin}` : "",
+    inv.seller.fssai ? `FSSAI: ${inv.seller.fssai}` : "",
+  ].filter(Boolean);
+  const buyerLines = [
+    inv.customer.phone ? `Phone: ${inv.customer.phone}` : "",
+    ...(inv.customer.address ? doc.splitTextToSize(inv.customer.address, boxW - 8) : []),
+  ].filter(Boolean);
+  const pad = t.boxes === "none" ? 0 : 4;
+  const boxH = (13 + Math.max(t.logo ? sellerLines.length : 0, buyerLines.length, 1) * 4.4) * s + pad;
+  const box = (x, title, name, rows) => {
+    if (t.boxes === "filled") doc.setFillColor(...TINT).setDrawColor(...tint(A, 0.8)).setLineWidth(0.2).roundedRect(x, y, boxW, boxH, 2, 2, "FD");
+    if (t.boxes === "outline") doc.setDrawColor(...tint(A, 0.6)).setLineWidth(0.3).roundedRect(x, y, boxW, boxH, 2, 2, "S");
+    font("bold", 8, A).text(title, x + pad, y + 2 + 4 * s);
+    font("bold", 10.5).text(name || "-", x + pad, y + 2 + 9.5 * s);
+    font("normal", 9, [80, 80, 80]).text(rows, x + pad, y + 2 + 14.5 * s, { lineHeightFactor: 1.35 });
+  };
+  // Without a logo the store details are already in the header.
+  if (t.logo) box(M, "SOLD BY", inv.seller.name, sellerLines);
+  box(t.logo ? M + boxW + 6 : M, "BILL TO", inv.customer.name, buyerLines);
+  y += boxH + 8 * s;
+
+  // Items table on a fixed column grid (widths add up to 180mm).
+  const cols = [
+    { title: "#", w: 10, align: "center" },
+    { title: "Item description", w: 62, align: "left" },
+    { title: "Unit", w: 18, align: "center" },
+    { title: "Qty", w: 16, align: "center" },
+    { title: "Rate (Rs.)", w: 26, align: "right" },
+    { title: "GST", w: 16, align: "center" },
+    { title: "Amount (Rs.)", w: 32, align: "right" },
+  ];
+  let cx = M;
+  for (const c of cols) {
+    c.x = cx;
+    cx += c.w;
+  }
+  const at = (c) => (c.align === "right" ? c.x + c.w - 3 : c.align === "center" ? c.x + c.w / 2 : c.x + 3);
+  const headH = 9 * s;
+
+  const tableHead = () => {
+    if (t.head === "solid") {
+      doc.setFillColor(...A).rect(M, y, W, headH, "F");
+      font("bold", 9, [255, 255, 255]);
+    } else if (t.head === "tint") {
+      doc.setFillColor(...TINT).rect(M, y, W, headH, "F");
+      doc.setDrawColor(...A).setLineWidth(0.4).line(M, y + headH, R, y + headH);
+      font("bold", 9, A);
+    } else {
+      doc.setDrawColor(...A).setLineWidth(0.6).line(M, y, R, y).line(M, y + headH, R, y + headH);
+      font("bold", 9, INK);
+    }
+    cols.forEach((c) => doc.text(c.title, at(c), y + headH * 0.66, { align: c.align }));
+    y += headH;
+  };
+  tableHead();
+
+  const lh = 4.3 * s;
+  inv.lines.forEach((line, i) => {
+    font("bold", 9.5);
+    const nameLines = doc.splitTextToSize(line.name, cols[1].w - 6);
+    const sub = line.sku || "";
+    const h = 6 * s + nameLines.length * lh + (sub ? 4 * s : 0);
+    if (y + h > 262) {
+      doc.addPage();
+      y = 18;
+      tableHead();
+    }
+    if (t.stripes && i % 2) doc.setFillColor(...tint(A, 0.96)).rect(M, y, W, h, "F");
+    const base = y + 5.5 * s;
+    font("bold", 9.5).text(nameLines, at(cols[1]), base);
+    if (sub) font("normal", 8, [120, 120, 120]).text(sub, at(cols[1]), base + nameLines.length * lh);
+    font("normal", 9.5);
+    doc.text(String(line.no), at(cols[0]), base, { align: "center" });
+    doc.text(unitText(line.pack) || "-", at(cols[2]), base, { align: "center" });
+    doc.text(String(line.qty), at(cols[3]), base, { align: "center" });
+    doc.text(amount(line.rate), at(cols[4]), base, { align: "right" });
+    doc.text(line.gst ? `${line.gst}%` : "-", at(cols[5]), base, { align: "center" });
+    font("bold", 9.5).text(amount(line.amount), at(cols[6]), base, { align: "right" });
+    y += h;
+    doc.setDrawColor(228, 232, 230).setLineWidth(0.2).line(M, y, R, y);
+  });
+
+  // Totals (right) and amount in words + payment (left), side by side.
+  const rowH = 6.5 * s;
+  if (y + inv.summary.length * rowH + 24 > 272) {
+    doc.addPage();
+    y = 18;
+  }
+  y += 6 * s;
+  const sx = 110;
+  let sy = y;
+  for (const row of inv.summary) {
+    font("normal", 9.5, [90, 90, 90]).text(row.label + (row.included ? " (incl.)" : ""), sx + 3, sy + 4 * s);
+    font("normal", 9.5, row.value < 0 ? [21, 128, 61] : INK).text(row.text, R - 3, sy + 4 * s, { align: "right" });
+    sy += rowH;
+  }
+  const totH = 11 * s;
+  if (t.total === "band") {
+    doc.setFillColor(...A).roundedRect(sx, sy + 1, R - sx, totH, 1.5, 1.5, "F");
+    font("bold", 11.5, [255, 255, 255]);
+  } else {
+    doc.setDrawColor(...A).setLineWidth(0.5).line(sx, sy + 1, R, sy + 1).setLineWidth(0.2).line(sx, sy + 2.2, R, sy + 2.2);
+    doc.setLineWidth(0.5).line(sx, sy + 1 + totH, R, sy + 1 + totH);
+    font("bold", 11.5, A);
+  }
+  doc.text("Grand Total", sx + 3, sy + 1 + totH * 0.66);
+  doc.text(rs(inv.total), R - 3, sy + 1 + totH * 0.66, { align: "right" });
+
+  const lw = sx - M - 8;
+  font("bold", 8, A).text("AMOUNT IN WORDS", M, y + 4 * s);
+  font("normal", 9.5);
+  const wordLines = doc.splitTextToSize(inv.words, lw);
+  doc.text(wordLines, M, y + 9 * s);
+  const ly = y + 9 * s + wordLines.length * 4.4 * s + 4 * s;
+  font("bold", 8, A).text("PAYMENT DETAILS", M, ly);
+  const pay = [`Method: ${inv.payment.method}`, `Status: ${inv.payment.status}`, inv.payment.txn ? `Txn ID: ${inv.payment.txn}` : ""].filter(Boolean);
+  font("normal", 9.5, [60, 60, 60]).text(pay, M, ly + 5 * s, { lineHeightFactor: 1.35 });
+
+  // Footer on every page.
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(220, 226, 222).setLineWidth(0.3).line(M, 279, R, 279);
+    font("bold", 9.5, A).text("Thank you! Visit again.", 105, 285.5, { align: "center" });
+    font("normal", 7.5, [130, 130, 130]);
+    doc.text(`Page ${i} of ${pages}`, R, 289, { align: "right" });
+  }
+  return doc;
+}
+
+export const invoicePdfBlob = async (inv) => (await invoicePdf(inv)).output("blob");
+
+export async function downloadPdf(inv) {
+  await saveFile(() => invoicePdfBlob(inv), `${fileBase(inv)}.pdf`);
+}
+
+// ---- HTML (Print, Word, preview) --------------------------------------------
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+// Table-based layout on purpose: Word's HTML import ignores flex/grid.
+export function invoiceHtml(inv, { forWord = false } = {}) {
+  const t = themeOf(inv.template);
+  if (t.receipt) return receiptHtml(inv);
+  const a = hex(t.accent);
+  const tnt = hex(tint(t.accent, 0.92));
+  const soft = hex(tint(t.accent, 0.6));
+  const fs = (pt) => `${(pt * t.scale).toFixed(1)}pt`;
+  const family = t.font === "times" ? 'Georgia, "Times New Roman", serif' : '"Segoe UI", Calibri, Arial, sans-serif';
+  const logoPx = Math.round(t.logoW * 3.4);
+  const sellerInfo = [esc(inv.seller.legalName), esc(inv.seller.address), inv.seller.phone ? `Phone: ${esc(inv.seller.phone)}` : "", inv.seller.email ? `Email: ${esc(inv.seller.email)}` : "", inv.seller.gstin ? `GSTIN: ${esc(inv.seller.gstin)}` : "", inv.seller.fssai ? `FSSAI: ${esc(inv.seller.fssai)}` : ""].filter(Boolean).join("<br>");
+  const logo = !t.logo
+    ? `<div class="brand">${esc(inv.seller.name)}</div><div class="muted brand-info">${sellerInfo}</div>`
+    : `<img src="${esc(inv.logoUrl)}" alt="${esc(inv.seller.name)}" width="${logoPx}" style="width:${logoPx}px;height:auto;display:block${t.header === "center" ? ";margin:0 auto" : ""}">`;
+  const statusCls = (k) => (k === "Status" && inv.closed ? " bad" : "");
+
+  const strip = (filled) =>
+    `<table class="strip${filled ? " filled" : ""}"><tr>${detailRows(inv)
+      .map(([k, v]) => `<td><div class="k">${k.toUpperCase()}</div><div class="v${statusCls(k)}">${esc(v)}</div></td>`)
+      .join("")}</tr></table>`;
+
+  let header;
+  if (t.header === "band") {
+    header = `<table class="band"><tr><td><span class="logo-card">${logo}</span></td>
+<td class="r"><div class="title light">${t.title}</div><div class="band-no"># ${esc(inv.number)}</div></td></tr></table>${strip(true)}`;
+  } else if (t.header === "center") {
+    header = `<div class="c">${logo}<div class="title center">${t.title}</div></div><hr class="double">${strip(false)}`;
+  } else {
+    header = `<table><tr><td style="width:55%;padding:0">${logo}</td><td style="padding:0"><div class="title">${t.title}</div>
+<table class="details">${detailRows(inv)
+      .map(([k, v]) => `<tr><td class="muted">${k}</td><td class="r${statusCls(k)}"><b>${esc(v)}</b></td></tr>`)
+      .join("")}</table></td></tr></table><hr class="rule">`;
+  }
+
+  const items = inv.lines
+    .map(
+      (l, i) => `<tr class="${t.stripes && i % 2 ? "alt" : ""}">
+<td class="c">${l.no}</td>
+<td><b>${esc(l.name)}</b>${l.sku ? `<br><span class="sub">${esc(l.sku)}</span>` : ""}</td>
+<td class="c">${esc(unitText(l.pack)) || "-"}</td><td class="c">${l.qty}</td><td class="r">${amount(l.rate)}</td><td class="c">${l.gst ? `${l.gst}%` : "-"}</td><td class="r"><b>${amount(l.amount)}</b></td></tr>`
+    )
+    .join("");
+  const sums = inv.summary
+    .map(
+      (r) => `<tr><td class="muted">${esc(r.label)}${r.included ? " (incl.)" : ""}</td><td class="r${r.value < 0 ? " save" : ""}">${esc(r.text)}</td></tr>`
+    )
+    .join("");
+
+  const headCss = {
+    solid: `background:${a};color:#fff;`,
+    tint: `background:${tnt};color:${a};border-bottom:1.5px solid ${a};`,
+    line: `background:none;color:#1e1e1e;border-top:2px solid ${a};border-bottom:2px solid ${a};`,
+  }[t.head];
+  const boxCss = {
+    filled: `background:${tnt};border:1px solid ${hex(tint(t.accent, 0.8))};padding:10px 12px;`,
+    outline: `background:#fff;border:1px solid ${soft};padding:10px 12px;`,
+    none: "padding:0;",
+  }[t.boxes];
+  const totalCss =
+    t.total === "band"
+      ? `background:${a};color:#fff;`
+      : `background:none;color:${a};border-top:3px double ${a};border-bottom:1.5px solid ${a};`;
+
+  return `<!doctype html><html${forWord ? ' xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"' : ""}>
+<head><meta charset="utf-8"><title>Invoice ${esc(inv.number)}</title>
+<style>
+/* Printed whole on any paper with no browser date / URL header and footer
+   (see fitSheetCss); the page margin is padding inside the page instead.
+   Word keeps its own A4 margin. */
+${forWord ? "@page { size: A4; margin: 12mm; }" : `${fitSheetCss(210)}
+@media print { body { padding: 12mm; } }`}
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; font-family: ${family}; font-size: ${fs(10)}; color: #1e1e1e; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.sheet { max-width: 780px; margin: 0 auto; padding: 24px 0; }
+table { border-collapse: collapse; width: 100%; }
+td, th { padding: ${Math.round(6 * t.scale)}px 8px; vertical-align: top; }
+.r { text-align: right; } .c { text-align: center; }
+.muted { color: #6b6b6b; } .sub { color: #7a7a7a; font-size: ${fs(8.5)}; }
+.save { color: #15803d; } .bad { color: #b91c1c !important; }
+.brand { color: ${a}; font-size: ${fs(22)}; font-weight: 800; }
+.brand-info { font-size: ${fs(9)}; margin-top: 4px; line-height: 1.45; }
+.title { color: ${a}; font-size: ${fs(28)}; font-weight: 800; letter-spacing: 2px; margin: 0 0 6px; text-align: right; }
+.title.center { text-align: center; font-size: ${fs(20)}; letter-spacing: 5px; margin: 14px 0 6px; }
+.title.light { color: #fff; margin: 0; }
+.details { width: auto; margin-left: auto; }
+.details td { padding: 2px 0 2px 24px; font-size: ${fs(9.5)}; }
+.rule { border: 0; border-top: ${t.head === "line" ? 1 : 3}px solid ${a}; margin: 12px 0 16px; }
+.double { border: 0; border-top: 4px double ${a}; margin: 0 0 12px; }
+.band { background: ${a}; }
+.band td { padding: 18px 20px; vertical-align: middle; }
+.logo-card { display: inline-block; background: #fff; border-radius: 10px; padding: 8px 10px; }
+.band-no { color: ${hex(tint(t.accent, 0.8))}; font-size: ${fs(10)}; margin-top: 4px; }
+.dupbar { margin: 10px 0 0; padding: 5px; text-align: center; font-weight: bold; letter-spacing: 3px; color: #b42318; border: 2px dashed #b42318; border-radius: 6px; }
+.strip { margin: 14px 0 18px; ${t.header === "center" ? `border-bottom: 1px solid ${soft};` : ""} }
+.strip.filled { background: ${tnt}; }
+.strip td { width: 25%; padding: 8px 12px; }
+.strip .k { color: #6b6b6b; font-size: ${fs(7.5)}; font-weight: 700; letter-spacing: .5px; }
+.strip .v { font-weight: 700; font-size: ${fs(9.5)}; margin-top: 2px; }
+.party { width: 49%; ${boxCss} }
+.label { color: ${a}; font-size: ${fs(8)}; font-weight: 700; letter-spacing: 1px; }
+.party .name { font-size: ${fs(11.5)}; font-weight: 700; margin: 3px 0 2px; }
+.items { margin-top: ${Math.round(18 * t.scale)}px; }
+.items th { ${headCss} font-size: ${fs(9)}; font-weight: 700; padding: ${Math.round(8 * t.scale)}px 8px; }
+.items td { border-bottom: 1px solid #e4e8e6; }
+.items tr.alt td { background: ${hex(tint(t.accent, 0.96))}; }
+.sum td { padding: ${Math.round(4 * t.scale)}px 8px; }
+.grand td { ${totalCss} font-size: ${fs(12.5)}; font-weight: 700; padding: ${Math.round(9 * t.scale)}px 8px; }
+.foot { margin-top: 36px; border-top: 1px solid #dce2de; padding-top: 10px; text-align: center; }
+.foot b { color: ${a}; }
+</style></head>
+<body><div class="sheet">
+${header}${inv.duplicate ? `<div class="dupbar">${esc(inv.duplicate)}</div>` : ""}
+<table><tr>
+${t.logo ? `<td class="party"><div class="label">SOLD BY</div><div class="name">${esc(inv.seller.name)}</div>
+<div class="muted">${sellerInfo}</div></td>
+<td style="width:2%"></td>` : ""}
+<td class="party"><div class="label">BILL TO</div><div class="name">${esc(inv.customer.name || "-")}</div>
+<div class="muted">${[inv.customer.phone ? `Phone: ${esc(inv.customer.phone)}` : "", esc(inv.customer.address)].filter(Boolean).join("<br>")}</div></td>
+</tr></table>
+<table class="items">
+<thead><tr><th class="c" style="width:6%">#</th><th style="text-align:left">Item description</th><th class="c" style="width:10%">Unit</th><th class="c" style="width:8%">Qty</th><th class="r" style="width:14%">Rate (Rs.)</th><th class="c" style="width:9%">GST</th><th class="r" style="width:17%">Amount (Rs.)</th></tr></thead>
+<tbody>${items}</tbody></table>
+<table style="margin-top:16px"><tr>
+<td style="width:52%;padding:4px 16px 0 0">
+<div class="label">AMOUNT IN WORDS</div><div style="margin:3px 0 12px">${esc(inv.words)}</div>
+<div class="label">PAYMENT DETAILS</div>
+<div class="muted" style="margin-top:3px">Method: ${esc(inv.payment.method)}<br>Status: ${esc(inv.payment.status)}${inv.payment.txn ? `<br>Txn ID: ${esc(inv.payment.txn)}` : ""}</div>
+</td>
+<td style="padding:0"><table class="sum">${sums}<tr class="grand"><td>Grand Total</td><td class="r">${rs(inv.total)}</td></tr></table></td>
+</tr></table>
+<div class="foot"><b>Thank you! Visit again.</b></div>
+</div></body></html>`;
+}
+
+// Cuts the printed page to the bill's own length. Chrome ignores "@page size: 80mm auto" and falls
+// back to a default paper length, which feeds blank paper (or leaves a blank tail) after the bill.
+export function fitPageToContent(win) {
+  const doc = win.document;
+  const style = doc.createElement("style");
+  style.textContent = "@media screen { .rc { width: 72mm !important; } }"; // same width as print, so the height matches
+  doc.head.appendChild(style);
+  const mm = Math.ceil((doc.documentElement.scrollHeight * 25.4) / 96) + 2;
+  style.textContent += ` @page { size: 80mm ${mm}mm; margin: 0; }`;
+}
+
+// Prints the invoice (not the admin screen) from its own window. Chrome
+// ignores the page settings of a frame inside the admin page, which printed
+// the bill with the date, title and admin URL around it.
+export function printInvoice(inv) {
+  const html = invoiceHtml(inv);
+  // Counter bills (80mm / 58mm): at their exact length. A4: that sheet.
+  const t = themeOf(inv.template);
+  printReceipt(html, t?.receipt ? t.width || 80 : null);
+}
+
+// Word opens HTML saved with the msword type as a normal editable document.
+export const invoiceWordBlob = (inv) =>
+  new Blob(["﻿", invoiceHtml(inv, { forWord: true })], { type: "application/msword" });
+
+export function downloadWord(inv) {
+  return saveFile(() => invoiceWordBlob(inv), `${fileBase(inv)}.doc`);
+}
+
+// ---- Counter bill (80mm thermal) --------------------------------------------
+
+// GST summary for the tax counter bill: line prices include GST, so each
+// rate's taxable value is backed out of its lines and split CGST/SGST.
+function gstRows(inv) {
+  const byRate = new Map();
+  for (const l of inv.lines) {
+    if (!l.gst) continue;
+    const gross = Number(l.amount) || 0;
+    const taxable = Math.round((gross * 100) / (100 + l.gst));
+    const row = byRate.get(l.gst) || { rate: l.gst, taxable: 0, tax: 0 };
+    row.taxable += taxable;
+    row.tax += gross - taxable;
+    byRate.set(l.gst, row);
+  }
+  return [...byRate.values()]
+    .sort((a, b) => a.rate - b.rate)
+    .map((r) => ({ ...r, cgst: Math.floor(r.tax / 2), sgst: r.tax - Math.floor(r.tax / 2) }));
+}
+
+// The tax table already lists GST, so that bill leaves the "(incl.)" rows out.
+// Every row, so the lines add up to the TOTAL printed under them.
+const receiptSummary = (inv) => inv.summary;
+const receiptWord = (t) => (t.title === "TAX INVOICE" ? "tax invoice" : "bill");
+
+// Drawn twice: once on a tall scratch page to measure, then on a page cut to
+// exactly that length, so a thermal printer doesn't feed blank paper.
+function drawReceipt(doc, inv, logo) {
+  const t = themeOf(inv.template);
+  // Layout is drawn for 80mm paper and scaled across for a narrower roll.
+  const sx = (t.width || 80) / 80;
+  const k = (t.small ? 0.88 : 1) * (sx < 1 ? 0.82 : 1) * receiptScale(inv.fontSize); // type scale
+  const M = 5 * sx;
+  const R = 75 * sx;
+  const C = 40 * sx;
+  const CW = R - M;
+  let y = 8;
+  const f = (style, size, color = [17, 17, 17]) =>
+    doc.setFont(t.font, style).setFontSize(size * k).setTextColor(...color);
+  const center = (text, style, size, gap) => {
+    f(style, size);
+    const rows = doc.splitTextToSize(text, CW);
+    doc.text(rows, C, y, { align: "center" });
+    y += rows.length * gap * k;
+  };
+  const rule = () => {
+    y -= 1;
+    doc.setDrawColor(40).setLineWidth(0.2);
+    if (t.rule === "dash") {
+      doc.setLineDashPattern([0.8, 0.8], 0).line(M, y, R, y);
+      doc.setLineDashPattern([], 0);
+    } else if (t.rule === "double") {
+      doc.line(M, y - 0.5, R, y - 0.5).line(M, y + 0.5, R, y + 0.5);
+    } else {
+      doc.setLineWidth(0.35).line(M, y, R, y);
+    }
+    y += 4 * k;
+  };
+  const lr = (left, right, style = "normal", size = 8) => {
+    f(style, size);
+    doc.text(left, M, y);
+    doc.text(right, R, y, { align: "right" });
+    y += size * 0.47 * k;
+  };
+
+  // Header: logo or shop name, then the shop details.
+  if (t.logo && logo) {
+    const w = t.logoW || 50;
+    doc.addImage(logo, "PNG", C - w / 2, y - 4, w, w * LOGO_RATIO);
+    y += w * LOGO_RATIO + 1;
+  } else {
+    center(inv.seller.name.toUpperCase(), "bold", 13, 5.5);
+  }
+  if (inv.seller.address) center(inv.seller.address, "normal", 8, 3.6);
+  if (inv.seller.legalName) center(inv.seller.legalName, "normal", 8, 3.6);
+  if (inv.seller.phone) center(`Ph: ${inv.seller.phone}`, "normal", 8, 3.6);
+  if (inv.seller.email) center(inv.seller.email, "normal", 8, 3.6);
+  if (inv.seller.gstin) center(`GSTIN: ${inv.seller.gstin}`, "normal", 8, 3.6);
+  if (inv.seller.fssai) center(`FSSAI: ${inv.seller.fssai}`, "normal", 8, 3.6);
+  y += 1.5;
+  rule();
+  center(t.title, "bold", 11, 5.5);
+  lr("Bill No", inv.number);
+  lr("Date", inv.date);
+  lr("Order", inv.orderCode);
+  lr("Status", inv.status);
+  if (inv.customer.name) lr("Customer", inv.customer.name);
+  if (inv.customer.phone) lr("Phone", inv.customer.phone);
+  y += 1;
+  rule();
+
+  {
+    // Item | Unit | Qty | Rate | Amount on one line; long names wrap under Item.
+    const UX = 33 * sx; // unit left edge
+    const QX = 48 * sx; // qty centre
+    const RX = 62 * sx; // rate right edge
+    f("bold", 7.5);
+    doc.text("ITEM", M, y);
+    doc.text("UNIT", UX, y);
+    doc.text("QTY", QX, y, { align: "center" });
+    doc.text("RATE", RX, y, { align: "right" });
+    doc.text("AMT", R, y, { align: "right" });
+    y += 3;
+    rule();
+    for (const l of inv.lines) {
+      f("bold", 8);
+      const rows = doc.splitTextToSize(l.name, (UX - M) - 1.5);
+      doc.text(rows, M, y);
+      f("normal", 8);
+      doc.text(unitText(l.pack), UX, y);
+      doc.text(String(l.qty), QX, y, { align: "center" });
+      doc.text(amount(l.rate), RX, y, { align: "right" });
+      doc.text(amount(l.amount), R, y, { align: "right" });
+      y += rows.length * 3.5 * k;
+      if (t.taxTable && l.gst) {
+        f("normal", 6.8, [90, 90, 90]);
+        doc.text(`GST ${l.gst}%`, M + 2, y - 0.6);
+        y += 2.8 * k;
+      }
+      y += 0.9;
+    }
+  }
+  rule();
+  for (const r of receiptSummary(inv, t)) lr(r.label + (r.included ? " (incl.)" : ""), r.text);
+  y += 1;
+
+  // Grand total in the template's style.
+  if (t.totalStyle === "inverse") {
+    doc.setFillColor(17, 17, 17).rect(M, y - 1, CW, 9 * k, "F");
+    f("bold", 12, [255, 255, 255]);
+    doc.text("TOTAL", M + 2, y + 5 * k);
+    doc.text(rs(inv.total), R - 2, y + 5 * k, { align: "right" });
+    y += 9 * k + 5;
+  } else if (t.totalStyle === "boxed") {
+    doc.setDrawColor(17).setLineWidth(0.5).rect(M, y - 1, CW, 10 * k, "S");
+    f("bold", 12);
+    doc.text("TOTAL", M + 2, y + 5.6 * k);
+    doc.text(rs(inv.total), R - 2, y + 5.6 * k, { align: "right" });
+    y += 10 * k + 5;
+  } else {
+    rule();
+    y += 1;
+    lr("TOTAL", rs(inv.total), "bold", 12);
+    rule();
+  }
+
+  if (t.taxTable) {
+    const rows = gstRows(inv);
+    if (rows.length) {
+      f("bold", 7.5);
+      doc.text("GST%", M, y);
+      doc.text("TAXABLE", 34 * sx, y, { align: "right" });
+      doc.text("CGST", 54 * sx, y, { align: "right" });
+      doc.text("SGST", R, y, { align: "right" });
+      y += 3;
+      rule();
+      for (const r of rows) {
+        f("normal", 7.5);
+        doc.text(`${r.rate}%`, M, y);
+        doc.text(amount(r.taxable), 34 * sx, y, { align: "right" });
+        doc.text(amount(r.cgst), 54 * sx, y, { align: "right" });
+        doc.text(amount(r.sgst), R, y, { align: "right" });
+        y += 3.6 * k;
+      }
+      y += 1;
+      rule();
+    }
+  }
+
+  f("normal", 7.5);
+  const words = doc.splitTextToSize(inv.words, CW);
+  doc.text(words, M, y);
+  y += words.length * 3.4 * k + 1;
+  lr("Paid by", `${inv.payment.method} (${inv.payment.status})`);
+  y += 1;
+  rule();
+  center("Thank you! Visit again.", "bold", 9, 4);
+  center(`Computer-generated ${receiptWord(t)}`, "normal", 7, 3);
+  return y + 4;
+}
+
+async function receiptPdf(inv) {
+  const t = themeOf(inv.template);
+  const logo = t.logo ? await logoDataUrl(inv.logoUrl) : null;
+  const w = t.width || 80;
+  const scratch = new jsPDF({ unit: "mm", format: [w, 1000] });
+  const height = drawReceipt(scratch, inv, logo);
+  const doc = new jsPDF({ unit: "mm", format: [w, Math.max(height, 80)] });
+  drawReceipt(doc, inv, logo);
+  return doc;
+}
+
+// The POS thermal receipt layout (see posBill.js thermal()) for an online
+// order: shop, bill details, one line per item, totals, how it was paid.
+function thermalHtml(inv, t) {
+  const narrow = t.width === 58;
+  const scale = receiptScale(inv.fontSize);
+  const fz = (n) => `${Math.round(n * scale * 10) / 10}px`;
+  const rows = inv.lines
+    .map((l) => `<tr><td class="nm">${esc(l.name)}</td><td class="u">${esc(unitText(l.pack))}</td><td class="c">${esc(l.qty)}</td>${narrow ? "" : `<td class="r">${amount(l.rate)}</td>`}<td class="r">${amount(l.amount)}</td></tr>`)
+    .join("");
+  const seller = [
+    inv.seller.legalName ? esc(inv.seller.legalName) : "",
+    [esc(inv.seller.address), inv.seller.phone ? `Ph: ${esc(inv.seller.phone)}` : ""].filter(Boolean).join(" - "),
+    inv.seller.email ? esc(inv.seller.email) : "",
+    inv.seller.gstin ? `GSTIN: ${esc(inv.seller.gstin)}` : "",
+    inv.seller.fssai ? `FSSAI: ${esc(inv.seller.fssai)}` : "",
+  ].filter(Boolean).join("<br>");
+  // Bill details as label (left) / value (right) rows, like the counter bill.
+  const kv = (l, v) => `<tr><td class="k">${l}</td><td class="v">${v}</td></tr>`;
+  const meta = [
+    kv("Bill No", esc(inv.number || "-")),
+    kv("Date", esc(inv.date)),
+    inv.orderCode && inv.orderCode !== inv.number ? kv("Order", esc(inv.orderCode)) : "",
+    inv.customer.name ? kv("Customer", esc(inv.customer.name)) : "",
+    inv.customer.phone ? kv("Phone", esc(inv.customer.phone)) : "",
+    inv.customer.address ? kv("Address", esc(inv.customer.address)) : "",
+  ].join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(inv.number || "Bill")}</title>
+<style>
+@page { margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #fff; }
+/* A fixed column, as wide as the roll can print (72mm on
+   80mm paper, 48mm on 58mm), so nothing falls off the edge. */
+.rc { font: ${fz(narrow ? 13 : 15)}/1.25 "Courier New", monospace; font-weight: 500; width: ${narrow ? 48 : 72}mm; padding: 2mm 1.5mm; color: #000; }
+@media screen { .rc { margin: 0 auto; } } /* centred in the preview only; prints at the top-left */
+h1 { font-size: ${fz(narrow ? 17 : 20)}; line-height: 1.2; text-align: center; margin: 0 0 1px; }
+.ttl { font-size: ${fz(narrow ? 14 : 16)}; letter-spacing: 1px; }
+.c { text-align: center; } .r { text-align: right; white-space: nowrap; padding-left: 6px; }
+.meta { font-size: ${fz(narrow ? 12.5 : 14)}; line-height: 1.3; }
+.meta td.k { white-space: nowrap; padding-right: 8px; } .meta td.v { text-align: right; overflow-wrap: anywhere; }
+.dup { font-weight: bold; font-size: ${fz(narrow ? 12.5 : 14)}; letter-spacing: 1px; margin: 1px 0; }
+.seller { font-size: ${fz(narrow ? 11.5 : 13)}; line-height: 1.25; }
+tr.sm td { font-size: ${fz(narrow ? 12.5 : 14)}; }
+.thanks { font-size: ${fz(narrow ? 13 : 15)}; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; } td { padding: 0; vertical-align: top; line-height: 1.2; word-break: break-word; }
+.items { table-layout: auto; } /* number columns shrink to their numbers; the name gets the rest */
+.items col.u, .items col.q, .items col.p, .items col.a { width: 1%; } .items td.u { white-space: nowrap; padding: 1px 4px 1px 2px; } .items td.c { white-space: nowrap; padding: 1px 2px; }
+.items td { padding: 1px 0; } .items .th td { font-weight: bold; font-size: ${fz(narrow ? 11.5 : 13)}; }
+.items td.nm { white-space: normal; word-break: normal; overflow-wrap: break-word; padding-right: 3px; font-size: ${fz(narrow ? 12.5 : 14)}; font-weight: bold; }
+.items td:not(.nm) { font-size: ${fz(narrow ? 12 : 13)}; } .items td.r { padding-left: 5px; }
+hr { border: 0; border-top: 1px dashed #000; margin: 5px 0; }
+.b td { font-weight: bold; font-size: ${fz(narrow ? 15 : 18)}; padding-top: 1px; }
+</style></head><body><div class="rc">
+<h1>${esc(inv.seller.name)}</h1>
+<div class="c seller">${seller}</div>
+<hr><div class="c ttl"><b>${esc(t.title)}</b></div>
+${inv.duplicate ? `<div class="c dup">** ${esc(inv.duplicate)} **</div>` : ""}
+<table class="meta">${meta}</table>
+<hr><table class="items"><colgroup><col><col class="u"><col class="q">${narrow ? "" : '<col class="p">'}<col class="a"></colgroup>
+<tr class="th"><td>ITEM</td><td class="u">UNIT</td><td class="c">QTY</td>${narrow ? "" : '<td class="r">RATE</td>'}<td class="r">AMT</td></tr>${rows}</table><hr>
+<table>
+${receiptSummary(inv).map((r) => `<tr class="sm"><td>${esc(r.label)}</td><td class="r">${esc(r.text)}</td></tr>`).join("")}
+<tr class="b"><td>TOTAL</td><td class="r">${rs(inv.total)}</td></tr>
+</table><hr>
+<table class="meta">${kv("Paid by", esc(inv.payment.method))}</table><hr>
+<div class="c thanks">Thank you! Visit again.</div>
+</div></body></html>`;
+}
+
+function receiptHtml(inv) {
+  const t = themeOf(inv.template);
+  if (t.thermal) return thermalHtml(inv, t);
+  const px = (n) => `${Math.round(n * (t.small ? 0.9 : 1) * receiptScale(inv.fontSize) * 10) / 10}px`;
+  const family = t.font === "helvetica" ? '"Segoe UI", Arial, Helvetica, sans-serif' : '"Courier New", Courier, monospace';
+  const ruleCss = { dash: "1px dashed #333", solid: "1.5px solid #111", double: "3px double #111" }[t.rule || "dash"];
+  const row = (l, r, cls = "") => `<tr class="${cls}"><td>${l}</td><td class="r">${r}</td></tr>`;
+  const sellerInfo = [esc(inv.seller.legalName), [esc(inv.seller.address), inv.seller.phone ? `Ph: ${esc(inv.seller.phone)}` : ""].filter(Boolean).join(" - "), inv.seller.email ? esc(inv.seller.email) : "", inv.seller.gstin ? `GSTIN: ${esc(inv.seller.gstin)}` : "", inv.seller.fssai ? `FSSAI: ${esc(inv.seller.fssai)}` : ""]
+    .filter(Boolean)
+    .join("<br>");
+
+  const head = t.logo
+    ? `<img class="logo" src="${esc(inv.logoUrl)}" alt="${esc(inv.seller.name)}">`
+    : `<div class="shop">${esc(inv.seller.name)}</div>`;
+
+  const items =
+    // Every item on ONE line: the name (cut with "..." when it is too long
+    // for the roll), then qty, rate and amount in fixed columns.
+    `<table class="lines"><colgroup><col><col class="u"><col class="q"><col class="p"><col class="a"></colgroup>
+<tr class="th"><td>ITEM</td><td class="u">UNIT</td><td class="c">QTY</td><td class="r">RATE</td><td class="r">AMT</td></tr>
+${inv.lines
+  .map(
+    (l) => `<tr><td class="nm">${t.items === "columns" ? "<b>" : ""}${esc(l.name)}${t.items === "columns" ? "</b>" : ""}</td><td class="u">${esc(unitText(l.pack))}</td><td class="c">${l.qty}</td><td class="r">${amount(l.rate)}</td><td class="r">${amount(l.amount)}</td></tr>`
+  )
+  .join("")}</table>`;
+
+  const total =
+    t.totalStyle === "inverse"
+      ? `<table class="tot inverse">${row("TOTAL", rs(inv.total))}</table>`
+      : t.totalStyle === "boxed"
+        ? `<table class="tot boxed">${row("TOTAL", rs(inv.total))}</table>`
+        : `<hr><table class="tot">${row("TOTAL", rs(inv.total))}</table><hr>`;
+
+  const gst = t.taxTable ? gstRows(inv) : [];
+  const taxTable = gst.length
+    ? `<table class="cols gst"><tr class="th"><td>GST%</td><td class="r">TAXABLE</td><td class="r">CGST</td><td class="r">SGST</td></tr>
+${gst.map((r) => `<tr><td>${r.rate}%</td><td class="r">${amount(r.taxable)}</td><td class="r">${amount(r.cgst)}</td><td class="r">${amount(r.sgst)}</td></tr>`).join("")}
+</table><hr>`
+    : "";
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${t.title === "TAX INVOICE" ? "Tax Invoice" : "Bill"} ${esc(inv.number)}</title>
+<style>
+@page { margin: 0; }
+html, body { margin: 0; background: #fff; }
+body { color: #000; font: ${px(15)}/1.25 ${family}; }
+.rc { width: 72mm; margin: 0; padding: 2mm 1.5mm; box-sizing: border-box; }
+@media screen { .rc { width: 340px; padding: 18px 20px; margin: 0 auto; } }
+.c { text-align: center; } .r { text-align: right; white-space: nowrap; }
+table { width: 100%; border-collapse: collapse; } td { padding: 0; vertical-align: top; line-height: 1.2; }
+hr { border: 0; border-top: ${ruleCss}; margin: 5px 0; }
+.shop { font-size: ${px(20)}; font-weight: bold; text-transform: uppercase; line-height: 1.15; }
+.logo { display: block; width: 50%; height: auto; margin: 0 auto 2px; filter: grayscale(1) contrast(1.2); }
+.title { font-size: ${px(16)}; font-weight: bold; letter-spacing: 2px; margin: 0; }
+.cols td { padding: 0 3px 0 0; } .cols td:last-child { padding-right: 0; }
+.cols .th td, .lines .th td { font-weight: bold; font-size: ${px(13)}; }
+.lines { table-layout: auto; } /* number columns shrink to their numbers; the name gets the rest */
+.lines col.u, .lines col.q, .lines col.p, .lines col.a { width: 1%; } .lines td.u { white-space: nowrap; padding: 1px 4px 1px 2px; } .lines td.c { white-space: nowrap; padding: 1px 2px; } .lines td.r { padding-left: 5px; }
+.lines td { padding: 1px 0; } /* The full item name in smaller type; a very long one wraps rather than being cut. */
+.lines td.nm { white-space: normal; word-break: normal; overflow-wrap: break-word; padding-right: 3px; font-size: ${px(14)}; font-weight: bold; line-height: 1.2; }
+.lines td:not(.nm) { font-size: ${px(13)}; }
+.gst td { font-size: ${px(13)}; }
+.tot td { font-size: ${px(18)}; font-weight: bold; padding: 1px 0; }
+.tot.inverse { background: #111; color: #fff; margin: 3px 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.tot.inverse td, .tot.boxed td { padding: 2px 5px; }
+.tot.boxed { border: 1.5px solid #111; margin: 3px 0; }
+.small { font-size: ${px(13)}; line-height: 1.2; } .muted { color: #000; }
+.meta td { font-size: ${px(14)}; line-height: 1.3; }
+.dup { font-weight: bold; font-size: ${px(14)}; letter-spacing: 1px; margin-top: 1px; }
+/* Small print: shop details, the GST sum, paid by and the closing lines. */
+.seller { font-size: ${px(13)}; line-height: 1.25; }
+.sumt td { font-size: ${px(14)}; line-height: 1.3; }
+.words { font-size: ${px(13)}; }
+.thanks { font-size: ${px(15)}; line-height: 1.3; } .thanks .gen { font-size: ${px(12)}; }
+</style></head><body><div class="rc">
+<div class="c">${head}
+<div class="seller">${sellerInfo}</div></div>
+<hr><div class="c title">${t.title}</div>${inv.duplicate ? `<div class="c dup">** ${esc(inv.duplicate)} **</div>` : ""}
+<table class="meta">${row("Bill No", esc(inv.number))}${row("Date", esc(inv.date))}${inv.orderCode && inv.orderCode !== inv.number ? row("Order", esc(inv.orderCode)) : ""}${row("Status", esc(inv.status))}
+${inv.customer.name ? row("Customer", esc(inv.customer.name)) : ""}${inv.customer.phone ? row("Phone", esc(inv.customer.phone)) : ""}</table>
+<hr>${items}<hr>
+<table class="sumt">${receiptSummary(inv, t).map((r) => row(esc(r.label) + (r.included ? " (incl.)" : ""), esc(r.text))).join("")}</table>
+${total}
+${taxTable}
+<div class="small words">${esc(inv.words)}</div>
+<table class="meta">${row("Paid by", esc(inv.payment.method))}</table>
+<hr><div class="c thanks"><b>Thank you! Visit again.</b><br><span class="gen">Computer-generated ${receiptWord(t)}</span></div>
+</div></body></html>`;
+}
+
+// ---- Excel -----------------------------------------------------------------
+
+export function invoiceExcelBlob(inv) {
+  const [[noLabel], [dateLabel]] = detailRows(inv);
+  const rows = [
+    [inv.seller.name, "", "", "", "", "", themeOf(inv.template).title],
+    inv.seller.address ? [inv.seller.address] : null,
+    inv.seller.legalName ? [inv.seller.legalName] : null,
+    inv.seller.phone || inv.seller.email ? [[inv.seller.phone ? `Phone: ${inv.seller.phone}` : "", inv.seller.email ? `Email: ${inv.seller.email}` : ""].filter(Boolean).join("  |  ")] : null,
+    inv.seller.gstin ? [`GSTIN: ${inv.seller.gstin}`] : null,
+    inv.seller.fssai ? [`FSSAI: ${inv.seller.fssai}`] : null,
+    [],
+    [noLabel, inv.number, "", "", "", "Bill to", inv.customer.name],
+    [dateLabel, inv.date, "", "", "", "Phone", inv.customer.phone],
+    ["Order No", inv.orderCode, "", "", "", "Address", inv.customer.address],
+    ["Status", inv.status, "", "", "", "Payment", `${inv.payment.method} (${inv.payment.status})`],
+    [],
+    ["#", "Item description", "Unit", "SKU", "Qty", "Rate (Rs.)", "GST %", "Amount (Rs.)"],
+    ...inv.lines.map((l) => [l.no, l.name, unitText(l.pack), l.sku, l.qty, l.rate / 100, l.gst, l.amount / 100]),
+    [],
+    ...inv.summary.map((r) => ["", "", "", "", "", "", r.label + (r.included ? " (incl.)" : ""), (r.value || 0) / 100]),
+    ["", "", "", "", "", "", "Grand Total", (inv.total || 0) / 100],
+    [],
+    ["Amount in words", inv.words],
+  ].filter(Boolean);
+
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+  sheet["!cols"] = [{ wch: 14 }, { wch: 36 }, { wch: 10 }, { wch: 18 }, { wch: 6 }, { wch: 12 }, { wch: 22 }, { wch: 14 }];
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, sheet, isBill(themeOf(inv.template)) ? "Bill" : "Invoice");
+  return new Blob([XLSX.write(book, { bookType: "xlsx", type: "array" })], { type: mimeOf("xlsx") });
+}
+
+export function downloadExcel(inv) {
+  return saveFile(() => invoiceExcelBlob(inv), `${fileBase(inv)}.xlsx`);
+}
+
+// Order page download: the "Save as" window opens straight from the click
+// (it is refused once the click is a few seconds old), and only then is the
+// invoice loaded and built. `loadInvoice` is async (fetches the template and
+// invoice number); the name uses the order id, known up front.
+const BUILDERS = { pdf: ["pdf", invoicePdfBlob], word: ["doc", invoiceWordBlob], excel: ["xlsx", invoiceExcelBlob] };
+export function downloadInvoiceFile(loadInvoice, format, orderCode) {
+  const [ext, toBlob] = BUILDERS[format] || BUILDERS.excel;
+  return saveFile(async () => toBlob(await loadInvoice()), `${stampedName(`Invoice ${orderCode || ""}`)}.${ext}`);
+}
+
+// ---- Share -----------------------------------------------------------------
+
+export function invoiceText(inv, link) {
+  return [
+    `*${inv.seller.name} — ${isBill(themeOf(inv.template)) ? "Bill" : "Invoice"} ${inv.number}*`,
+    `Order ${inv.orderCode} · ${inv.date}`,
+    "",
+    ...inv.lines.map((l) => `${l.no}. ${l.name}${l.pack ? ` (${l.pack})` : ""} × ${l.qty} — ${rs(l.amount)}`),
+    "",
+    ...inv.summary.filter((r) => !r.included).map((r) => `${r.label}: ${r.text}`),
+    `*Grand Total: ${rs(inv.total)}*`,
+    `Payment: ${inv.payment.method} (${inv.payment.status})`,
+    link ? `\n${link}` : "",
+  ]
+    .join("\n")
+    .trim();
+}
+
+// wa.me needs the number with country code and no symbols; Indian 10-digit
+// numbers get 91 in front. Without a number WhatsApp lets you pick a chat.
+export function whatsappUrl(phone, text) {
+  let digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length === 10) digits = `91${digits}`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+}

@@ -1,0 +1,7 @@
+{
+  "tool_name": "PowerShell",
+  "tool_input_preview": "{\"command\":\"$env:DNS_SERVERS = \\\"8.8.8.8,1.1.1.1\\\"; node -e \\\"require('./src/config/db').connectDb().then(c=>{console.log('OK, db =',c.name);return c.close()}).catch(()=>process.exit(1))\\\"\",\"timeout\":...",
+  "error": "Exit code 1\nnode:internal/modules/cjs/loader:1478\r\n  throw err;\r\n  ^\r\n\r\nError: Cannot find module './src/config/db'\r\nRequire stack:\r\n- D:\\TechB\\fresh market\\Techb_Freshveg\\[eval]\r\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1475:15)\r\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1048:27)\r\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1072:10)\r\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1093:12)\r\n    at Module._lo...",
+  "timestamp": "2026-10-04T01:34:52.996Z",
+  "retry_count": 2
+}

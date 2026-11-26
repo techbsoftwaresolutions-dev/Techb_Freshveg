@@ -13,7 +13,23 @@ const Offer = require("../pricing/offer.model");
 const inventoryService = require("../inventory/inventory.service");
 
 const categoryService = require("./category.service");
-const { resolveCategorySchema } = require("./schema.service");
+const schemaService = require("./schema.service");
+const { memo, cacheResponse, onClear } = require("../../core/storefrontCache");
+
+// A category's schema is admin configuration (three queries to resolve), so it
+// is reused for a minute; any admin save clears it at once.
+const resolveCategorySchema = (id) => memo(`schema:${id}`, 60000, () => schemaService.resolveCategorySchema(id));
+const categoryTree = (maxDepth) =>
+  memo(`tree:${maxDepth}`, 60000, () => categoryService.buildTree({ status: "active", maxDepth }));
+const descendantIds = (id) => memo(`desc:${id}`, 60000, () => categoryService.descendantIds(id));
+const categoryBySlug = (slug) => memo(`cat:${slug}`, 60000, () => Category.findOne({ slug, status: "active" }));
+
+const { infoFor: deliveryTimeInfo, afterHours } = require("../stores/deliveryTime");
+// What the apps show once the cut-off has passed: { message } or null.
+const afterHoursOf = (settings) => {
+  const info = afterHours(settings);
+  return info ? { when: info.when, message: info.reason } : null;
+};
 
 const router = express.Router();
 router.use(optionalAuth);
@@ -21,7 +37,7 @@ router.use(optionalAuth);
 // What a customer app or the website reads. Draft products, cost prices and
 // internal notes never leave through here.
 const PRODUCT_CARD_FIELDS =
-  "name slug shortDescription media category categoryPath brand unit priceFrom priceTo mrpFrom maxDiscountPct rating inStock variantCount defaultVariant tags isFeatured";
+  "name slug shortDescription media category categoryPath brand unit priceFrom priceTo mrpFrom maxDiscountPct rating inStock variantCount defaultVariant tags isFeatured offer";
 
 /** 1 -> "1", 1.5 -> "1.5". Trailing zeroes on a shelf label read as noise. */
 function trimNumber(value) {
@@ -44,36 +60,90 @@ function packLabel(packSize, fallbackUnit) {
     unit = unit === "kg" ? "g" : "ml";
   }
 
-  if (unit === "pcs") return value === 1 ? "1 piece" : `Pack of ${value}`;
+  if (unit === "pcs") return value === 1 ? "1 pack" : `Pack of ${value}`;
   if (unit === "l" || unit === "ltr") return `${trimNumber(value)} ltr`;
 
   return `${trimNumber(value)} ${unit}`;
 }
 
+// A product filter for "can be bought at this store" — the same rule the
+// cards and the Add button use, rather than the product's cross-store roll-up.
+async function buyableAt(store) {
+  if (!store) return { inStock: true };
+  // Two queries over the whole store's stock — shared for a few seconds, and
+  // cleared by any order, POS bill or stock change.
+  const ids = await memo(`buyable:${store._id}`, 15000, () => inventoryService.buyableProductIds(store._id));
+  return { _id: { $in: ids }, soldOut: { $ne: true } };
+}
+
 /**
- * Attaches the default variant's pack size to each card.
+ * Finishes each card for the store being shopped: whether it can be bought
+ * there, which pack its Add button adds, and that pack's size.
+ *
+ * A product's own `inStock` is a roll-up across every store and can lag, so a
+ * card built from it can offer an Add the store then refuses as out of stock.
+ * Here stock is read for this store: a card is in stock when at least one
+ * pack can be bought, and its Add button gets a pack that can be — the
+ * default one when it is available, else the first that is.
  *
  * A price with no size beside it cannot be compared — ₹155 means nothing until
  * you know it buys 5 kg. Done in one pass for the whole page rather than a
  * lookup per card.
  */
-async function withPackSize(cards) {
-  const ids = cards.map((c) => c.defaultVariant).filter(Boolean);
-  if (!ids.length) return cards;
+// Every active pack and its stock at this store, read once and shared by every
+// card on every page for a few seconds (cleared at once by any order, POS
+// bill or stock/catalogue change). The catalogue is small, so this replaces
+// two round trips per page with none.
+function cardData(store) {
+  return memo(`cards:${store ? store._id : "none"}`, 15000, async () => {
+    const variants = await Variant.find({ status: "active" })
+      .select("product packSize sellingPrice")
+      .sort({ sellingPrice: 1 })
+      .lean();
+    const stock = store ? await inventoryService.availabilityMap(store._id, variants.map((v) => v._id)) : null;
+    const byProduct = new Map();
+    for (const v of variants) {
+      const key = String(v.product);
+      if (!byProduct.has(key)) byProduct.set(key, []);
+      byProduct.get(key).push(v);
+    }
+    return { byProduct, stock };
+  });
+}
 
-  const variants = await Variant.find({ _id: { $in: ids } }).select("packSize").lean();
-  const sizeById = new Map(variants.map((v) => [String(v._id), v.packSize]));
+async function withCardDetails(cards, store) {
+  if (!cards.length) return cards;
 
-  return cards.map((card) => ({
-    ...card,
-    packLabel: packLabel(sizeById.get(String(card.defaultVariant)), card.unit),
-  }));
+  const { byProduct, stock } = await cardData(store);
+  const canBuy = (v) => !stock || (stock.get(String(v._id))?.available ?? 0) >= 1;
+
+  return cards.map((card) => {
+    const own = byProduct.get(String(card.id)) || [];
+    const buyable = own.filter(canBuy);
+    const pick =
+      buyable.find((v) => String(v._id) === String(card.defaultVariant)) ||
+      buyable[0] ||
+      own.find((v) => String(v._id) === String(card.defaultVariant)) ||
+      own[0];
+    return {
+      ...card,
+      inStock: stock ? buyable.length > 0 : card.inStock,
+      defaultVariant: pick ? String(pick._id) : card.defaultVariant,
+      packLabel: packLabel(pick?.packSize, card.unit),
+    };
+  });
 }
 
 // Resolves which store is serving this request: an explicit ?store=, the one
 // covering the given pincode, or the default. Everything price- and
 // stock-related hangs off this.
-async function resolveStore(req) {
+// Memoised: the serving store is read by every storefront request.
+function resolveStore(req) {
+  const pincode = req.query.pincode || req.headers["x-delivery-pincode"] || "";
+  return memo(`store:${req.query.store || ""}:${pincode}`, 30000, () => findStore(req));
+}
+
+async function findStore(req) {
   if (req.query.store) {
     const store = await Store.findById(req.query.store);
     if (store) return store;
@@ -108,25 +178,24 @@ function storedForms(value) {
  * AND'd — "1 kg or 2 kg, and organic".
  */
 async function attributeFilters(query) {
-  const clauses = [];
-  for (const [key, raw] of Object.entries(query)) {
-    if (!key.startsWith("attr.")) continue;
-    const code = key.slice(5);
-    if (!/^[a-z][a-z0-9_]*$/.test(code)) continue;
+  const wanted = Object.entries(query)
+    .filter(([key]) => key.startsWith("attr.") && /^[a-z][a-z0-9_]*$/.test(key.slice(5)))
+    .map(([key, raw]) => ({ code: key.slice(5), values: String(raw).split(",").filter(Boolean).flatMap(storedForms) }))
+    .filter((a) => a.values.length);
 
-    const values = String(raw).split(",").filter(Boolean).flatMap(storedForms);
-    if (!values.length) continue;
-
-    const viaVariants = await Variant.distinct("product", {
-      status: "active",
-      $or: [
-        { axisValues: { $elemMatch: { code, value: { $in: values } } } },
-        { [`attributes.${code}`]: { $in: values } },
-      ],
-    });
-
-    clauses.push({ $or: [{ [`attributes.${code}`]: { $in: values } }, { _id: { $in: viaVariants } }] });
-  }
+  // One lookup per attribute, all at once.
+  const clauses = await Promise.all(
+    wanted.map(async ({ code, values }) => {
+      const viaVariants = await Variant.distinct("product", {
+        status: "active",
+        $or: [
+          { axisValues: { $elemMatch: { code, value: { $in: values } } } },
+          { [`attributes.${code}`]: { $in: values } },
+        ],
+      });
+      return { $or: [{ [`attributes.${code}`]: { $in: values } }, { _id: { $in: viaVariants } }] };
+    })
+  );
   return clauses.length ? { $and: clauses } : {};
 }
 
@@ -146,8 +215,8 @@ function tidyUnitLabel(label) {
  * so a fruit aisle does not offer "1 Litre", and "Origin" never appears as an
  * empty heading.
  */
-async function buildFacets(fields, productMatch) {
-  const productIds = await Product.distinct("_id", productMatch);
+async function buildFacets(fields, productMatch, knownIds) {
+  const productIds = knownIds || (await Product.distinct("_id", productMatch));
   if (!productIds.length) return [];
 
   const facets = await Promise.all(
@@ -218,28 +287,95 @@ async function buildFacets(fields, productMatch) {
   return facets.filter(Boolean);
 }
 
-// Price ceilings drawn from what this shelf actually costs, each with how many
-// products it keeps. A band that keeps nothing is dropped; one that keeps
-// everything is too, since choosing it would change nothing.
-async function buildPriceBands(productMatch, max, total) {
+// Price ranges drawn from what this shelf actually costs, each with how many
+// products fall in it, worked out from shelf rows already in hand. The ranges
+// do not overlap ("Under ₹50", "₹50 – ₹100", …, "Above ₹200"), so a shopper can
+// tick several at once (?price=0-5000,10000-20000, in paise). A range that
+// keeps nothing is dropped; a single range that keeps everything is too, since
+// choosing it would change nothing.
+function priceBandsFrom(rows, max, total) {
   if (!max) return [];
-  const ceiling = Math.ceil(max / 100);
-  const steps = [...new Set([0.25, 0.5, 0.75].map((f) => Math.round((ceiling * f) / 10) * 10))].filter(
-    (rupees) => rupees > 0
-  );
+  const priced = rows.filter((r) => typeof r.priceFrom === "number");
+  if (!priced.length) return [];
+  // Cut where the products' prices actually sit (a quarter, half and three
+  // quarters of them), not at fractions of the dearest item: one ₹980 tin of
+  // oil would otherwise put every ₹20 vegetable in the same range. Rounded to
+  // amounts a shopper reads easily (₹20, ₹50, ₹100, ₹250…).
+  const sorted = priced.map((r) => r.priceFrom / 100).sort((a, b) => a - b);
+  const at = (f) => sorted[Math.min(sorted.length - 1, Math.floor(f * sorted.length))];
+  const tidy = (rupees) => {
+    const step = rupees <= 20 ? 5 : rupees <= 100 ? 10 : rupees <= 500 ? 50 : 100;
+    return Math.max(step, Math.round(rupees / step) * step);
+  };
+  const top = sorted[sorted.length - 1];
+  const cuts = [...new Set([0.25, 0.5, 0.75].map((f) => tidy(at(f))))]
+    .filter((rupees) => rupees > sorted[0] && rupees <= top)
+    .sort((a, b) => a - b);
+  const edges = [0, ...cuts.map((r) => r * 100), Infinity];
+  const bands = [];
+  for (let i = 0; i < edges.length - 1; i += 1) {
+    const lo = edges[i];
+    const hi = edges[i + 1];
+    const count = priced.filter((r) => r.priceFrom >= lo && (hi === Infinity ? true : r.priceFrom < hi)).length;
+    const rupees = (paise) => `₹${Math.round(paise / 100)}`;
+    const label = lo === 0 ? `Under ${rupees(hi)}` : hi === Infinity ? `Above ${rupees(lo)}` : `${rupees(lo)} – ${rupees(hi)}`;
+    bands.push({
+      value: `${lo}-${hi === Infinity ? "" : hi}`,
+      min: lo,
+      max: hi === Infinity ? null : hi,
+      label,
+      count,
+    });
+  }
+  const kept = bands.filter((band) => band.count > 0);
+  return kept.length === 1 && kept[0].count === total ? [] : kept;
+}
 
-  const bands = await Promise.all(
-    steps.map(async (rupees) => ({
-      max: rupees * 100,
-      label: `Under ₹${rupees}`,
-      count: await Product.countDocuments({ ...productMatch, priceFrom: { $lte: rupees * 100 } }),
-    }))
-  );
-  // A band holding exactly what the band below it holds is the same choice
-  // twice ("Under ₹70" and "Under ₹110", both one product) — keep the lower.
-  return bands.filter(
-    (band, i) => band.count > 0 && band.count < total && band.count !== bands[i - 1]?.count
-  );
+// ?price=0-5000,10000-20000 (paise; an empty top means "and above") -> a match
+// on the product's lowest price that keeps any of the ticked ranges.
+function priceRangeFilter(param) {
+  const ranges = String(param || "")
+    .split(",")
+    .map((part) => /^(\d{0,9})-(\d{0,9})$/.exec(part.trim()))
+    .filter(Boolean)
+    .map(([, lo, hi]) => {
+      const cond = {};
+      if (lo !== "") cond.$gte = Number(lo);
+      if (hi !== "") cond.$lt = Number(hi);
+      return Object.keys(cond).length ? { priceFrom: cond } : null;
+    })
+    .filter(Boolean);
+  if (!ranges.length) return null;
+  return ranges.length === 1 ? ranges[0] : { $or: ranges };
+}
+
+// Brands, price ranges and stock counts for a set of products (the "shelf"),
+// worked out from one read of it. Shared by a category landing and the
+// all-products listing.
+async function shelfFacets(shelf, buyable) {
+  const rows = await Product.find(shelf).select("_id priceFrom priceTo brand soldOut inStock").lean();
+  const total = rows.length;
+  const buyableIds = buyable?._id ? new Set(buyable._id.$in.map(String)) : null;
+  const inStockCount = rows.filter((r) =>
+    buyableIds ? buyableIds.has(String(r._id)) && r.soldOut !== true : r.inStock === true
+  ).length;
+  const prices = rows.map((r) => r.priceFrom).filter((v) => typeof v === "number");
+  const tops = rows.map((r) => r.priceTo).filter((v) => typeof v === "number");
+  const band = total ? { min: prices.length ? Math.min(...prices) : 0, max: tops.length ? Math.max(...tops) : 0 } : null;
+  const brandRows = [...rows.reduce((map, r) => (r.brand ? map.set(String(r.brand), (map.get(String(r.brand)) || 0) + 1) : map), new Map())];
+  // A single brand that makes up the whole shelf is not a choice.
+  const brandCount = new Map(brandRows.every(([, count]) => count === total) ? [] : brandRows);
+  const brandDocs = await Brand.find({ _id: { $in: [...brandCount.keys()] }, status: "active" }).select("name slug logo");
+  const brands = brandDocs
+    .map((brand) => ({ ...brand.toJSON(), count: brandCount.get(brand.id) || 0 }))
+    .sort((x, y) => y.count - x.count || x.name.localeCompare(y.name));
+  return {
+    rows,
+    brands,
+    priceRange: { min: band?.min || 0, max: band?.max || 0 },
+    priceBands: priceBandsFrom(rows, band?.max || 0, total),
+    availability: { total, inStock: inStockCount },
+  };
 }
 
 // ---------------------------------------------------------------- discovery
@@ -263,22 +399,39 @@ router.get(
       success: true,
       serviceable: true,
       store: { id: store.id, name: store.name, code: store.code },
+      // The area this pincode stands for, when the admin has named it.
+      areas: (store.pincodeAreas || []).filter((r) => r.pincode === pincode).map((r) => r.area),
+      area: (store.pincodeAreas || []).find((r) => r.pincode === pincode)?.area || "",
+      // Per-area delivery charge where the admin set one (paise; 0 = free).
+      areaCharges: Object.fromEntries(
+        (store.pincodeAreas || [])
+          .filter((r) => r.pincode === pincode && Number.isFinite(r.deliveryCharge))
+          .map((r) => [r.area, r.deliveryCharge])
+      ),
+      // Per-area "free above" order value (paise), where the admin set one.
+      areaFreeAbove: Object.fromEntries(
+        (store.pincodeAreas || [])
+          .filter((r) => r.pincode === pincode && Number.isFinite(r.freeAbove) && r.freeAbove > 0)
+          .map((r) => [r.area, r.freeAbove])
+      ),
       isOpen: store.isOpenNow(),
       minOrderValue: store.settings.minOrderValue,
+      freeDeliveryEnabled: store.settings.freeDeliveryEnabled !== false,
       freeDeliveryAbove: store.settings.freeDeliveryAbove,
       deliveryCharge: store.settings.deliveryCharge,
       prepTimeMinutes: store.settings.prepTimeMinutes,
+      deliveryTime: deliveryTimeInfo(store.settings).key,
+      deliveryTimeLabel: afterHoursOf(store.settings) ? "Tomorrow morning" : deliveryTimeInfo(store.settings).label,
+      afterHours: afterHoursOf(store.settings),
     });
   })
 );
 
 router.get(
   "/categories",
+  cacheResponse(60),
   asyncHandler(async (req, res) => {
-    const tree = await categoryService.buildTree({
-      status: "active",
-      maxDepth: Number(req.query.depth) || 3,
-    });
+    const tree = await categoryTree(Math.min(Number(req.query.depth) || 3, 10));
     // Only what a nav tile needs — the full category document is a lot to send
     // to a phone on every app open.
     const trim = (nodes) =>
@@ -299,97 +452,125 @@ router.get(
   })
 );
 
+const OFFER_KINDS = ["discount", "special", "combo"];
+const OFFER_RAIL_TITLES = { discount: "Discounts", special: "Special Offers", combo: "Combo Offers" };
+
 // The app's home screen in one request: categories, live offers and a few
 // merchandised rails. One round trip matters on a phone connection.
 router.get(
   "/home",
+  cacheResponse(30),
   asyncHandler(async (req, res) => {
-    const store = await resolveStore(req);
+    const storeFor = resolveStore(req);
+    storeFor.catch(() => {}); // awaited below; a failure surfaces there
+    storeFor.then(cardData).catch(() => {}); // warm the card snapshot alongside
 
-    const [tree, offers, featured, topCategories] = await Promise.all([
-      categoryService.buildTree({ status: "active", maxDepth: 1 }),
-      Offer.find({ status: "active", isFeatured: true }).limit(8),
-      Product.find({ status: "active", isFeatured: true })
-        .select(PRODUCT_CARD_FIELDS)
-        .limit(12)
-        .lean()
-        .then((rows) => withPackSize(rows.map(leanToApi))),
-      Category.find({ status: "active", level: 0, showInNav: true }).sort({ seq: 1 }).limit(6),
-    ]);
+    // Product cards for a rail, before their per-store details are added.
+    const cards = (query) => query.select(PRODUCT_CARD_FIELDS).lean().then((rows) => rows.map(leanToApi));
 
-    // One rail per top-level department, so the home screen grows by itself
-    // when a new department is added.
-    const rails = await Promise.all(
-      topCategories.map(async (category) => ({
-        category: { id: category.id, name: category.name, slug: category.slug, icon: category.icon },
-        products: await withPackSize(
-          (
-            await Product.find({ categoryPath: category._id, status: "active" })
-              .select(PRODUCT_CARD_FIELDS)
-              .sort({ isFeatured: -1, "rating.average": -1 })
-              .limit(10)
-              .lean()
-          ).map(leanToApi)
+    // Everything on the page is independent, so it is all read at once (the
+    // database is remote: one round trip after another is what made this slow).
+    const [tree, offers, featuredRaw, railsRaw, offerRailsRaw, flash] = await Promise.all([
+      categoryTree(1),
+      // Every offer the admin has switched on, strongest first. This used to
+      // need a hidden "featured" flag the admin form never offered, so a new
+      // offer was running but never reached the home page. (Whether each is
+      // live is checked now, so a memoised list can't outlive a schedule.)
+      memo("offers", 30000, () => Offer.find({ status: "active" }).sort({ editedAt: -1, createdAt: -1 }).limit(12)).then(
+        (rows) => rows.filter((o) => o.isLive())
+      ),
+      cards(Product.find({ status: "active", isFeatured: true }).limit(12)),
+      // One rail per top-level department, so the home screen grows by itself
+      // when a new department is added.
+      Category.find({ status: "active", level: 0, showInNav: true })
+        .sort({ seq: 1 })
+        .limit(6)
+        .then((departments) =>
+          Promise.all(
+            departments.map(async (category) => ({
+              category: { id: category.id, name: category.name, slug: category.slug, icon: category.icon },
+              products: await cards(
+                Product.find({ categoryPath: category._id, status: "active" })
+                  .sort({ sortOrder: 1, isFeatured: -1, "rating.average": -1 })
+                  .limit(10)
+              ),
+            }))
+          )
         ),
-      }))
-    );
-
-    // A "Flash Deal" countdown is only ever as real as its deadline — so
-    // this looks for an offer someone actually gave a schedule.endsAt in the
-    // future (set from the admin's Offers screen), rather than the homepage
-    // inventing a countdown to nothing. Independent of isFeatured: a flash
-    // sale shouldn't need a second, unrelated flag toggled to show up.
-    const flashOfferDoc = await Offer.findOne({
-      status: "active",
-      "schedule.endsAt": { $gt: new Date() },
-    }).sort({ "schedule.endsAt": 1 });
-
-    let flashDeal = null;
-    if (flashOfferDoc && flashOfferDoc.isLive()) {
-      const conditions = flashOfferDoc.conditions || {};
-      const hasScope =
-        conditions.categories?.length || conditions.products?.length || conditions.brands?.length;
-
-      const scopedFilter = { status: "active" };
-      if (hasScope) {
-        scopedFilter.$or = [
-          conditions.categories?.length ? { categoryPath: { $in: conditions.categories } } : null,
-          conditions.products?.length ? { _id: { $in: conditions.products } } : null,
-          conditions.brands?.length ? { brand: { $in: conditions.brands } } : null,
-        ].filter(Boolean);
-      }
-
-      const dealProducts = await withPackSize(
-        (
-          await Product.find(scopedFilter)
-            .select(PRODUCT_CARD_FIELDS)
-            // No specific scope on the offer (a cart-wide "20% off" style
-            // deal) — the best stand-in for "what's on sale" is simply
-            // whatever is discounted the most right now.
-            .sort(hasScope ? { isFeatured: -1 } : { maxDiscountPct: -1 })
-            .limit(6)
-            .lean()
-        ).map(leanToApi)
-      );
-
-      if (dealProducts.length) {
-        flashDeal = {
-          id: flashOfferDoc.id,
-          title: flashOfferDoc.title,
-          endsAt: flashOfferDoc.schedule.endsAt,
-          products: dealProducts,
-        };
-      }
-    }
+      // One rail per offer kind the admin has tagged products with, so the home
+      // page can show Discounts / Special Offers / Combo Offers on their own.
+      Promise.all(
+        OFFER_KINDS.map(async (kind) => ({
+          kind,
+          title: OFFER_RAIL_TITLES[kind],
+          products: await cards(
+            Product.find({ status: "active", "offer.kind": kind }).sort({ sortOrder: 1, createdAt: -1 }).limit(12)
+          ),
+        }))
+      ),
+      // A "Flash Deal" countdown is only ever as real as its deadline — so
+      // this looks for an offer someone actually gave a schedule.endsAt in the
+      // future (set from the admin's Offers screen), rather than the homepage
+      // inventing a countdown to nothing. Independent of isFeatured: a flash
+      // sale shouldn't need a second, unrelated flag toggled to show up.
+      Offer.findOne({ status: "active", "schedule.endsAt": { $gt: new Date() } })
+        .sort({ "schedule.endsAt": 1 })
+        .then(async (doc) => {
+          if (!doc || !doc.isLive()) return null;
+          const conditions = doc.conditions || {};
+          const hasScope = conditions.categories?.length || conditions.products?.length || conditions.brands?.length;
+          const scopedFilter = { status: "active" };
+          if (hasScope) {
+            scopedFilter.$or = [
+              conditions.categories?.length ? { categoryPath: { $in: conditions.categories } } : null,
+              conditions.products?.length ? { _id: { $in: conditions.products } } : null,
+              conditions.brands?.length ? { brand: { $in: conditions.brands } } : null,
+            ].filter(Boolean);
+          }
+          // No specific scope on the offer (a cart-wide "20% off" style
+          // deal) — the best stand-in for "what's on sale" is simply
+          // whatever is discounted the most right now.
+          const products = await cards(
+            Product.find(scopedFilter).sort(hasScope ? { isFeatured: -1 } : { maxDiscountPct: -1 }).limit(6)
+          );
+          return { doc, products };
+        }),
+    ]);
 
     // An offer card needs a picture and somewhere to go. Both come from the
     // aisle the offer applies to when it names one, so a grocery offer shows
     // the grocery photo and "Shop now" lands in the grocery aisle — and an
     // offer's own uploaded image, when it has one, always wins.
     const offerCategoryIds = offers.flatMap((o) => o.conditions?.categories || []);
-    const offerCategories = offerCategoryIds.length
-      ? await Category.find({ _id: { $in: offerCategoryIds }, status: "active" }).select("slug image")
-      : [];
+
+    // Every card on the page gets its store details in one pass (one variants
+    // query + one stock query) instead of a pass per rail.
+    const store = await storeFor;
+    const everyCard = [
+      ...featuredRaw,
+      ...railsRaw.flatMap((r) => r.products),
+      ...offerRailsRaw.flatMap((r) => r.products),
+      ...(flash?.products || []),
+    ];
+    const unique = [...new Map(everyCard.map((c) => [String(c.id), c])).values()];
+    const [detailed, offerCategories] = await Promise.all([
+      withCardDetails(unique, store),
+      offerCategoryIds.length
+        ? Category.find({ _id: { $in: offerCategoryIds }, status: "active" }).select("slug image")
+        : [],
+    ]);
+    const detailOf = new Map(detailed.map((c) => [String(c.id), c]));
+    const finish = (list) => list.map((c) => detailOf.get(String(c.id)) || c);
+
+    const featured = finish(featuredRaw);
+    const rails = railsRaw.map((r) => ({ ...r, products: finish(r.products) }));
+    const offerRails = offerRailsRaw
+      .map((r) => ({ ...r, products: finish(r.products) }))
+      .filter((rail) => rail.products.length);
+    const flashDeal = flash?.products.length
+      ? { id: flash.doc.id, title: flash.doc.title, endsAt: flash.doc.schedule.endsAt, products: finish(flash.products) }
+      : null;
+
     const offerCategoryById = new Map(offerCategories.map((c) => [c.id, c]));
     const departmentImage = tree.find((c) => c.showInNav && c.image)?.image || "";
     const offerTarget = (offer) =>
@@ -402,8 +583,12 @@ router.get(
             id: store.id,
             name: store.name,
             isOpen: store.isOpenNow(),
+            freeDeliveryEnabled: store.settings.freeDeliveryEnabled !== false,
             freeDeliveryAbove: store.settings.freeDeliveryAbove,
             prepTimeMinutes: store.settings.prepTimeMinutes,
+            deliveryTime: deliveryTimeInfo(store.settings).key,
+            deliveryTimeLabel: afterHoursOf(store.settings) ? "Tomorrow morning" : deliveryTimeInfo(store.settings).label,
+      afterHours: afterHoursOf(store.settings),
           }
         : null,
       categories: tree.filter((c) => c.showInNav).map((c) => ({
@@ -421,7 +606,46 @@ router.get(
       }),
       featured,
       rails: rails.filter((r) => r.products.length),
+      offerRails,
       flashDeal,
+    });
+  })
+);
+
+// The coupon for the site header strip: the coupon the admin added or edited
+// most recently, among those a shopper can use right now. null when none.
+router.get(
+  "/latest-coupon",
+  cacheResponse(30),
+  asyncHandler(async (_req, res) => {
+    const rows = await Offer.find({ status: "active", requiresCode: true, code: { $nin: [null, ""] } })
+      .sort({ editedAt: -1, createdAt: -1 })
+      .limit(20);
+    const now = new Date();
+    const offer = rows.find(
+      (o) => o.isLive(now) && !(o.limits?.totalUses && o.limits.usedCount >= o.limits.totalUses)
+    );
+    if (!offer) return res.json({ success: true, coupon: null });
+
+    const r = offer.reward || {};
+    const value =
+      offer.type === "percentage" && r.discountPct ? `${r.discountPct}% off`
+      : offer.type === "fixed" && r.discountAmount ? `Rs ${r.discountAmount} off`.replace("Rs ", "₹")
+      : offer.type === "free_delivery" ? "Free delivery"
+      : offer.type === "cashback" && r.cashbackPct ? `${r.cashbackPct}% cashback`
+      : offer.type === "bogo" && r.buyQuantity ? `Buy ${r.buyQuantity} get ${r.getQuantity} free`
+      : "";
+    res.json({
+      success: true,
+      coupon: {
+        id: offer.id,
+        code: offer.code,
+        title: offer.title,
+        badge: offer.badge || "",
+        // The admin's own badge text first, so the header matches the home-page card.
+        value: offer.badge || value,
+        minCartValue: offer.conditions?.minCartValue || 0,
+      },
     });
   })
 );
@@ -431,46 +655,26 @@ router.get(
 // filter for vegetables looks like.
 router.get(
   "/categories/:slug",
+  cacheResponse(60),
   asyncHandler(async (req, res) => {
-    const category = await Category.findOne({ slug: req.params.slug, status: "active" });
+    const category = await categoryBySlug(req.params.slug);
     if (!category) throw ApiError.notFound("Category not found");
 
-    const [schema, children, ids] = await Promise.all([
+    const [schema, children, ids, buyable] = await Promise.all([
       resolveCategorySchema(category._id),
       Category.find({ parent: category._id, status: "active" }).sort({ seq: 1 }),
-      categoryService.descendantIds(category._id),
+      descendantIds(category._id),
+      resolveStore(req).then(buyableAt),
     ]);
 
     // Everything in the filter sidebar is computed over the subtree actually
     // being browsed, so it only ever offers choices that return something.
     const shelf = { categoryPath: { $in: ids }, status: "active" };
 
-    const [[band], brandRows, total, inStockCount, facets] = await Promise.all([
-      Product.aggregate([
-        { $match: shelf },
-        { $group: { _id: null, min: { $min: "$priceFrom" }, max: { $max: "$priceTo" } } },
-      ]),
-      Product.aggregate([
-        { $match: { ...shelf, brand: { $ne: null } } },
-        { $group: { _id: "$brand", count: { $sum: 1 } } },
-      ]),
-      Product.countDocuments(shelf),
-      Product.countDocuments({ ...shelf, inStock: true }),
-      buildFacets(schema.filters, shelf),
-    ]);
-
-    // Same rule as the attribute facets: a single brand that makes up the
-    // whole shelf is not a choice.
-    const brandCount = new Map(
-      brandRows.every((row) => row.count === total) ? [] : brandRows.map((row) => [String(row._id), row.count])
-    );
-    const brands = (
-      await Brand.find({ _id: { $in: [...brandCount.keys()] }, status: "active" }).select("name slug logo")
-    )
-      .map((brand) => ({ ...brand.toJSON(), count: brandCount.get(brand.id) || 0 }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-
-    const priceBands = await buildPriceBands(shelf, band?.max || 0, total);
+    // One read of the shelf's products; price ranges, brand counts and
+    // totals come from it (shelfFacets), the attribute facets alongside.
+    const { rows, brands, priceRange, priceBands, availability } = await shelfFacets(shelf, buyable);
+    const facets = await buildFacets(schema.filters, shelf, rows.map((r) => r._id));
 
     res.json({
       success: true,
@@ -490,11 +694,30 @@ router.get(
       // what a filter UI should render.
       facets,
       brands,
-      priceRange: { min: band?.min || 0, max: band?.max || 0 },
+      priceRange,
       priceBands,
       // Offered only when it would actually hide something.
-      availability: { total, inStock: inStockCount },
+      availability,
     });
+  })
+);
+
+// Filters for the all-products listing (/c), optionally narrowed to one
+// department (?category=<slug>): brands, price ranges and stock — the same
+// shapes a category landing returns.
+router.get(
+  "/facets",
+  cacheResponse(60),
+  asyncHandler(async (req, res) => {
+    let shelf = { status: "active" };
+    if (req.query.category) {
+      const category = await categoryBySlug(req.query.category);
+      if (!category) throw ApiError.notFound("Category not found");
+      shelf = { categoryPath: { $in: await descendantIds(category._id) }, status: "active" };
+    }
+    const buyable = await resolveStore(req).then(buyableAt);
+    const { brands, priceRange, priceBands, availability } = await shelfFacets(shelf, buyable);
+    res.json({ success: true, brands, priceRange, priceBands, availability });
   })
 );
 
@@ -502,13 +725,28 @@ router.get(
 
 router.get(
   "/products",
+  cacheResponse(20),
   asyncHandler(async (req, res) => {
-    const filter = { status: "active", ...(await attributeFilters(req.query)) };
+    const term = String(req.query.q || "").trim().slice(0, 60);
+    const rx = term ? new RegExp(escapeRegex(term), "i") : null;
+    // Everything the filter needs is independent, so it is read in one go
+    // rather than one round trip after another.
+    const storeFor = resolveStore(req);
+    storeFor.then(cardData).catch(() => {}); // warm the card snapshot alongside
+    const [attrs, category, buyable, termBrands, termCategories] = await Promise.all([
+      attributeFilters(req.query),
+      req.query.category
+        ? Category.findOne({
+            $or: [{ slug: req.query.category }, ...(/^[0-9a-fA-F]{24}$/.test(req.query.category) ? [{ _id: req.query.category }] : [])],
+          }).select("_id")
+        : null,
+      storeFor.then(buyableAt),
+      rx ? Brand.find({ name: rx }).distinct("_id") : [],
+      rx ? Category.find({ name: rx, status: "active" }).distinct("_id") : [],
+    ]);
+    const filter = { status: "active", ...attrs };
 
     if (req.query.category) {
-      const category = await Category.findOne({
-        $or: [{ slug: req.query.category }, ...(/^[0-9a-fA-F]{24}$/.test(req.query.category) ? [{ _id: req.query.category }] : [])],
-      });
       if (!category) throw ApiError.notFound("Category not found");
       filter.categoryPath = category._id;
     }
@@ -521,8 +759,35 @@ router.get(
     }
     if (req.query.tag) filter.tags = req.query.tag;
     if (req.query.featured === "true") filter.isFeatured = true;
-    if (req.query.inStock === "true") filter.inStock = true;
+    // ?offer=combo — the products an admin tagged with that offer kind.
+    if (OFFER_KINDS.includes(req.query.offer)) filter["offer.kind"] = req.query.offer;
+    if (req.query.inStock === "true") filter.$and = [...(filter.$and || []), buyable];
+    // The phone's "Offers" chip: only products with a discount on them.
+    if (req.query.offers === "true") filter.maxDiscountPct = { $gt: 0 };
 
+    // In-page search on a listing: matches name, tags, keywords and
+    // descriptions, plus anything filed under a matching brand or category —
+    // and still honours every other filter and the sort, which /search does not.
+    if (term) {
+      const [brandIds, categoryIds] = [termBrands, termCategories];
+      filter.$and = [
+        ...(filter.$and || []),
+        {
+          $or: [
+            { name: rx },
+            { tags: rx },
+            { searchKeywords: rx },
+            { shortDescription: rx },
+            { description: rx },
+            { brand: { $in: brandIds } },
+            { categoryPath: { $in: categoryIds } },
+          ],
+        },
+      ];
+    }
+
+    const priceMatch = priceRangeFilter(req.query.price);
+    if (priceMatch) filter.$and = [...(filter.$and || []), priceMatch];
     if (req.query.minPrice || req.query.maxPrice) {
       filter.priceFrom = {};
       if (req.query.minPrice) filter.priceFrom.$gte = Number(req.query.minPrice);
@@ -541,29 +806,42 @@ router.get(
     const result = await paginate(Product, filter, req.query, {
       // Named sorts only. The storefront offers a fixed set, so an unknown
       // name falls back instead of reaching the database as a field name.
-      // Whatever the order, what can be bought comes first — a shelf that
-      // opens on "Sold out" reads as an empty store.
-      sort: { inStock: -1, ...(sortMap[req.query.sort] || { isFeatured: -1, "rating.average": -1 }) },
+      // Whatever the order, what can be bought at this store comes first — a
+      // shelf that opens on "Out of stock" reads as an empty store.
+      // `_id` last: products tie on rating and price all the time, and
+      // without a final unique key Mongo may order the ties differently on
+      // every page request — so a product can show on two pages or on none.
+      sort: { ...(sortMap[req.query.sort] || { sortOrder: 1, isFeatured: -1, "rating.average": -1 }), _id: 1 },
+      first: buyable,
       select: PRODUCT_CARD_FIELDS,
       populate: { path: "brand", select: "name slug" },
       lean: true,
     });
 
-    result.items = await withPackSize(result.items);
+    result.items = await withCardDetails(result.items, await storeFor);
     res.json({ success: true, ...result });
   })
 );
 
 router.get(
   "/search",
+  cacheResponse(20),
   asyncHandler(async (req, res) => {
     const term = String(req.query.q || "").trim();
+    const storeFor = resolveStore(req);
+    storeFor.catch(() => {}); // awaited below; a failure surfaces there
     if (term.length < 2) {
       return res.json({ success: true, items: [], meta: { total: 0 }, suggestions: [] });
     }
 
     // Text index first; if it returns nothing, fall back to a substring match
     // so partial words ("toma") still find something.
+    const categoryList = Category.find({ status: "active", name: new RegExp(escapeRegex(term), "i") })
+      .select("name slug icon")
+      .limit(5)
+      .exec();
+    categoryList.catch(() => {}); // awaited below; a failure surfaces there
+
     let result = { items: [] };
     try {
       result = await paginate(
@@ -589,39 +867,41 @@ router.get(
       );
     }
 
-    const categories = await Category.find({ status: "active", name: new RegExp(escapeRegex(term), "i") })
-      .select("name slug icon")
-      .limit(5);
+    const categories = await categoryList;
 
-    result.items = await withPackSize(result.items);
+    // Relevance order, but what can be bought leads within the page.
+    result.items = (await withCardDetails(result.items, await storeFor)).sort(
+      (a, b) => Number(!a.inStock) - Number(!b.inStock)
+    );
     res.json({ success: true, ...result, suggestions: categories });
   })
 );
 
 router.get(
   "/products/:slug",
+  cacheResponse(20),
   asyncHandler(async (req, res) => {
-    const product = await Product.findOne({ slug: req.params.slug, status: "active" })
+    // The app opens a product from an order line, which only remembers the
+    // product's id, so a 24-character id works here as well as a slug.
+    const key = req.params.slug;
+    const lookup = /^[0-9a-fA-F]{24}$/.test(key) ? { $or: [{ slug: key }, { _id: key }] } : { slug: key };
+    const product = await Product.findOne({ ...lookup, status: "active" })
       .populate("category", "name slug path parent")
       .populate("brand", "name slug logo");
     if (!product) throw ApiError.notFound("Product not found");
 
-    const [variants, schema, store] = await Promise.all([
+    // Independent reads, all at once.
+    const [variants, schema, store, sameCategory] = await Promise.all([
       // costPrice is excluded here on purpose — it must never reach a client.
       Variant.find({ product: product._id, status: "active" })
         .select("-costPrice")
         .sort({ sellingPrice: 1 }),
       resolveCategorySchema(product.category._id),
-      resolveStore(req),
-    ]);
-
-    // Per-store availability, which is what the buy button actually depends on.
-    const stock = store
-      ? await inventoryService.availabilityMap(store._id, variants.map((v) => v._id))
-      : new Map();
-
-    let related = (
-      await Product.find({
+      resolveStore(req).then((store) => {
+        cardData(store).catch(() => {}); // warm alongside
+        return store;
+      }),
+      Product.find({
         _id: { $ne: product._id },
         category: product.category._id,
         status: "active",
@@ -629,35 +909,45 @@ router.get(
         .select(PRODUCT_CARD_FIELDS)
         .limit(10)
         .lean()
-    ).map(leanToApi);
+        .then((rows) => rows.map(leanToApi)),
+    ]);
 
-    // A narrow leaf category — someone's just-added "Seasonal Fruits" under
-    // Fresh Fruits, say — can easily hold only this one product. The shopper
-    // still deserves a "you may also like" rail, so when the exact category
-    // comes up thin, top it up from the parent category's whole subtree
-    // (categoryPath already carries every ancestor, so this is one indexed
-    // query, not a walk) rather than showing nothing or fewer than useful.
-    if (related.length < 4 && product.category.parent) {
-      const seen = new Set([String(product._id), ...related.map((r) => r.id)]);
-      const broader = (
-        await Product.find({
-          _id: { $nin: [...seen] },
-          categoryPath: product.category.parent,
-          status: "active",
-        })
-          .select(PRODUCT_CARD_FIELDS)
-          .limit(10 - related.length)
-          .lean()
-      ).map(leanToApi);
-      related = [...related, ...broader];
-    }
+    const relatedRail = async () => {
+      let related = sameCategory;
+      // A narrow leaf category — someone's just-added "Seasonal Fruits" under
+      // Fresh Fruits, say — can easily hold only this one product. The shopper
+      // still deserves a "you may also like" rail, so when the exact category
+      // comes up thin, top it up from the parent category's whole subtree
+      // (categoryPath already carries every ancestor, so this is one indexed
+      // query, not a walk) rather than showing nothing or fewer than useful.
+      if (related.length < 4 && product.category.parent) {
+        const seen = new Set([String(product._id), ...related.map((r) => r.id)]);
+        const broader = (
+          await Product.find({
+            _id: { $nin: [...seen] },
+            categoryPath: product.category.parent,
+            status: "active",
+          })
+            .select(PRODUCT_CARD_FIELDS)
+            .limit(10 - related.length)
+            .lean()
+        ).map(leanToApi);
+        related = [...related, ...broader];
+      }
+      // Cards in the rail need the same pack label every other card gets ("1 kg",
+      // not a bare "kg"), and what can be bought leads — the same rule as every
+      // listing.
+      return (await withCardDetails(related, store)).sort(
+        (a, b) => Number(a.inStock === false) - Number(b.inStock === false)
+      );
+    };
 
-    // Cards in the rail need the same pack label every other card gets ("1 kg",
-    // not a bare "kg"), and what can be bought leads — the same rule as every
-    // listing.
-    related = (await withPackSize(related)).sort(
-      (a, b) => Number(a.inStock === false) - Number(b.inStock === false)
-    );
+    // Per-store availability (what the buy button depends on) and the related
+    // rail don't depend on each other.
+    const [stock, related] = await Promise.all([
+      store ? cardData(store).then((d) => d.stock) : new Map(),
+      relatedRail(),
+    ]);
 
     // A select or multi-select stores the option's code ("desi"); the shopper
     // should read the label the admin gave it ("Desi / Local").
@@ -689,5 +979,14 @@ router.get(
     });
   })
 );
+
+// Rebuild the shared lookups in the background — when the server starts and
+// right after any change clears them — so the next shopper finds them ready.
+async function warm() {
+  const store = await resolveStore({ query: {}, headers: {} });
+  await Promise.all([cardData(store), buyableAt(store), categoryTree(1), categoryTree(3)]);
+}
+onClear(() => warm().catch(() => {}));
+setTimeout(() => warm().catch(() => {}), 2000);
 
 module.exports = router;

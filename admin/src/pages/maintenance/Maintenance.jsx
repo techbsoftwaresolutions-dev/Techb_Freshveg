@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
@@ -113,12 +114,13 @@ function Schedule() {
 
       {data.overdue.length ? (
         <Card title="Overdue a service" tight className="" >
-          <Table columns={columns} rows={data.overdue} />
+          <Table title="Overdue maintenance" columns={columns} rows={data.overdue} />
         </Card>
       ) : null}
 
       <Card title="Coming up" tight style={{ marginTop: 14 }}>
         <Table
+          title="Upcoming maintenance"
           columns={columns}
           rows={data.upcoming}
           empty={<Empty title="Nothing due soon" hint="Every asset is inside its service interval." />}
@@ -131,6 +133,7 @@ function Schedule() {
 function Assets() {
   const [data, setData] = useState({ items: [], meta: null, summary: {}, types: [] });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const [error, setError] = useState("");
@@ -138,11 +141,11 @@ function Assets() {
   const load = useCallback(() => {
     setLoading(true);
     api
-      .get("/maintenance/assets", { page, limit: 20 })
+      .get("/maintenance/assets", { page, limit })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, limit]);
 
   useEffect(() => {
     load();
@@ -163,6 +166,7 @@ function Assets() {
         ) : (
           <>
             <Table
+              title="Maintenance assets"
               columns={[
                 {
                   key: "name",
@@ -196,7 +200,7 @@ function Assets() {
               onRowClick={(row) => navigate(`/maintenance/assets/${row.id}`)}
               empty={<Empty title="No assets recorded" hint="Add the freezers, scales and vehicles you want tracked." />}
             />
-            <Pagination meta={data.meta} onPage={setPage} />
+            <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>
@@ -290,26 +294,26 @@ function AssetModal({ types, onClose, onSaved }) {
           <input type="text" autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Display freezer" />
         </Field>
         <Field label="Type">
-          <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+          <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
             {(types || []).map((type) => (
               <option key={type} value={type}>{type.replace(/_/g, " ")}</option>
             ))}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <div className="grid cols-2">
         <Field label="Store">
-          <select value={form.store} onChange={(e) => setForm({ ...form, store: e.target.value })}>
+          <Select value={form.store} onChange={(e) => setForm({ ...form, store: e.target.value })}>
             {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Where in the store">
           <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Back room" />
         </Field>
       </div>
 
-      <Field label="Service every (days)" help="The schedule is driven off this and the last service date.">
+      <Field label="Service every (days)">
         <input
           type="number"
           value={form.serviceIntervalDays}
@@ -358,6 +362,7 @@ function AssetDetail({ id, onClose }) {
 
       <div className="section-label">Service history</div>
       <Table
+        title="Service history"
         columns={[
           { key: "code", label: "Job", render: (row) => <span className="mono">{row.code}</span> },
           { key: "title", label: "What happened", render: (row) => (
@@ -381,6 +386,7 @@ function AssetDetail({ id, onClose }) {
 function Jobs() {
   const [data, setData] = useState({ items: [], meta: null });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [openOnly, setOpenOnly] = useState(true);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -390,11 +396,11 @@ function Jobs() {
   const load = useCallback(() => {
     setLoading(true);
     api
-      .get("/maintenance/requests", { page, limit: 20, ...(openOnly ? { open: "true" } : {}) })
+      .get("/maintenance/requests", { page, limit, ...(openOnly ? { open: "true" } : {}) })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [page, openOnly]);
+  }, [page, limit, openOnly]);
 
   useEffect(() => {
     load();
@@ -431,6 +437,7 @@ function Jobs() {
         ) : (
           <>
             <Table
+              title="Maintenance jobs"
               columns={[
                 {
                   key: "title",
@@ -476,7 +483,7 @@ function Jobs() {
               rows={data.items}
               empty={<Empty title="No open jobs" hint="Nothing is waiting to be fixed." />}
             />
-            <Pagination meta={data.meta} onPage={setPage} />
+            <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>
@@ -543,19 +550,19 @@ function JobModal({ onClose, onSaved }) {
 
       <div className="grid cols-2">
         <Field label="Asset">
-          <select value={form.asset} onChange={(e) => setForm({ ...form, asset: e.target.value })}>
+          <Select value={form.asset} onChange={(e) => setForm({ ...form, asset: e.target.value })}>
             {assets.map((asset) => (
               <option key={asset.id} value={asset.id}>{asset.name} ({asset.code})</option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="What is it">
-          <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+          <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
             <option value="breakdown">Breakdown</option>
             <option value="scheduled">Scheduled service</option>
             <option value="inspection">Inspection</option>
             <option value="installation">Installation</option>
-          </select>
+          </Select>
         </Field>
       </div>
 
@@ -564,12 +571,12 @@ function JobModal({ onClose, onSaved }) {
           <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Not holding temperature" />
         </Field>
         <Field label="Priority">
-          <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+          <Select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
             <option value="low">Low</option>
             <option value="normal">Normal</option>
             <option value="high">High</option>
             <option value="critical">Critical</option>
-          </select>
+          </Select>
         </Field>
       </div>
 
@@ -631,7 +638,7 @@ function JobModal({ onClose, onSaved }) {
         <Field label="Labour cost (₹)">
           <input type="number" value={form.labourCost} onChange={(e) => setForm({ ...form, labourCost: Number(e.target.value) })} />
         </Field>
-        <Field label="Total" help="Parts plus labour — computed, not entered twice.">
+        <Field label="Total">
           <input type="text" value={`₹${(partsTotal + Number(form.labourCost)).toFixed(2)}`} disabled />
         </Field>
       </div>

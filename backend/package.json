@@ -7,11 +7,16 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
+    "predev": "node scripts/ensure-deps.mjs",
     "dev": "nodemon src/server.js",
     "seed": "node src/seed/run.js",
     "seed:reset": "node src/seed/run.js --reset",
+    "create-super-admin": "node src/seed/createSuperAdmin.js",
+    "set-partner-login": "node src/seed/setPartnerLogin.js",
     "sync-indexes": "node src/seed/syncIndexes.js",
     "smoke": "node src/seed/smoke.js",
+    "migrate:images": "node src/seed/migrateImagesToCloudinary.js",
+    "migrate:whole-units": "node src/seed/migrateWholeUnits.js",
     "demo": "node src/seed/demoServer.js",
     "jobs:run": "node -e \"require(\"./src/jobs/scheduler\").trigger(process.argv[1]).then(r=>console.log(r))\""
   },
@@ -26,6 +31,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.6.0",
     "morgan": "^1.10.0",
+    "qrcode": "^1.5.4",
+    "redis": "^4.7.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

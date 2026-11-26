@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, loadSession, saveSession } from "../api/client";
+import { registerForPushNotifications } from "../notifications";
 
 const AuthContext = createContext(null);
 
@@ -11,6 +12,8 @@ const ROLE = "delivery_partner";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
+  const [notificationStatus, setNotificationStatus] = useState("signed-out");
+  const [notificationError, setNotificationError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -45,14 +48,57 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  // Email + password sign-in (set for each delivery boy in Admin → Users).
+  const signInWithPassword = useCallback(async (email, password) => {
+    const data = await api.post("/auth/partner/login", { email: email.trim(), password });
+    await saveSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    setUser(data.user);
+    return data;
+  }, []);
+
   const signOut = useCallback(async () => {
     await saveSession(null);
     setUser(null);
+    setNotificationStatus("signed-out");
+    setNotificationError("");
   }, []);
 
+  const enableNotifications = useCallback(async () => {
+    setNotificationStatus("registering");
+    setNotificationError("");
+    try {
+      const result = await registerForPushNotifications();
+      const next = result.channelEnabled === false ? "channel-disabled" : result.status;
+      setNotificationStatus(next);
+      return result;
+    } catch (error) {
+      setNotificationStatus("error");
+      setNotificationError(error.message);
+      throw error;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    enableNotifications().catch((error) => {
+      console.warn("[notifications] Could not register this device for delivery alerts:", error.message);
+    });
+  }, [user, enableNotifications]);
+
   const value = useMemo(
-    () => ({ user, ready, signedIn: Boolean(user), requestOtp, verifyOtp, signOut }),
-    [user, ready, requestOtp, verifyOtp, signOut]
+    () => ({
+      user,
+      ready,
+      signedIn: Boolean(user),
+      notificationStatus,
+      notificationError,
+      enableNotifications,
+      requestOtp,
+      verifyOtp,
+      signInWithPassword,
+      signOut,
+    }),
+    [user, ready, notificationStatus, notificationError, enableNotifications, requestOtp, verifyOtp, signInWithPassword, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

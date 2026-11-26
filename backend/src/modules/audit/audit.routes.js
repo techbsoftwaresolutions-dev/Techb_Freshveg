@@ -1,4 +1,5 @@
 const express = require("express");
+const { dateBounds } = require("../../core/dateRange");
 const asyncHandler = require("../../core/asyncHandler");
 const { paginate, escapeRegex } = require("../../core/query");
 const { requireAuth, requireAnyPermission } = require("../../middleware/auth");
@@ -73,11 +74,8 @@ router.get(
       const rx = new RegExp(escapeRegex(req.query.search), "i");
       filter.$or = [{ summary: rx }, { entityLabel: rx }, { actorName: rx }];
     }
-    if (req.query.from || req.query.to) {
-      filter.createdAt = {};
-      if (req.query.from) filter.createdAt.$gte = new Date(req.query.from);
-      if (req.query.to) filter.createdAt.$lte = new Date(req.query.to);
-    }
+    const created = dateBounds(req.query.from, req.query.to);
+    if (created) filter.createdAt = created;
 
     const result = await paginate(AuditLog, filter, req.query, { defaultSort: { createdAt: -1 } });
     const items = await withThumbnails(result.items);

@@ -4,6 +4,83 @@ const ApiError = require("../../core/ApiError");
 const { paginate } = require("../../core/query");
 const { requireAuth, requirePermission, optionalAuth } = require("../../middleware/auth");
 const Store = require("./store.model");
+const Order = require("../orders/order.model");
+const Payment = require("../payments/payment.model");
+const User = require("../auth/user.model");
+const Offer = require("../pricing/offer.model");
+const Inventory = require("../inventory/inventory.model");
+const StockMovement = require("../inventory/stockMovement.model");
+const Cart = require("../cart/cart.model");
+const DeliveryZone = require("../delivery/deliveryZone.model");
+const DeliverySlot = require("../delivery/deliverySlot.model");
+const MaintenanceAsset = require("../maintenance/maintenanceAsset.model");
+const MaintenanceRequest = require("../maintenance/maintenanceRequest.model");
+const audit = require("../audit/audit.service");
+
+const { optionsFor, normaliseCustom, minutesUntil, infoFor, afterHours } = require("./deliveryTime");
+
+const FINISHED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+
+// Updates and notifies the customers whose orders are still open.
+async function tellOpenOrders(store, key) {
+  const orderService = require("../orders/order.service");
+  const open = await Order.find({
+    store: store._id,
+    status: { $nin: FINISHED },
+    "delivery.etaOption": { $ne: key },
+  }).limit(500);
+  for (const order of open) {
+    await orderService.setDeliveryTime(order, key, store.settings).catch((err) => console.warn("[store] notice:", err.message));
+  }
+}
+
+// Picking a delivery time also sets the matching number of minutes, so every
+// screen that still reads prepTimeMinutes agrees with it.
+// Keeps an area name only for a pincode the store actually serves.
+function syncAreas(body) {
+  if (!body || !("pincodeAreas" in body)) return;
+  const served = Array.isArray(body.servicePincodes) ? body.servicePincodes.map(String) : null;
+  const seen = new Set();
+  body.pincodeAreas = (Array.isArray(body.pincodeAreas) ? body.pincodeAreas : [])
+    .map((r) => {
+      const charge = r?.deliveryCharge === null || r?.deliveryCharge === "" || r?.deliveryCharge === undefined ? null : Number(r.deliveryCharge);
+      const above = r?.freeAbove === null || r?.freeAbove === "" || r?.freeAbove === undefined ? null : Number(r.freeAbove);
+      return {
+        pincode: String(r?.pincode || ""),
+        area: String(r?.area || "").trim().slice(0, 40),
+        // Whole paise, never negative; anything else means "use the store's charge".
+        ...(Number.isInteger(charge) && charge >= 0 ? { deliveryCharge: charge } : {}),
+        // Order value from which delivery to this area is free (whole paise, above zero).
+        ...(Number.isInteger(above) && above > 0 ? { freeAbove: above } : {}),
+      };
+    })
+    .filter((r) => /^\d{6}$/.test(r.pincode) && r.area && (!served || served.includes(r.pincode)))
+    .filter((r) => {
+      const key = `${r.pincode}:${r.area.toLowerCase()}`;
+      return !seen.has(key) && seen.add(key);
+    });
+  // The default area has to be one of the areas that survived.
+  if ("defaultArea" in body) {
+    const wanted = String(body.defaultArea || "").trim().toLowerCase();
+    const real = body.pincodeAreas.find((r) => r.area.toLowerCase() === wanted);
+    body.defaultArea = real ? real.area : "";
+  }
+}
+
+function syncDeliveryTime(body) {
+  const settings = body?.settings;
+  if (!settings) return;
+  for (const key of ["orderCutoff", "morningDelivery"]) {
+    if (key in settings && settings[key] !== "" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(settings[key]))) {
+      throw ApiError.badRequest("Enter the time as hours and minutes");
+    }
+  }
+  if ("deliveryTimeOptions" in settings) settings.deliveryTimeOptions = normaliseCustom(settings.deliveryTimeOptions);
+  if (!("deliveryTime" in settings) || settings.deliveryTime === "") return;
+  const option = optionsFor(settings).find((o) => o.key === settings.deliveryTime);
+  if (!option) throw ApiError.badRequest("Choose one of the delivery times in the list");
+  settings.prepTimeMinutes = minutesUntil(option);
+}
 
 const router = express.Router();
 
@@ -16,12 +93,16 @@ router.get(
     const filter = { status: "active" };
     if (req.query.pincode) filter.servicePincodes = String(req.query.pincode);
 
-    const stores = await Store.find(filter).select("-manager");
+    // Default store first: a client with no pincode yet takes stores[0], and
+    // that must be the store the storefront prices and stocks pages against.
+    const stores = await Store.find(filter).select("-manager").sort({ isDefault: -1, _id: 1 });
     res.json({
       success: true,
       stores: stores.map((s) => ({
         id: s.id, name: s.name, code: s.code, type: s.type,
         address: s.address, isOpen: s.isOpenNow(), settings: s.settings,
+        // Lets a shopper who never typed a pincode still be asked which area they are in.
+        servicePincodes: s.servicePincodes || [],
       })),
     });
   })
@@ -42,6 +123,8 @@ router.post(
   "/",
   requirePermission("settings.manage"),
   asyncHandler(async (req, res) => {
+    syncDeliveryTime(req.body);
+    syncAreas(req.body);
     const store = await Store.create(req.body);
     res.status(201).json({ success: true, store });
   })
@@ -51,9 +134,93 @@ router.patch(
   "/:id",
   requirePermission("settings.manage"),
   asyncHandler(async (req, res) => {
+    // Free-delivery rule: the amount must be a real, non-negative number, and
+    // an enabled rule needs an amount above zero. (0 with the rule off is how
+    // stores that predate the switch are stored, so that stays allowed.)
+    const rule = req.body?.settings;
+    if (rule && Object.prototype.hasOwnProperty.call(rule, "freeDeliveryAbove")) {
+      const amount = Number(rule.freeDeliveryAbove);
+      if (!Number.isFinite(amount) || amount < 0 || !Number.isInteger(amount)) {
+        throw ApiError.badRequest("Free delivery amount must be a positive number");
+      }
+      if (rule.freeDeliveryEnabled === true && amount <= 0) {
+        throw ApiError.badRequest("Enter a free delivery amount above zero, or turn free delivery off");
+      }
+    }
+    if (rule && "freeDeliveryEnabled" in rule && typeof rule.freeDeliveryEnabled !== "boolean") {
+      throw ApiError.badRequest("Free delivery must be on or off");
+    }
+
+    syncDeliveryTime(req.body);
+    syncAreas(req.body);
+    const before = await Store.findById(req.params.id).select("settings");
     const store = await Store.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!store) throw ApiError.notFound("Store not found");
     res.json({ success: true, store });
+
+    // A new Delivery time (say 30 min -> 10 min) is told to every customer
+    // who still has an order on its way, in the background.
+    const oldKey = before && infoFor(before.settings)?.key;
+    const newKey = infoFor(store.settings)?.key;
+    if (oldKey && newKey && oldKey !== newKey && !afterHours(store.settings)) {
+      tellOpenOrders(store, newKey).catch((err) => console.warn("[store] delivery time notices:", err.message));
+    }
+  })
+);
+
+// Deleting a store removes it and its operational data (stock, carts,
+// delivery zones and slots, maintenance records). It is refused when that
+// would lose something that has to be kept or change who/what a rule covers:
+//  - the default store — the storefront falls back to it;
+//  - a store with orders or payments — that history must stay (close the
+//    store instead: status "closed");
+//  - staff or offers scoped to this store alone — an empty store list means
+//    "every store", so removing the last one would widen them.
+router.delete(
+  "/:id",
+  requirePermission("settings.manage"),
+  asyncHandler(async (req, res) => {
+    const store = await Store.findById(req.params.id);
+    if (!store) throw ApiError.notFound("Store not found");
+    if (store.isDefault) {
+      throw ApiError.conflict("This is the default store. Make another store the default first.");
+    }
+
+    const id = store._id;
+    const [orders, payments, onlyStaff, onlyOffers] = await Promise.all([
+      Order.countDocuments({ store: id }),
+      Payment.countDocuments({ store: id }),
+      User.countDocuments({ stores: [id] }),
+      Offer.countDocuments({ "conditions.stores": [id] }),
+    ]);
+    const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+    if (orders || payments) {
+      throw ApiError.conflict(
+        `${store.name} has ${plural(orders || payments, orders ? "order" : "payment")} on record, which must be kept. Set its status to Closed instead.`
+      );
+    }
+    if (onlyStaff) {
+      throw ApiError.conflict(`${plural(onlyStaff, "staff member")} ${onlyStaff === 1 ? "works" : "work"} only at ${store.name}. Assign them to another store first.`);
+    }
+    if (onlyOffers) {
+      throw ApiError.conflict(`${plural(onlyOffers, "offer")} ${onlyOffers === 1 ? "applies" : "apply"} only at ${store.name}. Edit or remove ${onlyOffers === 1 ? "it" : "them"} first.`);
+    }
+
+    await Promise.all([
+      Inventory.deleteMany({ store: id }),
+      StockMovement.deleteMany({ store: id }),
+      Cart.deleteMany({ store: id }),
+      DeliveryZone.deleteMany({ store: id }),
+      DeliverySlot.deleteMany({ store: id }),
+      MaintenanceAsset.deleteMany({ store: id }),
+      MaintenanceRequest.deleteMany({ store: id }),
+      User.updateMany({ stores: id }, { $pull: { stores: id } }),
+      Offer.updateMany({ "conditions.stores": id }, { $pull: { "conditions.stores": id } }),
+    ]);
+    await store.deleteOne();
+
+    await audit.record({ req, action: "delete", entity: "Store", entityId: id, label: store.name });
+    res.json({ success: true });
   })
 );
 

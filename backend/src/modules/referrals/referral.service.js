@@ -100,9 +100,11 @@ async function settleForOrder(order) {
 
 async function summaryFor(userId) {
   const user = await User.findById(userId).select("referralCode");
-  const [referrals, settings] = await Promise.all([
+  const [referrals, settings, used, orderCount] = await Promise.all([
     Referral.find({ referrer: userId }).populate("referee", "name phone createdAt"),
     Settings.load(),
+    Referral.findOne({ referee: userId }).populate("referrer", "name"),
+    Order.countDocuments({ customer: userId }),
   ]);
 
   const rewarded = referrals.filter((r) => r.status === "rewarded");
@@ -110,6 +112,10 @@ async function summaryFor(userId) {
   return {
     code: user?.referralCode || null,
     enabled: settings.referral.enabled,
+    // Has this person used someone else's code, and can they still?
+    referredBy: used ? { name: firstName(used.referrer?.name), status: used.status } : null,
+    canClaim: Boolean(settings.referral.enabled && !used && orderCount === 0),
+    pending: referrals.filter((r) => r.status === "pending").length,
     reward: settings.referral.referrerReward,
     friendReward: settings.referral.refereeReward,
     minFirstOrderValue: settings.referral.minFirstOrderValue,
@@ -126,4 +132,86 @@ async function summaryFor(userId) {
   };
 }
 
-module.exports = { claim, settleForOrder, summaryFor };
+const firstName = (name) => String(name || "").trim().split(/\s+/)[0] || "A friend";
+
+/**
+ * Applies a code for a brand-new account at sign-up. Never throws: a bad or
+ * unusable code must not stop someone from signing in, so the outcome is
+ * returned for the client to show instead.
+ */
+async function applyOnSignup(userId, code) {
+  const value = String(code || "").trim();
+  if (!value) return null;
+  try {
+    await claim(userId, value);
+    return { applied: true, message: "Referral code applied — your reward lands after your first delivered order." };
+  } catch (err) {
+    return { applied: false, message: err.message || "That referral code could not be applied." };
+  }
+}
+
+/** What a code is worth, for the sign-up screen. Reveals only a first name. */
+async function validate(code) {
+  const normalised = String(code || "").trim().toUpperCase();
+  const settings = await Settings.load();
+  if (!normalised || !settings.referral.enabled) return { valid: false };
+  const referrer = await User.findOne({ referralCode: normalised, role: "customer" }).select("name");
+  if (!referrer) return { valid: false };
+  return {
+    valid: true,
+    referrerName: firstName(referrer.name),
+    friendReward: settings.referral.refereeReward,
+    minFirstOrderValue: settings.referral.minFirstOrderValue,
+  };
+}
+
+/** Per-customer referral counts, for the admin customer list. */
+async function countsFor(userIds) {
+  const rows = await Referral.aggregate([
+    { $match: { referrer: { $in: userIds } } },
+    {
+      $group: {
+        _id: "$referrer",
+        total: { $sum: 1 },
+        rewarded: { $sum: { $cond: [{ $eq: ["$status", "rewarded"] }, 1, 0] } },
+        earned: { $sum: { $cond: [{ $eq: ["$status", "rewarded"] }, "$referrerReward", 0] } },
+      },
+    },
+  ]);
+  return new Map(rows.map((r) => [String(r._id), r]));
+}
+
+/** One customer's referral picture for the admin: who they brought, and who brought them. */
+async function detailFor(userId) {
+  const [made, used] = await Promise.all([
+    Referral.find({ referrer: userId }).sort({ createdAt: -1 }).populate("referee", "name phone createdAt"),
+    Referral.findOne({ referee: userId }).populate("referrer", "name phone"),
+  ]);
+  return {
+    invited: made.length,
+    rewarded: made.filter((r) => r.status === "rewarded").length,
+    pending: made.filter((r) => r.status === "pending").length,
+    earned: made.filter((r) => r.status === "rewarded").reduce((sum, r) => sum + r.referrerReward, 0),
+    referredBy: used
+      ? {
+          id: used.referrer?.id,
+          name: used.referrer?.name || "",
+          phone: used.referrer?.phone || "",
+          status: used.status,
+        }
+      : null,
+    friends: made.map((r) => ({
+      id: r.id,
+      customerId: r.referee?.id,
+      name: r.referee?.name || "",
+      phone: r.referee?.phone || "",
+      status: r.status,
+      joinedAt: r.referee?.createdAt || r.createdAt,
+      qualifyingOrderCode: r.qualifyingOrderCode || "",
+      rewardedAt: r.rewardedAt || null,
+      reward: r.referrerReward,
+    })),
+  };
+}
+
+module.exports = { claim, settleForOrder, summaryFor, applyOnSignup, validate, countsFor, detailFor };

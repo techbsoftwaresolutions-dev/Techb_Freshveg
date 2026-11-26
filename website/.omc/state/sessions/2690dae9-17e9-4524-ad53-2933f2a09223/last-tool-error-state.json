@@ -1,0 +1,7 @@
+{
+  "tool_name": "Read",
+  "tool_input_preview": "{\"file_path\":\"D:\\\\TechB\\\\fresh market\\\\Techb_Freshveg\\\\website\\\\.playwright-mcp\\\\console-2026-10-07T07-58-46-566Z.log\"}",
+  "error": "File does not exist. Note: your current working directory is D:\\TechB\\fresh market\\Techb_Freshveg\\website.",
+  "timestamp": "2026-10-07T08:02:07.454Z",
+  "retry_count": 1
+}

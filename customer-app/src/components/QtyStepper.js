@@ -1,6 +1,7 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius, formatQty } from "../theme";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "./AppText";
+import { colors, fontFamily, radius, formatQty } from "../theme";
 
 // The stepper does not assume 1. Loose vegetables come back from the API with
 // stepQty 0.25 and unit "kg", so tapping + on a tomato adds a quarter kilo and
@@ -13,6 +14,12 @@ export default function QtyStepper({
   unit = "",
   busy = false,
   compact = false,
+  // The flat product tile: an outlined "ADD" and a squarer stepper, 34px high.
+  tile = false,
+  // A small floating circle meant to sit half on top of a product photo
+  // (the quick-add button on a listing card), rather than the normal
+  // rectangular control used on the product detail page.
+  overlay = false,
   onAdd,
   onChange,
   onRemove,
@@ -33,12 +40,30 @@ export default function QtyStepper({
   };
 
   if (quantity <= 0) {
+    if (overlay) {
+      return (
+        <Pressable
+          onPress={busy ? undefined : onAdd}
+          style={({ pressed }) => [styles.overlayAdd, pressed && { opacity: 0.85 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Add to cart"
+        >
+          {busy ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Text style={styles.overlayAddSymbol}>+</Text>
+          )}
+        </Pressable>
+      );
+    }
+
     return (
       <Pressable
         onPress={busy ? undefined : onAdd}
         style={({ pressed }) => [
           styles.addButton,
           compact && styles.addButtonCompact,
+          tile && styles.addButtonTile,
           pressed && { opacity: 0.8 },
         ]}
         accessibilityRole="button"
@@ -46,15 +71,20 @@ export default function QtyStepper({
       >
         {busy ? (
           <ActivityIndicator size="small" color={colors.primary} />
+        ) : tile ? (
+          <Text style={styles.addTextTile}>ADD</Text>
         ) : (
-          <Text style={styles.addText}>ADD</Text>
+          <View style={styles.addInner}>
+            <Text style={[styles.addText, compact && styles.addTextCompact]}>ADD</Text>
+            <Text style={[styles.addPlus, compact && styles.addPlusCompact]}>+</Text>
+          </View>
         )}
       </Pressable>
     );
   }
 
   return (
-    <View style={[styles.stepper, compact && styles.stepperCompact]}>
+    <View style={[styles.stepper, compact && styles.stepperCompact, overlay && styles.stepperOverlay, tile && styles.stepperTile]}>
       <Pressable
         onPress={busy ? undefined : decrease}
         style={styles.stepButton}
@@ -69,7 +99,7 @@ export default function QtyStepper({
         {busy ? (
           <ActivityIndicator size="small" color={colors.onPrimary} />
         ) : (
-          <Text style={styles.quantityText} numberOfLines={1}>
+          <Text style={[styles.quantityText, overlay && styles.quantityTextOverlay]} numberOfLines={1}>
             {formatQty(quantity, unit)}
           </Text>
         )}
@@ -89,31 +119,86 @@ export default function QtyStepper({
 }
 
 const styles = StyleSheet.create({
+  // A solid green pill: "ADD +". Once something is added it turns into the
+  // matching − 1 + pill below, so the swap does not move anything.
   addButton: {
-    minWidth: 78,
-    height: 34,
-    borderRadius: radius.sm,
+    minWidth: 84,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  addButtonCompact: { minWidth: 58, height: 28, borderRadius: 14 },
+  addButtonTile: { minWidth: 66, height: 30, borderRadius: 9, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.primary, shadowOpacity: 0, elevation: 0 },
+  addTextTile: { color: colors.primaryDark, fontFamily: fontFamily.extrabold, fontSize: 12.5, letterSpacing: 0.4 },
+  addInner: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 8 },
+  addText: { color: colors.onPrimary, fontFamily: fontFamily.extrabold, fontSize: 13, letterSpacing: 0.5 },
+  addTextCompact: { fontSize: 11.5, letterSpacing: 0.3 },
+  addPlusCompact: { fontSize: 14, lineHeight: 16 },
+  addPlus: { color: colors.onPrimary, fontFamily: fontFamily.extrabold, fontSize: 16, lineHeight: 18, includeFontPadding: false },
+
+  // The floating circle on a product card's photo — half the button sits on
+  // the image, half on the white card below it, so it needs its own shadow
+  // rather than relying on the card's.
+  overlayAdd: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     borderWidth: 1.5,
     borderColor: colors.primary,
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#0B0F1A",
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
-  addButtonCompact: { minWidth: 64, height: 30 },
-  addText: { color: colors.primary, fontWeight: "800", fontSize: 13, letterSpacing: 0.4 },
+  overlayAddSymbol: {
+    color: colors.primary,
+    fontFamily: fontFamily.extrabold,
+    fontSize: 18,
+    lineHeight: 20,
+    includeFontPadding: false,
+  },
 
   stepper: {
-    minWidth: 78,
-    height: 34,
-    borderRadius: radius.sm,
+    minWidth: 84,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.primary,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
   },
-  stepperCompact: { minWidth: 64, height: 30 },
+  stepperCompact: { minWidth: 62, height: 28, borderRadius: 14 },
+  stepperTile: { minWidth: 74, height: 30, borderRadius: 9 },
+  stepperOverlay: {
+    minWidth: 64,
+    height: 28,
+    borderRadius: 14,
+    shadowColor: "#0B0F1A",
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
   stepButton: { paddingHorizontal: 9, height: "100%", alignItems: "center", justifyContent: "center" },
-  stepSymbol: { color: colors.onPrimary, fontSize: 17, fontWeight: "700", lineHeight: 20 },
+  stepSymbol: {
+    color: colors.onPrimary,
+    fontSize: 17,
+    lineHeight: 20,
+    fontFamily: fontFamily.bold,
+    includeFontPadding: false,
+  },
   quantityBox: { flex: 1, alignItems: "center", justifyContent: "center" },
-  quantityText: { color: colors.onPrimary, fontWeight: "800", fontSize: 12.5 },
+  quantityText: { color: colors.onPrimary, fontFamily: fontFamily.extrabold, fontSize: 12.5 },
+  quantityTextOverlay: { fontSize: 11.5 },
 });

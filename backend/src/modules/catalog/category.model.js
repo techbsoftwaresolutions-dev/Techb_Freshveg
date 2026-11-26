@@ -1,4 +1,4 @@
-const { mongoose, baseOptions, objectId } = require("../../core/schemaBase");
+const { mongoose, baseOptions, objectId, wholeUnit } = require("../../core/schemaBase");
 
 // Categories are an arbitrary-depth tree. "Fruits & Vegetables > Leafy Greens"
 // and "Grocery > Staples > Rice" are the same structure at different depths —
@@ -65,9 +65,9 @@ const categorySchema = new mongoose.Schema(
       shelfLifeDays: { type: Number, default: null },
       lowStockThreshold: { type: Number, default: null },
       returnWindowDays: { type: Number, default: null },
-      minOrderQty: { type: Number, default: null },
+      minOrderQty: { type: Number, default: null, set: wholeUnit },
       maxOrderQty: { type: Number, default: null },
-      stepQty: { type: Number, default: null },   // 0.25 for loose vegetables
+      stepQty: { type: Number, default: null, set: wholeUnit }, // whole units — see variant.model
     },
 
     displayConfig: {

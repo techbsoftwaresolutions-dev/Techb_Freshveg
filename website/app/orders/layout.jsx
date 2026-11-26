@@ -2,7 +2,7 @@
 // lives in a thin server layout alongside it.
 export const metadata = {
   title: "Your orders",
-  description: "Track your FreshMart orders and view past deliveries.",
+  description: "Track your Hosur Basket orders and view past deliveries.",
   robots: { index: false, follow: false },
 };
 

@@ -46,13 +46,25 @@ export const radius = {
   pill: 999,
 };
 
+// Named after the loaded font files in App.js (via @expo-google-fonts/inter).
+// Every entry below names one explicitly rather than relying on the
+// platform default, so text renders the same everywhere no matter what
+// system font a phone has selected (see the comment in App.js).
+export const fontFamily = {
+  regular: "Inter_400Regular",
+  medium: "Inter_500Medium",
+  semibold: "Inter_600SemiBold",
+  bold: "Inter_700Bold",
+  extrabold: "Inter_800ExtraBold",
+};
+
 export const type = {
-  h1: { fontSize: 22, fontWeight: "700", color: colors.text, letterSpacing: -0.3 },
-  h2: { fontSize: 17, fontWeight: "700", color: colors.text, letterSpacing: -0.2 },
-  h3: { fontSize: 15, fontWeight: "600", color: colors.text },
-  body: { fontSize: 14, color: colors.text },
-  small: { fontSize: 12.5, color: colors.textMuted },
-  tiny: { fontSize: 11, color: colors.textFaint },
+  h1: { fontSize: 22, fontFamily: fontFamily.bold, color: colors.text, letterSpacing: -0.3 },
+  h2: { fontSize: 17, fontFamily: fontFamily.bold, color: colors.text, letterSpacing: -0.2 },
+  h3: { fontSize: 15, fontFamily: fontFamily.semibold, color: colors.text },
+  body: { fontSize: 14, fontFamily: fontFamily.regular, color: colors.text },
+  small: { fontSize: 12.5, fontFamily: fontFamily.regular, color: colors.textMuted },
+  tiny: { fontSize: 11, fontFamily: fontFamily.regular, color: colors.textFaint },
 };
 
 export const shadow = {

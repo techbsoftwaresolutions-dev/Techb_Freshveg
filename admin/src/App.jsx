@@ -1,13 +1,13 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
+import Toaster from "./components/Toaster";
 import { Loading } from "./components/ui";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Offers, { OfferFormPage } from "./pages/Offers";
 import Categories, { CategoryFormPage } from "./pages/catalog/Categories";
-import Attributes, { AttributeFormPage } from "./pages/catalog/Attributes";
 import Products from "./pages/catalog/Products";
 import ProductForm from "./pages/catalog/ProductForm";
 import Brands, { BrandFormPage } from "./pages/catalog/Brands";
@@ -20,13 +20,18 @@ import Inventory from "./pages/inventory/Inventory";
 import Delivery, { SlotFormPage, ZoneFormPage } from "./pages/delivery/Delivery";
 import Support, { TicketPage } from "./pages/support/Support";
 import Maintenance, { AssetDetailPage, AssetFormPage, JobFormPage } from "./pages/maintenance/Maintenance";
-import Customers, { CustomerPage } from "./pages/customers/Customers";
+import Customers, { CustomerPage, CustomerEditPage } from "./pages/customers/Customers";
 import Banners, { BannerFormPage } from "./pages/marketing/Banners";
 import Notifications, { TemplateFormPage } from "./pages/marketing/Notifications";
 import Reports from "./pages/reports/Reports";
 import Stores, { StoreFormPage } from "./pages/settings/Stores";
 import General from "./pages/settings/General";
 import AuditLog from "./pages/settings/AuditLog";
+import Users, { UserFormPage } from "./pages/settings/Users";
+import Pos from "./pages/pos/Pos";
+import { HoldBills, PastBills } from "./pages/pos/PosBills";
+import Labels from "./pages/pos/Labels";
+import Import from "./pages/pos/Import";
 
 // A route can require a permission. Without it the user is sent to the
 // dashboard rather than shown an error — the nav already hides what they
@@ -64,10 +69,6 @@ function Shell() {
           element={<Guard permission="catalog.view"><Categories /></Guard>}
         />
         <Route
-          path="catalog/attributes"
-          element={<Guard permission="catalog.view"><Attributes /></Guard>}
-        />
-        <Route
           path="catalog/products"
           element={<Guard permission="catalog.view"><Products /></Guard>}
         />
@@ -83,6 +84,11 @@ function Shell() {
         <Route path="returns" element={<Guard permission="orders.view"><Returns /></Guard>} />
         <Route path="payments" element={<Guard permission="orders.view"><Payments /></Guard>} />
 
+        <Route path="pos" element={<Guard permission="pos.sell"><Pos /></Guard>} />
+        <Route path="pos/hold-bills" element={<Guard permission="pos.sell"><HoldBills /></Guard>} />
+        <Route path="pos/past-bills" element={<Guard permission="pos.sell"><PastBills /></Guard>} />
+        <Route path="pos/labels" element={<Guard permission="pos.manage"><Labels /></Guard>} />
+        <Route path="pos/import" element={<Guard permission="pos.manage"><Import /></Guard>} />
         <Route path="inventory" element={<Guard permission="inventory.view"><Inventory /></Guard>} />
         <Route path="delivery" element={<Guard permission="delivery.view"><Delivery /></Guard>} />
         <Route path="support" element={<Guard permission="customers.view"><Support /></Guard>} />
@@ -107,12 +113,13 @@ function Shell() {
 
         <Route path="settings/stores" element={<Guard permission="settings.manage"><Stores /></Guard>} />
         <Route path="settings/general" element={<Guard permission="settings.manage"><General /></Guard>} />
+        <Route path="settings/users" element={<Guard permission="users.manage"><Users /></Guard>} />
+        <Route path="settings/users/:id" element={<Guard permission="users.manage"><UserFormPage /></Guard>} />
         <Route path="settings/audit" element={<Guard permission="reports.view"><AuditLog /></Guard>} />
 
         {/* Add / edit / detail pages — each form on its own URL, guarded by
             the permission its save needs ("new" is matched as the id). */}
         <Route path="catalog/categories/new" element={<Guard permission="catalog.manage"><CategoryFormPage /></Guard>} />
-        <Route path="catalog/attributes/:id" element={<Guard permission="catalog.manage"><AttributeFormPage /></Guard>} />
         <Route path="catalog/brands/:id" element={<Guard permission="catalog.manage"><BrandFormPage /></Guard>} />
         <Route path="returns/:id" element={<Guard permission="orders.view"><ReturnPage /></Guard>} />
         <Route path="delivery/zones/:id" element={<Guard permission="settings.manage"><ZoneFormPage /></Guard>} />
@@ -122,6 +129,7 @@ function Shell() {
         <Route path="maintenance/assets/:id" element={<Guard permission="settings.manage"><AssetDetailPage /></Guard>} />
         <Route path="maintenance/jobs/new" element={<Guard permission="settings.manage"><JobFormPage /></Guard>} />
         <Route path="customers/:id" element={<Guard permission="customers.view"><CustomerPage /></Guard>} />
+        <Route path="customers/:id/edit" element={<Guard permission="customers.manage"><CustomerEditPage /></Guard>} />
         <Route path="marketing/offers/:id" element={<Guard permission="marketing.manage"><OfferFormPage /></Guard>} />
         <Route path="marketing/banners/:id" element={<Guard permission="marketing.manage"><BannerFormPage /></Guard>} />
         <Route
@@ -141,6 +149,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Shell />
+        <Toaster />
       </AuthProvider>
     </BrowserRouter>
   );

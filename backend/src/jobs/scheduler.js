@@ -10,10 +10,13 @@ const rules = require("./rules");
 const JOBS = [
   { name: "abandonedCarts", everyMinutes: 15, run: rules.abandonedCarts },
   { name: "wishlistWatches", everyMinutes: 60, run: rules.wishlistWatches },
+  // "Notify me" on out-of-stock items: tell customers once it is back.
+  { name: "stockAlerts", everyMinutes: 10, run: () => require("../modules/stockAlerts/stockAlert.service").sweep() },
   { name: "lowStockAlerts", everyMinutes: 12 * 60, run: rules.lowStockAlerts },
   { name: "winBack", everyMinutes: 24 * 60, run: rules.winBack },
   { name: "expireCarts", everyMinutes: 24 * 60, run: rules.expireCarts },
   { name: "expireLoyalty", everyMinutes: 24 * 60, run: rules.expireLoyalty },
+  { name: "purgeNotifications", everyMinutes: 60, run: rules.purgeNotifications },
 ];
 
 const timers = [];
@@ -60,6 +63,9 @@ function start() {
     timer.unref?.();
     timers.push(timer);
   }
+
+  // Clear what has already expired now, not an hour from now.
+  trigger("purgeNotifications").catch(() => {});
 
   console.log(`[jobs] ${JOBS.length} scheduled rules running`);
 }

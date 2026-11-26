@@ -7,19 +7,52 @@ const mongoose = require("mongoose");
 
 const config = require("./config");
 const routes = require("./routes");
-const storage = require("./modules/storage/storage.routes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
 
 app.set("trust proxy", 1);
 app.use(helmet());
-app.use(cors());
+// Which websites may call this API from a browser. In production the admin
+// (admin.hosurbasket.com) and the site (hosurbasket.com) live on different
+// addresses from the API (api.hosurbasket.com), so they are listed in
+// CORS_ORIGINS; any other site's browser requests are refused. Unset — as in
+// development — allows every origin. The phone apps send no Origin header and
+// are unaffected either way.
+const allowedOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+app.use(
+  cors(
+    allowedOrigins.length
+      ? {
+          origin: (origin, done) => done(null, !origin || allowedOrigins.includes(origin)),
+          credentials: true,
+          maxAge: 600,
+        }
+      : // Browsers re-check a cross-origin call's permission (an extra
+        // OPTIONS round trip) only every 10 minutes, not every few seconds.
+        { maxAge: 600 }
+  )
+);
 app.use(compression());
+app.use(require("./core/requestContext").middleware);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 if (!config.isProd) app.use(morgan("dev"));
+
+// Names any request slower than 300 ms, so slow endpoints show up in the log
+// instead of being guessed at. Cheap enough to leave on in production.
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  res.on("finish", () => {
+    const ms = Number(process.hrtime.bigint() - start) / 1e6;
+    if (ms > 300) console.warn(`[slow] ${req.method} ${req.originalUrl.split("?")[0]} ${Math.round(ms)}ms`);
+  });
+  next();
+});
 
 app.get("/api/health", (_req, res) => {
   const states = ["disconnected", "connected", "connecting", "disconnecting"];
@@ -31,27 +64,15 @@ app.get("/api/health", (_req, res) => {
       state: states[mongoose.connection.readyState] || "unknown",
       name: mongoose.connection.name || null,
     },
+    // Counts only, never values: lets you confirm from a browser that the
+    // host passed the SMS settings to the running app.
+    login: {
+      smsProviderSet: require("./modules/auth/sms.service").isConfigured(),
+      testNumbers: String(process.env.OTP_TEST_NUMBERS || "").split(",").filter((x) => x.includes(":")).length,
+    },
     time: new Date().toISOString(),
   });
 });
-
-// Uploaded images are served straight off disk. immutable because every file
-// gets a unique name — an image is never rewritten in place.
-//
-// helmet()'s default Cross-Origin-Resource-Policy is "same-origin", which
-// tells the *browser* to silently refuse to render a resource inside a page
-// from a different origin — even though the request itself succeeds with a
-// normal 200. The storefront and admin apps run on their own origins (their
-// own ports), not this API's, and both embed these images directly via
-// <img src>, so the default policy blocked every one of them client-side
-// with no server-visible error. This route is the one thing on this API
-// that is meant to be loaded cross-origin, so it gets its own explicit
-// policy rather than loosening helmet() globally.
-app.use(
-  storage.PUBLIC_PREFIX,
-  helmet.crossOriginResourcePolicy({ policy: "cross-origin" }),
-  express.static(storage.UPLOAD_DIR, { maxAge: "30d", immutable: true, fallthrough: true })
-);
 
 app.use(config.apiPrefix, routes);
 

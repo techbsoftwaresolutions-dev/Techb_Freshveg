@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__plugin_playwright_playwright__browser_run_code_unsafe",
+  "tool_input_preview": "{\"code\":\"async (page) => {\\n  const fs = require('fs');\\n  const cred = JSON.parse(fs.readFileSync(process.env.TEMP + '/adm.json', 'utf8'));\\n  const out = [];\\n  await page.unrouteAll({ behavior: 'ig...",
+  "error": "### Error\nReferenceError: require is not defined",
+  "timestamp": "2026-10-07T09:00:05.542Z",
+  "retry_count": 1
+}

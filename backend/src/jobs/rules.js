@@ -198,4 +198,6 @@ module.exports = {
   wishlistWatches,
   expireCarts,
   expireLoyalty: loyaltyService.expirePoints,
+  // Notifications are kept for three days, then deleted.
+  purgeNotifications: () => notificationService.purgeOld(),
 };

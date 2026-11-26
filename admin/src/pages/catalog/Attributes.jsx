@@ -1,9 +1,10 @@
+import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Field, Loading, Modal, Pill, Table } from "../../components/ui";
+import { Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Table } from "../../components/ui";
 
 // Attributes are the reusable field definitions categories bind. Creating one
 // here and binding it to a category is the whole "new kind of product without
@@ -41,22 +42,31 @@ export default function Attributes() {
   const { can } = useAuth();
   const editable = can("catalog.manage");
 
-  const [items, setItems] = useState([]);
+  const [data, setData] = useState({ items: [], meta: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const navigate = useNavigate();
 
   const load = () =>
     api
-      .get("/catalog/attributes", { limit: 100, search })
-      .then((data) => setItems(data.items))
+      .get("/catalog/attributes", { limit, search, page })
+      .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
 
   useEffect(() => {
     const timer = setTimeout(load, search ? 250 : 0);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, page, limit]);
+
+  // A fresh search starts back at page 1 — staying on page 3 of a changed
+  // result set is how you end up looking at an empty table.
+  useEffect(() => {
+    setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
@@ -89,6 +99,7 @@ export default function Attributes() {
 
       <Card tight>
         <Table
+          title="Attributes" search={false}
           columns={[
             {
               key: "name",
@@ -127,10 +138,11 @@ export default function Attributes() {
               ),
             },
           ]}
-          rows={items}
+          rows={data.items}
           onRowClick={editable ? (row) => navigate(`/catalog/attributes/${row.id}`) : undefined}
           empty={<Empty title="No attributes" hint="Create one to start describing products." />}
         />
+        <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
       </Card>
     </div>
   );
@@ -221,7 +233,6 @@ function AttributeModal({ value, saving, onClose, onSave }) {
         </Field>
         <Field
           label="Code"
-          help={isNew ? "Machine name used in the API." : "Fixed once created — product values are stored under it."}
         >
           <input type="text" value={form.code} onChange={set("code")} disabled={!isNew} className="mono" />
         </Field>
@@ -229,18 +240,18 @@ function AttributeModal({ value, saving, onClose, onSave }) {
 
       <div className="grid cols-3">
         <Field label="Input type">
-          <select value={form.inputType} onChange={set("inputType")}>
+          <Select value={form.inputType} onChange={set("inputType")}>
             {INPUT_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
-        <Field label="Group" help="Sections the product form is split into.">
+        <Field label="Group" >
           <input type="text" value={form.group} onChange={set("group")} />
         </Field>
-        <Field label="Unit" help="For number fields, e.g. g, ml.">
+        <Field label="Unit" >
           <input type="text" value={form.unit} onChange={set("unit")} />
         </Field>
       </div>
@@ -301,7 +312,7 @@ function AttributeModal({ value, saving, onClose, onSave }) {
         </label>
       </div>
 
-      <Field label="Help text" help="Shown under the input on the product form.">
+      <Field label="Help text" >
         <input type="text" value={form.helpText} onChange={set("helpText")} />
       </Field>
     </Modal>

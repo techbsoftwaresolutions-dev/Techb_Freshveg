@@ -1,3 +1,5 @@
+import DatePicker from "./DatePicker";
+import Select from "./Select";
 import { Field } from "./ui";
 
 // Renders a product form from whatever `GET /catalog/categories/:id/schema`
@@ -61,14 +63,14 @@ function Input({ field, value, onChange, error }) {
 
     case "select":
       return (
-        <select {...common} value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
+        <Select {...common} value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
           <option value="">— Select —</option>
           {field.options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
-        </select>
+        </Select>
       );
 
     case "multiselect": {
@@ -97,11 +99,11 @@ function Input({ field, value, onChange, error }) {
 
     case "date":
       return (
-        <input
-          {...common}
-          type="date"
+        <DatePicker
+          id={common.id}
+          invalid={common["aria-invalid"] === "true"}
           value={value ? String(value).slice(0, 10) : ""}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={onChange}
         />
       );
 

@@ -1,0 +1,301 @@
+.pos { --g: #1f9a52; --g-dark: #167a40; --g-soft: #e8f6ee; --g-line: #cfe9da; --r: 14px;
+  display: grid; gap: 16px; padding: 20px; box-sizing: border-box; color: var(--text); min-width: 0; width: 100%; max-width: 100%; }
+.pos > * { min-width: 0; }
+.pos-grid > * { min-width: 0; }
+.pos button { font: inherit; cursor: pointer; }
+.pos-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pos-head h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+.pos-head p { margin: 2px 0 0; color: var(--text-muted); }
+.pos-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pos-chip-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--surface); font-weight: 600; box-shadow: var(--shadow); }
+.pos-chip-btn:hover { border-color: var(--g); }
+.pos-chip-btn .badge { background: var(--g); color: #fff; border-radius: 999px; padding: 0 7px; font-size: 12px; }
+
+.pos-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .pos-grid { grid-template-columns: 1fr; } }
+.pos-col { display: grid; gap: 16px; min-width: 0; }
+.pos-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); padding: 16px; }
+.pos-panel h2 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.pos-panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+
+.pos-scan { display: flex; align-items: center; gap: 12px; padding: 4px 14px; border: 2px solid var(--g); border-radius: 14px; background: var(--surface); }
+.pos-scan input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 17px; padding: 14px 0; color: var(--text); min-width: 0; }
+.pos-scan svg { color: var(--g); flex: none; }
+.pos-matches { margin-top: 8px; display: grid; gap: 4px; }
+.pos-matches button { text-align: left; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.pos-matches button:hover { border-color: var(--g); background: var(--g-soft); }
+
+.pos-cats { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.pos-cat { padding: 8px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); font-weight: 600; font-size: 13px; white-space: nowrap; }
+.pos-cat.on { background: var(--g); border-color: var(--g); color: #fff; }
+
+.pos-sm-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface); font-weight: 600; font-size: 13px; }
+.pos-sm-btn.danger { color: var(--danger); border-color: #f3c3c3; }
+.pos-sm-btn:disabled { opacity: .5; cursor: not-allowed; }
+.pos-customer { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.pos-customer input, .pos-field input { padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; }
+
+.pos-table { width: 100%; border-collapse: collapse; }
+.pos-table th { text-align: left; font-size: 12px; color: var(--text-muted); font-weight: 600; padding: 8px; background: var(--surface-2); }
+.pos-table td { padding: 10px 8px; border-top: 1px solid var(--border); vertical-align: middle; }
+.pos-table .r { text-align: right; }
+.pos-prod { display: flex; align-items: center; gap: 10px; }
+.pos-thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: var(--g-soft); flex: none; display: grid; place-items: center; color: var(--g); font-weight: 700; }
+.pos-prod b { display: block; }
+.pos-prod small { color: var(--text-muted); }
+.pos-stepper { display: inline-flex; align-items: center; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; }
+.pos-stepper button { width: 32px; height: 34px; border: 0; background: var(--surface-2); font-size: 18px; }
+.pos-stepper input { width: 58px; text-align: center; border: 0; border-inline: 1px solid var(--border-strong); height: 34px; background: var(--surface); color: var(--text); font: inherit; }
+.pos-del { border: 0; background: none; color: var(--text-muted); padding: 6px; border-radius: 8px; }
+.pos-del:hover { color: var(--danger); background: var(--danger-soft); }
+.pos-empty { padding: 32px; text-align: center; color: var(--text-muted); }
+
+.pos-quick { background: var(--g-soft); border-color: var(--g-line); }
+.pos-quick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.pos-tile { position: relative; display: grid; gap: 4px; text-align: left; padding: 10px; border: 1px solid var(--g-line); border-radius: 12px; background: var(--surface); }
+.pos-tile:hover { border-color: var(--g); }
+.pos-tile .pos-thumb { width: 100%; height: 56px; }
+.pos-tile b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos-tile small { color: var(--text-muted); }
+.pos-tile i { position: absolute; right: 8px; bottom: 8px; width: 24px; height: 24px; border-radius: 50%; background: var(--g); color: #fff; display: grid; place-items: center; font-style: normal; font-weight: 700; }
+
+.pos-sum { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+.pos-sum input { width: 120px; text-align: right; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; }
+.pos-total { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-radius: 12px; background: var(--g-soft); font-size: 30px; font-weight: 800; margin: 8px 0 16px; }
+.pos-total span:first-child { font-size: 24px; }
+.pos-methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 8px 0 12px; }
+.pos-method { position: relative; display: grid; place-items: center; gap: 4px; padding: 14px 6px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface); font-weight: 600; }
+.pos-method.on { border-color: var(--g); background: var(--g-soft); }
+.pos-method.on::after { content: "\2713"; position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%; background: var(--g); color: #fff; font-size: 12px; display: grid; place-items: center; }
+.pos-change { background: var(--g-soft); border-radius: 10px; padding: 8px 12px; font-weight: 700; min-width: 120px; text-align: right; }
+.pos-pay { width: 100%; margin-top: 14px; display: flex; justify-content: center; align-items: center; gap: 10px; padding: 16px; border: 0; border-radius: 12px; background: linear-gradient(100deg, var(--g-dark), var(--g)); color: #fff; font-size: 17px; font-weight: 700; }
+.pos-pay:disabled { opacity: .45; cursor: not-allowed; }
+.pos-pay-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.pos-pay-row button { padding: 12px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--surface-2); font-weight: 600; display: flex; gap: 8px; justify-content: center; align-items: center; }
+.pos-pay-row .danger { background: var(--danger-soft); color: var(--danger); border-color: #f3c3c3; }
+.pos-pay-row button:disabled { opacity: .5; cursor: not-allowed; }
+
+.pos-modal-bg { position: fixed; inset: 0; background: rgba(10, 20, 14, .45); display: grid; place-items: center; z-index: 60; padding: 16px; }
+.pos-modal { background: var(--surface); border-radius: 16px; width: min(560px, 100%); max-height: 80vh; overflow: auto; padding: 18px; }
+.pos-modal-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid var(--border); }
+
+.pos-price { cursor: text; border-bottom: 1px dashed var(--border-strong); }
+.pos-was { display: block; color: var(--text-faint); text-decoration: line-through; }
+.pos-price-edit { width: 90px; text-align: right; padding: 6px 8px; border: 2px solid var(--g); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
+
+/* Whole screen fits without a long page scroll: bill table and quick-add scroll inside their own panels. */
+.pos-table-wrap { max-height: clamp(180px, 34vh, 380px); overflow: auto; }
+.pos-table th { position: sticky; top: 0; z-index: 1; }
+.pos-quick-row { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 6px; }
+.pos-quick-row .pos-tile { flex: 0 0 150px; scroll-snap-align: start; }
+/* Photos are shown whole, never cropped. */
+.pos-thumb { object-fit: contain; background: #fff; }
+img.pos-thumb { border: 1px solid var(--border); padding: 2px; box-sizing: border-box; }
+.pos-tile .pos-thumb { height: 68px; }
+.pos-method svg { height: 28px; }
+/* Let the left column shrink to the screen: its wide children (quick-add row, table) scroll inside instead of stretching the page. */
+.pos-col { grid-template-columns: minmax(0, 1fr); }
+.pos-quick { min-width: 0; overflow: hidden; }
+
+/* Search suggestions float over the page instead of pushing it down. */
+.pos-col > .pos-panel:first-child { position: relative; z-index: 5; }
+.pos-matches { position: absolute; left: 16px; right: 16px; top: calc(100% - 8px); z-index: 30; margin: 0; max-height: 420px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 32px rgba(16, 18, 24, .18); padding: 6px; gap: 2px; }
+.pos-matches button { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; border-radius: 10px; background: transparent; padding: 8px 10px; text-align: left; }
+.pos-matches button:hover { background: var(--g-soft); }
+.pos-match-text { flex: 1; min-width: 0; display: grid; }
+.pos-match-text b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos-match-text small { color: var(--text-muted); }
+.pos-match-price { font-weight: 700; white-space: nowrap; }
+
+/* Selling more than the counted stock is allowed, but it is flagged on the line. */
+.pos-prod small { display: block; }
+.pos-row-low td { background: var(--warn-soft, #fdf3e2); }
+.pos-low { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px; background: #f6c453; color: #5a3b00; font-size: 12px; font-weight: 700; }
+
+/* ---- Screen templates (Settings -> POS). "standard" is the base look above. ---- */
+
+/* Compact: scanner-first. No chips or Quick Add; the bill gets the room. */
+.pos--compact .pos-cats,
+.pos--compact .pos-quick { display: none; }
+.pos--compact .pos-table-wrap { max-height: calc(100vh - 360px); min-height: 280px; }
+.pos--compact .pos-grid { grid-template-columns: minmax(0, 1.9fr) minmax(320px, 1fr); }
+
+/* Touch: products first as a big tile grid, larger controls. */
+.pos--touch .pos-quick { order: 1; }
+.pos--touch .pos-col > .pos-panel:first-child { order: 0; }
+.pos--touch .pos-cats { order: 0; }
+.pos--touch .pos-col > .pos-panel:not(.pos-quick):not(:first-child) { order: 2; }
+.pos--touch .pos-col { display: flex; flex-direction: column; }
+.pos--touch .pos-quick-row { flex-wrap: wrap; overflow-x: visible; max-height: 46vh; overflow-y: auto; }
+.pos--touch .pos-quick-row .pos-tile { flex: 0 0 calc(25% - 8px); min-height: 150px; padding: 12px; }
+.pos--touch .pos-tile .pos-thumb { height: 90px; }
+.pos--touch .pos-tile b { font-size: 15px; }
+.pos--touch .pos-tile i { width: 32px; height: 32px; font-size: 20px; }
+.pos--touch .pos-stepper button { width: 44px; height: 44px; font-size: 22px; }
+.pos--touch .pos-stepper input { height: 44px; width: 70px; font-size: 16px; }
+.pos--touch .pos-method { padding: 20px 6px; font-size: 16px; }
+.pos--touch .pos-pay { padding: 22px; font-size: 20px; }
+.pos--touch .pos-table-wrap { max-height: 30vh; }
+@media (max-width: 1200px) { .pos--touch .pos-quick-row .pos-tile { flex-basis: calc(33.33% - 8px); } }
+
+/* ---- Modern look (all non-terminal templates) ---- */
+.pos { --r: 18px; --pos-shadow: 0 1px 2px rgba(16, 24, 20, .04), 0 8px 24px rgba(16, 24, 20, .06); gap: 18px; }
+
+/* Header: title with a live status line under it. */
+.pos-head h1 { font-size: 28px; font-weight: 800; }
+.pos-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 6px; color: var(--text-muted); font-size: 13px; }
+.pos-meta-item { display: inline-flex; align-items: center; gap: 5px; }
+.pos-status { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; background: #fdecec; color: #b42318; }
+.pos-status i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pos-status.on { background: var(--g-soft); color: var(--g-dark); }
+.pos-status.on i { box-shadow: 0 0 0 0 rgba(31, 154, 82, .5); animation: pos-pulse 2s infinite; }
+@keyframes pos-pulse { 70% { box-shadow: 0 0 0 7px rgba(31, 154, 82, 0); } 100% { box-shadow: 0 0 0 0 rgba(31, 154, 82, 0); } }
+@media (prefers-reduced-motion: reduce) { .pos-status.on i { animation: none; } }
+.pos-chip-btn { border-radius: 999px; padding: 10px 16px; box-shadow: none; transition: border-color .15s, background .15s, transform .15s; }
+.pos-chip-btn:hover { background: var(--g-soft); transform: translateY(-1px); }
+.pos-chip-btn:first-child { background: var(--g); border-color: var(--g); color: #fff; }
+.pos-chip-btn:first-child:hover { background: var(--g-dark); }
+
+/* Panels: softer cards, no hard borders. */
+.pos-panel { border-radius: var(--r); border-color: transparent; box-shadow: var(--pos-shadow); padding: 18px 20px; }
+.pos-panel h2 { font-size: 17px; font-weight: 700; }
+.pos-h-ico { width: 32px; height: 32px; border-radius: 10px; display: inline-grid; place-items: center; background: var(--g-soft); color: var(--g-dark); }
+.pos-count { min-width: 24px; padding: 1px 8px; border-radius: 999px; background: var(--g); color: #fff; font-size: 12.5px; font-weight: 700; text-align: center; }
+
+/* Scan bar: one clean field with a focus glow (no inner input border). */
+.pos-col > .pos-panel:first-child { padding: 14px; }
+.pos-scan { gap: 14px; padding: 4px 8px 4px 16px; border: 1.5px solid var(--border); border-radius: 14px; background: var(--surface-2); transition: border-color .15s, box-shadow .15s, background .15s; }
+.pos-scan:focus-within { border-color: var(--g); background: var(--surface); box-shadow: 0 0 0 4px rgba(31, 154, 82, .14); }
+.pos-scan input, .pos-scan input:focus, .pos-scan input:focus-visible { border: 0 !important; outline: 0 !important; box-shadow: none !important; background: transparent !important; padding: 14px 0; font-size: 16px; }
+.pos-scan input::placeholder { color: var(--text-faint); }
+.pos-kbd { flex: none; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); border-bottom-width: 2px; background: var(--surface); color: var(--text-muted); font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1; }
+
+/* Small buttons: pill shaped. */
+.pos-sm-btn { border-radius: 999px; padding: 8px 14px; border-color: var(--border); transition: background .15s, border-color .15s; }
+.pos-sm-btn:hover:not(:disabled) { border-color: var(--g); background: var(--g-soft); }
+.pos-sm-btn.danger:hover:not(:disabled) { border-color: var(--danger); background: var(--danger-soft); }
+
+/* Empty states with an icon. */
+.pos-empty-rich { display: grid; justify-items: center; gap: 6px; padding: 30px 16px; }
+.pos-empty-rich b { color: var(--text); font-size: 15px; }
+.pos-empty-rich span:last-child { font-size: 13px; max-width: 340px; }
+.pos-empty-ico { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; margin-bottom: 4px; background: var(--g-soft); color: var(--g); }
+
+/* Bill table. */
+.pos-table th { background: transparent; text-transform: uppercase; letter-spacing: .05em; font-size: 11px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.pos-table td { border-top: 0; border-bottom: 1px solid var(--border); }
+.pos-table tbody tr:hover td { background: var(--surface-2); }
+.pos-stepper { border-radius: 999px; border-color: var(--border); }
+.pos-stepper button { background: transparent; color: var(--g-dark); font-weight: 700; }
+.pos-stepper button:hover { background: var(--g-soft); }
+.pos-stepper input { border-inline-color: var(--border); }
+
+/* Category chips. */
+.pos-cat { border-radius: 999px; padding: 8px 16px; border-color: transparent; box-shadow: var(--pos-shadow); }
+.pos-cat:hover:not(.on) { color: var(--g-dark); }
+
+/* Quick add: white card, lifted tiles. */
+.pos-quick { background: var(--surface); border-color: transparent; }
+.pos-tile { border-color: var(--border); border-radius: 14px; padding: 10px 10px 12px; transition: transform .15s, box-shadow .15s, border-color .15s; }
+.pos-tile:hover { transform: translateY(-2px); border-color: var(--g); box-shadow: 0 8px 18px rgba(16, 24, 20, .1); }
+.pos-tile i { box-shadow: 0 4px 10px rgba(31, 154, 82, .35); }
+
+/* Payment: sticky on wide screens, bold total card. */
+@media (min-width: 1001px) { .pos-grid > .pos-panel { position: sticky; top: 16px; } }
+.pos-sum { padding: 9px 0; border-bottom: 1px dashed var(--border); font-size: 14px; color: var(--text-muted); }
+.pos-sum b { color: var(--text); }
+.pos-total { background: linear-gradient(120deg, var(--g-dark), var(--g)); color: #fff; border-radius: 16px; padding: 16px 18px; font-size: 30px; box-shadow: 0 10px 24px rgba(22, 122, 64, .25); }
+.pos-total span:first-child { font-size: 15px; font-weight: 600; opacity: .9; text-transform: uppercase; letter-spacing: .06em; }
+.pos-method { border-width: 1.5px; border-radius: 14px; transition: border-color .15s, background .15s, transform .15s; }
+.pos-method:hover { border-color: var(--g); transform: translateY(-1px); }
+.pos-pay { border-radius: 14px; box-shadow: 0 10px 22px rgba(22, 122, 64, .28); transition: transform .15s, box-shadow .15s; }
+.pos-pay:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(22, 122, 64, .34); }
+.pos-pay-row button { border-radius: 12px; border-color: var(--border); background: var(--surface); }
+.pos-pay-row button:hover:not(:disabled) { border-color: var(--g); background: var(--g-soft); }
+.pos-pay-row .danger:hover:not(:disabled) { border-color: var(--danger); }
+
+@media (max-width: 640px) {
+  .pos { padding: 12px; }
+  .pos-kbd { display: none; }
+  .pos-head h1 { font-size: 24px; }
+}
+.pos-nomatch { padding: 14px 16px; color: var(--text-muted); font-size: 14px; }
+
+/* ---- One screen, no page scroll (wide screens, non-terminal templates) ----
+   .pos-fit gets its height from Pos.jsx (window height minus the top bar).
+   Header and scan bar keep their size; the bill list takes the free height
+   and scrolls inside; the payment column scrolls inside if it ever must. */
+.pos-total { font-size: 18px; padding: 9px 14px; margin: 6px 0 12px; border-radius: 12px; }
+.pos-total span:first-child { font-size: 12px; }
+.pos-payment .pos-sum > span:first-child { white-space: nowrap; margin-right: 12px; }
+.pos-payment .pos-sum input { flex: 1; min-width: 0; max-width: 160px; }
+@media (min-width: 1001px) {
+  .pos.pos-fit { display: flex; flex-direction: column; gap: 10px; padding: 12px 18px 14px; overflow: hidden; }
+  .pos-fit > .pos-head { flex: none; }
+  .pos-fit .pos-head h1 { font-size: 22px; }
+  .pos-fit .pos-meta { margin-top: 2px; }
+  .pos-fit .pos-chip-btn { padding: 7px 14px; font-size: 14px; }
+  .pos-fit > .pos-grid { flex: 1; min-height: 0; align-items: stretch; gap: 12px; }
+  .pos-fit .pos-col { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .pos-fit .pos-col > * { flex: none; }
+  .pos-fit .pos-col > .pos-panel:first-child { padding: 10px; }
+  .pos-fit .pos-scan input { padding: 10px 0 !important; font-size: 15px; }
+  .pos-fit .pos-panel { padding: 12px 16px; }
+  .pos-fit .pos-panel-head { margin-bottom: 8px; }
+  .pos-fit .pos-panel h2 { font-size: 15.5px; }
+  .pos-fit .pos-h-ico { width: 28px; height: 28px; }
+  .pos-fit .pos-sm-btn { padding: 6px 12px; font-size: 12.5px; }
+  .pos-fit .pos-cat { padding: 6px 13px; }
+
+  /* Bill: takes whatever height is left; rows scroll inside. */
+  .pos-fit .pos-col > .pos-bill { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .pos-fit .pos-bill .pos-table-wrap { flex: 1; min-height: 0; max-height: none; }
+  .pos-fit .pos-bill .pos-empty-rich { flex: 1; align-content: center; padding: 10px; }
+  .pos-fit .pos-table td { padding: 6px 8px; }
+  .pos-fit .pos-thumb { width: 36px; height: 36px; }
+
+  /* Quick add: one short row. */
+  .pos-fit .pos-quick { padding: 10px 14px; }
+  .pos-fit .pos-quick .pos-panel-head { margin-bottom: 6px; }
+  .pos-fit .pos-quick-row .pos-tile { flex-basis: 128px; padding: 7px 8px 9px; gap: 2px; }
+  .pos-fit .pos-tile .pos-thumb { width: 100%; height: 44px; }
+  .pos-fit .pos-tile b { font-size: 12.5px; }
+  .pos-fit .pos-tile i { width: 22px; height: 22px; right: 6px; bottom: 6px; }
+  .pos-fit .pos-quick .pos-empty-rich { padding: 8px; }
+
+  /* Payment: compact rows, scrolls inside on short screens. */
+  .pos-fit .pos-grid > .pos-payment { position: static; min-height: 0; overflow-y: auto; scrollbar-width: thin; padding: 12px 16px; }
+  .pos-fit .pos-sum { padding: 6px 0; font-size: 13.5px; }
+  .pos-fit .pos-sum input { padding: 6px 10px; }
+  .pos-fit .pos-methods { gap: 8px; margin: 6px 0 8px; }
+  .pos-fit .pos-method { padding: 8px 4px; font-size: 13.5px; gap: 2px; }
+  .pos-fit .pos-method svg { height: 22px; }
+  .pos-fit .pos-pay { margin-top: 10px; padding: 12px; font-size: 15px; }
+  .pos-fit .pos-pay-row { margin-top: 8px; gap: 8px; }
+  .pos-fit .pos-pay-row button { padding: 9px; font-size: 13.5px; }
+}
+
+/* Bill preview: shown on Pay; the bill is saved only on "Print bill". */
+.pos-modal.pos-review { width: min(760px, 100%); max-height: 92vh; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.pos-review .pos-panel-head { margin: 0; }
+.pos-review-total { font-size: 20px; font-weight: 800; color: var(--g-dark); }
+.pos-review-frame { flex: 1; min-height: 320px; height: 62vh; width: 100%; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.pos-review-note { margin: 0; font-size: 13px; color: var(--text-muted); }
+.pos-review-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pos-review-actions .pos-review-print { width: auto; margin: 0 0 0 auto; padding: 12px 22px; font-size: 15px; }
+
+/* "Did the bill print?" after the print window closes. */
+.pos-printed { width: min(420px, 100%); text-align: center; padding: 24px 22px 20px; z-index: 61; }
+.pos-printed-ico { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--g-soft, #e8f5ec); color: var(--g, #1b7a3a); margin-bottom: 10px; }
+.pos-printed h2 { margin: 0 0 6px; font-size: 20px; }
+.pos-printed p { margin: 0 0 18px; color: var(--text-muted); line-height: 1.5; }
+.pos-printed p b { color: var(--text); }
+.pos-printed-actions { display: flex; gap: 10px; }
+.pos-printed-actions > * { flex: 1; justify-content: center; }
+.pos-printed-actions .pos-pay { margin: 0; padding: 12px; font-size: 15px; }
+
+/* A half-typed customer mobile number (it is optional, but must be 10 digits). */
+.pos-customer input.pos-need { border-color: var(--danger, #c62828) !important; box-shadow: 0 0 0 3px rgba(198, 40, 40, .15); }
+.pos-need-note { margin: 0 0 8px; padding: 7px 10px; border-radius: 10px; background: #fff4e5; color: #8a4b00; font-size: 13px; font-weight: 600; }

@@ -1,16 +1,53 @@
+import QRCode from "qrcode";
+import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees } from "../../components/ui";
+import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees, useConfirm, ChipExpand } from "../../components/ui";
+
+const OFFER_LABEL = { discount: "Discount", special: "Special offer", combo: "Combo offer" };
+// QR pictures by value, kept for the page's life so the table and the Word /
+// PDF downloads use the same image without drawing it twice.
+const qrCache = new Map();
+
+function QrCell({ value }) {
+  const [url, setUrl] = useState(() => (value ? qrCache.get(value) || "" : ""));
+  useEffect(() => {
+    if (!value) return undefined;
+    if (qrCache.has(value)) {
+      setUrl(qrCache.get(value));
+      return undefined;
+    }
+    let alive = true;
+    QRCode.toDataURL(value, { margin: 1, width: 160 })
+      .then((data) => {
+        qrCache.set(value, data);
+        if (alive) setUrl(data);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [value]);
+  if (!value) return <span className="muted">—</span>;
+  return url ? <img className="qr-cell" src={url} alt={`QR code ${value}`} title={value} /> : <span className="qr-cell qr-wait" />;
+}
+
+// Readable names for the stored product unit codes.
+const UNIT_NAME = { pcs: "piece", piece: "piece", pack: "pack", bunch: "bunch", kg: "kg" };
 
 export default function Products() {
+  const [confirm, confirmDialog] = useConfirm();
   const { can } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [data, setData] = useState({ items: [], meta: null });
-  const [categories, setCategories] = useState([]);
+  const [roots, setRoots] = useState([]);
+  // Tab = a main (top-level) category; the dropdown then narrows to one of its
+  // sub-categories. The API gets whichever is most specific as `category`.
+  const [tab, setTab] = useState("");
   // A search typed into the admin's topbar lands here as ?search=, so that
   // box is a real shortcut into this page rather than a decoration.
   const [filters, setFilters] = useState({
@@ -23,12 +60,13 @@ export default function Products() {
   const [error, setError] = useState("");
   const [removingId, setRemovingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const canManage = can("catalog.manage");
 
   useEffect(() => {
     api
       .get("/catalog/categories/tree", { status: "active" })
-      .then(({ tree }) => setCategories(flatten(tree)))
+      .then(({ tree }) => setRoots(tree))
       .catch(() => {});
   }, []);
 
@@ -37,14 +75,20 @@ export default function Products() {
     const timer = setTimeout(
       () =>
         api
-          .get("/catalog/products", { ...filters, limit: 20 })
+          .get("/catalog/products", { limit: 20, ...filters })
           .then(setData)
           .catch((err) => setError(err.message))
           .finally(() => setLoading(false)),
       filters.search ? 250 : 0
     );
     return () => clearTimeout(timer);
-  }, [filters]);
+  }, [filters, reloadKey]);
+
+  const pickTab = (id) => {
+    setTab(id);
+    setFilters((f) => ({ ...f, category: id, page: 1 }));
+  };
+  const subcategories = flatten(tab ? roots.find((r) => r.id === tab)?.children || [] : roots);
 
   const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));
 
@@ -59,12 +103,42 @@ export default function Products() {
     patchRow(change);
     try {
       const { product: fresh } = await api.patch(`/catalog/products/${product.id}/quick`, change);
-      patchRow({ status: fresh.status, soldOut: fresh.soldOut, inStock: fresh.inStock });
+      patchRow({ status: fresh.status, soldOut: fresh.soldOut, inStock: fresh.inStock, offer: fresh.offer });
     } catch (err) {
-      patchRow({ status: product.status, soldOut: product.soldOut, inStock: product.inStock });
+      patchRow({ status: product.status, soldOut: product.soldOut, inStock: product.inStock, offer: product.offer });
       setError(`${product.name}: ${err.message}`);
     } finally {
       setBusyId(null);
+    }
+  }
+
+  // Drag a row to a new place. The list moves at once; the server then stores
+  // the new order, and the list is put back if that fails.
+  async function reorder(from, to) {
+    const before = data.items;
+    const items = [...before];
+    const [moved] = items.splice(from, 1);
+    items.splice(to, 0, moved);
+    // The rows trade their position numbers along with their places.
+    const slots = before.map((p) => p.position);
+    setData((d) => ({ ...d, items: items.map((p, i) => ({ ...p, position: slots[i] })) }));
+    setError("");
+    try {
+      await api.post("/catalog/products/reorder", { ids: items.map((p) => p.id) });
+    } catch (err) {
+      setData((d) => ({ ...d, items: before }));
+      setError(`Could not save the new order: ${err.message}`);
+    }
+  }
+
+  // Typed position: the server moves the product there and the list reloads.
+  async function moveTo(product, position) {
+    setError("");
+    try {
+      await api.post(`/catalog/products/${product.id}/move`, { position });
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setError(`${product.name}: ${err.message}`);
     }
   }
 
@@ -72,7 +146,7 @@ export default function Products() {
   // at these documents), so drop it from the visible list here rather than
   // trusting a refetch to hide it again.
   async function removeProduct(product) {
-    if (!window.confirm(`Delete "${product.name}"? This can't be undone.`)) return;
+    if (!(await confirm({ title: "Delete this product?", message: product.name, confirmLabel: "Delete" }))) return;
     setRemovingId(product.id);
     setError("");
     try {
@@ -86,7 +160,8 @@ export default function Products() {
   }
 
   return (
-    <div className="page">
+    <div className="page products-page">
+      {confirmDialog}
       <div className="page-head">
         <div>
           <h1>Products</h1>
@@ -100,29 +175,33 @@ export default function Products() {
 
       <Banner tone="error">{error}</Banner>
 
-      <div className="toolbar">
-        <input
-          type="search"
-          placeholder="Search products…"
-          value={filters.search}
-          onChange={(e) => set("search", e.target.value)}
-          style={{ minWidth: 220 }}
-        />
-        <select value={filters.category} onChange={(e) => set("category", e.target.value)}>
-          <option value="">All categories</option>
-          {categories.map((c) => (
+      <ChipExpand ariaLabel="Category" options={[{ value: "", label: "All categories" }, ...roots.map((r) => ({ value: r.id, label: r.name }))]} value={tab} onChange={pickTab} />
+
+      <div className="toolbar products-filters">
+        <span className="search-field">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input
+            type="search"
+            placeholder="Search by name, product code or barcode…"
+            value={filters.search}
+            onChange={(e) => set("search", e.target.value)}
+          />
+        </span>
+        <Select value={filters.category} onChange={(e) => set("category", e.target.value)}>
+          <option value={tab}>{tab ? "All sub-categories" : "All categories"}</option>
+          {subcategories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
-        </select>
-        <select value={filters.status} onChange={(e) => set("status", e.target.value)}>
+        </Select>
+        <Select value={filters.status} onChange={(e) => set("status", e.target.value)}>
           <option value="">All statuses</option>
           <option value="active">Active</option>
           <option value="draft">Draft</option>
           <option value="hidden">Hidden</option>
           <option value="archived">Archived</option>
-        </select>
+        </Select>
       </div>
 
       <Card tight>
@@ -131,10 +210,25 @@ export default function Products() {
         ) : (
           <>
             <Table
+              title="Products" search={false}
               columns={[
+                ...(canManage
+                  ? [
+                      {
+                        key: "position",
+                        label: "#",
+                        sortable: false,
+                        exportable: false,
+                        width: 70,
+                        render: (row) =>
+                          row.position ? <PositionInput row={row} onMove={moveTo} /> : null,
+                      },
+                    ]
+                  : []),
                 {
                   key: "name",
-                  label: "Product",
+                  label: "Product name",
+                  exportValue: (row) => row.name || "",
                   render: (row) => {
                     const media = row.media?.[0];
                     return (
@@ -163,85 +257,208 @@ export default function Products() {
                   },
                 },
                 {
-                  key: "price",
-                  label: "Price",
-                  align: "right",
+                  // The main variant's SKU — what the QR code and labels carry.
+                  key: "code",
+                  label: "Product code",
+                  exportValue: (row) => row.code || "",
+                  render: (row) => (row.code ? <span className="code-cell">{row.code}</span> : "—"),
+                },
+                {
+                  key: "offer",
+                  label: "Offer",
+                  sortable: false,
+                  exportable: false,
+                  width: 170,
                   render: (row) =>
-                    row.priceFrom === row.priceTo
-                      ? rupees(row.priceFrom)
-                      : `${rupees(row.priceFrom)} – ${rupees(row.priceTo)}`,
+                    canManage && row.status !== "archived" ? (
+                      <div onClick={(e) => e.stopPropagation()} draggable={false}>
+                        <Select
+                          value={row.offer?.kind || ""}
+                          disabled={busyId === row.id}
+                          onChange={(e) => quickUpdate(row, { offer: { kind: e.target.value } })}
+                          aria-label={`Offer for ${row.name}`}
+                        >
+                          <option value="">No offer</option>
+                          <option value="discount">Discount</option>
+                          <option value="special">Special offer</option>
+                          <option value="combo">Combo offer</option>
+                        </Select>
+                      </div>
+                    ) : (
+                      OFFER_LABEL[row.offer?.kind] || "—"
+                    ),
+                },
+                {
+                  // What one of the product is sold as ("1 pack", "1 piece"),
+                  // from the product's own unit; never a weight like 68 g.
+                  key: "unit",
+                  label: "Unit",
+                  exportValue: (row) => `1 ${UNIT_NAME[row.unit] || row.unit || "piece"}`,
+                  render: (row) => <span className="unit-cell">1 {UNIT_NAME[row.unit] || row.unit || "piece"}</span>,
                 },
                 {
                   key: "variantCount",
                   label: "Variants",
                   align: "right",
+                  exportValue: (row) => row.variantCount || 0,
                   render: (row) => row.variantCount || 0,
                 },
                 {
-                  key: "inStock",
+                  key: "price",
+                  label: "Price",
+                  align: "right",
+                  exportValue: (row) => {
+                    const from = (row.priceFrom || 0) / 100;
+                    const to = (row.priceTo || 0) / 100;
+                    return from === to ? `₹${from}` : `₹${from} - ₹${to}`;
+                  },
+                  render: (row) => (
+                    <strong className="price-cell">
+                      {row.priceFrom === row.priceTo
+                        ? rupees(row.priceFrom)
+                        : `${rupees(row.priceFrom)} - ${rupees(row.priceTo)}`}
+                    </strong>
+                  ),
+                },
+                {
+                  key: "totalStock",
                   label: "Stock",
-                  render: (row) =>
-                    canManage && row.status !== "archived" ? (
-                      <div>
-                        <Switch
-                          checked={!row.soldOut}
-                          onChange={(onSale) => quickUpdate(row, { soldOut: !onSale })}
-                          disabled={busyId === row.id}
-                          onLabel="On sale"
-                          offLabel="Sold out"
-                          offTone="danger"
-                          title={row.soldOut ? "Put back on sale" : "Mark as sold out — stock counts are kept"}
-                        />
-                        {/* On sale, but nothing on the shelf: a different
-                            problem from "sold out", with a different fix. */}
-                        {!row.soldOut && !row.inStock ? <span className="switch-note">No stock left</span> : null}
+                  align: "right",
+                  exportValue: (row) => row.totalStock ?? 0,
+                  render: (row) => {
+                    const stock = row.totalStock ?? 0;
+                    const isLow = stock > 0 && stock <= 5;
+                    const isOut = stock === 0 || row.soldOut;
+                    return (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            fontSize: "13.5px",
+                            color: isOut ? "#dc2626" : isLow ? "#d97706" : "#15803d",
+                          }}
+                        >
+                          {stock}
+                        </span>
+                        {isLow ? (
+                          <span
+                            style={{
+                              background: "#fef08a",
+                              color: "#854d0e",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              border: "1px solid #fde047",
+                            }}
+                          >
+                            Low
+                          </span>
+                        ) : isOut ? (
+                          <span
+                            style={{
+                              background: "#fee2e2",
+                              color: "#991b1b",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              border: "1px solid #fecaca",
+                            }}
+                          >
+                            Out
+                          </span>
+                        ) : null}
                       </div>
-                    ) : row.inStock ? (
-                      <Pill tone="ok">In stock</Pill>
-                    ) : (
-                      <Pill tone="danger">{row.soldOut ? "Sold out" : "Out"}</Pill>
-                    ),
+                    );
+                  },
                 },
                 {
                   key: "status",
                   label: "Status",
-                  render: (row) =>
-                    canManage && row.status !== "archived" ? (
-                      <Switch
-                        checked={row.status === "active"}
-                        onChange={(on) => quickUpdate(row, { status: on ? "active" : "hidden" })}
-                        disabled={busyId === row.id}
-                        tone="accent"
-                        onLabel="Active"
-                        offLabel={row.status === "draft" ? "Draft" : "Hidden"}
-                        title={row.status === "active" ? "Hide from the store" : "Publish to the store"}
-                      />
-                    ) : (
-                      <Pill tone={row.status === "active" ? "ok" : row.status === "draft" ? "warn" : undefined}>
-                        {row.status}
-                      </Pill>
-                    ),
+                  exportValue: (row) => {
+                    const stock = row.totalStock ?? 0;
+                    if (row.soldOut || stock === 0 || row.status === "hidden" || row.status === "draft") {
+                      return "Inactive";
+                    }
+                    if (stock <= 5) return "Low Stock";
+                    return "Active";
+                  },
+                  render: (row) => {
+                    const stock = row.totalStock ?? 0;
+                    const isLow = stock > 0 && stock <= 5;
+                    const isOut = stock === 0 || row.soldOut || row.status === "hidden" || row.status === "draft";
+                    const statusText = isOut ? "Inactive" : isLow ? "Low Stock" : "Active";
+                    const statusTone = isOut ? "danger" : isLow ? "warn" : "ok";
+
+                    return (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Pill
+                          tone={statusTone}
+                          style={
+                            isLow
+                              ? { background: "#fef08a", color: "#854d0e", borderColor: "#fde047", fontWeight: 700 }
+                              : undefined
+                          }
+                        >
+                          {statusText}
+                        </Pill>
+                        {canManage && row.status !== "archived" ? (
+                          <Switch
+                            checked={!row.soldOut && row.status === "active"}
+                            onChange={(on) => quickUpdate(row, { soldOut: !on, status: on ? "active" : "hidden" })}
+                            disabled={busyId === row.id}
+                            tone="accent"
+                            title={row.soldOut ? "Put back on sale" : "Toggle active status"}
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  },
+                },
+                {
+                  // QR of the barcode (or the code when there is none) — the
+                  // same thing the POS labels print. Word and PDF downloads
+                  // carry the picture; CSV and Excel the code it holds.
+                  key: "qr",
+                  label: "QR code",
+                  sortable: false,
+                  exportValue: (row) => row.barcode || row.code || "",
+                  exportImage: (row) => qrCache.get(row.barcode || row.code) || null,
+                  render: (row) => <QrCell value={row.barcode || row.code} />,
                 },
                 {
                   key: "actions",
                   label: "",
                   align: "right",
+                  sortable: false,
+                  exportable: false,
                   render: (row) =>
                     can("catalog.manage") && (
                       <button
-                        className="btn sm danger"
+                        type="button"
+                        className="icon-delete"
                         disabled={removingId === row.id}
+                        title={`Delete ${row.name}`}
+                        aria-label={`Delete ${row.name}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           removeProduct(row);
                         }}
                       >
-                        {removingId === row.id ? "Removing…" : "Delete"}
+                        {removingId === row.id ? (
+                          "…"
+                        ) : (
+                          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+                          </svg>
+                        )}
                       </button>
                     ),
                 },
               ]}
               rows={data.items}
+              onReorder={canManage && data.items.length > 1 ? reorder : undefined}
               onRowClick={(row) => navigate(`/catalog/products/${row.id}`)}
               empty={
                 <Empty
@@ -257,11 +474,40 @@ export default function Products() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(limit) => set("limit", limit)} />
           </>
         )}
       </Card>
     </div>
+  );
+}
+
+// A small number box: type where the product should sit and press Enter (or
+// click away). Out-of-range numbers are clamped by the server.
+function PositionInput({ row, onMove }) {
+  const [value, setValue] = useState(String(row.position));
+  useEffect(() => setValue(String(row.position)), [row.position]);
+  const commit = () => {
+    const n = Math.floor(Number(value));
+    if (!Number.isFinite(n) || n < 1) return setValue(String(row.position));
+    if (n !== row.position) onMove(row, n);
+  };
+  return (
+    <input
+      className="position-input"
+      type="number"
+      min="1"
+      value={value}
+      draggable={false}
+      title="Type a position and press Enter"
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") setValue(String(row.position));
+      }}
+    />
   );
 }
 

@@ -1,7 +1,11 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { api, loadSession, saveSession } from "@/lib/client-api";
+import { makeQueryClient } from "@/lib/query-client";
+import DeliveredToast from "./DeliveredToast";
+import BackInStockToast from "./BackInStockToast";
 
 const AuthContext = createContext(null);
 const CartContext = createContext(null);
@@ -11,6 +15,9 @@ const WishlistContext = createContext(null);
 const PINCODE_KEY = "commerce.web.pincode";
 
 export function Providers({ children }) {
+  // One TanStack Query cache per browser tab (created once, never on the server between visitors).
+  const [queryClient] = useState(makeQueryClient);
+
   // --- store / delivery location ---------------------------------------
   const [store, setStore] = useState(null);
   const [pincode, setPincodeState] = useState(null);
@@ -82,8 +89,8 @@ export function Providers({ children }) {
 
   const requestOtp = useCallback((phone) => api.post("/auth/otp/request", { phone }), []);
 
-  const verifyOtp = useCallback(async (phone, code, name) => {
-    const data = await api.post("/auth/otp/verify", { phone, code, name });
+  const verifyOtp = useCallback(async (phone, code, name, referralCode) => {
+    const data = await api.post("/auth/otp/verify", { phone, code, name, ...(referralCode ? { referralCode } : {}) });
     saveSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     setUser(data.user);
     return data;
@@ -108,7 +115,9 @@ export function Providers({ children }) {
   const [cart, setCart] = useState(null);
   const [pending, setPending] = useState({});
   const [cartError, setCartError] = useState("");
+  const [soldOut, setSoldOut] = useState({}); // variantId -> true, learnt from a refused add
   const storeId = store?.id || null;
+  useEffect(() => setSoldOut({}), [storeId]);
 
   const refreshCart = useCallback(async () => {
     if (!storeId) return null;
@@ -136,30 +145,53 @@ export function Providers({ children }) {
       .catch(() => refreshCart());
   }, [user, storeId, refreshCart]);
 
+  // Cart changes go to the server one after another. Each response carries
+  // the whole cart, so if two were in flight together the older reply could
+  // land last and wipe out the newer item. Queued, the last reply is always
+  // the newest cart. (The API also handles one change per cart at a time.)
+  const queue = useRef(Promise.resolve());
+
   const run = useCallback(
-    async (variantId, work) => {
+    (variantId, work) => {
       setPending((p) => ({ ...p, [variantId]: true }));
-      try {
-        const data = await work();
-        setCart(data.cart);
-        setCartError("");
-        return data.cart;
-      } catch (err) {
-        setCartError(err.message);
-        // The server knows the real quantity — "only 2 left" is the usual
-        // cause, so re-read rather than guessing.
-        await refreshCart();
-        throw err;
-      } finally {
+      const job = queue.current.then(async () => {
+        try {
+          const data = await work();
+          setCart(data.cart);
+          setCartError("");
+          return data.cart;
+        } catch (err) {
+          // The server knows the real quantity — "only 2 left" is the usual
+          // cause, so re-read rather than guessing. The message is set after
+          // the re-read, which would otherwise clear it.
+          await refreshCart();
+          // None left at all (sold since the page was drawn, or a different
+          // store from the one the page was drawn for): the card turns into
+          // "Out of stock" instead of saying so in a message.
+          if (err.status === 409 && !err.details?.available) setSoldOut((s) => ({ ...s, [variantId]: true }));
+          else setCartError(err.message);
+          throw err;
+        }
+      });
+      queue.current = job.catch(() => {});
+      return job.finally(() => {
         setPending((p) => {
           const next = { ...p };
           delete next[variantId];
           return next;
         });
-      }
+      });
     },
     [refreshCart]
   );
+
+  // A failed change (out of stock, limit reached) is said once, briefly,
+  // wherever the tap happened — the cart itself has already been re-read.
+  useEffect(() => {
+    if (!cartError) return undefined;
+    const timer = setTimeout(() => setCartError(""), 4000);
+    return () => clearTimeout(timer);
+  }, [cartError]);
 
   const cartApi = useMemo(
     () => ({
@@ -172,6 +204,7 @@ export function Providers({ children }) {
       lineCount: cart?.items?.length || 0,
       error: cartError,
       pending,
+      soldOut,
       refresh: refreshCart,
       add: (variantId, quantity) =>
         run(variantId, () => api.post("/cart/items", { variant: variantId, quantity, store: storeId })),
@@ -180,6 +213,13 @@ export function Providers({ children }) {
       remove: (variantId) => run(variantId, () => api.del(`/cart/items/${variantId}`, { store: storeId })),
       applyCoupon: async (code) => {
         const data = await api.post("/cart/coupon", { code, store: storeId });
+        setCart(data.cart);
+        return data.cart;
+      },
+      // Wallet money (paise) to put against this order; the server caps it at
+      // the balance held and the amount payable. 0 stops using the wallet.
+      setWallet: async (paise) => {
+        const data = await api.post("/cart/credits", { wallet: Math.max(0, Math.round(paise || 0)), store: storeId });
         setCart(data.cart);
         return data.cart;
       },
@@ -192,7 +232,7 @@ export function Providers({ children }) {
         cart?.items?.find((i) => String(i.variant) === String(variantId))?.quantity || 0,
       lineFor: (variantId) => cart?.items?.find((i) => String(i.variant) === String(variantId)) || null,
     }),
-    [cart, cartError, pending, refreshCart, run, storeId]
+    [cart, cartError, pending, soldOut, refreshCart, run, storeId]
   );
 
 
@@ -204,6 +244,13 @@ export function Providers({ children }) {
   const [wishlistItems, setWishlistItems] = useState([]);
   const [wishlistPending, setWishlistPending] = useState({});
   const [wishlistReady, setWishlistReady] = useState(false);
+  // One-line popup at the bottom after a heart is tapped.
+  const [wishlistToast, setWishlistToast] = useState(null);
+  useEffect(() => {
+    if (!wishlistToast) return undefined;
+    const t = setTimeout(() => setWishlistToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [wishlistToast]);
 
   const refreshWishlist = useCallback(async () => {
     if (!user) {
@@ -244,7 +291,9 @@ export function Providers({ children }) {
             await api.post("/wishlist", { product: productId, variant: variantId || undefined });
           }
           await refreshWishlist();
-          return { needsSignIn: false, saved: !savedIds.has(productId) };
+          const nowSaved = !savedIds.has(productId);
+          setWishlistToast({ saved: nowSaved, at: Date.now() });
+          return { needsSignIn: false, saved: nowSaved };
         } finally {
           setWishlistPending((p) => {
             const next = { ...p };
@@ -267,13 +316,32 @@ export function Providers({ children }) {
   );
 
   return (
+    <QueryClientProvider client={queryClient}>
     <AuthContext.Provider value={auth}>
       <StoreContext.Provider value={storeValue}>
         <CartContext.Provider value={cartApi}>
-          <WishlistContext.Provider value={wishlistApi}>{children}</WishlistContext.Provider>
+          <WishlistContext.Provider value={wishlistApi}>
+            {children}
+            <DeliveredToast signedIn={Boolean(user)} />
+            <BackInStockToast signedIn={Boolean(user)} />
+            {wishlistToast ? (
+              <div className="wishlist-toast" role="status">
+                <span>{wishlistToast.saved ? "Added to your wishlist" : "Removed from your wishlist"}</span>
+                {wishlistToast.saved ? (
+                  <a href="/wishlist" onClick={() => setWishlistToast(null)}>View</a>
+                ) : null}
+              </div>
+            ) : null}
+            {cartError ? (
+              <div className="cart-toast" role="alert">
+                {cartError}
+              </div>
+            ) : null}
+          </WishlistContext.Provider>
         </CartContext.Provider>
       </StoreContext.Provider>
     </AuthContext.Provider>
+    </QueryClientProvider>
   );
 }
 

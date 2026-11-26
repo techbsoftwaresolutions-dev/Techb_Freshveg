@@ -22,17 +22,26 @@ const attributes = [
     seq: 1,
     isSystem: true,
     options: [
-      { value: "250g", label: "250 g", seq: 1 },
-      { value: "500g", label: "500 g", seq: 2 },
-      { value: "1kg", label: "1 KG", seq: 3 },
-      { value: "2kg", label: "2 KG", seq: 4 },
-      { value: "5kg", label: "5 KG", seq: 5 },
-      { value: "10kg", label: "10 KG", seq: 6 },
-      { value: "1pc", label: "1 Piece", seq: 7 },
-      { value: "6pc", label: "Pack of 6", seq: 8 },
-      { value: "12pc", label: "Pack of 12", seq: 9 },
-      { value: "500ml", label: "500 ml", seq: 10 },
-      { value: "1l", label: "1 Litre", seq: 11 },
+      { value: "50g", label: "50 g", seq: 1 },
+      { value: "100g", label: "100 g", seq: 2 },
+      { value: "200g", label: "200 g", seq: 3 },
+      { value: "250g", label: "250 g", seq: 4 },
+      { value: "500g", label: "500 g", seq: 5 },
+      { value: "1kg", label: "1 KG", seq: 6 },
+      { value: "2kg", label: "2 KG", seq: 7 },
+      { value: "5kg", label: "5 KG", seq: 8 },
+      { value: "10kg", label: "10 KG", seq: 9 },
+      { value: "15kg", label: "15 KG", seq: 10 },
+      { value: "20kg", label: "20 KG", seq: 11 },
+      { value: "25kg", label: "25 KG", seq: 12 },
+      { value: "500ml", label: "500 ml", seq: 13 },
+      { value: "1l", label: "1 Litre", seq: 14 },
+      { value: "2l", label: "2 Litre", seq: 15 },
+      { value: "5l", label: "5 Litre", seq: 16 },
+      { value: "10l", label: "10 Litre", seq: 17 },
+      { value: "1pc", label: "1 Piece", seq: 18 },
+      { value: "6pc", label: "Pack of 6", seq: 19 },
+      { value: "12pc", label: "Pack of 12", seq: 20 },
     ],
   },
   {
@@ -63,7 +72,7 @@ const attributes = [
     isFilterable: true,
     group: "Produce",
     seq: 3,
-    helpText: "How the item was grown or sourced",
+    helpText: "",
     options: [
       { value: "desi", label: "Desi / Local" },
       { value: "hybrid", label: "Hybrid" },
@@ -215,7 +224,7 @@ const categories = [
     color: "#DCFCE7",
     seq: 1,
     isFeatured: true,
-    description: "Fresh produce, sourced daily from the local market.",
+    description: "Fresh produce, sourced daily direct from farmers.",
     features: {
       perishable: true,
       weightBased: true,
@@ -231,8 +240,8 @@ const categories = [
       shelfLifeDays: 4,
       returnWindowDays: 1,
       lowStockThreshold: 10,
-      minOrderQty: 0.25,
-      stepQty: 0.25,          // sold in quarter kilos
+      minOrderQty: 1,
+      stepQty: 1,             // cart quantities count packs, never kilos
       maxOrderQty: 20,
     },
     bind: [
@@ -244,7 +253,7 @@ const categories = [
     ],
   },
   { slug: "fresh-fruits", name: "Fresh Fruits", parent: "fruits-vegetables", icon: "🍎", seq: 1 },
-  { slug: "fresh-vegetables", name: "Fresh Vegetables", parent: "fruits-vegetables", icon: "🥕", seq: 2 },
+  { slug: "fresh-vegetables", name: "Fresh Vegetables", parent: "fruits-vegetables", icon: "🥕", seq: 2, description: "Farm-fresh greens and vegetables, picked for everyday meals." },
   {
     slug: "leafy-greens",
     name: "Leafy Greens",
@@ -686,7 +695,7 @@ const offers = [
 const stores = [
   {
     code: "HSR01",
-    name: "Samagra Mart — Hosur",
+    name: "Hosur Basket — Hosur",
     type: "store",
     address: { line1: "12, Bazaar Street", city: "Hosur", state: "Tamil Nadu", pincode: "635109" },
     location: { type: "Point", coordinates: [77.8253, 12.7409] },
@@ -708,7 +717,7 @@ const stores = [
   },
   {
     code: "BLR01",
-    name: "Samagra Mart — Bangalore",
+    name: "Hosur Basket — Bangalore",
     type: "dark_store",
     address: { line1: "Unit 4, Electronic City", city: "Bengaluru", state: "Karnataka", pincode: "560100" },
     location: { type: "Point", coordinates: [77.6603, 12.8452] },
@@ -730,9 +739,17 @@ const stores = [
 
 const users = [
   {
+    name: "Super Admin",
+    phone: "9000000000",
+    email: "superadmin@hosurbasket.local",
+    role: "super_admin",
+    password: "superadmin123",
+    status: "active",
+  },
+  {
     name: "Store Admin",
     phone: "9000000001",
-    email: "admin@samagramart.local",
+    email: "admin@hosurbasket.local",
     role: "admin",
     password: "admin123",
     status: "active",
@@ -747,13 +764,17 @@ const users = [
   {
     name: "Kumar (Delivery)",
     phone: "9000000003",
+    email: "kumar@hosurbasket.local",
     role: "delivery_partner",
+    password: "delivery123",
     status: "active",
   },
   {
     name: "Ravi (Delivery)",
     phone: "9000000004",
+    email: "ravi@hosurbasket.local",
     role: "delivery_partner",
+    password: "delivery123",
     status: "active",
   },
   {
