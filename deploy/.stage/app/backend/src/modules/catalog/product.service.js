@@ -1,9 +1,9 @@
-const crypto = require("crypto");
 const Product = require("./product.model");
 const Variant = require("./variant.model");
 const Category = require("./category.model");
 const ApiError = require("../../core/ApiError");
 const { uniqueSlug, slugify } = require("../../core/slugify");
+const { nextSequence } = require("../../core/sequence");
 const { resolveCategorySchema, validateAgainstSchema } = require("./schema.service");
 
 // Products are written *through* their category's resolved schema. Nothing here
@@ -34,20 +34,44 @@ function applyCategoryDefaults(product, defaults, payload = {}) {
   return product;
 }
 
-function buildSku(product, axisValues, sequence) {
-  const base = slugify(product.name).toUpperCase().replace(/-/g, "").slice(0, 10);
-  const axis = axisValues
-    .map((a) => slugify(a.value).toUpperCase().replace(/-/g, "").slice(0, 6))
-    .join("-");
-  // name + axis + sequence alone are deterministic: if a variant is ever
-  // (re)created instead of matched to its existing row below — the axis
-  // fingerprint match can miss, e.g. after a variant's axis fields are
-  // edited — the exact same SKU is generated again and collides with the
-  // one already stored, which is exactly the "record with this sku already
-  // exists" error this was producing. A short random tail makes every
-  // generated SKU unique regardless, so a missed match can never collide.
-  const suffix = crypto.randomBytes(3).toString("hex").toUpperCase();
-  return [base, axis, sequence ? String(sequence) : "", suffix].filter(Boolean).join("-");
+
+// Product codes: a short form of the product's name, a dash, and a running
+// number that is unique across the whole catalogue:
+//   Oreo Cream Biscuits -> OCB-001, Apple -> APP-002, Banana -> BANA-003
+// Short form: one word -> its first 3 letters (4 for a word of 6+ letters);
+// several words -> the first letter of each. Anything in brackets ("(500 g)")
+// and apostrophes are ignored.
+function shortCode(name) {
+  const words = String(name || "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/['’`]/g, "") // Haldiram's -> Haldirams
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean);
+  if (!words.length) return "ITEM";
+  if (words.length === 1) {
+    const w = words[0];
+    return w.slice(0, w.length >= 6 ? 4 : 3);
+  }
+  return words.map((w) => w[0]).join("").slice(0, 6);
+}
+
+// The running number comes from one counter ("productCode"), started above
+// the highest number already on a code, so a number is never handed out twice.
+async function nextProductCode(name) {
+  const base = shortCode(name);
+  const [top] = await Variant.aggregate([
+    { $match: { sku: { $regex: /-\d+$/ } } },
+    { $project: { n: { $toLong: { $arrayElemAt: [{ $split: ["$sku", "-"] }, -1] } } } },
+    { $sort: { n: -1 } },
+    { $limit: 1 },
+  ]);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const n = await nextSequence("productCode", { floor: top?.n || 0 });
+    const code = `${base}-${String(n).padStart(3, "0")}`;
+    if (!(await Variant.exists({ $or: [{ sku: code }, { barcode: code }] }))) return code;
+  }
+  return `${base}-${Date.now().toString().slice(-6)}`;
 }
 
 async function createProduct(payload, actor = null) {
@@ -261,7 +285,7 @@ async function replaceVariants(product, variantPayloads, schema = null) {
     } else {
       const created = await Variant.create({
         ...fields,
-        sku: payload.sku || buildSku(product, axisValues, existing.length + sequence),
+        sku: payload.sku || (await nextProductCode(product.name)),
       });
       keptIds.add(String(created._id));
     }
@@ -318,5 +342,6 @@ module.exports = {
   replaceVariants,
   refreshRollup,
   applyCategoryDefaults,
-  buildSku,
+  nextProductCode,
+  shortCode,
 };

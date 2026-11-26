@@ -1,8 +1,9 @@
 const express = require("express");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
-const { nextSequence } = require("../../core/sequence");
+const { nextSequence, Counter } = require("../../core/sequence");
 const { paginate } = require("../../core/query");
+const channels = require("../notifications/channels");
 const { requireAuth, requirePermission } = require("../../middleware/auth");
 
 const Variant = require("../catalog/variant.model");
@@ -126,8 +127,8 @@ router.get(
   canSell,
   asyncHandler(async (req, res) => {
     const phone = String(req.query.phone || "");
-    const user = /^\d{10}$/.test(phone) && phone !== "0000000000" ? await User.findOne({ phone, role: "customer" }).select("name").lean() : null;
-    res.json({ success: true, name: user?.name || "" });
+    const user = /^\d{10}$/.test(phone) && phone !== "0000000000" ? await User.findOne({ phone, role: "customer" }).select("name email").lean() : null;
+    res.json({ success: true, name: user?.name || "", email: user?.email || "" });
   })
 );
 
@@ -153,7 +154,7 @@ router.post(
   "/sales",
   canSell,
   asyncHandler(async (req, res) => {
-    const { clientId, items, discount = 0, payments, customerName, customerPhone, soldAt } = req.body || {};
+    const { clientId, items, discount = 0, payments, customerName, customerPhone, customerEmail, soldAt } = req.body || {};
     if (!clientId) throw ApiError.badRequest("clientId is required");
 
     // Replay of a bill already booked (a second click, an offline retry) -> same answer.
@@ -263,7 +264,11 @@ router.post(
       invoiceNo: `${store.code}/${invoiceDay(now)}/${String(invSeq).padStart(4, "0")}`,
       posClientId: clientId,
       customer: customer._id,
-      customerSnapshot: { name: customerName || customer.name, phone: customerPhone || "" },
+      customerSnapshot: {
+        name: customerName || customer.name,
+        phone: customerPhone || "",
+        email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(customerEmail || "").trim()) ? String(customerEmail).trim().toLowerCase() : customer.email || "",
+      },
       store: store._id,
       source: "pos",
       status: "DELIVERED",
@@ -325,6 +330,83 @@ router.post(
 );
 
 // Recent bills, for reprints.
+// Sends a saved POS bill to the customer by SMS (the till opens WhatsApp
+// itself, with the message filled in). Says plainly when no SMS provider is
+// set up rather than pretending it went out.
+router.post(
+  "/sales/:id/sms",
+  canSell,
+  asyncHandler(async (req, res) => {
+    const order = await Order.findOne({ _id: req.params.id, source: "pos" });
+    if (!order) throw ApiError.notFound("Bill not found");
+    const phone = String(req.body?.phone || order.customerSnapshot?.phone || "").replace(/\D/g, "").slice(-10);
+    if (!/^\d{10}$/.test(phone) || phone === "0000000000") {
+      return res.json({ success: true, status: "skipped", reason: "No customer mobile number on this bill" });
+    }
+    const settings = await Settings.load();
+    const shop = settings.company?.name || "Hosur Basket";
+    const rupees = (p) => `Rs.${((p || 0) / 100).toFixed(2)}`;
+    const body =
+      String(req.body?.text || "").slice(0, 600) ||
+      `${shop}: Bill ${order.invoiceNo} for ${rupees(order.pricing?.total)} (${order.items.length} item${order.items.length === 1 ? "" : "s"}). Thank you! Visit again.`;
+    const result = await channels.sms({ title: `${shop} bill`, body, event: "POS_BILL" }, { phone });
+    res.json({ success: true, ...result });
+  })
+);
+
+// Emails a saved POS bill to the customer. Without an email service set up
+// it says so (status "skipped") and the till opens the mail app instead.
+router.post(
+  "/sales/:id/email",
+  canSell,
+  asyncHandler(async (req, res) => {
+    const order = await Order.findOne({ _id: req.params.id, source: "pos" });
+    if (!order) throw ApiError.notFound("Bill not found");
+    const email = String(req.body?.email || order.customerSnapshot?.email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.json({ success: true, status: "skipped", reason: "No customer email on this bill" });
+    }
+    const settings = await Settings.load();
+    const shop = settings.company?.name || "Hosur Basket";
+    const subject = `${shop} - Bill ${order.invoiceNo}`;
+    const body = String(req.body?.text || "").slice(0, 5000) || `${subject}\nTotal: Rs.${((order.pricing?.total || 0) / 100).toFixed(2)}\nThank you! Visit again.`;
+    const result = await channels.email({ title: subject, body, event: "POS_BILL" }, { email });
+    res.json({ success: true, email, ...result });
+  })
+);
+
+// A duplicate copy of a POS bill is being printed: counted, so the copy
+// says which one it is ("DUPLICATE COPY 2") and the store can see how many
+// extra copies a bill had.
+router.post(
+  "/sales/:id/reprint",
+  canSell,
+  asyncHandler(async (req, res) => {
+    const order = await Order.findOneAndUpdate(
+      { _id: req.params.id, source: "pos" },
+      { $inc: { posReprints: 1 } },
+      { new: true }
+    ).select("invoiceNo posReprints");
+    if (!order) throw ApiError.notFound("Bill not found");
+    res.json({ success: true, invoiceNo: order.invoiceNo, copy: order.posReprints });
+  })
+);
+
+// The invoice number the next bill at this store will get — printed on the
+// bill before it is saved (the till saves only once the cashier confirms it
+// printed). Read-only: nothing is used up if the bill is never saved.
+router.get(
+  "/next-invoice",
+  canSell,
+  asyncHandler(async (req, res) => {
+    const store = await storeFor(req.query.store);
+    const now = new Date();
+    const counter = await Counter.findById(`invoice:${store.code}:${invoiceDay(now)}`).lean();
+    const seq = (counter?.seq || 0) + 1;
+    res.json({ success: true, invoiceNo: `${store.code}/${invoiceDay(now)}/${String(seq).padStart(4, "0")}` });
+  })
+);
+
 router.get(
   "/sales",
   canSell,
@@ -352,18 +434,30 @@ router.get(
     const [settings, store] = await Promise.all([Settings.load(), storeFor(req.query.store)]);
     const c = settings.company;
     const a = store.address || {};
+    // Settings -> General -> Company is what prints on bills; the store's own
+    // address / phone only fill in what is left blank there.
     res.json({
       success: true,
       header: {
-        name: c.legalName || c.name,
+        name: c.name || c.legalName || store.name,
+        legalName: c.legalName && c.legalName !== c.name ? c.legalName : "",
         gstin: c.gstin,
-        phone: store.contact?.phone || c.supportPhone,
-        address: [a.line1, a.line2, a.city, a.state, a.pincode].filter(Boolean).join(", ") || c.address,
+        fssai: c.fssai,
+        phone: c.supportPhone || store.contact?.phone || "",
+        email: c.supportEmail || "",
+        address: c.address || [a.line1, a.line2, a.city, a.state, a.pincode].filter(Boolean).join(", "),
         store: store.name,
         storeId: String(store._id),
         template: settings.pos?.template || "standard",
+        // Send the bill to the customer after billing: off | sms | whatsapp | both.
+        sendBill: settings.pos?.sendBill || "whatsapp",
+        // The channels ticked in Settings -> General -> POS (whatsapp / sms / email).
+        sendBillVia: Array.isArray(settings.pos?.sendBillVia)
+          ? settings.pos.sendBillVia
+          : { off: [], sms: ["sms"], both: ["whatsapp", "sms"] }[settings.pos?.sendBill] || ["whatsapp"],
         // How the POS bill prints (Settings -> Print -> POS bill).
-        posTemplate: settings.print?.posTemplate || "pos_manual",
+        posTemplate: settings.print?.posTemplate || "receipt",
+        posFontSize: settings.print?.posFontSize || 10,
       },
     });
   })

@@ -80,3 +80,5 @@ dist-apk/
 
 # Local APK build lock (scripts/build-apk)
 .build-apk.lock
+
+node .\deploy\package-one-app.js  

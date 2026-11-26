@@ -170,8 +170,13 @@ function FilterSection({ title, children }) {
   );
 }
 
-function OptionList({ options, selected, onToggle }) {
+function OptionList({ options: rawOptions, selected, onToggle }) {
   const [expanded, setExpanded] = useState(false);
+  // One row per value: the facet lists can repeat one (e.g. two price bands
+  // that round to the same range), which would show it twice.
+  const options = rawOptions.filter(
+    (option, index) => rawOptions.findIndex((o) => String(o.value) === String(option.value)) === index
+  );
   // A ticked option is never hidden behind "Show more".
   const hiddenSelected = options.slice(VISIBLE_OPTIONS).some((option) => selected.includes(option.value));
   const visible = expanded || hiddenSelected ? options : options.slice(0, VISIBLE_OPTIONS);

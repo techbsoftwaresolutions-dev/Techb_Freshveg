@@ -100,6 +100,14 @@ router.get(
     if (req.query.open === "true") {
       filter.status = { $nin: ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"] };
     }
+    // Returns & refunds page: orders with a return under way or money given back.
+    if (req.query.returns === "true") {
+      filter.$or = [
+        { status: { $in: ["RETURN_REQUESTED", "RETURN_APPROVED", "RETURN_PICKED", "REFUNDED"] } },
+        { "payment.amountRefunded": { $gt: 0 } },
+        { "items.itemStatus": "returned" },
+      ];
+    }
 
     const result = await paginate(Order, filter, req.query, { defaultSort: { placedAt: -1 } });
     await fillMissingItemImages(result.items);
