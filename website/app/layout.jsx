@@ -42,8 +42,10 @@ export const metadata = {
     // Every page supplies its own name; the brand is appended once, here.
     template: "%s | Hosur Basket",
   },
-  description:
-    "Order fresh fruit, vegetables, groceries, personal care and household essentials from Hosur Basket, GKD Nagar, Avalapalli Road, Hosur 635109. Same-day delivery, with free delivery above a minimum order.",
+  
+description:
+  "Shop online at HosurBasket, your everyday supermarket in Hosur, Tamil Nadu. Order fresh fruits, vegetables, groceries, rice, spices, snacks, dairy products, personal care items and household essentials. Enjoy convenient grocery shopping, doorstep delivery and exciting offers in GKD Nagar, Avalapalli Road and nearby Hosur areas.",
+
   openGraph: {
     type: "website",
     siteName: "Hosur Basket",
