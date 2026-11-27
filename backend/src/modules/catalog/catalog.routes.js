@@ -312,7 +312,13 @@ router.get(
       filter.categoryPath = req.query.category;
     }
     if (req.query.inStock !== undefined) filter.inStock = req.query.inStock === "true";
-    if (req.query.search) filter.name = new RegExp(escapeRegex(req.query.search), "i");
+    if (req.query.search) {
+      // By name, or by product code: any of its sizes' SKU or barcode.
+      const term = String(req.query.search).trim();
+      const rx = new RegExp(escapeRegex(term), "i");
+      const byCode = await Variant.find({ $or: [{ sku: rx }, { barcode: rx }] }).distinct("product");
+      filter.$or = [{ name: rx }, { _id: { $in: byCode } }];
+    }
 
     const result = await paginate(Product, filter, req.query, {
       defaultSort: PRODUCT_ORDER,
@@ -323,14 +329,44 @@ router.get(
     });
     // Where each row sits in the full saved order (1 = first), so the admin can
     // show it and let someone type a new position.
-    const order = await Product.find({ status: { $ne: "archived" } })
-      .sort(PRODUCT_ORDER)
-      .select("_id")
-      .lean();
+    const productIds = result.items.map((p) => p._id);
+    const [order, variantStock] = await Promise.all([
+      Product.find({ status: { $ne: "archived" } })
+        .sort(PRODUCT_ORDER)
+        .select("_id")
+        .lean(),
+      Variant.aggregate([
+        { $match: { product: { $in: productIds }, status: { $ne: "archived" } } },
+        { $group: { _id: "$product", totalStock: { $sum: "$totalStock" } } },
+      ]),
+    ]);
     const place = new Map(order.map((p, i) => [String(p._id), i + 1]));
+    const stockByProduct = new Map(variantStock.map((v) => [String(v._id), v.totalStock]));
+
+    // Product code for the list (and its QR code): the main variant's SKU and
+    // barcode — the default one, else the cheapest active one.
+    const listIds = result.items.map((doc) => doc._id || doc.id);
+    const codeVariants = await Variant.find({ product: { $in: listIds }, status: { $ne: "archived" } })
+      .select("product sku barcode isDefault sellingPrice")
+      .sort({ isDefault: -1, sellingPrice: 1 })
+      .lean();
+    const codeByProduct = new Map();
+    for (const v of codeVariants) {
+      const key = String(v.product);
+      if (!codeByProduct.has(key)) codeByProduct.set(key, { code: v.sku || "", barcode: v.barcode || "" });
+    }
+
     result.items = result.items.map((doc) => {
       const row = typeof doc.toJSON === "function" ? doc.toJSON() : doc;
-      return { ...row, position: place.get(String(row.id)) || null };
+      const totalStock = stockByProduct.get(String(row.id || row._id)) ?? (row.totalStock ?? 0);
+      const { code = "", barcode = "" } = codeByProduct.get(String(row.id || row._id)) || {};
+      return {
+        ...row,
+        position: place.get(String(row.id)) || null,
+        totalStock,
+        code,
+        barcode,
+      };
     });
 
     res.json({ success: true, ...result });

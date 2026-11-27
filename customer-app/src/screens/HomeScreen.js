@@ -10,6 +10,7 @@ import { useStore } from "../context/StoreContext";
 import { colors, fontFamily, radius, rupees, spacing, type } from "../theme";
 import { Card, EmptyState, Loading, Notice, Pill, SectionHeader } from "../components/ui";
 import ProductTile from "../components/ProductTile";
+import CopyCode from "../components/CopyCode";
 
 // Flat product tiles, a little under three to a screen so the next one peeks in.
 const TILE_WIDTH = 124;
@@ -219,9 +220,7 @@ export default function HomeScreen({ navigation }) {
                     {offer.description}
                   </Text>
                   {offer.code ? (
-                    <View style={styles.codeChip}>
-                      <Text style={styles.codeText}>Code {offer.code}</Text>
-                    </View>
+                    <CopyCode code={offer.code} chipStyle={styles.codeChip} textStyle={styles.codeText} />
                   ) : (
                     <Text style={styles.autoApplied}>Applied automatically</Text>
                   )}

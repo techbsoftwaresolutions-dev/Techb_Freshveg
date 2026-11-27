@@ -2,9 +2,10 @@ import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
+import { useApi } from "../../api/useApi";
 import { useAuth } from "../../context/AuthContext";
-import DateFilter, { todayRange } from "../../components/DateFilter";
-import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, rupees, when, ChipDropdown } from "../../components/ui";
+import DateFilter, { defaultRange } from "../../components/DateFilter";
+import { Banner, Card, ConfirmDialog, Empty, Loading, Modal, Pagination, Pill, Table, Tabs, rupees, when } from "../../components/ui";
 
 // The filter chips are built from the status table the API returns, so a new
 // stage added to the engine shows up here without a frontend change.
@@ -49,16 +50,14 @@ export default function Orders() {
   // Which row's Delivery cell is being edited, and the rider picked so far.
   const [editing, setEditing] = useState({ id: null, partner: "" });
   const [searchParams] = useSearchParams();
-  const [data, setData] = useState({ items: [], meta: null });
   const [statuses, setStatuses] = useState({});
   // A dashboard card (e.g. "Pending Orders") links here with ?status=..., so
   // that lands on the matching bucket instead of always opening on "All".
-  const [filters, setFilters] = useState({ status: searchParams.get("status") || "", page: 1 });
+  const [filters, setFilters] = useState({ status: searchParams.get("status") || "", channel: "online", page: 1 });
   // The calendar button next to the status chips: { from, to } as yyyy-mm-dd.
   // Arriving from a dashboard link (?status=...) means "show me all of these",
   // so the day filter starts at All Time instead of hiding older orders.
-  const [range, setRange] = useState(() => (searchParams.get("status") ? { from: "", to: "" } : todayRange()));
-  const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState(defaultRange);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -79,11 +78,9 @@ export default function Orders() {
       .catch(() => {});
   }, [canAssign]);
 
+  // Re-reads the current page (also done automatically after any save, and every 30 s).
   function load() {
-    return api
-      .get("/orders", { ...filters, ...range, limit: 20 })
-      .then(setData)
-      .catch((err) => setError(err.message));
+    return ordersQ.reload();
   }
 
   async function removeOrder(order) {
@@ -118,14 +115,28 @@ export default function Orders() {
     }
   }
 
+  // Server-paginated, 20 per page. Cached and shared; the previous page stays on screen while the
+  // next one loads; refreshed in the background every 30 s while the tab is visible.
+  // Search box: anything on the bill (order id, bill no, customer, phone,
+  // item, code, amount). Sent a moment after typing stops. While searching,
+  // all dates are looked through — a bill being looked up is rarely today's.
+  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
   useEffect(() => {
-    setLoading(true);
-    api
-      .get("/orders", { ...filters, ...range, limit: 20 })
-      .then(setData)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [filters, range]);
+    const t = setTimeout(() => {
+      setQ(search.trim());
+      setFilters((f) => ({ ...f, page: 1 }));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+  const ordersQ = useApi(
+    "/orders",
+    { limit: 20, ...filters, ...(q ? { q, from: "", to: "" } : range) },
+    // 10s so a rider starting / finishing a delivery shows without a reload.
+    { refreshMs: 10000 }
+  );
+  const data = ordersQ.data || { items: [], meta: null };
+  const loading = ordersQ.loading;
 
   // A handful of useful buckets rather than all 19 statuses as chips. The
   // "Pending" value must match PENDING_ORDER_STATUSES in Dashboard.jsx
@@ -154,22 +165,43 @@ export default function Orders() {
         </div>
       </div>
 
-      <Banner tone="error">{error}</Banner>
+      <Banner tone="error">{error || (ordersQ.error && !ordersQ.data ? ordersQ.error.message : "")}</Banner>
       <Banner tone="ok">{notice}</Banner>
 
+      <Tabs
+        tabs={[{ key: "online", label: "Online Invoice" }, { key: "pos", label: "POS Bill" }]}
+        active={filters.channel}
+        onChange={(channel) => setFilters((f) => ({ limit: f.limit, status: "", channel, page: 1 }))}
+      />
+
       <div className="toolbar products-filters">
-        <ChipDropdown
-          ariaLabel="Order status"
-          options={buckets.map((b) => ({ value: b.value, label: b.label }))}
+        <span className="search-field orders-search">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input
+            type="search"
+            placeholder="Search order no, bill no, customer, phone, item or amount…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search orders"
+          />
+        </span>
+        <Select
+          aria-label="Order status"
           value={filters.status}
-          onChange={(value) => {
+          onChange={(e) => {
+            const value = e.target.value;
             // Pending orders are whatever is still open, however old, so
             // that bucket (and All) looks across all time.
             if (value === buckets.find((b) => b.label === "Pending").value) setRange({ from: "", to: "" });
-            setFilters({ status: value, page: 1 });
+            setFilters((f) => ({ ...f, status: value, page: 1 }));
           }}
-        />
+        >
+          {buckets.map((b) => (
+            <option key={b.label} value={b.value}>{b.value ? b.label : "All statuses"}</option>
+          ))}
+        </Select>
         <span className="spacer" />
+        {q ? <span className="muted orders-search-note">Searching all dates</span> : null}
         <DateFilter
           value={range}
           onChange={(next) => {
@@ -185,7 +217,7 @@ export default function Orders() {
         ) : (
           <>
             <Table
-              title="Orders"
+              title="Orders" search={false}
               columns={[
                 {
                   key: "code",
@@ -346,40 +378,22 @@ export default function Orders() {
               onRowClick={(row) => navigate(`/orders/${row.id}`)}
               empty={<Empty title="No orders" hint="Orders placed from the app or website land here." />}
             />
-            <Pagination meta={data.meta} onPage={(page) => setFilters((f) => ({ ...f, page }))} />
+            <Pagination meta={data.meta} onPage={(page) => setFilters((f) => ({ ...f, page }))} onLimit={(limit) => setFilters((f) => ({ ...f, limit, page: 1 }))} />
           </>
         )}
       </Card>
 
       {confirming && (
-        <Modal
-          title="Delete order?"
-          onClose={() => !deleting && setConfirming(null)}
-          footer={
-            <>
-              <button className="btn" disabled={deleting} onClick={() => setConfirming(null)}>
-                Cancel
-              </button>
-              <button className="btn danger" disabled={deleting} onClick={() => removeOrder(confirming)}>
-                {deleting ? "Deleting…" : "Yes, delete"}
-              </button>
-            </>
-          }
-        >
-          <p style={{ margin: 0 }}>
-            <strong className="mono">{confirming.code}</strong> will be permanently removed.
-          </p>
-          {!["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"].includes(confirming.status) ? (
-            <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
-              This order is still open, so it will be cancelled first: its stock is returned and any
-              payment is refunded, and the customer is notified of the cancellation.
-            </p>
-          ) : (
-            <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
-              This cannot be undone.
-            </p>
-          )}
-        </Modal>
+        <ConfirmDialog
+          title="Delete this order?"
+          message={confirming.code}
+          confirmLabel="Delete"
+          onAnswer={(yes) => {
+            const row = confirming;
+            setConfirming(null);
+            if (yes && !deleting) removeOrder(row);
+          }}
+        />
       )}
     </div>
   );

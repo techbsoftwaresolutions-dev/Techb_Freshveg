@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/free-port.mjs && node scripts/ensure-deps.mjs",
     "dev": "next dev -p 3100",
+    "prebuild": "node scripts/ensure-deps.mjs",
     "build": "next build",
     "start": "next start -p 3100",
     "lint": "next lint"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.107.1",
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

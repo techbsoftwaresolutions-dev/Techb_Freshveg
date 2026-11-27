@@ -114,7 +114,17 @@ router.post(
 
     if (!applied) {
       const rejection = preview.offers.rejected.find((o) => o.code === code);
-      throw ApiError.badRequest(rejection?.reason || "That coupon is not valid for this cart", {
+      // The engine only considers active offers, so a code that exists but is
+      // draft/paused/expired has no rejection entry. Say what is actually wrong.
+      let reason = rejection?.reason;
+      if (!reason) {
+        const Offer = require("../pricing/offer.model");
+        const offer = await Offer.findOne({ requiresCode: true, code });
+        if (!offer) reason = "That coupon code is not valid";
+        else if (offer.status !== "active") reason = "This coupon is not active";
+        else reason = "That coupon is not valid for this cart";
+      }
+      throw ApiError.badRequest(reason, {
         code,
         shortfall: rejection?.shortfall,
       });

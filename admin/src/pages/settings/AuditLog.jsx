@@ -4,7 +4,7 @@ import { api } from "../../api/client";
 import { Avatar } from "../orders/Orders";
 import {
   Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, when, ChipDropdown, chipPairs } from "../../components/ui";
-import DateFilter, { todayRange } from "../../components/DateFilter";
+import DateFilter, { defaultRange } from "../../components/DateFilter";
 
 const ACTION_TONE = {
   create: "ok",
@@ -82,7 +82,7 @@ function dayTime(value) {
 export default function AuditLog() {
   const [data, setData] = useState({ items: [], meta: null });
   const [filters, setFilters] = useState({ search: "", entity: "", action: "", page: 1 });
-  const [range, setRange] = useState(todayRange);
+  const [range, setRange] = useState(defaultRange);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [detail, setDetail] = useState(null);
@@ -92,7 +92,7 @@ export default function AuditLog() {
     const timer = setTimeout(
       () =>
         api
-          .get("/audit", { ...filters, ...range, limit: 25 })
+          .get("/audit", { limit: 25, ...filters, ...range })
           .then(setData)
           .catch((err) => setError(err.message))
           .finally(() => setLoading(false)),
@@ -140,7 +140,7 @@ export default function AuditLog() {
         ) : (
           <>
             <Table
-              title="Audit log"
+              title="Audit log" search={false}
               columns={[
                 {
                   key: "when",
@@ -220,7 +220,7 @@ export default function AuditLog() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>

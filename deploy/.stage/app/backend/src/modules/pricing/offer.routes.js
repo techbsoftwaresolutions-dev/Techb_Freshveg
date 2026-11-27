@@ -48,7 +48,7 @@ router.get(
     if (req.query.kind === "offer") filter.requiresCode = false;
 
     const result = await paginate(Offer, filter, req.query, {
-      defaultSort: { priority: -1, createdAt: -1 },
+      defaultSort: { editedAt: -1, createdAt: -1 },
       populate: { path: "conditions.categories", select: "name slug" },
     });
 
@@ -67,7 +67,7 @@ router.get(
 // set. `isLive` in particular is a *method* on the document: copying the
 // `isLive: true` the list sends back onto it replaces the method with a
 // boolean, and the next `offer.isLive()` throws "isLive is not a function".
-const READ_ONLY = ["id", "_id", "__v", "isLive", "createdAt", "updatedAt", "createdBy"];
+const READ_ONLY = ["id", "_id", "__v", "isLive", "createdAt", "updatedAt", "createdBy", "editedAt"];
 function clean(body) {
   const out = { ...body };
   for (const key of READ_ONLY) delete out[key];
@@ -81,7 +81,7 @@ router.post(
     if (req.body.requiresCode && !req.body.code) {
       throw ApiError.badRequest("A coupon needs a code");
     }
-    const offer = await Offer.create({ ...clean(req.body), createdBy: req.user.id });
+    const offer = await Offer.create({ ...clean(req.body), createdBy: req.user.id, editedAt: new Date() });
     res.status(201).json({ success: true, offer });
   })
 );
@@ -99,6 +99,7 @@ router.patch(
     delete body.limits?.usedCount;
 
     offer.set(body);
+    offer.editedAt = new Date();
     await offer.save();
     res.json({ success: true, offer: { ...offer.toJSON(), isLive: offer.isLive() } });
   })

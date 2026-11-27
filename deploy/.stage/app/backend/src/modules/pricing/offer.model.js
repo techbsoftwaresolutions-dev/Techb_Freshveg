@@ -82,6 +82,9 @@ const offerSchema = new mongoose.Schema(
 
     status: { type: String, enum: ["draft", "active", "paused", "expired"], default: "draft", index: true },
     isFeatured: { type: Boolean, default: false },
+    // Set only when an admin adds or saves the offer (not when checkout bumps
+    // usedCount), so "latest first" on the storefront means latest *edited*.
+    editedAt: { type: Date, default: Date.now, index: true },
     createdBy: objectId("User"),
   },
   baseOptions

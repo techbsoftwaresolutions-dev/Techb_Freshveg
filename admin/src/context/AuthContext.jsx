@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { api, loadSession, saveSession } from "../api/client";
+import { api, loadSession, renewSession, saveSession, tokenPermissions } from "../api/client";
 
 const AuthContext = createContext(null);
 
@@ -25,6 +25,11 @@ export function AuthProvider({ children }) {
           saveSession(next);
           return next;
         });
+        // The server checks the permissions inside the token, which were fixed
+        // when it was issued. If the account has gained any since, renew it now
+        // instead of letting those screens fail with "Missing permission".
+        const inToken = tokenPermissions(loadSession()?.accessToken || "");
+        if (inToken && (user.permissions || []).some((p) => !inToken.includes(p))) renewSession();
       })
       .catch(() => {
         if (!cancelled) signOut();
@@ -51,6 +56,13 @@ export function AuthProvider({ children }) {
     setSession(next);
     return next;
   }
+
+  // Keep React's copy in step when the API client renews the session itself.
+  useEffect(() => {
+    const onRenewed = (e) => setSession(e.detail);
+    window.addEventListener("app:session-refreshed", onRenewed);
+    return () => window.removeEventListener("app:session-refreshed", onRenewed);
+  }, []);
 
   function signOut() {
     saveSession(null);

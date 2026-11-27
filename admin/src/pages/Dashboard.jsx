@@ -9,7 +9,17 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { api } from "../api/client";
+import { useApi } from "../api/useApi";
+
+// A till / cash register, for the POS Billing card.
+function IconPosRegister(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M7 20h10M12 16v4M7 8h4M7 11h7" />
+    </svg>
+  );
+}
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./orders/Orders";
 import {
@@ -17,6 +27,7 @@ import {
   Card,
   Empty,
   Loading,
+  Pagination,
   Pill,
   Stat,
   rupees,
@@ -167,25 +178,12 @@ const PENDING_ORDER_STATUSES = [
 // every order rather than the most recent fifty.
 const PAGE_SIZE = 5;
 
-// Footer of a dashboard list card: Previous / Next through five rows at a time.
+// Footer of a dashboard list card: the table pagination, five rows a page.
+// `page` here counts from 0.
 function Pager({ page, total, onPage }) {
   if (total <= PAGE_SIZE) return null;
-  const pageCount = Math.ceil(total / PAGE_SIZE);
-  const first = page * PAGE_SIZE + 1;
-  const last = Math.min(total, (page + 1) * PAGE_SIZE);
-  return (
-    <div className="dash-pager">
-      <button type="button" className="btn sm" disabled={page <= 0} onClick={() => onPage(page - 1)}>
-        ‹ Previous
-      </button>
-      <span className="faint">
-        {first}–{last} of {total}
-      </span>
-      <button type="button" className="btn sm" disabled={page >= pageCount - 1} onClick={() => onPage(page + 1)}>
-        Next ›
-      </button>
-    </div>
-  );
+  const meta = { page: page + 1, pages: Math.ceil(total / PAGE_SIZE), total, limit: PAGE_SIZE };
+  return <Pagination meta={meta} onPage={(p) => onPage(p - 1)} />;
 }
 
 export default function Dashboard() {
@@ -214,70 +212,50 @@ export default function Dashboard() {
   const [pages, setPages] = useState({});
   const pageOf = (rows, key) => rows.slice((pages[key] || 0) * PAGE_SIZE, ((pages[key] || 0) + 1) * PAGE_SIZE);
   const goPage = (key, next) => setPages((p) => ({ ...p, [key]: next }));
-  const [data, setData] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [ordersTotal, setOrdersTotal] = useState(0);
-  const [lowStock, setLowStock] = useState([]);
-  const [outOfStock, setOutOfStock] = useState({ items: [], total: 0 });
-  const [tickets, setTickets] = useState([]);
-  const [productsTotal, setProductsTotal] = useState(0);
-  const [customersTotal, setCustomersTotal] = useState(0);
-  const [topProducts, setTopProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
+  // Six small calls instead of eight big ones (the totals for products, customers and orders now
+  // ride along in /reports/dashboard). Each is cached, shared and refreshed in the background by
+  // TanStack Query, and every list is only as long as the card that shows it.
+  // "Good evening, …" shows for 2 seconds once after each login, then fades
+  // away; coming back to the dashboard later in the same login skips it.
+  const greetKey = `dash-greeted:${user?.id || user?._id || ""}:${user?.lastLoginAt || ""}`;
+  const [greetOn, setGreetOn] = useState(() => {
+    try {
+      return !sessionStorage.getItem(greetKey);
+    } catch {
+      return true;
+    }
+  });
   useEffect(() => {
-    Promise.all([
-      can("reports.view")
-        ? api.get("/reports/dashboard")
-        : Promise.resolve(null),
-      can("orders.view")
-        ? api.get("/orders", { limit: 30 })
-        : Promise.resolve({ items: [], meta: null }),
-      can("inventory.view")
-        ? api.get("/inventory/low-stock")
-        : Promise.resolve({ items: [] }),
-      can("customers.view")
-        ? api.get("/support", { open: "true", limit: 5 })
-        : Promise.resolve({ items: [] }),
-      can("catalog.view")
-        ? api.get("/catalog/products", { limit: 1 })
-        : Promise.resolve({ meta: null }),
-      can("customers.view")
-        ? api.get("/customers", { limit: 1 })
-        : Promise.resolve({ meta: null }),
-      can("reports.view")
-        ? api.get("/reports/products", { limit: 50 })
-        : Promise.resolve({ products: [] }),
-      can("inventory.view")
-        ? api.get("/inventory/out-of-stock", { limit: 50 })
-        : Promise.resolve({ items: [], meta: null }),
-    ])
-      .then(
-        ([
-          dashboard,
-          orderData,
-          stockData,
-          ticketData,
-          productData,
-          customerData,
-          topProductData,
-          outData,
-        ]) => {
-          setData(dashboard);
-          setOrders(orderData.items || []);
-          setOrdersTotal(orderData.meta?.total || 0);
-          setLowStock(stockData.items || []);
-          setTickets(ticketData.items || []);
-          setProductsTotal(productData.meta?.total || 0);
-          setCustomersTotal(customerData.meta?.total || 0);
-          setTopProducts(topProductData.products || []);
-          setOutOfStock({ items: outData.items || [], total: outData.meta?.total || 0 });
-        },
-      )
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [can]);
+    if (!greetOn) return undefined;
+    try {
+      sessionStorage.setItem(greetKey, "1");
+    } catch {
+      // storage blocked: it just shows on each visit
+    }
+    const t = setTimeout(() => setGreetOn(false), 2000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const refresh = { refreshMs: 60000 };
+  const dashQ = useApi("/reports/dashboard", undefined, { ...refresh, enabled: can("reports.view") });
+  const ordersQ = useApi("/orders", { limit: 15, view: "summary" }, { ...refresh, enabled: can("orders.view") });
+  const stockQ = useApi("/inventory/low-stock", { limit: 15 }, { ...refresh, enabled: can("inventory.view") });
+  const ticketQ = useApi("/support", { open: "true", limit: 5 }, { ...refresh, enabled: can("customers.view") });
+  const topQ = useApi("/reports/products", { limit: 15 }, { ...refresh, enabled: can("reports.view") });
+  const outQ = useApi("/inventory/out-of-stock", { limit: 15 }, { ...refresh, enabled: can("inventory.view") });
+
+  const data = dashQ.data || null;
+  const orders = ordersQ.data?.items || [];
+  const ordersTotal = data?.counts?.orders ?? ordersQ.data?.meta?.total ?? 0;
+  const lowStock = stockQ.data?.items || [];
+  const outOfStock = { items: outQ.data?.items || [], total: outQ.data?.meta?.total || 0 };
+  const tickets = ticketQ.data?.items || [];
+  const productsTotal = data?.counts?.products || 0;
+  const customersTotal = data?.counts?.customers || 0;
+  const topProducts = topQ.data?.products || [];
+  const queries = [dashQ, ordersQ, stockQ, ticketQ, topQ, outQ];
+  const loading = queries.some((q) => q.loading);
+  const error = queries.find((q) => q.error && !q.data)?.error?.message || "";
 
   if (loading)
     return (
@@ -326,32 +304,28 @@ export default function Dashboard() {
 
   return (
     <div className="page dash-page">
-      <div className="page-head dash-head">
-        <div>
+      <div className={`page-head dash-head${greetOn ? "" : " dash-head-gone"}`}>
+        <div className={`dash-greet${greetOn ? "" : " gone"}`} aria-hidden={!greetOn}>
           <h1>
             {greeting}
             {firstName ? `, ${firstName}` : ""}
           </h1>
         </div>
-        <div className="dash-head-actions">
-          {can("orders.view") && (lifetime.pendingOrders ?? 0) > 0 ? (
-            <Link className="dash-alert amber" to={`/orders?status=${PENDING_ORDER_STATUSES}`}>
-              <span className="dash-alert-dot" />
-              {lifetime.pendingOrders} pending {lifetime.pendingOrders === 1 ? "order" : "orders"}
-            </Link>
-          ) : null}
-          {can("inventory.view") && (data?.lowStockCount ?? 0) > 0 ? (
-            <Link className="dash-alert red" to="/inventory">
-              <span className="dash-alert-dot" />
-              {data.lowStockCount} low on stock
-            </Link>
-          ) : null}
-        </div>
       </div>
 
       <Banner tone="error">{error}</Banner>
 
-      <div className="grid cols-6" style={{ marginBottom: 14 }}>
+      <div className={`grid ${can("pos.sell") ? "cols-7" : "cols-6"}`} style={{ marginBottom: 14 }}>
+        {can("pos.sell") ? (
+          <Stat
+            icon={IconPosRegister}
+            hue="green"
+            label="POS Billing"
+            value="New Bill"
+            foot="Start a walk-in bill"
+            to="/pos"
+          />
+        ) : null}
         <Stat
           icon={IconWallet}
           hue="green"

@@ -33,6 +33,7 @@ export default function Inventory() {
   const [data, setData] = useState({ items: [], meta: null, tab: null });
   const requestId = useRef(0);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [adjusting, setAdjusting] = useState(null);
@@ -88,7 +89,7 @@ export default function Inventory() {
     setError("");
     const mine = ++requestId.current;
     api
-      .get(path, { store: store || undefined, category: categoryFilter || undefined, q: term || undefined, page, limit: 20 })
+      .get(path, { store: store || undefined, category: categoryFilter || undefined, q: term || undefined, page, limit })
       .then((res) => mine === requestId.current && setData({ ...res, items: res.items || [], tab }))
       .catch((err) => {
         if (mine !== requestId.current) return;
@@ -96,7 +97,7 @@ export default function Inventory() {
         setData({ items: [], meta: null, tab });
       })
       .finally(() => mine === requestId.current && setLoading(false));
-  }, [tab, store, page, categoryFilter, term]);
+  }, [tab, store, page, limit, categoryFilter, term]);
 
   useEffect(() => {
     if (!store && tab !== "movements") return;
@@ -246,7 +247,7 @@ export default function Inventory() {
         ) : (
           <>
             <Table
-              title="Stock levels"
+              title="Stock levels" search={false}
               columns={[
                 {
                   key: "product",
@@ -326,9 +327,6 @@ export default function Inventory() {
                         <button className="btn sm primary" onClick={() => setAdjusting({ row, mode: "receive" })}>
                           + Add stock
                         </button>
-                        <button className="btn sm" onClick={() => setAdjusting({ row, mode: "adjust" })}>
-                          Adjust
-                        </button>
                       </span>
                     ),
                 },
@@ -349,7 +347,7 @@ export default function Inventory() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={setPage} />
+            <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>
@@ -423,7 +421,7 @@ function ExpiringTable({ rows, days = 3 }) {
 
   return (
     <Table
-      title="Expiring stock"
+      title="Expiring stock" search={false}
       columns={[
         {
           key: "product",

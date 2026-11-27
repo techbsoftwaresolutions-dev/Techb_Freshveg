@@ -165,7 +165,7 @@ export default function DatePicker({
             className="dp-pop"
             role="dialog"
             aria-label="Choose date"
-            style={{ position: "fixed", left: place.left, width: place.width, top: place.top, bottom: place.bottom, transformOrigin: place.bottom != null ? "bottom" : "top" }}
+            style={{ position: "fixed", left: place.left, width: place.width, top: place.top ?? "auto", bottom: place.bottom ?? "auto", transformOrigin: place.bottom != null ? "bottom" : "top" }}
           >
             <div className="dp-head">
               <button type="button" className="dp-title" onClick={() => setMode(mode === "days" ? "months" : "days")} aria-live="polite">

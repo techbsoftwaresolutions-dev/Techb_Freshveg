@@ -17,6 +17,71 @@ const MaintenanceAsset = require("../maintenance/maintenanceAsset.model");
 const MaintenanceRequest = require("../maintenance/maintenanceRequest.model");
 const audit = require("../audit/audit.service");
 
+const { optionsFor, normaliseCustom, minutesUntil, infoFor, afterHours } = require("./deliveryTime");
+
+const FINISHED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+
+// Updates and notifies the customers whose orders are still open.
+async function tellOpenOrders(store, key) {
+  const orderService = require("../orders/order.service");
+  const open = await Order.find({
+    store: store._id,
+    status: { $nin: FINISHED },
+    "delivery.etaOption": { $ne: key },
+  }).limit(500);
+  for (const order of open) {
+    await orderService.setDeliveryTime(order, key, store.settings).catch((err) => console.warn("[store] notice:", err.message));
+  }
+}
+
+// Picking a delivery time also sets the matching number of minutes, so every
+// screen that still reads prepTimeMinutes agrees with it.
+// Keeps an area name only for a pincode the store actually serves.
+function syncAreas(body) {
+  if (!body || !("pincodeAreas" in body)) return;
+  const served = Array.isArray(body.servicePincodes) ? body.servicePincodes.map(String) : null;
+  const seen = new Set();
+  body.pincodeAreas = (Array.isArray(body.pincodeAreas) ? body.pincodeAreas : [])
+    .map((r) => {
+      const charge = r?.deliveryCharge === null || r?.deliveryCharge === "" || r?.deliveryCharge === undefined ? null : Number(r.deliveryCharge);
+      const above = r?.freeAbove === null || r?.freeAbove === "" || r?.freeAbove === undefined ? null : Number(r.freeAbove);
+      return {
+        pincode: String(r?.pincode || ""),
+        area: String(r?.area || "").trim().slice(0, 40),
+        // Whole paise, never negative; anything else means "use the store's charge".
+        ...(Number.isInteger(charge) && charge >= 0 ? { deliveryCharge: charge } : {}),
+        // Order value from which delivery to this area is free (whole paise, above zero).
+        ...(Number.isInteger(above) && above > 0 ? { freeAbove: above } : {}),
+      };
+    })
+    .filter((r) => /^\d{6}$/.test(r.pincode) && r.area && (!served || served.includes(r.pincode)))
+    .filter((r) => {
+      const key = `${r.pincode}:${r.area.toLowerCase()}`;
+      return !seen.has(key) && seen.add(key);
+    });
+  // The default area has to be one of the areas that survived.
+  if ("defaultArea" in body) {
+    const wanted = String(body.defaultArea || "").trim().toLowerCase();
+    const real = body.pincodeAreas.find((r) => r.area.toLowerCase() === wanted);
+    body.defaultArea = real ? real.area : "";
+  }
+}
+
+function syncDeliveryTime(body) {
+  const settings = body?.settings;
+  if (!settings) return;
+  for (const key of ["orderCutoff", "morningDelivery"]) {
+    if (key in settings && settings[key] !== "" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(settings[key]))) {
+      throw ApiError.badRequest("Enter the time as hours and minutes");
+    }
+  }
+  if ("deliveryTimeOptions" in settings) settings.deliveryTimeOptions = normaliseCustom(settings.deliveryTimeOptions);
+  if (!("deliveryTime" in settings) || settings.deliveryTime === "") return;
+  const option = optionsFor(settings).find((o) => o.key === settings.deliveryTime);
+  if (!option) throw ApiError.badRequest("Choose one of the delivery times in the list");
+  settings.prepTimeMinutes = minutesUntil(option);
+}
+
 const router = express.Router();
 
 // Public: which stores exist and whether they are open. Commercial settings
@@ -36,6 +101,8 @@ router.get(
       stores: stores.map((s) => ({
         id: s.id, name: s.name, code: s.code, type: s.type,
         address: s.address, isOpen: s.isOpenNow(), settings: s.settings,
+        // Lets a shopper who never typed a pincode still be asked which area they are in.
+        servicePincodes: s.servicePincodes || [],
       })),
     });
   })
@@ -56,6 +123,8 @@ router.post(
   "/",
   requirePermission("settings.manage"),
   asyncHandler(async (req, res) => {
+    syncDeliveryTime(req.body);
+    syncAreas(req.body);
     const store = await Store.create(req.body);
     res.status(201).json({ success: true, store });
   })
@@ -82,9 +151,20 @@ router.patch(
       throw ApiError.badRequest("Free delivery must be on or off");
     }
 
+    syncDeliveryTime(req.body);
+    syncAreas(req.body);
+    const before = await Store.findById(req.params.id).select("settings");
     const store = await Store.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!store) throw ApiError.notFound("Store not found");
     res.json({ success: true, store });
+
+    // A new Delivery time (say 30 min -> 10 min) is told to every customer
+    // who still has an order on its way, in the background.
+    const oldKey = before && infoFor(before.settings)?.key;
+    const newKey = infoFor(store.settings)?.key;
+    if (oldKey && newKey && oldKey !== newKey && !afterHours(store.settings)) {
+      tellOpenOrders(store, newKey).catch((err) => console.warn("[store] delivery time notices:", err.message));
+    }
   })
 );
 

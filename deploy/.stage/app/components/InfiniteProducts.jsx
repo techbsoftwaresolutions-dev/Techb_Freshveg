@@ -3,6 +3,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import ProductCard from "./ProductCard";
+import { isReturning, listingKey } from "./ListingScrollMemory";
 import { MorphingSquare } from "./ui/morphing-square";
 
 // On every screen size: instead of page links, the rest of the catalogue loads
@@ -18,6 +19,17 @@ import { MorphingSquare } from "./ui/morphing-square";
 // back well before they scroll into sight and fast flings never show a gap.
 const KEEP_MOUNTED = "1500px 0px";
 
+// On wide screens the product list scrolls inside its own box rather than the
+// page, so the observers must measure against that box. null (the viewport) is
+// right wherever the page itself scrolls, e.g. on a phone.
+function scrollParent(el) {
+  for (let node = el?.parentElement; node; node = node.parentElement) {
+    const overflow = getComputedStyle(node).overflowY;
+    if (overflow === "auto" || overflow === "scroll") return node;
+  }
+  return null;
+}
+
 export default function InfiniteProducts({ query, startPage, pages, seenIds = [] }) {
   const [chunks, setChunks] = useState([]);
   const [next, setNext] = useState(startPage);
@@ -28,6 +40,36 @@ export default function InfiniteProducts({ query, startPage, pages, seenIds = []
   const seen = useRef(new Set(seenIds));
 
   const done = next > pages;
+
+  // Coming back from a product: put back the pages that were loaded before,
+  // so the spot the shopper scrolled to exists again (ListingScrollMemory then
+  // scrolls to it). Saved per listing address, for this browser tab only.
+  const storeKey = useRef("");
+  const restored = useRef(false);
+  useEffect(() => {
+    storeKey.current = `${listingKey()}:pages`;
+    if (!isReturning()) return;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(storeKey.current) || "null");
+      if (saved?.query === JSON.stringify(query) && Array.isArray(saved.chunks) && saved.chunks.length) {
+        saved.chunks.forEach((chunk) => chunk.items.forEach((item) => seen.current.add(item.id)));
+        restored.current = true;
+        setChunks(saved.chunks);
+        setNext(saved.next);
+      }
+    } catch {
+      // nothing saved, or unreadable: load as usual
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!storeKey.current) return;
+    try {
+      sessionStorage.setItem(storeKey.current, JSON.stringify({ query: JSON.stringify(query), chunks, next }));
+    } catch {
+      // storage full: going back will just reload from the first page
+    }
+  }, [chunks, next, query]);
 
   useEffect(() => {
     if (done || failed || !sentinel.current) return undefined;
@@ -56,6 +98,7 @@ export default function InfiniteProducts({ query, startPage, pages, seenIds = []
     // stalls; appended cards go below the viewport, so the scroll position
     // is not disturbed.
     const observer = new IntersectionObserver((entries) => entries[0].isIntersecting && load(), {
+      root: scrollParent(sentinel.current),
       rootMargin: "600px 0px",
     });
     observer.observe(sentinel.current);
@@ -101,7 +144,7 @@ const Chunk = memo(function Chunk({ items }) {
         if (!entry.isIntersecting) height.current = el.offsetHeight;
         setNear(entry.isIntersecting);
       },
-      { rootMargin: KEEP_MOUNTED }
+      { root: scrollParent(el), rootMargin: KEEP_MOUNTED }
     );
     observer.observe(el);
     return () => observer.disconnect();

@@ -28,10 +28,33 @@ function lineMatchesOffer(line, offer) {
   return true;
 }
 
-function offerApplies(offer, context) {
-  const { lines, subtotal, customer, store, paymentMethod, at } = context;
+// Why an offer is not live, in words a customer can act on.
+function notLiveReason(offer, at) {
+  const { startsAt, endsAt } = offer.schedule || {};
+  const { totalUses, usedCount } = offer.limits || {};
+  if (offer.status !== "active") return "This coupon is not active";
+  if (endsAt && at > endsAt) return "This coupon has expired";
+  if (startsAt && at < startsAt) return "This coupon is not active yet";
+  if (totalUses && usedCount >= totalUses) return "This coupon has reached its usage limit";
+  return "This coupon is not available right now";
+}
 
-  if (!offer.isLive(at)) return { ok: false, reason: "Offer is not running right now" };
+function offerApplies(offer, context) {
+  const { lines, subtotal, customer, store, paymentMethod, at, usage } = context;
+
+  if (!offer.isLive(at)) return { ok: false, reason: notLiveReason(offer, at) };
+
+  // One use per customer unless the admin allows more: a typed coupon is a
+  // one-time gift, not a standing discount.
+  const perCustomerLimit = offer.limits?.perCustomer > 0 ? offer.limits.perCustomer : offer.requiresCode ? 1 : 0;
+  if (perCustomerLimit && customer?.id && (usage?.get(String(offer._id)) || 0) >= perCustomerLimit) {
+    return {
+      ok: false,
+      reason: perCustomerLimit === 1
+        ? "You have already used this coupon"
+        : `You have already used this coupon ${perCustomerLimit} times`,
+    };
+  }
 
   const c = offer.conditions || {};
 
@@ -185,6 +208,7 @@ async function priceCart(context) {
     customer = null,
     couponCode = null,
     paymentMethod = null,
+    area = null,
     walletRequested = 0,
     loyaltyPointsRequested = 0,
     at = new Date(),
@@ -219,7 +243,26 @@ async function priceCart(context) {
     // On equal priority a coupon the customer typed beats an automatic offer.
   }).sort({ priority: -1, requiresCode: -1 });
 
-  const evalContext = { lines, subtotal, customer, store, paymentMethod, at };
+  // How many times this customer has already had each candidate on an order
+  // (cancelled and rejected orders give the use back).
+  const usage = new Map();
+  if (customer?.id && candidates.length) {
+    const Order = require("../orders/order.model");
+    const rows = await Order.aggregate([
+      {
+        $match: {
+          customer: new (require("mongoose").Types.ObjectId)(String(customer.id)),
+          status: { $nin: ["CANCELLED", "REJECTED"] },
+          "appliedOffers.offer": { $in: candidates.map((o) => o._id) },
+        },
+      },
+      { $unwind: "$appliedOffers" },
+      { $group: { _id: "$appliedOffers.offer", count: { $sum: 1 } } },
+    ]);
+    for (const row of rows) usage.set(String(row._id), row.count);
+  }
+
+  const evalContext = { lines, subtotal, customer, store, paymentMethod, at, usage };
 
   const applied = [];
   const rejected = [];
@@ -275,14 +318,55 @@ async function priceCart(context) {
 
   // --- 3. Charges -----------------------------------------------------
   let deliveryCharge = settings.deliveryCharge || 0;
+  // An area the admin gave its own delivery charge (₹0 = free) overrides the
+  // store's normal charge for shoppers in that area. An area can also carry its
+  // own "free above ₹X": at or above it delivery is free, below it the area's
+  // charge is paid — and that threshold replaces the store-wide one there.
+  let areaFreeAbove = 0;
+  // A shopper who has given no area is priced at the store's default area (picked
+  // in the admin), if it has one; otherwise at the store's normal charge.
+  const areaName = area?.area || store?.defaultArea || "";
+  if (areaName) {
+    const wanted = String(areaName).trim().toLowerCase();
+    const entry = (store?.pincodeAreas || []).find(
+      (r) =>
+        String(r.area || "").trim().toLowerCase() === wanted &&
+        (!area?.area || !area.pincode || String(r.pincode) === String(area.pincode)) &&
+        (Number.isFinite(r.deliveryCharge) || Number.isFinite(r.freeAbove))
+    );
+    if (entry) {
+      if (Number.isFinite(entry.deliveryCharge)) deliveryCharge = entry.deliveryCharge;
+      if (Number.isFinite(entry.freeAbove) && entry.freeAbove > 0) areaFreeAbove = entry.freeAbove;
+    }
+  }
   // A switched-off rule has no threshold at all, so it can neither waive the
   // charge nor be shown to the customer.
-  const freeDeliveryEnabled = settings.freeDeliveryEnabled !== false;
-  const freeDeliveryThreshold = freeDeliveryEnabled ? settings.freeDeliveryAbove || 0 : 0;
+  const freeDeliveryEnabled = areaFreeAbove > 0 || settings.freeDeliveryEnabled !== false;
+  const freeDeliveryThreshold = areaFreeAbove > 0 ? areaFreeAbove : settings.freeDeliveryEnabled !== false ? settings.freeDeliveryAbove || 0 : 0;
   const freeByThreshold = freeDeliveryThreshold > 0 && afterDiscount >= freeDeliveryThreshold;
   if (freeDelivery || freeByThreshold) deliveryCharge = 0;
 
-  const packagingCharge = settings.packagingCharge || 0;
+  // Packaging: the store's normal charge, unless the admin priced some brands
+  // separately. Each such brand in the cart adds its own charge once; items of
+  // any other brand are covered by the normal charge (added once, if present).
+  let packagingCharge = settings.packagingCharge || 0;
+  const brandRules = settings.brandPackaging || [];
+  if (brandRules.length) {
+    const byBrand = new Map(brandRules.map((r) => [String(r.brand), r.charge || 0]));
+    const present = new Set(lines.map((l) => (l.brand ? String(l.brand) : "")));
+    let brandTotal = 0;
+    let matched = false;
+    let unmatched = false;
+    for (const brandId of present) {
+      if (byBrand.has(brandId)) {
+        brandTotal += byBrand.get(brandId);
+        matched = true;
+      } else {
+        unmatched = true;
+      }
+    }
+    if (matched) packagingCharge = brandTotal + (unmatched ? settings.packagingCharge || 0 : 0);
+  }
 
   // --- 4. Tax ---------------------------------------------------------
   // Computed per line on the post-discount amount, so tax follows what is

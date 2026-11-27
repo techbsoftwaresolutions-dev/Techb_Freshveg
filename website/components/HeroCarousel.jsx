@@ -69,8 +69,8 @@ export default function HeroCarousel({ banners = [], categories = [], storeName,
               <div className="market-copy">
                 <h1>{banner?.title || story.title}<span>{story.accent}</span></h1>
                 <p>{story.description}</p>
-                <div className="market-actions"><Link href={href} className="market-shop">{story.cta}<span aria-hidden="true">↗</span></Link><Link href="/c" className="market-browse">All categories <span aria-hidden="true">→</span></Link></div>
-                <div className="market-signoff">Your neighbourhood basket <span>•</span> {storeName || "Hosur"}</div>
+                <div className="market-actions"><Link href={href} className="market-shop">{story.cta}<span aria-hidden="true">↗</span></Link></div>
+                <div className="market-signoff">Your Hosur Basket <span>•</span> {storeName || "Hosur"}</div>
               </div>
               <div className={`market-visual${photo ? " has-photo" : ""}`}>
                 <span className="market-orbit" aria-hidden="true" />

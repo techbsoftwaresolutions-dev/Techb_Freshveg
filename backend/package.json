@@ -7,6 +7,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
+    "predev": "node scripts/ensure-deps.mjs",
     "dev": "nodemon src/server.js",
     "seed": "node src/seed/run.js",
     "seed:reset": "node src/seed/run.js --reset",
@@ -31,6 +32,7 @@
     "mongoose": "^8.6.0",
     "morgan": "^1.10.0",
     "qrcode": "^1.5.4",
+    "redis": "^4.7.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

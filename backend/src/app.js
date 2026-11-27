@@ -29,8 +29,11 @@ app.use(
       ? {
           origin: (origin, done) => done(null, !origin || allowedOrigins.includes(origin)),
           credentials: true,
+          maxAge: 600,
         }
-      : undefined
+      : // Browsers re-check a cross-origin call's permission (an extra
+        // OPTIONS round trip) only every 10 minutes, not every few seconds.
+        { maxAge: 600 }
   )
 );
 app.use(compression());
@@ -39,6 +42,17 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 if (!config.isProd) app.use(morgan("dev"));
+
+// Names any request slower than 300 ms, so slow endpoints show up in the log
+// instead of being guessed at. Cheap enough to leave on in production.
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  res.on("finish", () => {
+    const ms = Number(process.hrtime.bigint() - start) / 1e6;
+    if (ms > 300) console.warn(`[slow] ${req.method} ${req.originalUrl.split("?")[0]} ${Math.round(ms)}ms`);
+  });
+  next();
+});
 
 app.get("/api/health", (_req, res) => {
   const states = ["disconnected", "connected", "connecting", "disconnecting"];

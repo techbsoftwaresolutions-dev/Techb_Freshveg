@@ -11,6 +11,7 @@ import CartDrawer from "@/components/CartDrawer";
 import PwaSupport from "@/components/PwaSupport";
 import ReviewPrompt from "@/components/ReviewPrompt";
 import WhatsAppChat from "@/components/WhatsAppChat";
+import OfferPopup from "@/components/OfferPopup";
 import { getCategories, SITE_URL } from "@/lib/api";
 
 // Local-business structured data so Google can show the store's address and
@@ -112,6 +113,7 @@ export default async function RootLayout({ children }) {
           <PwaSupport />
           <ReviewPrompt />
           <WhatsAppChat />
+          <OfferPopup />
         </Providers>
       </body>
     </html>

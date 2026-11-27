@@ -47,7 +47,7 @@ function useFilterUrl() {
   };
 
   const isFilterKey = (key) =>
-    key.startsWith("attr.") || key === "brand" || key === "maxPrice" || key === "inStock";
+    key.startsWith("attr.") || ["brand", "price", "maxPrice", "inStock"].includes(key);
 
   const activeCount = [...params.entries()]
     .filter(([key]) => isFilterKey(key))
@@ -116,23 +116,12 @@ export default function Filters({ filters = [], brands = [], priceBands = [], av
 
           {priceBands.length ? (
             <FilterSection title="Price">
-              {priceBands.map((band) => {
-                const on = params.get("maxPrice") === String(band.max);
-                return (
-                  <Option
-                    key={band.max}
-                    type="radio"
-                    name="price"
-                    label={band.label}
-                    count={band.count}
-                    checked={on}
-                    // A radio that can also be un-ticked: clicking the chosen
-                    // band again clears the price filter.
-                    onChange={() => apply({ maxPrice: on ? "" : String(band.max) })}
-                    onClick={() => on && apply({ maxPrice: "" })}
-                  />
-                );
-              })}
+              {/* Ranges that don't overlap, so any number can be ticked. */}
+              <OptionList
+                options={priceBands.map((band) => ({ value: band.value, label: band.label, count: band.count }))}
+                selected={selected("price")}
+                onToggle={(value) => toggle("price", value)}
+              />
             </FilterSection>
           ) : null}
 
@@ -181,8 +170,13 @@ function FilterSection({ title, children }) {
   );
 }
 
-function OptionList({ options, selected, onToggle }) {
+function OptionList({ options: rawOptions, selected, onToggle }) {
   const [expanded, setExpanded] = useState(false);
+  // One row per value: the facet lists can repeat one (e.g. two price bands
+  // that round to the same range), which would show it twice.
+  const options = rawOptions.filter(
+    (option, index) => rawOptions.findIndex((o) => String(o.value) === String(option.value)) === index
+  );
   // A ticked option is never hidden behind "Show more".
   const hiddenSelected = options.slice(VISIBLE_OPTIONS).some((option) => selected.includes(option.value));
   const visible = expanded || hiddenSelected ? options : options.slice(0, VISIBLE_OPTIONS);
@@ -231,6 +225,10 @@ export function ActiveFilters({ filters = [], brands = [], priceBands = [] }) {
   const chips = [];
   if (params.get("inStock") === "true") {
     chips.push({ key: "inStock", label: "In stock only", remove: () => apply({ inStock: "" }) });
+  }
+  for (const value of selected("price")) {
+    const band = priceBands.find((b) => b.value === value);
+    chips.push({ key: `price:${value}`, label: band?.label || "Price", remove: () => toggle("price", value) });
   }
   const maxPrice = params.get("maxPrice");
   if (maxPrice) {

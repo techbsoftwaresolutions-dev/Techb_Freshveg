@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import DateFilter, { todayRange } from "../../components/DateFilter";
+import DateFilter, { defaultRange } from "../../components/DateFilter";
 import {
   Banner, Card, Empty, Loading, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
@@ -62,7 +62,7 @@ const stamp = (value) =>
 
 function Transactions() {
   const [data, setData] = useState({ items: [], meta: null, totals: null });
-  const [range, setRange] = useState(todayRange);
+  const [range, setRange] = useState(defaultRange);
   const [filters, setFilters] = useState({ status: "", method: "", search: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -72,7 +72,7 @@ function Transactions() {
     const timer = setTimeout(
       () =>
         api
-          .get("/payments", { ...filters, ...range, limit: 20 })
+          .get("/payments", { limit: 20, ...filters, ...range })
           .then(setData)
           .catch((err) => setError(err.message))
           .finally(() => setLoading(false)),
@@ -98,7 +98,7 @@ function Transactions() {
       <div className="toolbar">
         <input
           type="search"
-          placeholder="Search by order code…"
+          placeholder="Search order code, payment id, customer, phone, method or amount…"
           value={filters.search}
           onChange={(e) => set("search", e.target.value)}
           style={{ minWidth: 200 }}
@@ -127,7 +127,7 @@ function Transactions() {
         ) : (
           <>
             <Table
-              title="Transactions"
+              title="Transactions" search={false}
               columns={[
                 {
                   key: "order",
@@ -195,7 +195,7 @@ function Transactions() {
               rows={data.items}
               empty={<Empty title="No payments in this period" />}
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>
@@ -206,16 +206,17 @@ function Transactions() {
 function Refunds() {
   const [data, setData] = useState({ items: [], meta: null });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     api
-      .get("/payments/refunds", { page, limit: 20 })
+      .get("/payments/refunds", { page, limit })
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, limit]);
 
   if (loading) return <Loading />;
 
@@ -266,7 +267,7 @@ function Refunds() {
         rows={data.items}
         empty={<Empty title="No refunds yet" hint="Refunds raised from an order or a support ticket show up here." />}
       />
-      <Pagination meta={data.meta} onPage={setPage} />
+      <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
     </Card>
   );
 }

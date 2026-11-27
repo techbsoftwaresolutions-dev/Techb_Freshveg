@@ -10,6 +10,7 @@ import { Avatar } from "../orders/Orders";
 import {
   Banner,
   Card,
+  ConfirmDialog,
   Empty,
   Field,
   Loading,
@@ -53,6 +54,7 @@ export default function Users() {
   const [items, setItems] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [filters, setFilters] = useState({ search: "", role: "", status: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -79,7 +81,7 @@ export default function Users() {
         setLoading(true);
         api
           .get("/staff", {
-            limit: 20,
+            limit,
             page,
             ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)),
           })
@@ -93,7 +95,7 @@ export default function Users() {
       filters.search ? 250 : 0,
     );
     return () => clearTimeout(timer);
-  }, [page, filters]);
+  }, [page, limit, filters]);
 
   // The API refuses deleting yourself or the last super admin and says why.
   async function removeUser(row) {
@@ -161,7 +163,7 @@ export default function Users() {
         ) : (
           <>
             <Table
-              title="Users"
+              title="Users" search={false}
               columns={[
                 {
                   key: "name",
@@ -269,42 +271,22 @@ export default function Users() {
                 />
               }
             />
-            <Pagination meta={meta} onPage={setPage} />
+            <Pagination meta={meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>
 
       {confirming && (
-        <Modal
-          title="Delete user?"
-          onClose={() => !deleting && setConfirming(null)}
-          footer={
-            <>
-              <button
-                className="btn"
-                disabled={Boolean(deleting)}
-                onClick={() => setConfirming(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn danger"
-                disabled={Boolean(deleting)}
-                onClick={() => removeUser(confirming)}
-              >
-                {deleting ? "Deleting…" : "Yes, delete"}
-              </button>
-            </>
-          }
-        >
-          <p style={{ margin: 0 }}>
-            <strong>{confirming.name || confirming.phone}</strong> will no
-            longer be able to sign in.
-          </p>
-          <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
-            To keep their record, block them instead of deleting.
-          </p>
-        </Modal>
+        <ConfirmDialog
+          title="Delete this user?"
+          message={confirming.name || confirming.phone}
+          confirmLabel="Delete"
+          onAnswer={(yes) => {
+            const row = confirming;
+            setConfirming(null);
+            if (yes && !deleting) removeUser(row);
+          }}
+        />
       )}
     </div>
   );

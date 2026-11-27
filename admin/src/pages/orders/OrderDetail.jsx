@@ -1,10 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Field, Loading, Modal, Pill, rupees, useConfirm, when } from "../../components/ui";
 import SelectMenu from "../../components/SelectMenu";
+import { toast } from "../../components/toast";
 import { Avatar, statusTone } from "./Orders";
+import {
+  buildInvoice,
+  downloadInvoiceFile,
+  invoiceText,
+  loadInvoiceSetup,
+  printInvoice,
+  whatsappUrl,
+} from "./invoice";
+
+// Same buckets as the customer's tracking page (website/app/orders/[id]).
+const LIVE_CLOSED = ["DELIVERED", "CANCELLED", "REJECTED", "REFUNDED"];
+const LIVE_RIDING = ["ASSIGNED_TO_DELIVERY", "PICKED_UP", "OUT_FOR_DELIVERY", "ARRIVED"];
 
 export default function OrderDetail() {
   const [confirm, confirmDialog] = useConfirm();
@@ -30,7 +43,8 @@ export default function OrderDetail() {
   const [deliveryTimes, setDeliveryTimes] = useState([]);
 
   const load = useCallback(async () => {
-    const data = await api.get(`/orders/${id}`);
+    // force: always ask the server - this page polls for the rider's progress.
+    const data = await api.get(`/orders/${id}`, undefined, { force: true });
     setOrder(data.order);
     setTimeline(data.timeline);
     setActions(data.actions);
@@ -43,6 +57,25 @@ export default function OrderDetail() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [load]);
+
+  // Follow the delivery live, like the customer's tracking page: when the
+  // rider starts, picks up, arrives or delivers, this page updates on its own
+  // instead of waiting for a manual refresh. Every 10s while a rider has it,
+  // 20s otherwise; stops once the order is closed and pauses in a hidden tab.
+  const liveStatus = order?.status;
+  useEffect(() => {
+    if (!liveStatus || LIVE_CLOSED.includes(liveStatus)) return undefined;
+    const riding = LIVE_RIDING.includes(liveStatus);
+    const refresh = () => {
+      if (!document.hidden) load().catch(() => {});
+    };
+    const timer = setInterval(refresh, riding ? 10000 : 20000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [liveStatus, load]);
 
   // Picks (or adds) the delivery time and tells the customer straight away.
   async function sendDeliveryTime(body) {
@@ -157,6 +190,69 @@ export default function OrderDetail() {
 
 
 
+  // Builds the invoice from the loaded order (plus the store letterhead) at
+  // click time, so it always reflects the order as it is now.
+  async function currentInvoice() {
+    // Read the template fresh each time, so a change in Settings -> Print
+    // applies to the very next print or download.
+    // The invoice gets its own number (STORE/FY/00001), separate from the
+    // order number; the server issues it the first time it is needed.
+    const [{ header, template, fontSize }, invoiceNo] = await Promise.all([
+      loadInvoiceSetup(order.store),
+      order.invoiceNo
+        ? order.invoiceNo
+        : api.post(`/orders/${order.id}/invoice-number`).then((r) => r.invoiceNo).catch(() => ""),
+    ]);
+    if (invoiceNo && invoiceNo !== order.invoiceNo) setOrder((o) => (o ? { ...o, invoiceNo } : o));
+    return buildInvoice({ ...order, invoiceNo: invoiceNo || order.invoiceNo }, header, {
+      template,
+      fontSize,
+      packLabel: (item) => formatPackSize(item.packSize, item.variantName),
+      statusLabel: statuses[order.status]?.label,
+    });
+  }
+
+  async function printOrderInvoice() {
+    try {
+      printInvoice(await currentInvoice());
+    } catch (err) {
+      setError(`Could not print the invoice: ${err.message}`);
+    }
+  }
+
+  async function downloadInvoice(format) {
+    try {
+      // The "Save as" window opens first, then the invoice is loaded and built.
+      await downloadInvoiceFile(currentInvoice, format, order.code);
+    } catch (err) {
+      setError(`Could not create the invoice: ${err.message}`);
+    }
+  }
+
+  async function shareLink() {
+    const link = window.location.href;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast("Order link copied");
+    } catch {
+      window.prompt("Copy this link", link);
+    }
+  }
+
+  async function shareWhatsapp() {
+    // Open the tab first (synchronously) so the browser doesn't block it as a popup.
+    const tab = window.open("", "_blank");
+    try {
+      const inv = await currentInvoice();
+      const url = whatsappUrl(order.customerSnapshot?.phone, invoiceText(inv));
+      if (tab) tab.location.href = url;
+      else window.location.href = url;
+    } catch (err) {
+      tab?.close();
+      setError(err.message);
+    }
+  }
+
   if (loading) return <div className="page"><Loading /></div>;
   if (!order) {
     return (
@@ -212,7 +308,24 @@ export default function OrderDetail() {
           </p>
         </div>
         <div className="inline">
-          <button className="btn" onClick={() => window.print()}>
+          <MenuButton
+            label="Download"
+            icon={<IconDownload />}
+            items={[
+              { label: "PDF (.pdf)", onClick: () => downloadInvoice("pdf") },
+              { label: "Word (.doc)", onClick: () => downloadInvoice("word") },
+              { label: "Excel (.xlsx)", onClick: () => downloadInvoice("excel") },
+            ]}
+          />
+          <MenuButton
+            label="Share"
+            icon={<IconShare />}
+            items={[
+              { label: "Copy link", onClick: shareLink },
+              { label: "WhatsApp", onClick: shareWhatsapp },
+            ]}
+          />
+          <button className="btn" onClick={printOrderInvoice}>
             Print
           </button>
         </div>
@@ -291,9 +404,10 @@ export default function OrderDetail() {
                 onClick={async () => {
                   const yes = await confirm({
                     title: `${action.label}?`,
-                    message: `${action.label} ${order.code}? The customer will be told.`,
+                    message: order.code,
                     confirmLabel: `Yes, ${action.label.toLowerCase()}`,
                     cancelLabel: "No, keep it",
+                    tone: /cancel/i.test(action.label) || action.status === "CANCELLED" ? "danger" : "primary",
                   });
                   if (yes) advance(action.status);
                 }}
@@ -409,10 +523,7 @@ export default function OrderDetail() {
                             </span>
                           )}
                           <div className="stack">
-                            <span className="row-title">
-                              {item.name}
-                              {item.variantName ? ` · ${item.variantName}` : ""}
-                            </span>
+                            <span className="row-title">{item.name}</span>
                             <span className="tag tag-plain">{item.sku}</span>
                             {item.deferred?.expectedOn ? (
                               <span className="inline" style={{ gap: 8, marginTop: 4 }}>
@@ -437,12 +548,14 @@ export default function OrderDetail() {
                         </div>
                       </td>
                       <td className="num">
-                        {item.quantity} {item.unit}
+                        {item.quantity}
                         {item.pickedQuantity !== null && item.pickedQuantity !== undefined && (
                           <div className="row-sub">picked {item.pickedQuantity}</div>
                         )}
                       </td>
-                      <td className="num">{rupees(item.unitPrice, { decimals: true })}</td>
+                      <td className="num">
+                        {formatPackSize(item.packSize, item.variantName)}
+                      </td>
                       <td className="num">
                         <strong>{rupees(item.payable)}</strong>
                       </td>
@@ -507,22 +620,16 @@ export default function OrderDetail() {
         </div>
 
         <div style={{ display: "grid", gap: 14 }}>
-          <Card title="Tracking">
-            <ul className="timeline">
-              {/* Steps this order skipped (a COD order never passes through
-                  "payment received") are left out rather than shown as done. */}
-              {deliveryStages(timeline, order.status)
-                .filter((step) => step.state !== "skipped")
-                .map((step) => (
-                  <li key={step.status} className={step.state}>
-                    <span className="dot">✓</span>
-                    <div className="stack">
-                      <span className="label">{step.label}</span>
-                      <span className="when">{step.at ? when(step.at) : "—"}</span>
-                    </div>
-                  </li>
-                ))}
-            </ul>
+          <Card
+            className="track-card"
+            title={
+              <h2 className="track-title">
+                <TrackIcon name="truck" size={22} />
+                Tracking
+              </h2>
+            }
+          >
+            <TrackingSteps timeline={timeline} status={order.status} />
           </Card>
 
           <Card title="Customer">
@@ -682,34 +789,89 @@ function deliveryStages(timeline, status) {
   });
 }
 
-function StageTracker({ timeline, status, statuses }) {
-  const steps = deliveryStages(timeline, status);
-  const offPath = !DELIVERY_STAGES.some((stage) => stage.statuses.includes(status));
-
-  if (offPath && ["CANCELLED", "REJECTED", "REFUNDED"].includes(status)) {
-    return (
-      <div className="stage-tracker stopped">
-        <strong>{statuses[status]?.label || status}</strong>
-        <span className="muted">This order is closed.</span>
-      </div>
-    );
-  }
-
+// Line icons for the tracking card, one per step.
+const TRACK_ICON_PATHS = {
+  cart: "M3 4h2l2.4 11h10.2L20 8H6.2M9 20h.01M17 20h.01",
+  clipboard: "M9 4h6v3H9zM7 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-1M9 11h6M9 15h6",
+  box: "M12 3 4 7v10l8 4 8-4V7zM4 7l8 4 8-4M12 11v10",
+  truck: "M2 6h11v10H2zM13 9h4l4 4v3h-8M6 19a2 2 0 1 0 0-.01M17 19a2 2 0 1 0 0-.01",
+  pin: "M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21zM12 7.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
+  done: "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 12l2.5 2.5 5-5",
+  check: "M5 12.5l4.5 4.5L19 7.5",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
+};
+function TrackIcon({ name, size = 18 }) {
   return (
-    <ol className="stage-tracker" aria-label="Order progress">
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={TRACK_ICON_PATHS[name]} />
+    </svg>
+  );
+}
+const TRACK_STEP_ICONS = ["cart", "clipboard", "box", "truck", "pin", "done"];
+
+// The order's journey as a vertical list: a coloured icon per step joined by
+// a line, the time it happened, and a Completed / In progress / Pending tag.
+function TrackingSteps({ timeline, status }) {
+  const steps = deliveryStages(timeline, status);
+  return (
+    <ol className="track-steps">
       {steps.map((step, index) => {
-        const state = step.state === "active" ? "current" : step.state === "done" ? "done" : "pending";
+        const last = index === steps.length - 1;
+        // Reaching "Delivered" finishes the order: it reads as completed, not in progress.
+        const state = step.state === "active" ? (last ? "done" : "active") : step.state;
+        const tone = state === "done" ? (last ? "final" : "done") : state;
         return (
-          <li key={step.status} className={`stage ${state}`}>
-            <span className="stage-dot" aria-hidden="true">
-              {state === "done" ? "✓" : index + 1}
+          <li key={step.status} className={`track-step ${tone} step-${index + 1}`}>
+            <span className="track-dot">
+              <TrackIcon name={TRACK_STEP_ICONS[index] || "box"} size={22} />
             </span>
-            <span className="stage-label">{step.label}</span>
-            {step.at ? <span className="stage-time">{when(step.at)}</span> : null}
+            <div className="track-box">
+              <div className="track-text">
+                <strong>{step.label}</strong>
+                <span>{step.at ? when(step.at) : "—"}</span>
+              </div>
+              <span className="track-tag">
+                <TrackIcon name={state === "done" ? "check" : state === "active" ? "truck" : "clock"} size={15} />
+                {state === "done" ? "Completed" : state === "active" ? "In progress" : "Pending"}
+              </span>
+            </div>
           </li>
         );
       })}
     </ol>
+  );
+}
+
+function StageTracker({ timeline, status }) {
+  const steps = deliveryStages(timeline, status);
+  // Only while the order is on its way: once it is delivered, cancelled,
+  // rejected, refunded or being returned, the bar is hidden.
+  if (status === "DELIVERED" || !DELIVERY_STAGES.some((stage) => stage.statuses.includes(status))) return null;
+
+  return (
+    <div className="track-row-wrap">
+      <ol className="stage-tracker track-row" aria-label="Order progress">
+        {steps.map((step, index) => {
+          const last = index === steps.length - 1;
+          // Reaching "Delivered" finishes the order: it reads as completed.
+          const state = step.state === "active" ? (last ? "done" : "active") : step.state;
+          const tone = state === "done" ? (last ? "final" : "done") : state;
+          return (
+            <li key={step.status} className={`track-step ${tone} step-${index + 1}`}>
+              <span className="track-dot">
+                <TrackIcon name={TRACK_STEP_ICONS[index] || "box"} size={22} />
+              </span>
+              <strong className="track-row-label">{step.label}</strong>
+              <span className="track-row-time">{step.at ? when(step.at) : "—"}</span>
+              <span className="track-tag">
+                <TrackIcon name={state === "done" ? "check" : state === "active" ? "truck" : "clock"} size={14} />
+                {state === "done" ? "Completed" : state === "active" ? "In progress" : "Pending"}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
@@ -789,6 +951,69 @@ function IconImagePlaceholder() {
   );
 }
 
+// A button that opens a small list of choices below it; closes on pick,
+// outside click or Escape.
+function MenuButton({ label, icon, items }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false);
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="menu-btn" ref={ref}>
+      <button type="button" className="btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {icon} {label} <span aria-hidden="true" className="menu-caret">▾</span>
+      </button>
+      {open && (
+        <div className="menu-list" role="menu">
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                item.onClick();
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IconDownload() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true">
+      <path d="M12 4v11M7 10l5 5 5-5M5 20h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconShare() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true">
+      <circle cx="18" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="6" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="18" cy="19" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
 function Row({ label, value, tone }) {
   return (
     <tr>
@@ -798,6 +1023,22 @@ function Row({ label, value, tone }) {
       </td>
     </tr>
   );
+}
+
+function formatPackSize(packSize, fallback) {
+  const value = Number(packSize?.value);
+  let unit = String(packSize?.unit || "").trim().toLowerCase();
+  if (!Number.isFinite(value) || value <= 0 || !unit) return fallback || "—";
+
+  if (unit === "kg" && value < 1) {
+    return `${(value * 1000).toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`;
+  }
+  if (unit === "l" && value < 1) {
+    return `${(value * 1000).toLocaleString("en-IN", { maximumFractionDigits: 3 })} ml`;
+  }
+  if (unit === "pcs" && value === 1) unit = "pc";
+
+  return `${value.toLocaleString("en-IN", { maximumFractionDigits: 3 })} ${unit}`;
 }
 
 // Asks when the chosen items will arrive. Saving tells the customer straight
@@ -823,7 +1064,7 @@ function DelayModal({ busy, items, onClose, onSave }) {
     >
       <ul className="muted" style={{ margin: "0 0 14px", paddingLeft: 18 }}>
         {items.map((i) => (
-          <li key={i.id}>{i.name}{i.variantName ? ` · ${i.variantName}` : ""} × {i.quantity}</li>
+          <li key={i.id}>{i.name} · {formatPackSize(i.packSize, i.variantName)} × {i.quantity}</li>
         ))}
       </ul>
       <div className="grid cols-2">

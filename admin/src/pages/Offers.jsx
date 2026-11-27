@@ -51,6 +51,7 @@ export default function Offers() {
   const [items, setItems] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [status, setStatus] = useState("");
   const [kind, setKind] = useState("");
   const [loading, setLoading] = useState(true);
@@ -59,7 +60,7 @@ export default function Offers() {
 
   const load = () =>
     api
-      .get("/marketing/offers", { limit: 20, page, ...(status ? { status } : {}), ...(kind ? { kind } : {}) })
+      .get("/marketing/offers", { limit, page, ...(status ? { status } : {}), ...(kind ? { kind } : {}) })
       .then((data) => {
         setItems(data.items);
         setMeta(data.meta);
@@ -71,7 +72,7 @@ export default function Offers() {
     setLoading(true);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, status, kind]);
+  }, [page, limit, status, kind]);
 
   async function toggle(offer) {
     setBusyId(offer.id);
@@ -209,7 +210,7 @@ export default function Offers() {
           onRowClick={editable ? (row) => navigate(`/marketing/offers/${row.id}`) : undefined}
           empty={<Empty title="No offers yet" hint="Create one to start discounting." />}
         />
-        <Pagination meta={meta} onPage={setPage} />
+        <Pagination meta={meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
       </Card>
 
     </div>

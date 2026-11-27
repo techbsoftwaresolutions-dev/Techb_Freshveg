@@ -7,7 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import {
   Banner, Card, Empty, Field, Loading, Modal, Pagination, Pill, Stat, Table, Tabs, rupees, when,
 } from "../../components/ui";
-import DateFilter, { todayRange } from "../../components/DateFilter";
+import DateFilter, { defaultRange } from "../../components/DateFilter";
 
 export default function Delivery() {
   // The tab lives in the URL, so coming back from a zone or slot page lands
@@ -45,7 +45,7 @@ export default function Delivery() {
 
 function Report() {
   const [data, setData] = useState({ items: [], meta: null, summary: {} });
-  const [range, setRange] = useState(todayRange);
+  const [range, setRange] = useState(defaultRange);
   const [filters, setFilters] = useState({ status: "", pincode: "", page: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -53,10 +53,25 @@ function Report() {
   useEffect(() => {
     setLoading(true);
     api
-      .get("/delivery/report", { ...filters, ...range, limit: 20 })
+      .get("/delivery/report", { limit: 20, ...filters, ...range })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    // Then keep it live (quietly, no spinner) so runs started or finished by
+    // riders appear without a page reload.
+    const refresh = () => {
+      if (document.hidden) return;
+      api
+        .get("/delivery/report", { limit: 20, ...filters, ...range }, { force: true })
+        .then(setData)
+        .catch(() => {});
+    };
+    const timer = setInterval(refresh, 15000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [filters, range]);
 
   const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));
@@ -165,7 +180,7 @@ function Report() {
               rows={data.items}
               empty={<Empty title="No runs in this window" />}
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>
@@ -175,7 +190,7 @@ function Report() {
 
 function Partners() {
   const [partners, setPartners] = useState([]);
-  const [range, setRange] = useState(todayRange);
+  const [range, setRange] = useState(defaultRange);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

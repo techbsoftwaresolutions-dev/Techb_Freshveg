@@ -42,7 +42,7 @@ export default function Brands() {
   const load = useCallback(() => {
     setLoading(true);
     api
-      .get("/catalog/brands", { ...filters, limit: 20 })
+      .get("/catalog/brands", { limit: 20, ...filters })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -62,7 +62,7 @@ export default function Brands() {
   // live product is still filed under it, and that refusal's message is
   // what ends up in the banner below.
   async function removeBrand(brand) {
-    if (!(await confirm({ title: "Delete brand?", message: `Delete "${brand.name}"? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
+    if (!(await confirm({ title: "Delete this brand?", message: brand.name, confirmLabel: "Delete" }))) return;
     setRemovingId(brand.id);
     setError("");
     try {
@@ -110,7 +110,7 @@ export default function Brands() {
         ) : (
           <>
             <Table
-              title="Brands"
+              title="Brands" search={false}
               columns={[
                 {
                   key: "name",
@@ -168,7 +168,7 @@ export default function Brands() {
               onRowClick={editable ? (row) => navigate(`/catalog/brands/${row.id}`) : undefined}
               empty={<Empty title="No brands" hint="Add one to enable brand filters." />}
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>

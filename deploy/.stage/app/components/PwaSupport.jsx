@@ -24,6 +24,19 @@ export default function PwaSupport() {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/", updateViaCache: "none" })
         .catch(() => {});
+    } else if ("serviceWorker" in navigator) {
+      // Dev: a worker left over from an earlier production run on this address
+      // would keep serving old, un-hashed dev files — remove it and its cache,
+      // then reload once so this tab shows the current code.
+      navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+        if (!registrations.length) return;
+        await Promise.all(registrations.map((r) => r.unregister()));
+        if (window.caches) {
+          const keys = await caches.keys();
+          await Promise.all(keys.filter((k) => k.startsWith("freshmart-")).map((k) => caches.delete(k)));
+        }
+        window.location.reload();
+      }).catch(() => {});
     }
     setDismissed(recentlyDismissed());
   }, []);
@@ -48,7 +61,7 @@ export default function PwaSupport() {
   if (!mounted || installed || dismissed || (!canPrompt && !showIosHint)) return null;
 
   return (
-    <div className="install-bar" role="dialog" aria-label="Install the Hosur Basket app">
+    <div className={`install-bar${canPrompt ? " has-btn" : ""}`} role="dialog" aria-label="Install the Hosur Basket app">
       <img src="/icons/icon-192.png?v=3" alt="" className="install-bar-icon" width="40" height="40" />
       <div className="install-bar-copy">
         <strong>Get the Hosur Basket app</strong>

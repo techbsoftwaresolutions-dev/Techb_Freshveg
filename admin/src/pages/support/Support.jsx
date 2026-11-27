@@ -25,6 +25,7 @@ export default function Support() {
   const [tab, setTab] = useState("open");
   const [data, setData] = useState({ items: [], meta: null, counts: {} });
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ export default function Support() {
   const [removingId, setRemovingId] = useState(null);
 
   async function removeTicket(row) {
-    if (!(await confirm({ title: "Delete ticket?", message: `Delete ${row.code} "${row.subject}" and its whole conversation? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
+    if (!(await confirm({ title: "Delete this ticket?", message: row.subject || row.code, confirmLabel: "Delete" }))) return;
     setRemovingId(row.id);
     try {
       await api.delete(`/support/${row.id}`);
@@ -48,7 +49,7 @@ export default function Support() {
 
   const load = useCallback(() => {
     setLoading(true);
-    const query = { page, limit: 20 };
+    const query = { page, limit };
     if (tab === "open") query.open = "true";
     else if (tab !== "all") query.status = tab;
 
@@ -57,7 +58,7 @@ export default function Support() {
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [tab, page]);
+  }, [tab, page, limit]);
 
   useEffect(() => {
     load();
@@ -196,7 +197,7 @@ export default function Support() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={setPage} />
+            <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
           </>
         )}
       </Card>
@@ -231,7 +232,7 @@ function TicketDrawer({ id, canManage, me, onClose, onChanged }) {
   const [confirm, confirmDialog] = useConfirm();
 
   async function remove() {
-    if (!(await confirm({ title: "Delete ticket?", message: `Delete ${ticket.code} and its whole conversation? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
+    if (!(await confirm({ title: "Delete this ticket?", message: ticket.subject || ticket.code, confirmLabel: "Delete" }))) return;
     setBusy(true);
     try {
       await api.delete(`/support/${id}`);

@@ -6,11 +6,14 @@ import { useState } from "react";
 import { useCart } from "./Providers";
 import AddToCart from "./AddToCart";
 import { rupees } from "@/lib/format";
+import { useRouter } from "next/navigation";
+import { gateCheckout } from "@/lib/launch";
 
 // The live cart, kept visible beside the catalogue instead of tucked behind
 // a header icon. Same cart the /cart page reads — no separate state, so a
 // change here or there is never out of sync.
 export default function HomeCartSidebar() {
+  const router = useRouter();
   const cart = useCart();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -115,9 +118,9 @@ export default function HomeCartSidebar() {
               </p>
             ) : null}
 
-            <Link href="/checkout" className="btn primary block lg" style={{ marginTop: 14 }}>
+            <button type="button" className="btn primary block lg" style={{ marginTop: 14 }} onClick={() => { if (!gateCheckout()) router.push("/checkout"); }}>
               Proceed to checkout →
-            </Link>
+            </button>
           </>
         )}
       </div>

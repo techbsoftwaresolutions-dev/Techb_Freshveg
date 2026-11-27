@@ -115,6 +115,7 @@ const productSchema = new mongoose.Schema(
     mrpFrom: money(0),
     maxDiscountPct: percent(0),
     variantCount: { type: Number, default: 0 },
+    totalStock: { type: Number, default: 0 },
     defaultVariant: objectId("Variant", { default: null }),
     inStock: { type: Boolean, default: false, index: true },
     // A manual "sold out" switch. It takes the product off sale — listed as

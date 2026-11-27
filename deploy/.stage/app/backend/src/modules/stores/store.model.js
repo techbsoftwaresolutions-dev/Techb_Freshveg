@@ -37,6 +37,13 @@ const storeSchema = new mongoose.Schema(
     // Coarse serviceability. Delivery zones (drawn polygons, per-zone charges)
     // refine this; a pincode list is what a small operation actually maintains.
     servicePincodes: { type: [String], default: [], index: true },
+    // The area each pincode covers, by name: [{ pincode: "635109", area: "NGGO Colony" }].
+    // deliveryCharge (paise) is optional: unset = the store's normal charge, 0 = free delivery to that area.
+    // freeAbove (paise) is optional too: an order at or above it gets free delivery to that area; below it pays the area's charge.
+    pincodeAreas: { type: [{ _id: false, pincode: String, area: String, deliveryCharge: { type: Number, min: 0, default: undefined }, freeAbove: { type: Number, min: 0, default: undefined } }], default: [] },
+    // The named area whose delivery charge applies to a shopper who has not given
+    // an area of their own. Empty = the store's normal charge.
+    defaultArea: { type: String, default: "", trim: true },
     serviceRadiusKm: { type: Number, default: 0 },
 
     timings: {
@@ -65,10 +72,23 @@ const storeSchema = new mongoose.Schema(
       freeDeliveryAbove: money(0),
       deliveryCharge: money(0),
       packagingCharge: money(0),
+      // Brand-wise packaging: a brand listed here is packed at its own charge
+      // instead of the store's normal one. Brands not listed use the normal charge.
+      brandPackaging: {
+        type: [{ _id: false, brand: { type: mongoose.Schema.Types.ObjectId, ref: "Brand" }, charge: money(0) }],
+        default: [],
+      },
       maxCodValue: money(500000), // ₹5,000
       codEnabled: { type: Boolean, default: true },
       prepTimeMinutes: { type: Number, default: 30 },
+      // "15m" | "30m" | "1h" | "next_day" — see deliveryTime.js. Empty on stores saved before it existed.
+      deliveryTime: { type: String, default: "" },
+      // Extra choices this store added to the dropdown: { key, label, minutes }.
+      deliveryTimeOptions: { type: [{ _id: false, key: String, label: String, minutes: Number, at: String, day: String, plain: Boolean }], default: [] },
       acceptingOrders: { type: Boolean, default: true },
+      // Orders after this time (IST, "HH:MM") are taken but delivered the next morning at `morningDelivery`.
+      orderCutoff: { type: String, default: "19:00" },
+      morningDelivery: { type: String, default: "07:00" },
       // What a delivery partner earns per completed delivery. Kept on the
       // store because a city branch pays differently from a small-town one,
       // and it is the only figure the partner app's earnings are built from —
@@ -101,14 +121,12 @@ storeSchema.methods.isOpenNow = function isOpenNow(at = new Date()) {
   if (this.status !== "active") return false;
   if (!this.settings?.acceptingOrders) return false;
 
-  const today = this.timings?.find((t) => t.day === at.getDay());
-  if (!today) return true; // no hours configured means always open
-  if (today.closed) return false;
-
-  const minutes = at.getHours() * 60 + at.getMinutes();
-  const [openH, openM] = String(today.open).split(":").map(Number);
-  const [closeH, closeM] = String(today.close).split(":").map(Number);
-  return minutes >= openH * 60 + openM && minutes <= closeH * 60 + closeM;
+  // Orders are taken around the clock: what comes in after the cut-off is
+  // delivered next morning (see deliveryTime.afterHours). Only a day marked
+  // closed stops them. Day is India's, whatever timezone the server runs in.
+  const ist = new Date(at.getTime() + 330 * 60000);
+  const today = this.timings?.find((t) => t.day === ist.getUTCDay());
+  return !(today && today.closed);
 };
 
 module.exports = mongoose.model("Store", storeSchema);

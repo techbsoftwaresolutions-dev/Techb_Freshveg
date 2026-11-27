@@ -1,7 +1,11 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { api, loadSession, saveSession } from "@/lib/client-api";
+import { makeQueryClient } from "@/lib/query-client";
+import DeliveredToast from "./DeliveredToast";
+import BackInStockToast from "./BackInStockToast";
 
 const AuthContext = createContext(null);
 const CartContext = createContext(null);
@@ -11,6 +15,9 @@ const WishlistContext = createContext(null);
 const PINCODE_KEY = "commerce.web.pincode";
 
 export function Providers({ children }) {
+  // One TanStack Query cache per browser tab (created once, never on the server between visitors).
+  const [queryClient] = useState(makeQueryClient);
+
   // --- store / delivery location ---------------------------------------
   const [store, setStore] = useState(null);
   const [pincode, setPincodeState] = useState(null);
@@ -82,8 +89,8 @@ export function Providers({ children }) {
 
   const requestOtp = useCallback((phone) => api.post("/auth/otp/request", { phone }), []);
 
-  const verifyOtp = useCallback(async (phone, code, name) => {
-    const data = await api.post("/auth/otp/verify", { phone, code, name });
+  const verifyOtp = useCallback(async (phone, code, name, referralCode) => {
+    const data = await api.post("/auth/otp/verify", { phone, code, name, ...(referralCode ? { referralCode } : {}) });
     saveSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     setUser(data.user);
     return data;
@@ -209,6 +216,13 @@ export function Providers({ children }) {
         setCart(data.cart);
         return data.cart;
       },
+      // Wallet money (paise) to put against this order; the server caps it at
+      // the balance held and the amount payable. 0 stops using the wallet.
+      setWallet: async (paise) => {
+        const data = await api.post("/cart/credits", { wallet: Math.max(0, Math.round(paise || 0)), store: storeId });
+        setCart(data.cart);
+        return data.cart;
+      },
       removeCoupon: async () => {
         const data = await api.del("/cart/coupon", { store: storeId });
         setCart(data.cart);
@@ -230,6 +244,13 @@ export function Providers({ children }) {
   const [wishlistItems, setWishlistItems] = useState([]);
   const [wishlistPending, setWishlistPending] = useState({});
   const [wishlistReady, setWishlistReady] = useState(false);
+  // One-line popup at the bottom after a heart is tapped.
+  const [wishlistToast, setWishlistToast] = useState(null);
+  useEffect(() => {
+    if (!wishlistToast) return undefined;
+    const t = setTimeout(() => setWishlistToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [wishlistToast]);
 
   const refreshWishlist = useCallback(async () => {
     if (!user) {
@@ -270,7 +291,9 @@ export function Providers({ children }) {
             await api.post("/wishlist", { product: productId, variant: variantId || undefined });
           }
           await refreshWishlist();
-          return { needsSignIn: false, saved: !savedIds.has(productId) };
+          const nowSaved = !savedIds.has(productId);
+          setWishlistToast({ saved: nowSaved, at: Date.now() });
+          return { needsSignIn: false, saved: nowSaved };
         } finally {
           setWishlistPending((p) => {
             const next = { ...p };
@@ -293,11 +316,22 @@ export function Providers({ children }) {
   );
 
   return (
+    <QueryClientProvider client={queryClient}>
     <AuthContext.Provider value={auth}>
       <StoreContext.Provider value={storeValue}>
         <CartContext.Provider value={cartApi}>
           <WishlistContext.Provider value={wishlistApi}>
             {children}
+            <DeliveredToast signedIn={Boolean(user)} />
+            <BackInStockToast signedIn={Boolean(user)} />
+            {wishlistToast ? (
+              <div className="wishlist-toast" role="status">
+                <span>{wishlistToast.saved ? "Added to your wishlist" : "Removed from your wishlist"}</span>
+                {wishlistToast.saved ? (
+                  <a href="/wishlist" onClick={() => setWishlistToast(null)}>View</a>
+                ) : null}
+              </div>
+            ) : null}
             {cartError ? (
               <div className="cart-toast" role="alert">
                 {cartError}
@@ -307,6 +341,7 @@ export function Providers({ children }) {
         </CartContext.Provider>
       </StoreContext.Provider>
     </AuthContext.Provider>
+    </QueryClientProvider>
   );
 }
 

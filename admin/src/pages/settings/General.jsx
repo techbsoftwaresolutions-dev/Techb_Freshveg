@@ -1,8 +1,31 @@
 import Select from "../../components/Select";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { Banner, Field, Loading, Tabs } from "../../components/ui";
 import { Affix, FormSection, Segmented, SwitchRow } from "../../components/FormKit";
+import { DEFAULT_TEMPLATE, INVOICE_TEMPLATES, RECEIPT_FONT, invoiceHtml, sampleInvoice } from "../orders/invoice";
+import { DEFAULT_POS_TEMPLATE, POS_TEMPLATES as POS_BILL_TEMPLATES, posBillHtml, posBillPage, samplePosBill } from "../pos/posBill";
+// The POS bill can use its own formats or any of the online invoice templates:
+// the two thermal receipts (80mm, 58mm) first, then the 80mm counter
+// bills, the A4 invoices, and the manual A5 / A4 bills last.
+// The invoice thermal receipts are left out here: the POS bill has its own.
+const invoiceEntries = Object.entries(INVOICE_TEMPLATES).filter(([, t]) => !t.thermal);
+const thermalEntries = Object.entries(INVOICE_TEMPLATES).filter(([, t]) => t.thermal);
+const POS_BILL_CHOICES = Object.fromEntries([
+  ["pos_thermal", POS_BILL_TEMPLATES.pos_thermal],
+  ["pos_thermal_58", POS_BILL_TEMPLATES.pos_thermal_58],
+  ...invoiceEntries.filter(([, t]) => t.receipt),
+  ...invoiceEntries.filter(([, t]) => !t.receipt),
+  ["pos_manual", POS_BILL_TEMPLATES.pos_manual],
+  ["pos_manual_a4", POS_BILL_TEMPLATES.pos_manual_a4],
+]);
+// Online invoice: the thermal receipts (80mm, 58mm) first, then the full
+// invoices, the 80mm counter bills last.
+const INVOICE_CHOICES = Object.fromEntries([
+  ...thermalEntries,
+  ...invoiceEntries.filter(([, t]) => !t.receipt),
+  ...invoiceEntries.filter(([, t]) => t.receipt),
+]);
 
 // One settings document, edited a section at a time — so two admins working on
 // different areas do not overwrite each other with a whole-document save.
@@ -14,12 +37,24 @@ const SECTIONS = [
   { key: "delivery", label: "Delivery" },
   { key: "notifications", label: "Notifications" },
   { key: "app", label: "Apps" },
+  { key: "pos", label: "POS" },
+  { key: "print", label: "Print" },
 ];
+
+const POS_TEMPLATES = {
+  standard: "Standard - scan bar, category chips, bill table and a Quick Add row",
+  compact: "Compact - scan bar and a tall bill list only; best for barcode scanners",
+  touch: "Touch - large product tiles first, bigger buttons; best for touch screens",
+  terminal: "Terminal - full screen with its own top bar, category rail, product grid and bottom action bar; best for a dedicated counter screen",
+};
 
 export default function General() {
   const [settings, setSettings] = useState(null);
   const [section, setSection] = useState("company");
   const [draft, setDraft] = useState({});
+  // Settings -> Print has two sets of formats: the online-order invoice and
+  // the POS (walk-in) bill. This picks which one the page is showing.
+  const [printKind, setPrintKind] = useState("pos");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +83,7 @@ export default function General() {
     try {
       const data = await api.patch(`/settings/${section}`, draft);
       setSettings(data.settings);
-      setNotice("Saved. Every client picks this up on its next read.");
+      setNotice("Saved");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -323,7 +358,7 @@ export default function General() {
                 <Field label="Owner WhatsApp number (with country code)">
                   <input
                     type="tel"
-                    placeholder="+917010272131"
+                    placeholder="+919003597158"
                     value={draft.ownerWhatsApp || ""}
                     onChange={set("ownerWhatsApp")}
                   />
@@ -375,6 +410,139 @@ export default function General() {
           </>
         ) : null}
 
+        {section === "pos" ? (
+          <>
+          <FormSection step="1" title="Billing screen">
+            <Field label="POS screen template" help={POS_TEMPLATES[draft.template || "standard"]}>
+              <Select value={draft.template || "standard"} onChange={set("template")}>
+                <option value="standard">Standard</option>
+                <option value="compact">Compact</option>
+                <option value="touch">Touch</option>
+                <option value="terminal">Terminal (full screen)</option>
+              </Select>
+            </Field>
+          </FormSection>
+          <FormSection step="2" title="Send bill to customer">
+            <Field
+              label="After a bill is saved, send it to the customer by"
+              help="Tick one, two or all three. None ticked = bills are only printed. WhatsApp opens with the customer's number and the bill typed in (the cashier presses Send). SMS needs an SMS provider connected; email goes out from the server once an email service is set up, and until then opens the mail app with the bill."
+            >
+              {(() => {
+                const via = Array.isArray(draft.sendBillVia)
+                  ? draft.sendBillVia
+                  : { off: [], sms: ["sms"], both: ["whatsapp", "sms"] }[draft.sendBill] || ["whatsapp"];
+                const toggle = (key) =>
+                  setDraft((d) => {
+                    const cur = Array.isArray(d.sendBillVia) ? d.sendBillVia : via;
+                    return { ...d, sendBillVia: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key] };
+                  });
+                const all = ["whatsapp", "sms", "email"];
+                return (
+                  <div className="send-via">
+                    {[
+                      ["whatsapp", "WhatsApp"],
+                      ["sms", "Message (SMS)"],
+                      ["email", "Email"],
+                    ].map(([key, label]) => (
+                      <label key={key} className={`send-via-opt${via.includes(key) ? " on" : ""}`}>
+                        <input type="checkbox" checked={via.includes(key)} onChange={() => toggle(key)} /> {label}
+                      </label>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn sm"
+                      onClick={() => setDraft((d) => ({ ...d, sendBillVia: all.every((k) => via.includes(k)) ? [] : all }))}
+                    >
+                      {all.every((k) => via.includes(k)) ? "Clear all" : "Select all"}
+                    </button>
+                  </div>
+                );
+              })()}
+            </Field>
+          </FormSection>
+          </>
+        ) : null}
+
+        {section === "print" ? (
+          // One page: all templates in a column on the left, the live preview
+          // of the picked one on the right.
+          <FitToScreen className="print-layout">
+            <div className="print-list" role="radiogroup" aria-label={printKind === "pos" ? "POS bill format" : "Invoice template"}>
+              <div className="print-kind" role="tablist" aria-label="Which bill">
+                <button type="button" role="tab" aria-selected={printKind === "pos"} className={printKind === "pos" ? "on" : ""} onClick={() => setPrintKind("pos")}>
+                  POS bill
+                </button>
+                <button type="button" role="tab" aria-selected={printKind === "invoice"} className={printKind === "invoice" ? "on" : ""} onClick={() => setPrintKind("invoice")}>
+                  Online invoice
+                </button>
+              </div>
+              {(() => {
+                // Font size of the 80mm / 58mm receipts: a preset or a size typed in.
+                const tpl = printKind === "pos" ? draft.posTemplate || DEFAULT_POS_TEMPLATE : draft.invoiceTemplate || DEFAULT_TEMPLATE;
+                const isReceipt = printKind === "pos" ? posBillPage(tpl) === "80mm" || posBillPage(tpl) === "58mm" : Boolean(INVOICE_TEMPLATES[tpl]?.receipt);
+                if (!isReceipt) return null;
+                const field = printKind === "pos" ? "posFontSize" : "invoiceFontSize";
+                const value = draft[field] ?? RECEIPT_FONT.medium;
+                const setSize = (v) => setDraft((d) => ({ ...d, [field]: v }));
+                const clamp = (v) => Math.min(RECEIPT_FONT.max, Math.max(RECEIPT_FONT.min, Math.round(Number(v) || RECEIPT_FONT.medium)));
+                return (
+                  <div className="print-font">
+                    <span className="print-font-label">Font size</span>
+                    <div className="print-font-presets" role="radiogroup" aria-label="Font size">
+                      {[["small", "Small"], ["medium", "Medium"], ["large", "Large"]].map(([k, label]) => (
+                        <button key={k} type="button" role="radio" aria-checked={Number(value) === RECEIPT_FONT[k]} className={Number(value) === RECEIPT_FONT[k] ? "on" : ""} onClick={() => setSize(RECEIPT_FONT[k])}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <label className="print-font-custom">
+                      <span>Custom</span>
+                      <button type="button" aria-label="Smaller" disabled={Number(value) <= RECEIPT_FONT.min} onClick={() => setSize(clamp(Number(value) - 1))}>−</button>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        aria-label="Font size in px"
+                        value={value}
+                        onChange={(e) => setSize(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                        onBlur={() => setSize(clamp(value))}
+                      />
+                      <button type="button" aria-label="Larger" disabled={Number(value) >= RECEIPT_FONT.max} onClick={() => setSize(clamp(Number(value) + 1))}>+</button>
+                      <span>px</span>
+                    </label>
+                  </div>
+                );
+              })()}
+              {(printKind === "pos" ? Object.entries(POS_BILL_CHOICES) : Object.entries(INVOICE_CHOICES)).map(([key, tpl]) => {
+                const field = printKind === "pos" ? "posTemplate" : "invoiceTemplate";
+                const fallback = printKind === "pos" ? DEFAULT_POS_TEMPLATE : DEFAULT_TEMPLATE;
+                const on = (draft[field] || fallback) === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    title={tpl.description}
+                    className={`print-item${on ? " on" : ""}`}
+                    onClick={() => setDraft((d) => ({ ...d, [field]: key }))}
+                  >
+                    <span className="print-item-head">
+                      <i className="print-dot" style={{ background: `rgb(${tpl.accent.join(",")})` }} />
+                      <strong>{tpl.label}</strong>
+                      {on && <span className="print-check" aria-hidden="true">✓</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {printKind === "pos" ? (
+              <InvoicePreview key="pos" pos template={draft.posTemplate || DEFAULT_POS_TEMPLATE} fontSize={draft.posFontSize} />
+            ) : (
+              <InvoicePreview key="invoice" template={draft.invoiceTemplate || DEFAULT_TEMPLATE} fontSize={draft.invoiceFontSize} />
+            )}
+          </FitToScreen>
+        ) : null}
+
         <div className="settings-savebar">
           <button className="btn primary" disabled={saving} onClick={save}>
             {saving
@@ -386,3 +554,124 @@ export default function General() {
     </div>
   );
 }
+
+// Fills the screen from where it starts down to just above the sticky save
+// bar, so the page itself never needs scrolling.
+function FitToScreen({ className, children }) {
+  const ref = useRef(null);
+  const [height, setHeight] = useState(null);
+  useEffect(() => {
+    const fit = () => {
+      const el = ref.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      // Room left for the save bar (and its gap) under the panel.
+      setHeight(Math.max(420, window.innerHeight - top - 96));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
+  return (
+    <div ref={ref} className={className} style={height ? { height } : undefined}>
+      {children}
+    </div>
+  );
+}
+
+// A scaled-down A4 page showing the chosen template with a sample order.
+// "Fit" shrinks it until the whole page shows; the zoom buttons (bottom-right)
+// scale from there, and only the preview area scrolls when zoomed in.
+const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
+
+// On-screen widths of the POS bill pages (A4/A5 sheets, 80/58mm receipts).
+const POS_PAGE_W = { A4: 820, A5: 600, "80mm": 380, "58mm": 300 };
+
+function InvoicePreview({ template, pos = false, fontSize }) {
+  const html = useMemo(() => {
+    if (!pos) return invoiceHtml(sampleInvoice(template, fontSize));
+    const sample = samplePosBill();
+    return posBillHtml(sample.order, { ...sample.header, posFontSize: fontSize }, template);
+  }, [template, pos, fontSize]);
+  // POS bills are always measured to their real height, like a receipt.
+  const receipt = pos ? posBillPage(template) !== "A4" || !INVOICE_TEMPLATES[template] : Boolean(INVOICE_TEMPLATES[template]?.receipt);
+  // A4 pages use a fixed sheet; an 80mm bill is a narrow strip whose length
+  // depends on its content, so it is measured once the frame has loaded.
+  const [billH, setBillH] = useState(RECEIPT_H);
+  const pageW = pos
+    ? INVOICE_TEMPLATES[template]
+      ? INVOICE_TEMPLATES[template].receipt ? RECEIPT_W : PAGE_W
+      : POS_PAGE_W[POS_BILL_TEMPLATES[template]?.page] || 600
+    : receipt ? (INVOICE_TEMPLATES[template]?.width === 58 ? POS_PAGE_W["58mm"] : RECEIPT_W) : PAGE_W;
+  const pageH = receipt ? billH : PAGE_H;
+  const box = useRef(null);
+  const [area, setArea] = useState(null); // inner size of the preview area
+  const [zoom, setZoom] = useState(1); // multiple of `fit`
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return undefined;
+    const observer = new ResizeObserver(() => {
+      // Inner size, less the padding round the page.
+      setArea({ width: el.clientWidth - 24, height: el.clientHeight - 24 });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => setZoom(1), [template]);
+  // A bill is shown at full width (up to 100%) and scrolls if it is long;
+  // an A4 page is scaled so the whole sheet fits.
+  const fit = !area
+    ? 0.5
+    : receipt
+      ? Math.max(0.3, Math.min(1, area.width / pageW, Math.max(area.height / pageH, 0.85)))
+      : Math.max(0.15, Math.min(area.width / pageW, area.height / pageH));
+  const measure = (event) => {
+    if (!receipt) return;
+    try {
+      // The bill element's own height: the document's scrollHeight would
+      // never drop below the frame's current height.
+      const doc = event.currentTarget.contentDocument;
+      const bill = doc?.querySelector(".rc") || (pos ? doc?.body : null);
+      const h = bill?.getBoundingClientRect().height;
+      if (h) setBillH(Math.ceil(h) + 4);
+    } catch {
+      // cross-origin or not ready: keep the default height
+    }
+  };
+
+  const scale = fit * zoom;
+  const step = (dir) =>
+    setZoom((z) => {
+      const i = ZOOM_STEPS.findIndex((s) => s >= z - 0.001);
+      const next = ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, (i < 0 ? ZOOM_STEPS.length - 1 : i) + dir))];
+      return next;
+    });
+
+  return (
+    <div className="invoice-preview">
+      <div className="invoice-scroll" ref={box}>
+        <div className="invoice-page" style={{ width: pageW * scale, height: pageH * scale }}>
+          <iframe
+            title="Invoice preview"
+            srcDoc={html}
+            onLoad={measure}
+            style={{ width: pageW, height: pageH, transform: `scale(${scale})` }}
+          />
+        </div>
+      </div>
+      <div className="zoom-ctl" role="group" aria-label="Preview zoom">
+        <button type="button" onClick={() => step(-1)} disabled={zoom <= ZOOM_STEPS[0]} aria-label="Zoom out">−</button>
+        <span className="zoom-val" aria-live="polite">{Math.round(scale * 100)}%</span>
+        <button type="button" onClick={() => step(1)} disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} aria-label="Zoom in">+</button>
+        <button type="button" className="zoom-fit" onClick={() => setZoom(1)} disabled={zoom === 1} title="Fit the whole page">Fit</button>
+      </div>
+    </div>
+  );
+}
+
+const PAGE_W = 820;
+const PAGE_H = 1100;
+// 80mm counter bill: the bill's on-screen width (340px + padding) and a
+// starting height until the real one is measured.
+const RECEIPT_W = 380;
+const RECEIPT_H = 900;

@@ -146,7 +146,7 @@ const orderSchema = new mongoose.Schema(
     payment: {
       method: {
         type: String,
-        enum: ["cod", "upi", "card", "netbanking", "wallet", "paylater", "store_credit"],
+        enum: ["cod", "cash", "upi", "card", "netbanking", "wallet", "paylater", "store_credit"],
         default: "cod",
       },
       status: {
@@ -222,6 +222,28 @@ const orderSchema = new mongoose.Schema(
 
     customerNote: { type: String, default: "" },
     internalNote: { type: String, default: "" },
+    // What the customer sent with a return: their reason and photo proof.
+    returnRequest: {
+      reason: { type: String, default: "" },
+      photos: { type: [String], default: undefined },
+      requestedAt: Date,
+      attempts: { type: Number, default: 0 },   // requests raised on this order
+      declineReason: { type: String, default: "" }, // shown to the customer
+      declinedAt: Date,
+      // Every request the customer raised on this order, oldest first.
+      history: {
+        type: [
+          {
+            _id: false,
+            reason: String,
+            photos: [String],
+            items: [String], // item names, as shown to staff
+            at: Date,
+          },
+        ],
+        default: undefined,
+      },
+    },
     rating: {
       order: { type: Number, min: 1, max: 5 },
       delivery: { type: Number, min: 1, max: 5 },
@@ -229,6 +251,20 @@ const orderSchema = new mongoose.Schema(
       comment: String,
       ratedAt: Date,
     },
+
+    // POS bills. posClientId is made on the till (before any network call), so
+    // a bill replayed after an offline spell is recognised and not booked twice.
+    invoiceNo: { type: String, default: "", index: true },
+    // unique + sparse: the database itself refuses a second copy of the same till bill.
+    posClientId: { type: String, unique: true, sparse: true },
+    posPayments: {
+      type: [new mongoose.Schema({ method: String, amount: Number }, { _id: false })],
+      default: undefined,
+    },
+    cashier: objectId("User"),
+    cashierName: { type: String, default: "" },
+    // How many duplicate copies of a POS bill were printed after the original.
+    posReprints: { type: Number, default: 0 },
 
     placedAt: { type: Date, default: Date.now, index: true },
   },
@@ -239,6 +275,8 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index({ customer: 1, placedAt: -1 });
 // The admin order board, and the per-store delivery queue.
 orderSchema.index({ store: 1, status: 1, placedAt: -1 });
+// The Online / Walk-in tabs on the admin orders screen.
+orderSchema.index({ source: 1, placedAt: -1 });
 orderSchema.index({ "delivery.partner": 1, status: 1 });
 orderSchema.index({ code: "text", "customerSnapshot.phone": "text" });
 

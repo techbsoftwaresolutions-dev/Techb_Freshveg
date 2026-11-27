@@ -260,7 +260,7 @@ See §15–16. Files: `orders/{order.model,order.routes,order.service,orderStatu
 ### 6.11 Notifications
 - `notifications/*`: `NotificationTemplate` (per event/audience/channels, editable in admin), `Notification` feed per user, device registration, preferences, broadcast, log. Event name == order status key for order events, plus marketing events (`ABANDONED_CART_1/2`, `FREE_DELIVERY_UNLOCKED`, `WIN_BACK`, `BACK_IN_STOCK`, `PRICE_DROP`, `LOW_STOCK_ADMIN`, `NEW_OFFER`, `FLASH_SALE`, `COUPON_AVAILABLE`, `CUSTOM`).
 - `notify()` never throws; each channel result is stored as `queued/sent/failed/skipped`. Gate = user prefs + `Settings.notifications.channels`.
-- **Status:** **Partial.** Only `inapp` works. `push` (needs `FCM_SERVER_KEY`), `sms` (`SMS_API_KEY`), `email` (`SMTP_URL`), `whatsapp` (`WHATSAPP_TOKEN`) are explicit stubs that return `skipped`/"not implemented". No client app fetches `/notifications` (**Inferred**).
+- **Status:** Assignment push uses the Expo Push API; the delivery app registers device tokens, requests permission, sets the Android sound channel, and displays an in-app notification inbox. Android background/closed-app push additionally requires Firebase `google-services.json` for package `com.hosurbasket.partner` at `delivery-app/google-services.json` and FCM V1 service-account credentials configured in EAS. Keep both credential files out of git, then create and install a new native EAS build.
 
 ### 6.12 Marketing: offers & banners
 - `pricing/offer.routes` (`/marketing/offers`), `marketing/banner.*` (`/banners`; placements `home_hero|home_strip|category_top|cart|app_launch`; click/impression `track`). Website `HeroCarousel`/`BannerCarousel`; customer app Home.
@@ -465,7 +465,7 @@ MaintenanceAsset · MaintenanceRequest       Settings (single doc key:"global") 
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (+ optional `CLOUDINARY_FOLDER`) | Image storage — all three required for uploads | **Yes (uploads)** | `storage/providers.js` |
 | `MAX_UPLOAD_BYTES` | Upload size cap (5 MB) | No | storage |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Razorpay | Only for online pay | `gateways.js` |
-| `FCM_SERVER_KEY`, `SMS_API_KEY`, `SMTP_URL`, `WHATSAPP_TOKEN` | Channel credentials (adapters not implemented) | No | `notifications/channels.js` |
+| `SMS_API_KEY`, `SMTP_URL`, `WHATSAPP_TOKEN` | Other channel credentials (some adapters remain unimplemented) | No | `notifications/channels.js` |
 | `DISABLE_JOBS` | `"true"` stops scheduler | No | `jobs/scheduler.js` |
 | `VITE_API_BASE_URL` | Admin API origin (empty ⇒ same-origin / Vite proxy) | Prod | admin `api/client.js` |
 | `API_BASE_URL` | API origin (website server + rewrites; mobile apps' `extra.apiBaseUrl`; must be LAN IP on a real phone) | Yes | website, customer-app, delivery-app |
@@ -483,7 +483,7 @@ Only `*.env.example` files and `website/.env.local` (**tracked in git**, contain
 | Razorpay | `payments/gateways.js` (REST, no SDK) | Unconfigured provider silently **falls back to `manual`** (instant success). `verify` checks HMAC then fetches the payment from Razorpay. Branding `name` in the checkout payload is "Hosur Basket". |
 | Cloudinary | `storage/providers.js` (signed REST) | The only image store. Missing keys ⇒ `POST /uploads` 503 naming them, warning at boot, `GET /uploads/config` reports `configured`/`missing`. Legacy disk images: `npm run migrate:images [-- --dry-run]`. |
 | Redis | `core/cache.js` | Optional, lazy; degrades to in-memory with a warning. |
-| FCM / SMS / SMTP / WhatsApp | `notifications/channels.js` | **Stubs.** Return `skipped` (no key) or `failed: not implemented`. |
+| Expo Push / Android FCM | `notifications/channels.js`, `delivery-app/app.config.js` | Expo Push sender is implemented. Android delivery requires a local `delivery-app/google-services.json` and FCM V1 service-account credentials configured in EAS; neither credential is stored in this repository. |
 | Google Fonts | website `next/font` (self-hosted at build), customer app `@expo-google-fonts/inter` | |
 | Maps / geocoding / analytics | **none** | |
 

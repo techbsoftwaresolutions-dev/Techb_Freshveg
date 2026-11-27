@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-import { Banner, Card, Empty, Loading, Modal, Pill, Table, when, ChipDropdown } from "../../components/ui";
+import { Banner, Card, Empty, Loading, Modal, Pagination, Pill, Table, when, ChipDropdown } from "../../components/ui";
 
 const TABS = [
   { key: "pending", label: "Awaiting approval" },
@@ -147,26 +147,9 @@ function ReviewCard({ review, canModerate, busy, onPublish, onReject, onRestore,
 
 const PAGE_LIMIT = 12;
 
-// Previous / Next that stays on screen even when everything fits on one page.
-function Pager({ meta, onPage }) {
-  const total = meta?.total ?? 0;
-  const page = meta?.page ?? 1;
-  const pages = Math.max(1, meta?.pages ?? 1);
-  const first = total ? (page - 1) * PAGE_LIMIT + 1 : 0;
-  const last = Math.min(total, page * PAGE_LIMIT);
-  return (
-    <div className="dash-pager review-pager">
-      <button type="button" className="btn sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-        ‹ Previous
-      </button>
-      <span className="faint">
-        {first}–{last} of {total}
-      </span>
-      <button type="button" className="btn sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>
-        Next ›
-      </button>
-    </div>
-  );
+// The same table pagination as every other list: rows per page and pages.
+function Pager({ meta, onPage, onLimit }) {
+  return <Pagination meta={meta} onPage={onPage} onLimit={onLimit} />;
 }
 
 const STATUS_TONE = { pending: "warn", published: "ok", rejected: "danger" };
@@ -195,7 +178,7 @@ function RowActions({ review, busy, onPublish, onReject, onRestore }) {
   );
 }
 
-function ReviewTable({ rows, meta, onPage, canModerate, busyId, onPublish, onReject, onRestore, onZoom }) {
+function ReviewTable({ rows, meta, onPage, onLimit, canModerate, busyId, onPublish, onReject, onRestore, onZoom }) {
   const columns = [
     {
       key: "productName",
@@ -287,7 +270,7 @@ function ReviewTable({ rows, meta, onPage, canModerate, busyId, onPublish, onRej
   return (
     <Card tight>
       <Table title="Product reviews" columns={columns} rows={rows} keyOf={(r) => r.id} />
-      <Pager meta={meta} onPage={onPage} />
+      <Pager meta={meta} onPage={onPage} onLimit={onLimit} />
     </Card>
   );
 }
@@ -303,24 +286,25 @@ export default function Reviews() {
   const [data, setData] = useState({ items: [], meta: null });
   const [counts, setCounts] = useState({});
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(PAGE_LIMIT);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [rejecting, setRejecting] = useState(null);
   const [zoom, setZoom] = useState("");
-  // Cards or a table — remembered for next time.
+  // A table (list) by default, or cards — remembered for next time.
   const [view, setViewState] = useState(() => {
     try {
-      return localStorage.getItem("commerce.admin.reviewView") === "table" ? "table" : "cards";
+      return localStorage.getItem("commerce.admin.reviewView.v2") === "cards" ? "cards" : "table";
     } catch {
-      return "cards";
+      return "table";
     }
   });
   const setView = (next) => {
     setViewState(next);
     try {
-      localStorage.setItem("commerce.admin.reviewView", next);
+      localStorage.setItem("commerce.admin.reviewView.v2", next);
     } catch {
       // storage unavailable — the choice still applies for this visit
     }
@@ -335,11 +319,11 @@ export default function Reviews() {
   const load = useCallback(() => {
     setLoading(true);
     api
-      .get("/reviews", { status, page, limit: PAGE_LIMIT, ...(rating ? { rating } : {}) })
+      .get("/reviews", { status, page, limit, ...(rating ? { rating } : {}) })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [status, page, rating]);
+  }, [status, page, limit, rating]);
 
   useEffect(() => {
     load();
@@ -409,6 +393,7 @@ export default function Reviews() {
               rows={data.items}
               meta={data.meta}
               onPage={setPage}
+              onLimit={(n) => { setLimit(n); setPage(1); }}
               canModerate={canModerate}
               busyId={busy}
               onPublish={(r) => moderate(r, "published")}
@@ -434,7 +419,7 @@ export default function Reviews() {
           )}
           {view === "cards" ? (
             <Card tight>
-              <Pager meta={data.meta} onPage={setPage} />
+              <Pager meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
             </Card>
           ) : null}
         </>

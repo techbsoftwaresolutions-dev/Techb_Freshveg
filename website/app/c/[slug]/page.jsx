@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { categoryImage, img } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getCategories, getCategory, getProducts, SITE_URL } from "@/lib/api";
@@ -11,6 +11,7 @@ import CategoryIcon from "@/components/CategoryIcon";
 import DepartmentNav from "@/components/DepartmentNav";
 import EmptyState from "@/components/EmptyState";
 import InfiniteProducts from "@/components/InfiniteProducts";
+import ListingScrollMemory from "@/components/ListingScrollMemory";
 import TrustStrip from "@/components/TrustStrip";
 
 export async function generateMetadata({ params }) {
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }) {
     description:
       category.seo?.description ||
       category.description ||
-      `Shop ${category.name} at Hosur Basket. Fresh stock, honest prices, delivered from your neighbourhood store.`,
+      `Shop ${category.name} at Hosur Basket. Fresh stock, honest prices, delivered from your Hosur Basket store.`,
     alternates: { canonical: `/c/${category.slug}` },
     openGraph: {
       title: `${category.name} | Hosur Basket`,
@@ -58,6 +59,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const apiQuery = { category: slug, limit: 20, page: query.page || 1 };
   if (query.sort) apiQuery.sort = query.sort;
   if (query.brand) apiQuery.brand = query.brand;
+  if (query.price) apiQuery.price = query.price;
   if (query.maxPrice) apiQuery.maxPrice = query.maxPrice;
   if (query.inStock === "true") apiQuery.inStock = "true";
   if (query.offers === "true") apiQuery.offers = "true";
@@ -97,8 +99,8 @@ export default async function CategoryPage({ params, searchParams }) {
           {children.map((child) => (
             <Link key={child.id} href={`/c/${child.slug}`} className="top-cat">
               <span className="top-cat-icon">
-                {child.image ? (
-                  <img src={img(child.image, 160)} alt="" className="top-cat-photo" />
+                {categoryImage(child) ? (
+                  <img src={img(categoryImage(child), 160)} alt="" className="top-cat-photo" />
                 ) : (
                   <CategoryIcon name={child.name} />
                 )}
@@ -110,6 +112,7 @@ export default async function CategoryPage({ params, searchParams }) {
       ) : null}
 
       <div className="split browse cat-layout has-rail">
+        <ListingScrollMemory />
         <MobileRail departments={departments} activeSlug={slug} />
 
         <div className="cat-side">
@@ -180,6 +183,6 @@ export default async function CategoryPage({ params, searchParams }) {
 
 function hasFilters(query) {
   return Object.keys(query).some(
-    (key) => key.startsWith("attr.") || key === "brand" || key === "maxPrice" || key === "inStock"
+    (key) => key.startsWith("attr.") || ["brand", "price", "maxPrice", "inStock"].includes(key)
   );
 }

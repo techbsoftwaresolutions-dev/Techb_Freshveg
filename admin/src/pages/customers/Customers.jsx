@@ -2,6 +2,7 @@ import Select from "../../components/Select";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
+import { useApi } from "../../api/useApi";
 import FormRoute from "../../components/FormRoute";
 import { useAuth } from "../../context/AuthContext";
 import { Avatar } from "../orders/Orders";
@@ -13,26 +14,22 @@ export default function Customers() {
   const { can } = useAuth();
   const canManage = can("customers.manage");
 
-  const [data, setData] = useState({ items: [], meta: null });
   const [filters, setFilters] = useState({ search: "", status: "", page: 1 });
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    api
-      .get("/customers", { ...filters, limit: 20 })
-      .then(setData)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [filters]);
-
+  // Typing in the search box waits 250 ms before asking the server; the 20-row page then comes
+  // from the shared cache, and the previous page stays visible while the next one loads.
+  const [searchTerm, setSearchTerm] = useState("");
   useEffect(() => {
-    const timer = setTimeout(load, filters.search ? 250 : 0);
+    const timer = setTimeout(() => setSearchTerm(filters.search), filters.search ? 250 : 0);
     return () => clearTimeout(timer);
-  }, [load, filters.search]);
+  }, [filters.search]);
+  const listQ = useApi("/customers", { limit: 20, ...filters, search: searchTerm });
+  const data = listQ.data || { items: [], meta: null };
+  const loading = listQ.loading;
+  const load = listQ.reload;
 
   const set = (key, value) => setFilters((f) => ({ ...f, [key]: value, page: key === "page" ? value : 1 }));
 
@@ -44,14 +41,14 @@ export default function Customers() {
         </div>
       </div>
 
-      <Banner tone="error">{error}</Banner>
+      <Banner tone="error">{error || (listQ.error && !listQ.data ? listQ.error.message : "")}</Banner>
 
       <div className="toolbar products-filters">
         <span className="search-field">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input
             type="search"
-            placeholder="Search by name, phone or email…"
+            placeholder="Search name, phone, email, address or pincode…"
             value={filters.search}
             onChange={(e) => set("search", e.target.value)}
           />
@@ -65,7 +62,7 @@ export default function Customers() {
         ) : (
           <>
             <Table
-              title="Customers"
+              title="Customers" search={false}
               columns={[
                 {
                   key: "name",
@@ -148,7 +145,7 @@ export default function Customers() {
               onRowClick={(row) => navigate(`/customers/${row.id}`)}
               empty={<Empty title="No customers yet" hint="Accounts are created the first time someone signs in." />}
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(n) => set("limit", n)} />
           </>
         )}
       </Card>
@@ -643,43 +640,53 @@ function DeleteCustomerModal({ customer, onClose, onDeleted, onBlocked }) {
     }
   }
 
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && !busy && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [busy, onClose]);
+
+  const balance = [
+    customer.walletBalance > 0 ? `${rupees(customer.walletBalance)} wallet` : "",
+    customer.loyaltyPoints > 0 ? `${customer.loyaltyPoints} points` : "",
+  ].filter(Boolean).join(" · ");
+
+  // Same small centred card as every other delete; if the customer has orders
+  // (the server refuses), it offers blocking instead.
   return (
-    <Modal
-      title="Delete customer"
-      onClose={onClose}
-      footer={
-        <>
-          <button className="btn" onClick={onClose}>Cancel</button>
+    <div className="confirm-backdrop" onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}>
+      <div className="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="del-customer-title">
+        <span className="confirm-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+          </svg>
+        </span>
+        <h2 id="del-customer-title">{refused ? "Can't delete this customer" : "Delete this customer?"}</h2>
+        <p className="confirm-message">{label}</p>
+        {refused ? (
+          <p className="confirm-note">They have orders on record. Block them instead.</p>
+        ) : error ? (
+          <p className="confirm-note error">{error}</p>
+        ) : hasBalance ? (
+          <p className="confirm-note">Has {balance}</p>
+        ) : null}
+        <div className="confirm-actions">
+          <button type="button" className="btn" onClick={onClose} disabled={busy} autoFocus>
+            Cancel
+          </button>
           {refused ? (
             customer.status === "blocked" ? null : (
-              <button className="btn primary" disabled={busy} onClick={blockInstead}>
-                {busy ? "Blocking…" : "Block instead"}
+              <button type="button" className="btn primary" disabled={busy} onClick={blockInstead}>
+                {busy ? "Blocking…" : "Block"}
               </button>
             )
           ) : (
-            <button className="btn danger" disabled={busy} onClick={remove}>
-              {busy ? "Deleting…" : "Delete customer"}
+            <button type="button" className="btn confirm-danger" disabled={busy} onClick={remove}>
+              {busy ? "Deleting…" : "Delete"}
             </button>
           )}
-        </>
-      }
-    >
-      <Banner tone="error">{error}</Banner>
-      <p style={{ marginTop: 0 }}>
-        Delete <strong>{label}</strong>{customer.name ? ` (${customer.phone})` : ""}? This can't be undone.
-      </p>
-      <p className="muted" style={{ fontSize: 13 }}>
-        Their addresses, cart, wishlist, notifications and wallet and points history are removed with the account.
-        Customers who already have orders, reviews or support tickets can't be deleted — block them instead, which
-        stops sign-ins and keeps the history.
-      </p>
-      {hasBalance ? (
-        <Banner tone="warn">
-          This account still holds {customer.walletBalance > 0 ? rupees(customer.walletBalance) + " in the wallet" : ""}
-          {customer.walletBalance > 0 && customer.loyaltyPoints > 0 ? " and " : ""}
-          {customer.loyaltyPoints > 0 ? `${customer.loyaltyPoints} loyalty points` : ""}. Deleting removes it.
-        </Banner>
-      ) : null}
-    </Modal>
+        </div>
+      </div>
+    </div>
   );
 }

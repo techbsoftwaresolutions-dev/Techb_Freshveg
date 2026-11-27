@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const asyncHandler = require("../../core/asyncHandler");
+const { cacheResponse } = require("../../core/storefrontCache");
 const ApiError = require("../../core/ApiError");
 const { paginate, paging } = require("../../core/query");
 const { requireAuth, requirePermission } = require("../../middleware/auth");
@@ -47,6 +48,13 @@ async function variantScope({ category, q } = {}) {
   return Variant.distinct("_id", match);
 }
 
+async function activeVariantScope(scope) {
+  const activeProducts = await Product.distinct("_id", { status: "active" });
+  const filter = { status: "active", product: { $in: activeProducts } };
+  if (scope) filter._id = { $in: scope };
+  return Variant.distinct("_id", filter);
+}
+
 router.get(
   "/",
   canView,
@@ -55,7 +63,7 @@ router.get(
     if (req.query.store) filter.store = req.query.store;
     if (req.query.product) filter.product = req.query.product;
     const inCategory = await variantScope(req.query);
-    if (inCategory) filter.variant = { $in: inCategory };
+    filter.variant = { $in: await activeVariantScope(inCategory) };
 
     const result = await paginate(Inventory, filter, req.query, {
       defaultSort: { updatedAt: -1 },
@@ -73,17 +81,29 @@ router.get(
 router.get(
   "/low-stock",
   canView,
+  // After the permission check, so only allowed staff ever reach the cache. Cleared at once by any stock/order write.
+  cacheResponse(15),
   asyncHandler(async (req, res) => {
     const filter = req.query.store ? { store: req.query.store } : {};
     const inCategory = await variantScope(req.query);
-    if (inCategory) filter.variant = { $in: inCategory };
-    const rows = await Inventory.find(filter)
-      .populate("variant", "sku name sellingPrice lowStockThreshold")
-      .populate("product", "name slug media")
-      .limit(500);
-
-    const low = rows.filter((r) => r.isLow);
-    res.json({ success: true, items: low, meta: { total: low.length } });
+    filter.variant = { $in: await activeVariantScope(inCategory) };
+    // "Low" is decided in the database (same rule as the isLow virtual: what is left to sell is
+    // at or below the item's threshold), so it is paginated properly and never misses rows
+    // beyond an arbitrary first 500.
+    filter.$expr = {
+      $lte: [
+        { $max: [0, { $subtract: ["$onHand", "$reserved"] }] },
+        { $ifNull: ["$lowStockThreshold", 5] },
+      ],
+    };
+    const result = await paginate(Inventory, filter, req.query, {
+      defaultSort: { onHand: 1 },
+      populate: [
+        { path: "variant", select: "sku name sellingPrice lowStockThreshold" },
+        { path: "product", select: "name slug media" },
+      ],
+    });
+    res.json({ success: true, ...result });
   })
 );
 
@@ -166,7 +186,7 @@ router.get(
     const filter = { "batches.expiresOn": { $lte: new Date(Date.now() + days * 86400000) } };
     if (req.query.store) filter.store = req.query.store;
     const inCategory = await variantScope(req.query);
-    if (inCategory) filter.variant = { $in: inCategory };
+    filter.variant = { $in: await activeVariantScope(inCategory) };
 
     const rows = await Inventory.find(filter)
       .populate("variant", "sku name sellingPrice")

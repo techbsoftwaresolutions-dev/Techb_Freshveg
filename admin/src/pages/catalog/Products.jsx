@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import Select from "../../components/Select";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -6,6 +7,35 @@ import { useAuth } from "../../context/AuthContext";
 import { Banner, Card, Empty, Loading, Pagination, Pill, Switch, Table, rupees, useConfirm, ChipExpand } from "../../components/ui";
 
 const OFFER_LABEL = { discount: "Discount", special: "Special offer", combo: "Combo offer" };
+// QR pictures by value, kept for the page's life so the table and the Word /
+// PDF downloads use the same image without drawing it twice.
+const qrCache = new Map();
+
+function QrCell({ value }) {
+  const [url, setUrl] = useState(() => (value ? qrCache.get(value) || "" : ""));
+  useEffect(() => {
+    if (!value) return undefined;
+    if (qrCache.has(value)) {
+      setUrl(qrCache.get(value));
+      return undefined;
+    }
+    let alive = true;
+    QRCode.toDataURL(value, { margin: 1, width: 160 })
+      .then((data) => {
+        qrCache.set(value, data);
+        if (alive) setUrl(data);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [value]);
+  if (!value) return <span className="muted">—</span>;
+  return url ? <img className="qr-cell" src={url} alt={`QR code ${value}`} title={value} /> : <span className="qr-cell qr-wait" />;
+}
+
+// Readable names for the stored product unit codes.
+const UNIT_NAME = { pcs: "piece", piece: "piece", pack: "pack", bunch: "bunch", kg: "kg" };
 
 export default function Products() {
   const [confirm, confirmDialog] = useConfirm();
@@ -45,7 +75,7 @@ export default function Products() {
     const timer = setTimeout(
       () =>
         api
-          .get("/catalog/products", { ...filters, limit: 20 })
+          .get("/catalog/products", { limit: 20, ...filters })
           .then(setData)
           .catch((err) => setError(err.message))
           .finally(() => setLoading(false)),
@@ -116,7 +146,7 @@ export default function Products() {
   // at these documents), so drop it from the visible list here rather than
   // trusting a refetch to hide it again.
   async function removeProduct(product) {
-    if (!(await confirm({ title: "Delete product?", message: `Delete "${product.name}"? This can't be undone.`, confirmLabel: "Yes, delete" }))) return;
+    if (!(await confirm({ title: "Delete this product?", message: product.name, confirmLabel: "Delete" }))) return;
     setRemovingId(product.id);
     setError("");
     try {
@@ -152,7 +182,7 @@ export default function Products() {
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input
             type="search"
-            placeholder="Search products…"
+            placeholder="Search by name, product code or barcode…"
             value={filters.search}
             onChange={(e) => set("search", e.target.value)}
           />
@@ -180,7 +210,7 @@ export default function Products() {
         ) : (
           <>
             <Table
-              title="Products"
+              title="Products" search={false}
               columns={[
                 ...(canManage
                   ? [
@@ -197,7 +227,8 @@ export default function Products() {
                   : []),
                 {
                   key: "name",
-                  label: "Product",
+                  label: "Product name",
+                  exportValue: (row) => row.name || "",
                   render: (row) => {
                     const media = row.media?.[0];
                     return (
@@ -226,6 +257,13 @@ export default function Products() {
                   },
                 },
                 {
+                  // The main variant's SKU — what the QR code and labels carry.
+                  key: "code",
+                  label: "Product code",
+                  exportValue: (row) => row.code || "",
+                  render: (row) => (row.code ? <span className="code-cell">{row.code}</span> : "—"),
+                },
+                {
                   key: "offer",
                   label: "Offer",
                   sortable: false,
@@ -251,67 +289,143 @@ export default function Products() {
                     ),
                 },
                 {
-                  key: "price",
-                  label: "Price",
-                  align: "right",
-                  render: (row) => (
-                    <strong className="price-cell">
-                      {row.priceFrom === row.priceTo
-                        ? rupees(row.priceFrom)
-                        : `${rupees(row.priceFrom)} – ${rupees(row.priceTo)}`}
-                    </strong>
-                  ),
+                  // What one of the product is sold as ("1 pack", "1 piece"),
+                  // from the product's own unit; never a weight like 68 g.
+                  key: "unit",
+                  label: "Unit",
+                  exportValue: (row) => `1 ${UNIT_NAME[row.unit] || row.unit || "piece"}`,
+                  render: (row) => <span className="unit-cell">1 {UNIT_NAME[row.unit] || row.unit || "piece"}</span>,
                 },
                 {
                   key: "variantCount",
                   label: "Variants",
                   align: "right",
+                  exportValue: (row) => row.variantCount || 0,
                   render: (row) => row.variantCount || 0,
                 },
                 {
-                  key: "inStock",
+                  key: "price",
+                  label: "Price",
+                  align: "right",
+                  exportValue: (row) => {
+                    const from = (row.priceFrom || 0) / 100;
+                    const to = (row.priceTo || 0) / 100;
+                    return from === to ? `₹${from}` : `₹${from} - ₹${to}`;
+                  },
+                  render: (row) => (
+                    <strong className="price-cell">
+                      {row.priceFrom === row.priceTo
+                        ? rupees(row.priceFrom)
+                        : `${rupees(row.priceFrom)} - ${rupees(row.priceTo)}`}
+                    </strong>
+                  ),
+                },
+                {
+                  key: "totalStock",
                   label: "Stock",
-                  render: (row) =>
-                    canManage && row.status !== "archived" ? (
-                      <div>
-                        <Switch
-                          checked={!row.soldOut}
-                          onChange={(onSale) => quickUpdate(row, { soldOut: !onSale })}
-                          disabled={busyId === row.id}
-                          onLabel="On sale"
-                          offLabel="Sold out"
-                          offTone="danger"
-                          title={row.soldOut ? "Put back on sale" : "Mark as sold out — stock counts are kept"}
-                        />
-                        {/* On sale, but nothing on the shelf: a different
-                            problem from "sold out", with a different fix. */}
-                        {!row.soldOut && !row.inStock ? <span className="switch-note">No stock left</span> : null}
+                  align: "right",
+                  exportValue: (row) => row.totalStock ?? 0,
+                  render: (row) => {
+                    const stock = row.totalStock ?? 0;
+                    const isLow = stock > 0 && stock <= 5;
+                    const isOut = stock === 0 || row.soldOut;
+                    return (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            fontSize: "13.5px",
+                            color: isOut ? "#dc2626" : isLow ? "#d97706" : "#15803d",
+                          }}
+                        >
+                          {stock}
+                        </span>
+                        {isLow ? (
+                          <span
+                            style={{
+                              background: "#fef08a",
+                              color: "#854d0e",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              border: "1px solid #fde047",
+                            }}
+                          >
+                            Low
+                          </span>
+                        ) : isOut ? (
+                          <span
+                            style={{
+                              background: "#fee2e2",
+                              color: "#991b1b",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              border: "1px solid #fecaca",
+                            }}
+                          >
+                            Out
+                          </span>
+                        ) : null}
                       </div>
-                    ) : row.inStock ? (
-                      <Pill tone="ok">In stock</Pill>
-                    ) : (
-                      <Pill tone="danger">{row.soldOut ? "Sold out" : "Out"}</Pill>
-                    ),
+                    );
+                  },
                 },
                 {
                   key: "status",
                   label: "Status",
-                  render: (row) =>
-                    canManage && row.status !== "archived" ? (
-                      <Switch
-                        checked={row.status === "active"}
-                        onChange={(on) => quickUpdate(row, { status: on ? "active" : "hidden" })}
-                        disabled={busyId === row.id}
-                        tone="accent"
-                        onLabel="Active"
-                        offLabel={row.status === "draft" ? "Draft" : "Hidden"}
-                        title={row.status === "active" ? "Hide from the store" : "Publish to the store"}
-                      />
-                    ) : (
-                      <Pill tone={row.status === "active" ? "ok" : row.status === "draft" ? "warn" : undefined}>
-                        {row.status}
-                      </Pill>
-                    ),
+                  exportValue: (row) => {
+                    const stock = row.totalStock ?? 0;
+                    if (row.soldOut || stock === 0 || row.status === "hidden" || row.status === "draft") {
+                      return "Inactive";
+                    }
+                    if (stock <= 5) return "Low Stock";
+                    return "Active";
+                  },
+                  render: (row) => {
+                    const stock = row.totalStock ?? 0;
+                    const isLow = stock > 0 && stock <= 5;
+                    const isOut = stock === 0 || row.soldOut || row.status === "hidden" || row.status === "draft";
+                    const statusText = isOut ? "Inactive" : isLow ? "Low Stock" : "Active";
+                    const statusTone = isOut ? "danger" : isLow ? "warn" : "ok";
+
+                    return (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Pill
+                          tone={statusTone}
+                          style={
+                            isLow
+                              ? { background: "#fef08a", color: "#854d0e", borderColor: "#fde047", fontWeight: 700 }
+                              : undefined
+                          }
+                        >
+                          {statusText}
+                        </Pill>
+                        {canManage && row.status !== "archived" ? (
+                          <Switch
+                            checked={!row.soldOut && row.status === "active"}
+                            onChange={(on) => quickUpdate(row, { soldOut: !on, status: on ? "active" : "hidden" })}
+                            disabled={busyId === row.id}
+                            tone="accent"
+                            title={row.soldOut ? "Put back on sale" : "Toggle active status"}
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  },
+                },
+                {
+                  // QR of the barcode (or the code when there is none) — the
+                  // same thing the POS labels print. Word and PDF downloads
+                  // carry the picture; CSV and Excel the code it holds.
+                  key: "qr",
+                  label: "QR code",
+                  sortable: false,
+                  exportValue: (row) => row.barcode || row.code || "",
+                  exportImage: (row) => qrCache.get(row.barcode || row.code) || null,
+                  render: (row) => <QrCell value={row.barcode || row.code} />,
                 },
                 {
                   key: "actions",
@@ -360,7 +474,7 @@ export default function Products() {
                 />
               }
             />
-            <Pagination meta={data.meta} onPage={(page) => set("page", page)} />
+            <Pagination meta={data.meta} onPage={(page) => set("page", page)} onLimit={(limit) => set("limit", limit)} />
           </>
         )}
       </Card>

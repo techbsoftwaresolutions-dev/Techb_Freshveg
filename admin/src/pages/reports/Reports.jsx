@@ -6,7 +6,7 @@ import { api } from "../../api/client";
 import {
   Banner, Card, Empty, Loading, Stat, Table, Tabs, rupees,
 } from "../../components/ui";
-import DateFilter, { todayRange } from "../../components/DateFilter";
+import DateFilter, { defaultRange } from "../../components/DateFilter";
 import {
   IconAlertTriangle, IconCategories, IconChartLine, IconCustomers, IconInventory, IconOffers, IconOrders,
   IconPayments, IconProducts, IconUserPlus, IconWallet,
@@ -25,8 +25,8 @@ const TOOLTIP_STYLE = {
 
 export default function Reports() {
   const [tab, setTab] = useState("sales");
-  // Opens on Today; the field above the tabs switches to any other range.
-  const [range, setRange] = useState(todayRange);
+  // Opens on All Time; the field above the tabs switches to any other range.
+  const [range, setRange] = useState(defaultRange);
 
   return (
     <div className="page products-page reports-page">

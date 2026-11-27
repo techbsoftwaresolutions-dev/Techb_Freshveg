@@ -22,11 +22,50 @@ const stub = (name, envVar) => async (message, recipient) => {
 const push = async (message, recipient) => {
   const tokens = (recipient.devices || []).filter((d) => d.token).map((d) => d.token);
   if (!tokens.length) return { status: "skipped", reason: "No device registered" };
-  if (!process.env.FCM_SERVER_KEY) {
-    if (!config.isProd) console.log(`[push] → ${recipient.phone}: ${message.title} — ${message.body}`);
-    return { status: "skipped", reason: "Push is not configured (set FCM_SERVER_KEY)" };
+
+  const messages = tokens.map((token) => ({
+    to: token,
+    title: message.title,
+    body: message.body,
+    sound: "default",
+    priority: "high",
+    channelId: "delivery_assignments_v2",
+    data: {
+      event: message.event,
+      deeplink: message.deeplink,
+      ...(message.data || {}),
+    },
+  }));
+  let sent = 0;
+  const failures = [];
+
+  for (let index = 0; index < messages.length; index += 100) {
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-Encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(messages.slice(index, index + 100)),
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      failures.push(payload?.errors?.[0]?.message || `Expo Push API returned HTTP ${response.status}`);
+      continue;
+    }
+
+    const tickets = Array.isArray(payload.data) ? payload.data : [payload.data];
+    for (const ticket of tickets) {
+      if (ticket?.status === "ok") sent += 1;
+      else failures.push(ticket?.message || "Expo could not deliver the push notification");
+    }
   }
-  return { status: "failed", error: "FCM adapter is not implemented yet" };
+
+  if (sent === messages.length) return { status: "sent" };
+  if (sent > 0) return { status: "sent", reason: failures.join("; ") };
+  return { status: "failed", error: failures.join("; ") || "Expo did not accept the push notification" };
 };
 
 const sms = async (message, recipient) => {

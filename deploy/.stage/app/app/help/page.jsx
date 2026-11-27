@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CallButton from "@/components/CallButton";
 
 export const metadata = {
   title: "Help Center",
@@ -11,14 +12,20 @@ const TOPICS = [
   {
     title: "Track an order",
     body: "See where your order is, live, from the moment it is placed.",
-    href: "/orders",
+    href: "/track-order",
     label: "Open my orders",
   },
   {
     title: "Returns and refunds",
     body: "Open the order and raise a return from there.",
-    href: "/orders",
+    href: "/returns",
     label: "Go to my orders",
+  },
+  {
+    title: "Raise a ticket",
+    body: "Missing, damaged or wrong item, a payment problem or anything else — tell us and follow the reply here.",
+    href: "/support",
+    label: "Raise a ticket",
   },
   {
     title: "Delivery",
@@ -34,14 +41,18 @@ const TOPICS = [
   },
 ];
 
-export default function HelpPage() {
+// "Need help?" on the account screen opens /help?talk=1: just the
+// "Talk to us" card, without the other help topics.
+export default async function HelpPage({ searchParams }) {
+  const talkOnly = (await searchParams)?.talk === "1";
   return (
-    <div className="wrap wrap-narrow help-page">
+    <div className="wrap help-page">
       <header className="page-title">
-        <h1>Help Center</h1>
-        <p>Pick what you need, or call us.</p>
+        <h1>{talkOnly ? "Need help?" : "Help Center"}</h1>
+        <p>{talkOnly ? "Call us and we will sort it out." : "Pick what you need, or call us."}</p>
       </header>
 
+      {talkOnly ? null : (
       <div className="help-grid">
         {TOPICS.map((topic) => (
           <section key={topic.title} className="panel help-card">
@@ -53,13 +64,14 @@ export default function HelpPage() {
           </section>
         ))}
       </div>
+      )}
 
       <section className="panel help-card help-call">
         <h2>Talk to us</h2>
         <p>Call and we will help with an order, a payment or anything else.</p>
-        <a href="tel:+919003597158" className="btn primary">
+        <CallButton phone="+919003597158" label="+91 90035 97158" title="Call Hosur Basket" className="btn primary">
           Call +91 90035 97158
-        </a>
+        </CallButton>
         <p className="help-terms">
           <Link href="/terms">Terms &amp; Conditions</Link>
         </p>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { MorphingSquare } from "@/components/ui/morphing-square";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/client-api";
 import { IconBack, IconUser } from "@/components/AccountIcons";
@@ -20,9 +20,6 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
-  const [photo, setPhoto] = useState("");
-  const [photoBusy, setPhotoBusy] = useState(false);
-  const fileInput = useRef(null);
 
   // Changing the mobile number: type the new one, get a code on it, enter it.
   const [newPhone, setNewPhone] = useState("");
@@ -34,77 +31,10 @@ export default function EditProfilePage() {
   useEffect(() => {
     if (user) {
       setForm({ name: user.name || "", email: user.email || "" });
-      setPhoto(user.avatar || "");
     }
   }, [user]);
 
   const set = (key) => (event) => setForm((f) => ({ ...f, [key]: event.target.value }));
-
-  // Squares the picture and shrinks it to 400px before sending, so a phone
-  // photo of several MB goes up as a few dozen KB.
-  function shrink(file) {
-    return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(file);
-      const image = new Image();
-      image.onload = () => {
-        const side = Math.min(image.width, image.height);
-        const size = Math.min(400, side);
-        const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-        canvas.getContext("2d").drawImage(
-          image,
-          (image.width - side) / 2,
-          (image.height - side) / 2,
-          side,
-          side,
-          0,
-          0,
-          size,
-          size
-        );
-        URL.revokeObjectURL(url);
-        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Could not read that image"))), "image/jpeg", 0.85);
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("That file is not an image"));
-      };
-      image.src = url;
-    });
-  }
-
-  async function changePhoto(file) {
-    if (!file) return;
-    setPhotoBusy(true);
-    setError("");
-    try {
-      const blob = await shrink(file);
-      const { url } = await api.upload("/uploads/avatar", blob);
-      await api.patch("/auth/me", { avatar: url });
-      setPhoto(url);
-      await refreshUser();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setPhotoBusy(false);
-      if (fileInput.current) fileInput.current.value = "";
-    }
-  }
-
-  async function removePhoto() {
-    setPhotoBusy(true);
-    setError("");
-    try {
-      await api.patch("/auth/me", { avatar: "" });
-      setPhoto("");
-      await refreshUser();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setPhotoBusy(false);
-    }
-  }
 
   async function sendPhoneCode() {
     setPhoneBusy(true);
@@ -190,46 +120,14 @@ export default function EditProfilePage() {
 
       <section className="panel edit-profile-card">
         <div className="edit-profile-head">
+          {/* No photo upload: the profile shows the first letter of the name. */}
           <div className="edit-profile-photo-wrap">
-            <button
-              type="button"
-              className="edit-profile-photo"
-              onClick={() => fileInput.current?.click()}
-              disabled={photoBusy}
-              aria-label="Change profile photo"
-            >
+            <span className="edit-profile-photo" aria-hidden="true">
               <span className="photo-face">
-                {photo ? <img src={photo} alt="" /> : (form.name || user.name || "").trim() ? (form.name || user.name).trim().charAt(0) : <IconUser width={40} height={40} />}
+                {(form.name || user.name || "").trim() ? (form.name || user.name).trim().charAt(0).toUpperCase() : <IconUser width={40} height={40} />}
               </span>
-              <span className="photo-cam" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
-                  <circle cx="12" cy="13" r="3.5" />
-                </svg>
-              </span>
-            </button>
-            {photo ? (
-              <button
-                type="button"
-                className="photo-remove-icon"
-                onClick={removePhoto}
-                disabled={photoBusy}
-                aria-label="Remove photo"
-                title="Remove photo"
-              >
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3" />
-                </svg>
-              </button>
-            ) : null}
+            </span>
           </div>
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            hidden
-            onChange={(e) => changePhoto(e.target.files?.[0])}
-          />
           <div className="edit-profile-who">
             <strong>{form.name || user.name}</strong>
             <span>+91 {user.phone}</span>

@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { img } from "@/lib/format";
+import { categoryImage, img } from "@/lib/format";
 import { getBanners, getHome } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
+import LazySection from "@/components/LazySection";
 import BannerCarousel from "@/components/BannerCarousel";
 import CategoryIcon from "@/components/CategoryIcon";
 import HomeSidebar from "@/components/HomeSidebar";
@@ -23,7 +24,7 @@ export const metadata = {
   // segment, so the brand is spelled out here rather than appended.
   title: "Hosur Basket — fresh fruit, vegetables & groceries delivered",
   description:
-    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your neighbourhood Hosur Basket store.",
+    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your Hosur Basket store.",
   alternates: { canonical: "/" },
 };
 
@@ -94,8 +95,8 @@ export default async function HomePage() {
                 {departments.map((department) => (
                   <Link key={department.id} href={`/c/${department.slug}`} className="top-cat">
                     <span className="top-cat-icon">
-                      {department.image ? (
-                        <img src={img(department.image, 160)} alt="" className="top-cat-photo" />
+                      {categoryImage(department) ? (
+                        <img src={img(categoryImage(department), 160)} alt="" className="top-cat-photo" />
                       ) : (
                         <CategoryIcon name={department.name} />
                       )}
@@ -189,7 +190,8 @@ export default async function HomePage() {
 
           {rails
             .filter((rail) => rail.products.length >= MIN_ROW_ITEMS)
-            .map((rail) => (
+            .map((rail, railIndex) => {
+              const row = (
               <section key={rail.category.id} className="section">
                 <SectionHead
                   title={rail.category.name}
@@ -202,38 +204,10 @@ export default async function HomePage() {
                   ))}
                 </Carousel>
               </section>
-            ))}
-
-          {departments.length ? (
-            <section className="section">
-              <SectionHead title="Explore Categories" href="/c" linkLabel="View All Categories" />
-              <div className="shop-row">
-                {departments.slice(0, 8).map((department) => (
-                  <Link key={department.id} href={`/c/${department.slug}`} className="shop-card">
-                    <span className="shop-card-media">
-                      {department.image ? (
-                        <img src={img(department.image, 240)} alt="" loading="lazy" />
-                      ) : (
-                        <CategoryIcon name={department.name} />
-                      )}
-                    </span>
-                    <span className="shop-card-body">
-                      <strong>{department.name}</strong>
-                      {department.description || department.slug === "fresh-vegetables" ? (
-                        <span className="shop-card-note">
-                          {department.description || "Farm-fresh greens and vegetables, fresh every day."}
-                        </span>
-                      ) : null}
-                      <span className="shop-cue">
-                        Shop Now
-                        <IconArrow />
-                      </span>
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
+              );
+              // The first two department rows are near the top; the rest build only as you scroll to them.
+              return railIndex < 2 ? row : <LazySection key={rail.category.id}>{row}</LazySection>;
+            })}
 
           <TrustStrip prepTimeMinutes={store?.prepTimeMinutes} />
 

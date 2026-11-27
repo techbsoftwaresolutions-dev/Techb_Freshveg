@@ -1,10 +1,11 @@
 "use client";
 
+import EmptyHero from "./EmptyHero";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { rupees } from "@/lib/format";
-import { CLOSED_STATUSES, orderStatusInfo } from "@/lib/orderStatus";
+import { CLOSED_STATUSES, orderProgressText, orderStatusInfo } from "@/lib/orderStatus";
 import { useCart } from "./Providers";
 
 // The order list's pieces: the card, the loading skeleton and the empty state.
@@ -15,11 +16,6 @@ const MAX_THUMBS = 4;
 
 const day = (value) =>
   value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "";
-const shortDay = (value) =>
-  value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "";
-const clock = (value) =>
-  new Date(value).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
-const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
 
 // The one line under the total: when it arrived, when it was cancelled, or
 // when it is due.
@@ -35,11 +31,8 @@ function infoLine(order) {
     const word = orderStatusInfo(order.status).label;
     return at ? `${word} on ${day(at)}` : word;
   }
-  const due = order.delivery?.expectedBy;
-  if (due) {
-    return sameDay(due, new Date()) ? `Expected today by ${clock(due)}` : `Expected ${shortDay(due)}`;
-  }
-  return `Placed on ${day(order.placedAt)}`;
+  // Still on its way: what is happening now and when it arrives.
+  return orderProgressText(order);
 }
 
 export function StatusBadge({ status }) {
@@ -47,13 +40,21 @@ export function StatusBadge({ status }) {
   return <span className={`ob ob-${tone}`}>{label}</span>;
 }
 
-export default function OrderCard({ order }) {
+// Returns can be raised for one hour after delivery (the server has the final say).
+const RETURN_WINDOW_MS = 60 * 60 * 1000;
+function withinReturnWindow(order) {
+  const at = order.delivery?.deliveredAt || order.statusHistory?.find((h) => h.status === "DELIVERED")?.at;
+  return Boolean(at) && Date.now() - new Date(at).getTime() < RETURN_WINDOW_MS;
+}
+
+export default function OrderCard({ order, returnAction = false }) {
   const router = useRouter();
   const cart = useCart();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
 
   const items = order.items || [];
+  const laterCount = items.filter((i) => i.deferred?.expectedOn && !i.deferred.deliveredAt).length;
   const shown = items.slice(0, MAX_THUMBS);
   const more = items.length - shown.length;
   const delivered = order.status === "DELIVERED";
@@ -101,7 +102,8 @@ export default function OrderCard({ order }) {
 
         <div className="oc-sum">
           <span className="oc-count">
-            {items.length} item{items.length === 1 ? "" : "s"}
+            {items.length - laterCount} item{items.length - laterCount === 1 ? "" : "s"}
+            {laterCount ? ` · ${laterCount} arriving later` : ""}
           </span>
           <strong className="oc-total">{rupees(order.pricing?.total)}</strong>
         </div>
@@ -112,7 +114,11 @@ export default function OrderCard({ order }) {
         <Link href={`/orders/${order.id}`} className="oc-btn primary">
           View Order
         </Link>
-        {delivered ? (
+        {returnAction && order.status === "DELIVERED" && withinReturnWindow(order) ? (
+          <Link href={`/orders/${order.id}?return=1`} className="oc-btn">
+            Return items
+          </Link>
+        ) : delivered ? (
           <button type="button" className="oc-btn" onClick={buyAgain} disabled={busy}>
             {busy ? "Adding…" : "Buy Again"}
           </button>
@@ -156,25 +162,5 @@ export function OrderSkeletons({ count = 3 }) {
 }
 
 export function OrdersEmpty() {
-  return (
-    <div className="orders-empty">
-      <svg viewBox="0 0 120 120" width="112" height="112" fill="none" aria-hidden="true">
-        <circle cx="60" cy="60" r="54" fill="var(--brand-soft)" />
-        <path
-          d="M36 48h48l-4 38a6 6 0 0 1-6 5.4H46a6 6 0 0 1-6-5.4L36 48Z"
-          fill="#fff"
-          stroke="var(--brand)"
-          strokeWidth="3"
-          strokeLinejoin="round"
-        />
-        <path d="M48 48v-6a12 12 0 0 1 24 0v6" stroke="var(--brand)" strokeWidth="3" strokeLinecap="round" />
-        <path d="m51 71 6 6 12-13" stroke="var(--brand)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <h2>No orders yet</h2>
-      <p>Your orders will appear here once you make your first purchase.</p>
-      <Link href="/" className="oc-btn primary">
-        Start Shopping
-      </Link>
-    </div>
-  );
+  return <EmptyHero word="orders" />;
 }

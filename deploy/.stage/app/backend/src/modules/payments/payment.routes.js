@@ -1,8 +1,9 @@
 const express = require("express");
+const { dateBounds } = require("../../core/dateRange");
 const QRCode = require("qrcode");
 const asyncHandler = require("../../core/asyncHandler");
 const ApiError = require("../../core/ApiError");
-const { paginate } = require("../../core/query");
+const { paginate, escapeRegex } = require("../../core/query");
 const { requireAuth, requirePermission } = require("../../middleware/auth");
 
 const Payment = require("./payment.model");
@@ -41,7 +42,15 @@ router.post(
     const event = JSON.parse(raw);
     const entity = event?.payload?.payment?.entity;
 
-    if (entity?.order_id) {
+    // A wallet "Add money" payment rather than an order payment.
+    const isTopup = entity?.order_id
+      ? await require("../wallet/topup.service").fromWebhook(entity).catch((err) => {
+          console.error("[wallet] top-up webhook failed:", err.message);
+          return true; // it was a top-up; leave it for a retry rather than treat it as an order
+        })
+      : false;
+
+    if (entity?.order_id && !isTopup) {
       const payment = await Payment.findOne({ providerOrderId: entity.order_id });
       if (payment && payment.status !== "captured" && entity.status === "captured") {
         payment.status = "captured";
@@ -187,12 +196,30 @@ router.get(
     if (req.query.status) filter.status = { $in: String(req.query.status).split(",") };
     if (req.query.method) filter.method = { $in: String(req.query.method).split(",") };
     if (req.query.store) filter.store = req.query.store;
-    if (req.query.search) filter.orderCode = new RegExp(String(req.query.search), "i");
-    if (req.query.from || req.query.to) {
-      filter.createdAt = {};
-      if (req.query.from) filter.createdAt.$gte = new Date(req.query.from);
-      if (req.query.to) filter.createdAt.$lte = new Date(req.query.to);
+    // Search: order code, gateway order / payment id, method, status, the
+    // customer's name, phone or email, or the amount (e.g. 676 or ₹676.00).
+    if (req.query.search) {
+      const term = String(req.query.search).trim().slice(0, 60);
+      const rx = new RegExp(escapeRegex(term), "i");
+      const customers = await User.find({ $or: [{ name: rx }, { phone: rx }, { email: rx }] }).distinct("_id");
+      const or = [
+        { orderCode: rx },
+        { providerOrderId: rx },
+        { providerPaymentId: rx },
+        { method: rx },
+        { status: rx },
+        { provider: rx },
+        { customer: { $in: customers } },
+      ];
+      const amount = Number(term.replace(/[₹,\s]/g, ""));
+      if (term.replace(/[₹,\s]/g, "") !== "" && Number.isFinite(amount) && amount > 0) {
+        const paise = Math.round(amount * 100);
+        or.push({ amount: paise }, { amountCaptured: paise }, { amountRefunded: paise });
+      }
+      filter.$or = or;
     }
+    const created = dateBounds(req.query.from, req.query.to);
+    if (created) filter.createdAt = created;
 
     const result = await paginate(Payment, filter, req.query, { defaultSort: { createdAt: -1 } });
 
@@ -278,6 +305,16 @@ router.get(
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
     const result = await paginate(Refund, filter, req.query, { defaultSort: { createdAt: -1 } });
+
+    // An order an admin has deleted still has its refund on record, but there
+    // is no order page left to open — tell the screen so it doesn't link there.
+    const ids = result.items.map((r) => r.order).filter(Boolean);
+    const alive = new Set((await Order.find({ _id: { $in: ids } }).select("_id").lean()).map((o) => String(o._id)));
+    result.items = result.items.map((r) => {
+      const row = typeof r.toJSON === "function" ? r.toJSON() : r;
+      return { ...row, orderExists: alive.has(String(r.order)) };
+    });
+
     res.json({ success: true, ...result });
   })
 );

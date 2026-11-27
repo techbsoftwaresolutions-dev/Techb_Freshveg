@@ -573,7 +573,7 @@ table.data th.sortable:hover { color: var(--text); }
 
 /* The export icon rides in the last header cell, out of flow, so the table
    keeps its columns and no extra row is spent on it. */
-table.data th.export-th { position: relative; padding-right: 44px; }
+table.data th.export-th { position: relative; padding-right: 80px; }
 .export-menu { position: absolute; right: 8px; top: 0; bottom: 0; display: flex; align-items: center; /* no transform: a transformed parent makes the fixed dropdown position itself against the button instead of the window */ text-transform: none; letter-spacing: 0; }
 .export-menu .icon-btn { width: 30px; height: 30px; padding: 0; justify-content: center; }
 .export-menu .icon-btn svg { flex: 0 0 auto; }
@@ -2627,6 +2627,12 @@ table.data tr.drop-target td { box-shadow: inset 0 2px 0 var(--accent); }
 .orders-page table.data .row-title.mono { font-weight: 700; }
 .order-head .order-back { display: inline-flex; margin: 0 0 6px; padding: 5px 12px; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .order-head h1 { margin: 0; }
+.menu-btn { position: relative; }
+.menu-btn > .btn { display: inline-flex; align-items: center; gap: 6px; }
+.menu-caret { font-size: 10px; opacity: .7; }
+.menu-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 170px; padding: 6px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, .14); }
+.menu-list button { text-align: left; padding: 8px 12px; border: 0; border-radius: 8px; background: none; font: inherit; font-size: 13.5px; color: var(--text); cursor: pointer; }
+.menu-list button:hover, .menu-list button:focus-visible { background: var(--surface-2); }
 .order-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
 .order-sum-tile { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); min-width: 0; }
 .order-sum-tile:nth-child(1) { border-top: 3px solid var(--accent); }
@@ -2856,6 +2862,39 @@ input.switch:checked::after { transform: translateX(18px); }
 .users-page table.data thead th { background: var(--surface-2); font-size: 11px; letter-spacing: .05em; }
 .users-page table.data tbody tr:hover { background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
 .type-tile:disabled { opacity: .55; cursor: not-allowed; }
+/* Settings -> Print: template list left, live preview right, the whole panel
+   sized to the screen (FitToScreen) so nothing scrolls. */
+.settings-main:has(.print-layout) { max-width: 1240px; }
+/* Templates in a column on the left (scrolls if they don't all fit), the
+   preview fills the rest on the right. */
+.print-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 16px; padding: 16px; min-height: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); box-sizing: border-box; }
+.print-list { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 9px 12px 9px 3px; scrollbar-width: thin; }
+.print-item { position: relative; display: flex; align-items: center; flex: none; min-height: 48px; width: 100%; padding: 10px 10px; text-align: left; font: inherit; color: var(--text); background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+.print-item:hover { border-color: var(--accent); }
+.print-item.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-soft); }
+.print-item-head { display: flex; align-items: center; gap: 8px; min-width: 0; padding-right: 14px; }
+.print-item-head strong { font-size: 12.5px; line-height: 1.25; font-weight: 650; min-width: 0; }
+.print-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.print-check { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 11px; font-weight: 800; box-shadow: 0 0 0 2px var(--surface); }
+/* The preview area takes the rest; the page inside is scaled to fit it whole. */
+.print-layout .invoice-preview { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; border-radius: 12px; background: var(--surface-2); }
+/* Scrolls only when zoomed past "fit"; margin:auto centres the page without
+   clipping its left/top edge once it is bigger than the area. */
+.invoice-scroll { position: absolute; inset: 0; display: flex; overflow: auto; padding: 12px; box-sizing: border-box; }
+.invoice-scroll .invoice-page { margin: auto; flex: none; }
+.zoom-ctl { position: absolute; right: 14px; bottom: 14px; z-index: 2; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 94%, transparent); border: 1px solid var(--border); box-shadow: 0 6px 18px rgba(16, 24, 20, .16); backdrop-filter: blur(6px); }
+.zoom-ctl button { min-width: 32px; height: 32px; padding: 0 8px; border: 0; border-radius: 999px; background: none; color: var(--text); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; }
+.zoom-ctl button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
+.zoom-ctl button:disabled { opacity: .35; cursor: default; }
+.zoom-ctl .zoom-fit { font-size: 12.5px; font-weight: 700; border-left: 1px solid var(--border); border-radius: 0 999px 999px 0; margin-left: 2px; }
+.zoom-val { min-width: 46px; text-align: center; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.invoice-page { position: relative; overflow: hidden; background: #fff; border-radius: 6px; box-shadow: 0 6px 22px rgba(16, 24, 20, .14); }
+.invoice-page iframe { position: absolute; top: 0; left: 0; width: 820px; height: 1100px; border: 0; transform-origin: 0 0; }
+@media (max-width: 860px) {
+  /* Narrow screens: back to one row along the top, preview underneath. */
+  .print-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .print-list { display: grid; grid-auto-flow: column; grid-auto-columns: 130px; overflow-x: auto; overflow-y: hidden; padding: 9px 9px 6px 3px; }
+}
 .affix-button { border: 0; border-left: 1px solid var(--border); font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; color: var(--accent); }
 
 /* ---------- Audit log v2 ---------- */
@@ -3113,6 +3152,12 @@ input.switch:checked::after { transform: translateX(18px); }
 
 .pack-hint { display: block; margin-top: 4px; font-size: 11.5px; color: var(--text-muted); }
 
+/* ---- Toasts (components/Toaster.jsx) ---- */
+.toaster { position: fixed; top: 76px; right: 20px; z-index: 200; display: grid; gap: 8px; width: min(380px, calc(100vw - 40px)); pointer-events: none; }
+.toast-msg.danger, .toast-msg.error { background: #c93a3a; }
+.toast-msg.warn { background: #b7791f; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .toast-msg { animation: none; } }
 /* Toasts */
 .toaster { position: fixed; top: 18px; right: 18px; z-index: 1000; display: flex; flex-direction: column; gap: 12px; width: min(400px, calc(100vw - 32px)); pointer-events: none; }
 .toast {
@@ -3135,3 +3180,272 @@ input.switch:checked::after { transform: translateX(18px); }
 @keyframes toast-in { from { opacity: 0; transform: translateX(24px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes toast-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
+/* ---------------------------------------------------------------- confirm
+   "Delete this product?" — a small card in the middle of the screen. */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(10, 12, 16, 0.5);
+  animation: confirm-fade 0.12s ease-out;
+}
+.confirm-card {
+  width: 100%;
+  max-width: 360px;
+  padding: 26px 24px 20px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.28);
+  text-align: center;
+  animation: confirm-pop 0.14s ease-out;
+}
+.confirm-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--danger-soft, #fdecec);
+  color: var(--danger);
+}
+.confirm-card h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
+.confirm-message {
+  margin: 8px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.confirm-actions { display: flex; gap: 10px; margin-top: 22px; }
+.confirm-actions .btn { flex: 1; justify-content: center; min-height: 40px; }
+.btn.confirm-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.confirm-danger:hover:not(:disabled) { filter: brightness(0.93); }
+@keyframes confirm-fade { from { opacity: 0; } }
+@keyframes confirm-pop { from { opacity: 0; transform: scale(0.96); } }
+.confirm-note { margin: 6px 0 0; font-size: 13px; color: var(--text-muted); }
+.confirm-note.error { color: var(--danger); }
+
+/* Delete button in the confirm card: stays red on hover / press, just a
+   shade darker (a generic .btn:hover was turning it grey with white text). */
+.confirm-actions .btn.confirm-danger,
+.confirm-actions .btn.confirm-danger:hover:not(:disabled),
+.confirm-actions .btn.confirm-danger:focus-visible {
+  background: #c62828;
+  border-color: #c62828;
+  color: #fff;
+  filter: none;
+}
+.confirm-actions .btn.confirm-danger:hover:not(:disabled) {
+  background: #a91f1f;
+  border-color: #a91f1f;
+  box-shadow: 0 6px 16px rgba(198, 40, 40, 0.28);
+}
+.confirm-actions .btn.confirm-danger:active:not(:disabled) { background: #8f1a1a; border-color: #8f1a1a; box-shadow: none; }
+.confirm-actions .btn.confirm-danger:focus-visible { outline: 2px solid #c62828; outline-offset: 2px; }
+.confirm-actions .btn.confirm-danger:disabled { background: #e57373; border-color: #e57373; color: #fff; opacity: 1; }
+/* Cancel: a light grey fill on hover so it is clearly the quieter choice. */
+.confirm-actions .btn:not(.confirm-danger):not(.primary):hover:not(:disabled) { background: #f1f3f2; border-color: #cfd6d2; color: var(--text); }
+
+/* ---------------------------------------------------------------- toast
+   Simple and quiet: white card, a small tick, one line ("Product saved"). */
+.toaster { top: 18px; right: 18px; gap: 10px; width: auto; max-width: min(380px, calc(100vw - 32px)); align-items: flex-end; }
+.toast {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+  padding: 11px 10px 11px 12px !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  border: 1px solid #e3e8e5 !important;
+  border-left: 3px solid var(--tone, #1f8a4c) !important;
+  box-shadow: 0 8px 24px rgba(16, 24, 20, 0.12) !important;
+  pointer-events: auto;
+  animation: toast-in .2s ease-out;
+}
+.toast.success { --tone: #1f8a4c; }
+.toast.error { --tone: #d43b3b; }
+.toast.info { --tone: #2f6fe4; }
+.toast .toast-ico { width: 22px; height: 22px; flex: 0 0 22px; box-shadow: none; background: var(--tone); }
+.toast .toast-ico svg { width: 13px; height: 13px; }
+.toast-text { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: #1c2a22; line-height: 1.35; overflow-wrap: anywhere; }
+.toast .toast-x { width: 22px; height: 22px; flex: 0 0 22px; color: #8a968f; }
+.toast .toast-bar { display: none; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* Return photos sent by the customer. */
+.return-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.return-photos a { display: block; width: 92px; height: 92px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border, #e5e7eb); }
+.return-photos img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.return-photos a:hover { outline: 2px solid var(--primary, #547f1a); }
+.decline-box { margin-bottom: 14px; padding: 12px; border: 1px solid #f3c7c3; border-radius: 12px; background: #fff7f6; }
+.decline-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.decline-chips button { padding: 6px 10px; border: 1px solid #e6d0cd; border-radius: 999px; background: #fff; font: inherit; font-size: 12.5px; cursor: pointer; }
+.decline-chips button.on { border-color: #c62828; background: #c62828; color: #fff; }
+.decline-box textarea { width: 100%; padding: 8px 10px; border: 1px solid #e6d0cd; border-radius: 10px; font: inherit; font-size: 13.5px; resize: vertical; }
+.return-requests { display: grid; gap: 10px; margin-top: 6px; }
+.return-request { padding: 10px 12px; border: 1px solid var(--border, #e5e7eb); border-radius: 12px; }
+.return-request-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13.5px; }
+
+/* ---------- Table pagination footer ---------- */
+.table-pager { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px 22px; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-muted); }
+.table-pager-size { display: inline-flex; align-items: center; gap: 8px; margin: 0 auto 0 0; white-space: nowrap; flex: none; }
+.table-pager-size select { width: auto; flex: none; }
+.table-pager-size select { height: 32px; min-width: 64px; padding: 0 6px 0 10px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.table-pager-range { font-variant-numeric: tabular-nums; }
+.table-pager-pages { display: inline-flex; align-items: center; gap: 4px; }
+.table-pager-pages button { min-width: 32px; height: 32px; padding: 0 8px; font: inherit; font-weight: 600; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.table-pager-pages button:hover:not(:disabled):not(.on) { border-color: var(--accent); color: var(--accent); }
+.table-pager-pages button.on { background: var(--accent); border-color: var(--accent); color: #fff; cursor: default; }
+.table-pager-pages button:disabled { opacity: .4; cursor: default; }
+.table-pager-gap { min-width: 20px; text-align: center; }
+@media (max-width: 640px) { .table-pager { justify-content: center; } }
+.products-page .unit-cell { white-space: nowrap; }
+
+/* ---------- Table header tools: column picker + download ---------- */
+.export-menu { gap: 2px; }
+.menu-part { position: relative; display: inline-flex; }
+.export-menu .icon-btn.has-hidden { color: var(--accent); }
+.cols-dot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
+.cols-pop { min-width: 210px; max-height: 360px; overflow-y: auto; padding: 6px; text-transform: none; letter-spacing: 0; }
+.cols-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.cols-head strong { font-size: 13px; color: var(--text); }
+.cols-reset { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; font-weight: 700; color: var(--accent); cursor: pointer; }
+.cols-item { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer; }
+.cols-item:hover { background: var(--surface-2); }
+.cols-item input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; cursor: pointer; }
+.cols-item input:disabled { cursor: not-allowed; }
+.cols-note { margin: 4px 8px 4px; padding-top: 6px; border-top: 1px solid var(--border); font-size: 11.5px; font-weight: 400; color: var(--text-muted); }
+
+/* Products table: product code and its QR code. */
+.products-page .code-cell { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.qr-cell { display: block; width: 52px; height: 52px; border-radius: 6px; background: #fff; border: 1px solid var(--border); padding: 2px; }
+.qr-cell.qr-wait { background: var(--surface-2); }
+
+/* Settings -> Print: Online invoice | POS bill switch above the format list. */
+.print-kind { position: sticky; top: 0; z-index: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 4px; border-radius: 12px; background: var(--surface-2); flex: none; }
+.print-kind button { padding: 8px 6px; border: 0; border-radius: 9px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--text-muted); background: none; cursor: pointer; }
+.print-kind button.on { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgba(16, 24, 20, .12); }
+@media (max-width: 860px) { .print-kind { grid-column: 1 / -1; } }
+/* Settings -> Print: receipt font size (presets + a typed size). */
+.print-font { flex: none; display: grid; gap: 6px; padding: 10px; margin-bottom: 4px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface); }
+.print-font-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.print-font-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; border-radius: 10px; background: var(--surface-2); }
+.print-font-presets button { padding: 6px 4px; border: 0; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 650; color: var(--text-muted); background: none; cursor: pointer; }
+.print-font-presets button.on { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgba(16, 24, 20, .12); }
+.print-font-custom { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-muted); }
+.print-font-custom > span:first-child { margin-right: auto; }
+.print-font-custom button { width: 28px; height: 28px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.print-font-custom button:disabled { opacity: .4; cursor: default; }
+.print-font-custom input { width: 44px; height: 28px; text-align: center; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-weight: 650; }
+@media (max-width: 860px) { .print-font { grid-column: 1 / -1; } }
+
+/* Orders: search box before the status filter. */
+.orders-search { flex: 1 1 320px; max-width: 460px; }
+.orders-search-note { font-size: 12.5px; }
+
+/* Built-in search above every admin table (Table search prop). */
+.table-search { display: flex; align-items: center; gap: 10px; padding: 10px 14px 4px; }
+.table-search .search-field { flex: 0 1 380px; }
+.table-search-count { font-size: 12.5px; color: var(--text-muted); white-space: nowrap; }
+.table-nomatch { padding: 22px 14px !important; text-align: center; color: var(--text-muted); }
+
+/* Dashboard: the greeting fades out 2s after login; the POS Billing button
+   sits first among the header actions. */
+.dash-greet { transition: opacity .45s ease, max-width .45s ease; max-width: 900px; overflow: hidden; white-space: nowrap; }
+.dash-greet.gone { opacity: 0; max-width: 0; pointer-events: none; }
+.dash-head .dash-head-actions { margin-left: auto; }
+.dash-pos-btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 999px;
+  background: linear-gradient(100deg, #167a40, #1f9a52); color: #fff; font-weight: 700; font-size: 14px;
+  box-shadow: 0 6px 16px rgba(22, 122, 64, .28); transition: transform .15s, box-shadow .15s;
+}
+.dash-pos-btn:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 10px 22px rgba(22, 122, 64, .34); }
+
+/* Dashboard header: only the greeting now; once it fades the whole strip
+   folds away so the cards move up. */
+.dash-head { transition: max-height .45s ease, margin .45s ease, opacity .45s ease; max-height: 120px; overflow: hidden; }
+.dash-head.dash-head-gone { max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; opacity: 0; }
+
+/* Stats row with the POS Billing card: seven across on wide screens. */
+.grid.cols-7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+@media (max-width: 1500px) { .grid.cols-7 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .grid.cols-7 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .grid.cols-7 { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- Order detail: Tracking card (icon steps with status tags) ---- */
+.track-card .card-head { position: relative; overflow: hidden; background: linear-gradient(100deg, var(--surface) 55%, color-mix(in srgb, #8fd16a 22%, var(--surface))); }
+.track-title { display: inline-flex; align-items: center; gap: 10px; }
+.track-title svg { color: var(--accent); }
+.track-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.track-step { --c: #2e9b3e; --bg: color-mix(in srgb, var(--c) 9%, var(--surface)); display: grid; grid-template-columns: 44px 1fr; gap: 12px; align-items: center; position: relative; }
+.track-step.done { --c: #2e9b3e; }
+.track-step.final { --c: #8b3fc6; }
+.track-step.active { --c: #1f7fd6; }
+.track-step.pending { --c: #f08c00; }
+.track-step:not(:last-child)::after { content: ""; position: absolute; left: 20.5px; top: 44px; bottom: -14px; width: 3px; border-radius: 3px; background: var(--c); }
+.track-step.pending:not(:last-child)::after { background: repeating-linear-gradient(to bottom, #c9c9c9 0 6px, transparent 6px 11px); }
+.track-dot { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 70%, #fff), var(--c) 70%); box-shadow: 0 4px 10px color-mix(in srgb, var(--c) 35%, transparent); position: relative; z-index: 1; }
+.track-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px 11px 14px; border-radius: 14px; background: var(--bg); border: 1px solid color-mix(in srgb, var(--c) 14%, transparent); min-width: 0; }
+.track-text { display: grid; gap: 2px; min-width: 0; }
+.track-text strong { font-size: 14px; font-weight: 700; color: var(--text); }
+.track-text span { font-size: 12.5px; color: var(--text-muted); }
+.track-tag { display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--surface)); white-space: nowrap; }
+.track-step.done .track-tag svg, .track-step.final .track-tag svg { background: var(--c); color: #fff; border-radius: 50%; padding: 2px; }
+
+/* ---- Order detail: the step bar at the top, same look as the Tracking card ---- */
+.stage-tracker.track-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; list-style: none; margin: 0; padding: 18px 10px 16px; }
+.track-row .track-step { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; grid-template-columns: none; padding: 0 6px; }
+.track-row .track-step::after { display: none; }
+.track-row .track-step:not(:last-child)::before { content: ""; position: absolute; top: 20.5px; left: calc(50% + 26px); right: calc(-50% + 26px); height: 3px; border-radius: 3px; background: var(--c); }
+.track-row .track-step.pending:not(:last-child)::before { background: repeating-linear-gradient(to right, #c9c9c9 0 6px, transparent 6px 11px); }
+.track-row .track-dot { margin-bottom: 6px; }
+.track-row-label { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.track-row-time { font-size: 12px; color: var(--text-muted); }
+.track-row .track-tag { margin-top: 4px; padding: 4px 10px; font-size: 11.5px; }
+@media (max-width: 900px) {
+  .stage-tracker.track-row { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 18px; }
+  .track-row .track-step:nth-child(3n)::before { display: none; }
+}
+@media (max-width: 520px) {
+  .stage-tracker.track-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .track-row .track-step:nth-child(3n)::before { display: block; }
+  .track-row .track-step:nth-child(2n)::before { display: none; }
+}
+
+/* Each step has its own colour once reached (done or in progress);
+   steps not reached yet stay grey. */
+.track-step.step-1:not(.pending) { --c: #2e9b3e; } /* order placed: green */
+.track-step.step-2:not(.pending) { --c: #1f7fd6; } /* confirmed: blue */
+.track-step.step-3:not(.pending) { --c: #8d5524; } /* preparing: brown */
+.track-step.step-4:not(.pending) { --c: #e3a400; } /* out for delivery: yellow */
+.track-step.step-5:not(.pending) { --c: #e8590c; } /* arrived: orange */
+.track-step.step-6:not(.pending) { --c: #8b3fc6; } /* delivered: purple */
+.track-step.pending { --c: #9aa1a9; }
+.track-tag { color: color-mix(in srgb, var(--c) 72%, #000); }
+
+/* Settings -> General -> POS: which channels the bill is sent by. */
+.send-via { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.send-via-opt { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; font-weight: 600; background: var(--surface); }
+.send-via-opt.on { border-color: var(--accent); background: var(--accent-soft, #e8f5ec); color: var(--accent); }
+.send-via-opt input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+
+/* Products list: the product name (and its category under it) on one line,
+   cut with "..." when very long, so the table does not grow past the screen
+   (which pushed the column / download buttons out of sight). */
+.products-page:not(.reviews-page) table.data .row-with-media .stack { min-width: 0; max-width: 230px; }
+.products-page:not(.reviews-page) table.data .row-with-media .row-title,
+.products-page:not(.reviews-page) table.data .row-with-media .row-sub {
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal;
+}
+
+/* Every table: the column picker and download buttons stay pinned to the
+   right edge of the header, even when the table scrolls sideways. */
+table.data thead th.export-th { position: sticky; right: 0; z-index: 2; background: var(--surface-2); }

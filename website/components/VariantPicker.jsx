@@ -184,7 +184,7 @@ export default function VariantPicker({ product, variants }) {
             say it here — "₹68" alone could be for any amount. */}
         {variants.length === 1 && variant.name ? (
           <div className="pdp-pack">
-            Pack size <strong>{packLabel(variant)}</strong>
+            Unit <strong>{packLabel(variant)}</strong>
           </div>
         ) : null}
         <div className="pdp-price-row">
@@ -259,7 +259,7 @@ function packLabel(variant) {
     const trim = (n) => Number(n.toFixed(2)).toString();
     if (size.unit === "kg" && size.value < 1) return `${trim(size.value * 1000)} g`;
     if (size.unit === "l" && size.value < 1) return `${trim(size.value * 1000)} ml`;
-    if (size.unit === "pcs") return size.value === 1 ? "1 piece" : `${trim(size.value)} pieces`;
+    if (size.unit === "pcs") return size.value === 1 ? "1 pack" : `${trim(size.value)} pieces`;
     return `${trim(size.value)} ${size.unit}`;
   }
   return String(variant.name).replace(/^(\d+(?:\.\d+)?)\s*(KG|G|ML|L)$/i, (_, n, unit) => `${n} ${unit.toLowerCase()}`);

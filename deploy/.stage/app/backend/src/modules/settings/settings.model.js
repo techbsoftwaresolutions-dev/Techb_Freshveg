@@ -78,6 +78,7 @@ const settingsSchema = new mongoose.Schema(
         email: { type: Boolean, default: false },
         whatsapp: { type: Boolean, default: false },
       },
+      ownerWhatsApp: { type: String, default: "" },
       abandonedCart: {
         enabled: { type: Boolean, default: true },
         firstReminderMinutes: { type: Number, default: 30 },
@@ -99,6 +100,48 @@ const settingsSchema = new mongoose.Schema(
       reviewsEnabled: { type: Boolean, default: true },
       reviewsNeedApproval: { type: Boolean, default: true },
       wishlistEnabled: { type: Boolean, default: true },
+    },
+
+    // Which screen layout the POS billing page uses (chosen in Settings -> POS).
+    pos: {
+      template: { type: String, enum: ["standard", "compact", "touch", "terminal"], default: "standard" },
+      // After a bill is saved, send it to the customer's number:
+      // off | sms | whatsapp | both. (Settings -> General -> POS)
+      sendBill: { type: String, enum: ["off", "sms", "whatsapp", "both"], default: "whatsapp" }, // older setting
+      // Any mix of the three, ticked in Settings -> General -> POS.
+      // Empty = don't send. Unset = WhatsApp (see the invoice header).
+      sendBillVia: { type: [{ type: String, enum: ["whatsapp", "sms", "email"] }], default: undefined },
+    },
+
+    // How printed / downloaded invoices look (chosen in Settings -> Print).
+    print: {
+      invoiceTemplate: {
+        type: String,
+        // "compact" is a retired template, kept so older saved values still load.
+        // receipt* are the 80mm counter bills; "receipt" is the default.
+        enum: [
+          "thermal", "thermal_58",
+          "receipt", "receipt_bold", "receipt_compact", "receipt_logo", "receipt_gst", "receipt_modern",
+          "classic", "modern", "elegant", "minimal", "compact",
+        ],
+        default: "receipt",
+      },
+      // The POS (walk-in, manual) bill — its own formats, separate from the
+      // online-order invoice above. Chosen in Settings -> Print -> POS bill.
+      posTemplate: {
+        type: String,
+        // Its own formats, or any of the online invoice templates.
+        enum: [
+          "pos_manual", "pos_manual_a4", "pos_thermal", "pos_thermal_58",
+          "receipt", "receipt_bold", "receipt_compact", "receipt_logo", "receipt_gst", "receipt_modern",
+          "classic", "modern", "elegant", "minimal",
+        ],
+        default: "receipt",
+      },
+      // Base font size (px) of the 80mm / 58mm receipts: Small 8, Medium 10,
+      // Large 12, or any size typed in (5-20).
+      posFontSize: { type: Number, min: 5, max: 20, default: 10 },
+      invoiceFontSize: { type: Number, min: 5, max: 20, default: 10 },
     },
 
     website: {

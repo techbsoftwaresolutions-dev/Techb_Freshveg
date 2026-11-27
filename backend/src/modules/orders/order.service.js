@@ -289,6 +289,10 @@ async function transition(order, to, actor = {}, note = "") {
       break;
 
     case "DELIVERED": {
+      // A declined return puts the order back to Delivered. It was delivered
+      // already: cash, stock and rewards were settled then and must not be
+      // settled a second time, and the delivery time stays the real one.
+      if (from === "RETURN_REQUESTED") break;
       order.delivery.deliveredAt = new Date();
       if (order.payment.method === "cod") {
         order.payment.status = "paid";
@@ -352,10 +356,17 @@ async function transition(order, to, actor = {}, note = "") {
 
   // Tell the customer last, once the state change has actually stuck — a
   // notification about something that then failed to save is worse than none.
-  await announce(order, to);
+  // Back to Delivered after a declined return is not a second delivery: no
+  // "your order is delivered" message (the customer sees the decline reason on
+  // the order page instead).
+  const returnDeclined = from === "RETURN_REQUESTED" && to === "DELIVERED";
+  if (!returnDeclined) await announce(order, to);
+  if (to === "ASSIGNED_TO_DELIVERY" && order.delivery?.partner) {
+    await announceDeliveryPartner(order);
+  }
 
   // Send owner-specific WhatsApp alert on key status changes
-  notifyOwnerStatusUpdate(order, to).catch(() => {});
+  if (!returnDeclined) notifyOwnerStatusUpdate(order, to).catch(() => {});
 
   // A rider was already chosen while the store was preparing this order, so
   // hand it over the moment it is ready instead of waiting for a second click.
@@ -395,6 +406,19 @@ async function announce(order, status) {
   });
 }
 
+async function announceDeliveryPartner(order) {
+  const orderId = order._id.toString();
+  await notificationService.notify(
+    order.delivery.partner,
+    "ASSIGNED_TO_DELIVERY",
+    { code: order.code, orderId },
+    {
+      audience: "delivery_partner",
+      data: { orderId },
+    }
+  );
+}
+
 // Sends owner-tailored WhatsApp notifications on key order lifecycle stages
 async function notifyOwnerStatusUpdate(order, status) {
   try {
@@ -417,7 +441,7 @@ async function notifyOwnerStatusUpdate(order, status) {
       (callmebotKey.trim() !== "" && !callmebotKey.includes("←") && !callmebotKey.includes("paste"));
     if (!isWhatsAppOn) return;
 
-    const ownerPhone = settings?.notifications?.ownerWhatsApp || process.env.OWNER_WHATSAPP_NUMBER || "+917010272131";
+    const ownerPhone = settings?.notifications?.ownerWhatsApp || process.env.OWNER_WHATSAPP_NUMBER || "+919003597158";
     const isCOD = order.payment?.method === "cod";
     const totalFormatted = `₹${((order.pricing?.total || 0) / 100).toFixed(0)}`;
     const customerName = order.customerSnapshot?.name || "Customer";
@@ -683,6 +707,7 @@ async function assignDeliveryPartner(order, partnerId, actor) {
     return transition(order, "ASSIGNED_TO_DELIVERY", actor, `Assigned to ${partner.name}`);
   }
   await order.save();
+  await announceDeliveryPartner(order);
   return order;
 }
 

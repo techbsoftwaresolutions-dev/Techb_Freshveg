@@ -47,11 +47,12 @@ export default function Attributes() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const navigate = useNavigate();
 
   const load = () =>
     api
-      .get("/catalog/attributes", { limit: 20, search, page })
+      .get("/catalog/attributes", { limit, search, page })
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -60,7 +61,7 @@ export default function Attributes() {
     const timer = setTimeout(load, search ? 250 : 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, page]);
+  }, [search, page, limit]);
 
   // A fresh search starts back at page 1 — staying on page 3 of a changed
   // result set is how you end up looking at an empty table.
@@ -98,7 +99,7 @@ export default function Attributes() {
 
       <Card tight>
         <Table
-          title="Attributes"
+          title="Attributes" search={false}
           columns={[
             {
               key: "name",
@@ -141,7 +142,7 @@ export default function Attributes() {
           onRowClick={editable ? (row) => navigate(`/catalog/attributes/${row.id}`) : undefined}
           empty={<Empty title="No attributes" hint="Create one to start describing products." />}
         />
-        <Pagination meta={data.meta} onPage={setPage} />
+        <Pagination meta={data.meta} onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
       </Card>
     </div>
   );

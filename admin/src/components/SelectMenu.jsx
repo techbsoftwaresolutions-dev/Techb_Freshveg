@@ -201,8 +201,11 @@ export default function SelectMenu({
               position: "fixed",
               left: place.left,
               width: place.width,
-              top: place.top,
-              bottom: place.bottom,
+              // Always set both: an unset side falls back to the stylesheet's
+              // `top: calc(100% + 6px)`, which pushes an upward-flipped menu
+              // off the bottom of the screen.
+              top: place.top ?? "auto",
+              bottom: place.bottom ?? "auto",
               right: "auto",
               transformOrigin: place.bottom != null ? "bottom" : "top",
             }}

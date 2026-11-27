@@ -104,6 +104,29 @@ function CheckoutInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary, signedIn]);
 
+  // Wallet: the balance held, and how much of it this order uses (server-capped).
+  const walletBalance = user?.walletBalance || 0;
+  const walletApplied = summary?.walletApplied || 0;
+  const paidByWallet = walletApplied > 0 && (summary?.total || 0) <= 0;
+  const [walletBusy, setWalletBusy] = useState(false);
+
+  async function toggleWallet(on) {
+    setWalletBusy(true);
+    setError("");
+    try {
+      await cart.setWallet(on ? walletBalance : 0);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setWalletBusy(false);
+    }
+  }
+
+  // Nothing left to pay online once the wallet covers the order.
+  useEffect(() => {
+    if (paidByWallet && method !== "cod") setMethod("cod");
+  }, [paidByWallet, method]);
+
   const couponSaving = appliedCoupon?.discount || 0;
   // Automatic offers keep their own row so the rows still add up to the total.
   const otherOfferSaving = Math.max(0, (summary?.offerDiscount || 0) - couponSaving);
@@ -224,7 +247,9 @@ function CheckoutInner() {
               </h3>
             </div>
 
-            {methods === null ? (
+            {paidByWallet ? (
+              <p className="muted-line">Your wallet balance covers this order — nothing more to pay.</p>
+            ) : methods === null ? (
               <p className="muted-line">Loading payment options…</p>
             ) : (
               <div className="choice-list">
@@ -468,8 +493,32 @@ function CheckoutInner() {
                   </>
                 )}
               </div>
+              {walletBalance > 0 || walletApplied > 0 ? (
+                <label className={`co-wallet${walletApplied > 0 ? " on" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={walletApplied > 0}
+                    disabled={walletBusy}
+                    onChange={(e) => toggleWallet(e.target.checked)}
+                  />
+                  <span className="co-wallet-text">
+                    <strong>Use wallet balance</strong>
+                    <em>
+                      {walletApplied > 0
+                        ? `${rupees(walletApplied)} used · ${rupees(Math.max(0, walletBalance - walletApplied))} left`
+                        : `${rupees(walletBalance)} available`}
+                    </em>
+                  </span>
+                </label>
+              ) : null}
+              {walletApplied > 0 ? (
+                <div className="bill-row save-row">
+                  <span className="label">Wallet</span>
+                  <span>− {rupees(walletApplied)}</span>
+                </div>
+              ) : null}
               <div className="bill-row total">
-                <span>{method === "cod" ? "Pay on delivery" : "To pay"}</span>
+                <span>{paidByWallet ? "Paid from wallet" : method === "cod" ? "Pay on delivery" : "To pay"}</span>
                 <span>{rupees(summary.total)}</span>
               </div>
               {couponSaving > 0 ? (
@@ -497,7 +546,7 @@ function CheckoutInner() {
 
             <div className="co-note">
               <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M16.02 3.2A12.65 12.65 0 0 0 5.12 22.27L3.4 28.6l6.48-1.7a12.63 12.63 0 1 0 6.14-23.7Zm0 22.96c-1.91 0-3.78-.51-5.42-1.48l-.39-.23-3.85 1.01 1.03-3.75-.25-.4a10.26 10.26 0 1 1 8.88 4.85Zm5.63-7.69c-.31-.16-1.82-.9-2.1-1-.29-.1-.5-.15-.71.16-.21.32-.8 1-.98 1.21-.18.21-.36.24-.67.08-.31-.16-1.31-.48-2.5-1.52-.92-.82-1.54-1.83-1.72-2.14-.18-.32-.02-.49.14-.65.14-.14.31-.36.47-.53.16-.18.21-.31.31-.52.11-.21.06-.4-.03-.56-.08-.16-.71-1.71-.97-2.34-.25-.61-.51-.53-.7-.54h-.6c-.21 0-.55.08-.84.4-.29.32-1.1 1.06-1.1 2.59s1.12 3 1.28 3.21c.15.21 2.2 3.36 5.33 4.71.75.32 1.33.51 1.78.65.75.24 1.43.21 1.97.13.6-.09 1.82-.74 2.08-1.45.25-.71.25-1.32.18-1.45-.08-.13-.29-.21-.6-.37Z" /></svg>
-              <span>Get order updates on WhatsApp.</span>
+              <span>Get live WhatsApp updates for order confirmation, tracking and arrival.</span>
             </div>
 
             <button
