@@ -44,7 +44,7 @@ export const metadata = {
   },
   
 description:
-  "Shop online at HosurBasket, your everyday supermarket in Hosur, Tamil Nadu. Order fresh fruits, vegetables, groceries, rice, spices, snacks, dairy products, personal care items and household essentials. Enjoy convenient grocery shopping, doorstep delivery and exciting offers in GKD Nagar, Avalapalli Road and nearby Hosur areas.",
+  "HosurBasket makes online grocery shopping easy in Hosur. Buy fresh fruits, vegetables, daily groceries, rice, pulses, cooking oils, snacks, beverages, dairy products, cleaning supplies, personal care and household essentials with convenient home delivery in Hosur, GKD Nagar and Avalapalli Road.",
 
   openGraph: {
     type: "website",
@@ -53,7 +53,7 @@ description:
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Hosur Basket — your everyday supermarket" }],
   },
   
-const additionalKeywords = [
+ Keywords : [
 
   // ==========================================
   // 1. SUPERMARKET AND GROCERY STORE
@@ -397,7 +397,7 @@ const additionalKeywords = [
   "ஓசூர் ஆன்லைன் காய்கறி கடை",
   "ஓசூர் ஆன்லைன் பழக்கடை"
 
-];
+],
 
   other: { "geo.region": "IN-TN", "geo.placename": "Hosur" },
   twitter: { card: "summary_large_image", images: ["/og-image.png"] },
