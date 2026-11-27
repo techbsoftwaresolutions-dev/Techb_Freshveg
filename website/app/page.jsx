@@ -23,8 +23,10 @@ export const metadata = {
   // The layout's title template deliberately does not apply to the root
   // segment, so the brand is spelled out here rather than appended.
   title: "Hosur Basket — fresh fruit, vegetables & groceries delivered",
-  description:
-    "Same-day delivery on fresh produce, groceries, personal care and household essentials from your Hosur Basket store.",
+  
+description:
+  "HosurBasket makes online grocery shopping easy in Hosur. Buy fresh fruits, vegetables, daily groceries, rice, pulses, cooking oils, snacks, beverages, dairy products, cleaning supplies, personal care and household essentials with convenient home delivery in Hosur, GKD Nagar and Avalapalli Road.",
+
   alternates: { canonical: "/" },
 };
 
