@@ -22,6 +22,7 @@ import Support, { TicketPage } from "./pages/support/Support";
 import Maintenance, { AssetDetailPage, AssetFormPage, JobFormPage } from "./pages/maintenance/Maintenance";
 import Customers, { CustomerPage, CustomerEditPage } from "./pages/customers/Customers";
 import Banners, { BannerFormPage } from "./pages/marketing/Banners";
+import Posts, { PostFormPage } from "./pages/blog/Posts";
 import Notifications, { TemplateFormPage } from "./pages/marketing/Notifications";
 import Reports from "./pages/reports/Reports";
 import Stores, { StoreFormPage } from "./pages/settings/Stores";
@@ -104,6 +105,7 @@ function Shell() {
           path="marketing/banners"
           element={<Guard permission="marketing.view"><Banners /></Guard>}
         />
+        <Route path="blog" element={<Guard permission="marketing.view"><Posts /></Guard>} />
         <Route
           path="marketing/notifications"
           element={<Guard permission="marketing.view"><Notifications /></Guard>}
@@ -132,6 +134,7 @@ function Shell() {
         <Route path="customers/:id/edit" element={<Guard permission="customers.manage"><CustomerEditPage /></Guard>} />
         <Route path="marketing/offers/:id" element={<Guard permission="marketing.manage"><OfferFormPage /></Guard>} />
         <Route path="marketing/banners/:id" element={<Guard permission="marketing.manage"><BannerFormPage /></Guard>} />
+        <Route path="blog/:id" element={<Guard permission="marketing.manage"><PostFormPage /></Guard>} />
         <Route
           path="marketing/notifications/templates/:id"
           element={<Guard permission="marketing.manage"><TemplateFormPage /></Guard>}

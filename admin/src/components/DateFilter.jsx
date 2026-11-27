@@ -1,3 +1,4 @@
+import DatePicker from "./DatePicker";
 import { useEffect, useRef, useState } from "react";
 import { IconChevronDown } from "./Icons";
 
@@ -146,11 +147,11 @@ export default function DateFilter({ value, onChange }) {
             <div className="date-filter-custom">
               <label>
                 <span>From</span>
-                <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+                <DatePicker value={from} max={to || undefined} onChange={setFrom} />
               </label>
               <label>
                 <span>To</span>
-                <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+                <DatePicker value={to} min={from || undefined} onChange={setTo} />
               </label>
               <button type="button" className="btn primary date-filter-apply" onClick={apply}>
                 Apply

@@ -11,18 +11,16 @@ import ProductTabs from "@/components/ProductTabs";
 import ShareRow from "@/components/ShareRow";
 import PdpPromises from "@/components/PdpPromises";
 import { discountPct, offerLabel, productMedia, rupees } from "@/lib/format";
+import { absolute, productShare } from "@/lib/seo";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const data = await getProduct(slug);
   if (!data) return { title: "Product" };
 
-  const { product } = data;
-  const title = product.seo?.title || product.name;
-  const description =
-    product.seo?.description ||
-    product.shortDescription ||
-    `Buy ${product.name} online at Hosur Basket. Delivered fresh from your Hosur Basket store.`;
+  const { product, variants = [], breadcrumb = [] } = data;
+  const { title, shareTitle, description } = productShare(product, variants, breadcrumb[breadcrumb.length - 1]?.name);
+  const image = absolute(productMedia(product)[0]?.url);
 
   return {
     title,
@@ -30,11 +28,12 @@ export async function generateMetadata({ params }) {
     alternates: { canonical: `/p/${product.slug}` },
     openGraph: {
       type: "website",
-      title: `${product.name} | Hosur Basket`,
+      title: shareTitle,
       description,
       url: `${SITE_URL}/p/${product.slug}`,
-      images: productMedia(product)[0]?.url ? [productMedia(product)[0].url] : undefined,
+      images: image ? [image] : undefined,
     },
+    twitter: image ? { card: "summary_large_image", images: [image] } : undefined,
   };
 }
 
@@ -72,8 +71,10 @@ export default async function ProductPage({ params }) {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
+    url: `${SITE_URL}/p/${product.slug}`,
     description: product.shortDescription || product.description || undefined,
-    image: media.map((m) => m.url).filter(Boolean),
+    // Absolute links: a local /products/x.jpg is useless to a search engine.
+    image: media.map((m) => absolute(m.url)).filter(Boolean),
     sku: cheapest?.sku,
     brand: product.brand?.name ? { "@type": "Brand", name: product.brand.name } : undefined,
     category: breadcrumb.map((b) => b.name).join(" > ") || undefined,
@@ -109,7 +110,7 @@ export default async function ProductPage({ params }) {
         name: step.name,
         item: `${SITE_URL}/c/${step.slug}`,
       })),
-      { "@type": "ListItem", position: breadcrumb.length + 2, name: product.name },
+      { "@type": "ListItem", position: breadcrumb.length + 2, name: product.name, item: `${SITE_URL}/p/${product.slug}` },
     ],
   };
 

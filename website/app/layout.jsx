@@ -13,6 +13,8 @@ import ReviewPrompt from "@/components/ReviewPrompt";
 import WhatsAppChat from "@/components/WhatsAppChat";
 import OfferPopup from "@/components/OfferPopup";
 import { getCategories, SITE_URL } from "@/lib/api";
+import { ORGANIZATION, SOCIAL_LINKS, WEBSITE } from "@/lib/seo";
+import Analytics from "@/components/Analytics";
 
 // Local-business structured data so Google can show the store's address and
 // phone for "grocery delivery in Hosur" searches.
@@ -33,6 +35,8 @@ const LOCAL_BUSINESS = {
     addressCountry: "IN",
   },
   areaServed: "Hosur",
+  sameAs: SOCIAL_LINKS,
+  parentOrganization: { "@id": `${SITE_URL}/#organization` },
 };
 
 export const metadata = {
@@ -54,6 +58,8 @@ export const metadata = {
   other: { "geo.region": "IN-TN", "geo.placename": "Hosur" },
   twitter: { card: "summary_large_image", images: ["/og-image.png"] },
   robots: { index: true, follow: true },
+  // Search Console "HTML tag" verification: set GOOGLE_SITE_VERIFICATION to the code it gives you.
+  verification: process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : undefined,
   applicationName: "Hosur Basket",
   // Launched from the iPhone home screen: full screen, with the status bar
   // drawn over the dark green utility strip.
@@ -88,10 +94,10 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="en-IN" className={poppins.variable}>
       <body>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(LOCAL_BUSINESS) }}
-        />
+        <Analytics />
+        {[ORGANIZATION, WEBSITE, LOCAL_BUSINESS].map((data) => (
+          <script key={data["@type"]} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
+        ))}
         <Providers>
           {/* Header reads useSearchParams, which needs a Suspense boundary so
               the rest of the page can still be statically rendered. */}

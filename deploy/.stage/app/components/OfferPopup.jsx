@@ -7,9 +7,8 @@ import { api } from "@/lib/client-api";
 import { useAuth } from "@/components/Providers";
 import { img, rupees } from "@/lib/format";
 
-// The new-offer popup: a big banner shown for 2 seconds, then it hides by
-// itself (with a close button for anyone who wants it gone sooner). It
-// appears:
+// The new-offer popup: a big banner that stays until the shopper closes it
+// (the close button, or Esc). It appears:
 //  - once when someone opens the website (once per browser session), and
 //  - again right after they log in (on the first page after the login screen).
 //
@@ -20,7 +19,8 @@ import { img, rupees } from "@/lib/format";
 //    header strip shows.
 // Nothing live -> no popup.
 
-const SHOW_FOR_MS = 2000;
+// Picture for a coupon with none of its own: the fresh fruit & vegetable basket.
+const COUPON_ART = "/banner-art/banner-1.webp";
 const SEEN_KEY = "offerPopup:seen"; // once per browser session (tab group)
 // Pages where a popup would get in the way of something being done.
 const QUIET = ["/checkout", "/login", "/cart", "/orders/"];
@@ -56,7 +56,6 @@ export default function OfferPopup() {
   const [offer, setOffer] = useState(null); // { kind: "banner", banner } | { kind: "coupon", coupon }
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const timer = useRef(null);
   // Why it should show next: "open" (first visit this session) or "login".
   const [want, setWant] = useState(() => {
     try {
@@ -107,16 +106,12 @@ export default function OfferPopup() {
     };
   }, []);
 
-  // Hide by itself after 2 seconds.
+  // Stays open until closed; Esc closes it too.
   useEffect(() => {
     if (!open) return undefined;
-    timer.current = setTimeout(() => setOpen(false), SHOW_FOR_MS);
     const onKey = (event) => event.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
-    return () => {
-      clearTimeout(timer.current);
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   if (!open || !offer) return null;
@@ -163,7 +158,6 @@ export default function OfferPopup() {
           ) : (
             <div className="op-body">{body}</div>
           )}
-          <span className="op-timer" style={{ animationDuration: `${SHOW_FOR_MS}ms` }} aria-hidden="true" />
         </div>
       </div>
     );
@@ -171,11 +165,29 @@ export default function OfferPopup() {
 
   const c = offer.coupon;
   const copy = async () => {
+    let ok = false;
     try {
       await navigator.clipboard.writeText(c.code);
-      setCopied(true);
+      ok = true;
     } catch {
-      // clipboard blocked: the code is on screen to type
+      // No clipboard API (e.g. the site opened over plain http): copy through
+      // a hidden text box instead.
+      try {
+        const box = document.createElement("textarea");
+        box.value = c.code;
+        box.setAttribute("readonly", "");
+        box.style.cssText = "position:fixed;top:-1000px;opacity:0";
+        document.body.appendChild(box);
+        box.select();
+        ok = document.execCommand("copy");
+        box.remove();
+      } catch {
+        // clipboard blocked: the code is on screen to type
+      }
+    }
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => mounted.current && setCopied(false), 2000);
     }
   };
   return (
@@ -185,7 +197,6 @@ export default function OfferPopup() {
           ×
         </button>
         <div className="op-body">
-          <span className="op-badge" aria-hidden="true">%</span>
           <span className="op-copy">
             <span className="op-tag">{(c.badge || "").trim() ? `${c.badge.trim()} offer` : "New offer"}</span>
             {/* The coupon's value only when it reads like a saving ("₹50 off",
@@ -193,16 +204,47 @@ export default function OfferPopup() {
             <strong>{/[\d%₹]/.test(c.value || "") ? c.value.trim() : (c.title || "Special offer").trim()}</strong>
             <span>
               Use code{" "}
-              <button type="button" className="op-code" onClick={copy} title="Copy code">
-                {copied ? "Copied!" : c.code}
+              <button
+                type="button"
+                className={`op-code${copied ? " copied" : ""}`}
+                onClick={copy}
+                title="Copy code"
+                aria-label={copied ? `Code ${c.code} copied` : `Copy code ${c.code}`}
+              >
+                <span>{c.code}</span>
+                <span className="op-code-icon" aria-hidden="true">
+                  {copied ? <IconCheck /> : <IconCopy />}
+                </span>
+                <span className="op-code-hint">{copied ? "Copied" : "Copy"}</span>
               </button>{" "}
               at checkout
             </span>
             {c.minCartValue > 0 ? <small className="op-min">On orders above {rupees(c.minCartValue)}</small> : null}
           </span>
+          {/* The offer's own picture, or the fresh-basket art, on the right. */}
+          <span className="op-art" aria-hidden="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={c.image ? img(c.image, 600) : COUPON_ART} alt="" />
+          </span>
         </div>
-        <span className="op-timer" style={{ animationDuration: `${SHOW_FOR_MS}ms` }} aria-hidden="true" />
       </div>
     </div>
+  );
+}
+
+function IconCopy() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+    </svg>
+  );
+}
+
+function IconCheck() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </svg>
   );
 }

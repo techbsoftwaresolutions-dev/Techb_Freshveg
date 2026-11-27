@@ -1,3 +1,4 @@
+import DatePicker from "../../components/DatePicker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
@@ -1069,7 +1070,7 @@ function DelayModal({ busy, items, onClose, onSave }) {
       </ul>
       <div className="grid cols-2">
         <Field label="New delivery date">
-          <input type="date" min={today} value={expectedOn} onChange={(e) => setExpectedOn(e.target.value)} />
+          <DatePicker min={today} value={expectedOn} onChange={setExpectedOn} clearable={false} />
         </Field>
         <Field label="Reason (shown to the customer)">
           <input type="text" maxLength={120} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Out of stock today" />

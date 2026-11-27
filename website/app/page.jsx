@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { categoryImage, img } from "@/lib/format";
-import { getBanners, getHome } from "@/lib/api";
+import { getBanners, getHome, getPosts } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import Carousel from "@/components/Carousel";
 import LazySection from "@/components/LazySection";
+import BlogCard from "@/components/BlogCard";
 import BannerCarousel from "@/components/BannerCarousel";
 import CategoryIcon from "@/components/CategoryIcon";
 import HomeSidebar from "@/components/HomeSidebar";
@@ -43,11 +44,13 @@ const inStockFirst = (products) =>
 // Server-rendered, so the whole shelf is in the HTML a crawler receives — no
 // spinner, no client fetch waterfall.
 export default async function HomePage() {
-  const [home, bannerData, heroBannerData] = await Promise.all([
+  const [home, bannerData, heroBannerData, postData] = await Promise.all([
     getHome(),
     getBanners("home_strip"),
     getBanners("home_hero"),
+    getPosts({ limit: 3 }),
   ]);
+  const latestPosts = postData?.items || [];
 
   if (!home) {
     return (
@@ -208,6 +211,25 @@ export default async function HomePage() {
               // The first two department rows are near the top; the rest build only as you scroll to them.
               return railIndex < 2 ? row : <LazySection key={rail.category.id}>{row}</LazySection>;
             })}
+
+          {latestPosts.length ? (
+            <section className="section">
+              <div className="section-head home-blog-head">
+                <div>
+                  <h2>From Our Blog</h2>
+                </div>
+                <Link href="/blog" className="section-link">
+                  All Posts
+                  <IconArrow />
+                </Link>
+              </div>
+              <div className="blog-grid home-blog">
+                {latestPosts.map((post) => (
+                  <BlogCard key={post.id} post={post} arrow />
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <TrustStrip prepTimeMinutes={store?.prepTimeMinutes} />
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { categoryImage, img } from "@/lib/format";
+import { categoryImage, img, productMedia } from "@/lib/format";
+import { absolute } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getCategories, getCategory, getProducts, SITE_URL } from "@/lib/api";
@@ -20,18 +21,26 @@ export async function generateMetadata({ params }) {
   if (!data) return { title: "Category" };
 
   const { category } = data;
+  // The category's own picture, else the site-wide one (a page-level image replaces the site one).
+  const description =
+    category.seo?.description ||
+    category.description ||
+    `Shop ${category.name} online at Hosur Basket. Fresh stock, honest prices and same-day delivery in Hosur.`;
+  const shareImage = absolute(categoryImage(category) ? img(categoryImage(category), 1200) : "/og-image.png");
   return {
-    title: category.seo?.title || `Buy ${category.name} online`,
-    description:
-      category.seo?.description ||
-      category.description ||
-      `Shop ${category.name} at Hosur Basket. Fresh stock, honest prices, delivered from your Hosur Basket store.`,
+    title: category.seo?.title || `Buy ${category.name} online in Hosur`,
+    description,
     alternates: { canonical: `/c/${category.slug}` },
     openGraph: {
-      title: `${category.name} | Hosur Basket`,
-      description: category.description || undefined,
+      // Link previews (WhatsApp, Facebook) read these: the same keywords as the Google title, and always a description.
+      title: `${category.seo?.title || `Buy ${category.name} Online in Hosur`} | Hosur Basket`,
+      description,
       url: `${SITE_URL}/c/${category.slug}`,
+      // Without its own image a category page loses the site-wide one, so shares and image
+      // results had nothing to show.
+      images: [shareImage],
     },
+    twitter: { card: "summary_large_image", images: [shareImage] },
   };
 }
 
@@ -74,8 +83,41 @@ export default async function CategoryPage({ params, searchParams }) {
   const products = result?.items || [];
   const meta = result?.meta;
 
+  // Structured data: where this page sits, and the products on it (the first page of the list).
+  const pageNo = Math.max(1, Number(query.page) || 1);
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      ...breadcrumb.map((step, index) => ({ "@type": "ListItem", position: index + 2, name: step.name, item: `${SITE_URL}/c/${step.slug}` })),
+    ],
+  };
+  const collectionLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: category.name,
+    description: category.description || undefined,
+    url: `${SITE_URL}/c/${category.slug}`,
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: meta?.total ?? products.length,
+      itemListElement: products.map((p, i) => ({
+        "@type": "ListItem",
+        position: (pageNo - 1) * 20 + i + 1,
+        url: `${SITE_URL}/p/${p.slug}`,
+        name: p.name,
+        image: absolute(productMedia(p)[0]?.url),
+      })),
+    },
+  };
+
   return (
     <SearchProvider className="wrap">
+      {[breadcrumbLd, collectionLd].map((data) => (
+        <script key={data["@type"]} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
+      ))}
       <nav className="crumbs" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         {breadcrumb.map((step) => (

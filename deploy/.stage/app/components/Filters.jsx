@@ -128,7 +128,7 @@ export default function Filters({ filters = [], brands = [], priceBands = [], av
           {brands.length ? (
             <FilterSection title="Brand">
               <OptionList
-                options={brands.map((brand) => ({ value: brand.id, label: brand.name, count: brand.count }))}
+                options={brands.map((brand) => ({ value: brand.id ?? brand._id, label: brand.name, count: brand.count }))}
                 selected={selected("brand")}
                 onToggle={(value) => toggle("brand", value)}
               />
@@ -174,8 +174,11 @@ function OptionList({ options: rawOptions, selected, onToggle }) {
   const [expanded, setExpanded] = useState(false);
   // One row per value: the facet lists can repeat one (e.g. two price bands
   // that round to the same range), which would show it twice.
-  const options = rawOptions.filter(
-    (option, index) => rawOptions.findIndex((o) => String(o.value) === String(option.value)) === index
+  // An option with no value (a blank brand / pack size in the data) can't
+  // filter anything and has no key, so it is left out.
+  const valued = (rawOptions || []).filter((option) => option && option.value != null && String(option.value).trim() !== "");
+  const options = valued.filter(
+    (option, index) => valued.findIndex((o) => String(o.value) === String(option.value)) === index
   );
   // A ticked option is never hidden behind "Show more".
   const hiddenSelected = options.slice(VISIBLE_OPTIONS).some((option) => selected.includes(option.value));
@@ -186,7 +189,7 @@ function OptionList({ options: rawOptions, selected, onToggle }) {
     <>
       {visible.map((option) => (
         <Option
-          key={option.value}
+          key={String(option.value)}
           type="checkbox"
           label={option.label}
           swatch={option.hex}

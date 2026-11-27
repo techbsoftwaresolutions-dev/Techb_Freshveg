@@ -91,7 +91,7 @@ function cacheResponse(ttlSeconds) {
 
 // API areas whose writes change what the storefront shows (catalogue, prices,
 // stock, offers, stores, settings, banners). Cart and wishlist writes do not.
-const AFFECTS_STOREFRONT = /^\/(catalog|inventory|stores|settings|marketing|banners|pos|orders|returns|delivery|maintenance)(\/|$)/;
+const AFFECTS_STOREFRONT = /^\/(catalog|inventory|stores|settings|marketing|banners|blog|pos|orders|returns|delivery|maintenance)(\/|$)/;
 
 function invalidateOnWrite(req, res, next) {
   if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
