@@ -50,7 +50,67 @@ export const metadata = {
     locale: "en_IN",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Hosur Basket — your everyday supermarket" }],
   },
-  keywords: ["Hosur Basket", "grocery delivery Hosur", "fresh vegetables Hosur", "fruits Hosur", "Avalapalli Road Hosur", "supermarket Hosur 635109"],
+  
+keywords: [
+  // Brand keywords
+  "Hosur Basket",
+  "HosurBasket",
+  "Hosur Basket online shopping",
+  "Hosur Basket supermarket",
+
+  // Grocery delivery
+  "grocery delivery Hosur",
+  "online grocery shopping Hosur",
+  "online supermarket Hosur",
+  "grocery store in Hosur",
+  "best grocery delivery Hosur",
+  "grocery home delivery Hosur",
+  "buy groceries online Hosur",
+  "daily grocery delivery Hosur",
+  "online grocery store Hosur",
+  "supermarket Hosur 635109",
+
+  // Fruits and vegetables
+  "fresh vegetables Hosur",
+  "fresh fruits Hosur",
+  "online vegetables delivery Hosur",
+  "online fruits delivery Hosur",
+  "vegetable delivery Hosur",
+  "fruit delivery Hosur",
+  "buy vegetables online Hosur",
+  "buy fruits online Hosur",
+  "fresh produce Hosur",
+
+  // Daily essentials
+  "daily essentials Hosur",
+  "household essentials Hosur",
+  "monthly groceries Hosur",
+  "grocery items online Hosur",
+  "rice and grocery delivery Hosur",
+  "snacks and beverages Hosur",
+  "personal care products Hosur",
+  "kitchen essentials Hosur",
+
+  // Local SEO
+  "Avalapalli Road Hosur",
+  "grocery delivery Avalapalli Road",
+  "supermarket Avalapalli Road Hosur",
+  "GKD Nagar grocery delivery",
+  "grocery shop near GKD Nagar",
+  "grocery delivery Hosur Tamil Nadu",
+  "online supermarket Hosur Tamil Nadu",
+  "fruits and vegetables GKD Nagar",
+
+  // Search intent
+  "order groceries online Hosur",
+  "affordable groceries Hosur",
+  "fresh fruits and vegetables home delivery Hosur",
+  "daily needs online shopping Hosur",
+  "grocery shopping app Hosur",
+  "supermarket near me Hosur",
+  "online grocery delivery near me"
+],
+
   other: { "geo.region": "IN-TN", "geo.placename": "Hosur" },
   twitter: { card: "summary_large_image", images: ["/og-image.png"] },
   robots: { index: true, follow: true },
