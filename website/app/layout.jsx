@@ -51,223 +51,351 @@ export const metadata = {
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Hosur Basket — your everyday supermarket" }],
   },
   
-keywords: [
-  // =====================================
-  // 1. BRAND KEYWORDS
-  // =====================================
-  "Hosur Basket",
-  "HosurBasket",
-  "Hosur Basket online",
-  "Hosur Basket supermarket",
-  "Hosur Basket grocery delivery",
-  "Hosur Basket online grocery",
-  "Hosur Basket shopping",
-  "Hosur Basket Hosur",
-  "HosurBasket online shopping",
-  "HosurBasket grocery store",
-  "HosurBasket fruits and vegetables",
+const additionalKeywords = [
 
-  // =====================================
-  // 2. ONLINE GROCERY SHOPPING
-  // =====================================
-  "grocery delivery Hosur",
-  "online grocery shopping Hosur",
-  "online supermarket Hosur",
-  "grocery store in Hosur",
-  "best grocery delivery Hosur",
-  "grocery home delivery Hosur",
-  "buy groceries online Hosur",
-  "daily grocery delivery Hosur",
-  "online grocery store Hosur",
-  "supermarket Hosur 635109",
-  "groceries online Hosur",
-  "online grocery ordering Hosur",
-  "grocery shopping online Hosur",
-  "grocery delivery service Hosur",
-  "local grocery delivery Hosur",
-  "home grocery delivery Hosur",
-  "grocery shopping app Hosur",
-  "online shopping supermarket Hosur",
-  "grocery products online Hosur",
-  "order daily groceries Hosur",
+  // ==========================================
+  // 1. SUPERMARKET AND GROCERY STORE
+  // ==========================================
+  "supermarket online Hosur",
+  "local supermarket online Hosur",
+  "grocery supermarket Hosur",
+  "nearby supermarket delivery Hosur",
+  "online grocery market Hosur",
+  "grocery shopping website Hosur",
+  "online provision store Hosur",
+  "provision store home delivery Hosur",
+  "departmental store Hosur",
+  "online departmental store Hosur",
+  "neighborhood grocery store Hosur",
+  "local grocery shop online Hosur",
+  "grocery delivery platform Hosur",
+  "online daily shopping Hosur",
+  "supermarket products online Hosur",
+  "grocery shopping at home Hosur",
+  "all groceries online Hosur",
+  "best supermarket shopping Hosur",
+  "grocery ordering website Hosur",
+  "local online supermarket Tamil Nadu",
 
-  // =====================================
-  // 3. FRUITS
-  // =====================================
-  "fresh fruits Hosur",
-  "online fruits delivery Hosur",
-  "fruit delivery Hosur",
-  "buy fruits online Hosur",
-  "fresh fruit shop Hosur",
-  "fruit home delivery Hosur",
-  "seasonal fruits Hosur",
-  "fresh fruit shopping Hosur",
-  "online fruit store Hosur",
-  "fruit basket delivery Hosur",
-  "fresh fruit market Hosur",
-  "daily fresh fruits Hosur",
-  "premium fruits Hosur",
-  "fresh fruit suppliers Hosur",
-  "fruits online shopping Hosur",
-  "mixed fruit delivery Hosur",
+  // ==========================================
+  // 2. FRESH PRODUCE AND FARM PRODUCTS
+  // ==========================================
+  "fresh produce delivery Hosur",
+  "fresh farm products Hosur",
+  "farm fresh products online Hosur",
+  "fresh market products Hosur",
+  "fresh food delivery Hosur",
+  "fresh produce online shopping Hosur",
+  "daily fresh produce Hosur",
+  "fresh farm vegetables delivery Hosur",
+  "fresh market vegetables online Hosur",
+  "fresh seasonal produce Hosur",
+  "locally sourced vegetables Hosur",
+  "fresh garden vegetables Hosur",
+  "fresh food products online Hosur",
+  "farm produce shopping Hosur",
+  "fresh vegetable basket Hosur",
+  "fresh food supermarket Hosur",
 
-  // =====================================
-  // 4. VEGETABLES
-  // =====================================
-  "fresh vegetables Hosur",
-  "online vegetables delivery Hosur",
-  "vegetable delivery Hosur",
-  "buy vegetables online Hosur",
-  "fresh vegetable shop Hosur",
-  "vegetable home delivery Hosur",
-  "daily fresh vegetables Hosur",
-  "online vegetable store Hosur",
-  "fresh vegetable shopping Hosur",
-  "green vegetables Hosur",
-  "farm fresh vegetables Hosur",
-  "organic vegetables Hosur",
-  "vegetable basket delivery Hosur",
-  "fresh vegetable market Hosur",
-  "vegetables online shopping Hosur",
-  "local vegetables delivery Hosur",
+  // ==========================================
+  // 3. FRUIT CATEGORY SEARCHES
+  // ==========================================
+  "apple delivery Hosur",
+  "banana delivery Hosur",
+  "orange delivery Hosur",
+  "mango delivery Hosur",
+  "grapes online Hosur",
+  "watermelon delivery Hosur",
+  "papaya online Hosur",
+  "pomegranate delivery Hosur",
+  "pineapple online Hosur",
+  "guava delivery Hosur",
+  "lemon online Hosur",
+  "mosambi delivery Hosur",
+  "kiwi fruit Hosur",
+  "dragon fruit Hosur",
+  "mixed fruits online Hosur",
+  "fruit shopping online Hosur",
+  "fresh cut fruits Hosur",
+  "fruit box delivery Hosur",
+  "seasonal fruit shopping Hosur",
+  "fresh fruit basket online Hosur",
 
-  // =====================================
-  // 5. GROCERY AND FOOD PRODUCTS
-  // =====================================
-  "rice online shopping Hosur",
-  "dal and pulses Hosur",
-  "cooking oil online Hosur",
-  "masala products Hosur",
-  "spices online shopping Hosur",
-  "atta and flour Hosur",
-  "sugar and grocery Hosur",
-  "salt and spices Hosur",
-  "grocery food products Hosur",
-  "packed food delivery Hosur",
-  "breakfast products Hosur",
-  "instant food products Hosur",
-  "cooking essentials online Hosur",
-  "food essentials delivery Hosur",
-  "kitchen grocery items Hosur",
+  // ==========================================
+  // 4. VEGETABLE CATEGORY SEARCHES
+  // ==========================================
+  "tomato delivery Hosur",
+  "onion delivery Hosur",
+  "potato delivery Hosur",
+  "carrot online Hosur",
+  "beans delivery Hosur",
+  "brinjal delivery Hosur",
+  "cabbage online Hosur",
+  "cauliflower delivery Hosur",
+  "cucumber online Hosur",
+  "beetroot delivery Hosur",
+  "spinach online Hosur",
+  "drumstick delivery Hosur",
+  "lady finger online Hosur",
+  "green chilli delivery Hosur",
+  "coriander leaves Hosur",
+  "mint leaves online Hosur",
+  "curry leaves delivery Hosur",
+  "vegetable shopping online Hosur",
+  "fresh greens delivery Hosur",
+  "mixed vegetable basket Hosur",
 
-  // =====================================
-  // 6. SNACKS AND BEVERAGES
-  // =====================================
-  "snacks delivery Hosur",
-  "online snacks shopping Hosur",
-  "biscuits online Hosur",
-  "chocolate delivery Hosur",
-  "chips and snacks Hosur",
-  "soft drinks online Hosur",
-  "juice delivery Hosur",
-  "tea and coffee products Hosur",
-  "beverages online shopping Hosur",
-  "namkeen delivery Hosur",
+  // ==========================================
+  // 5. RICE, FLOUR AND PULSES
+  // ==========================================
+  "rice shop online Hosur",
+  "buy rice online Hosur",
+  "basmati rice Hosur",
+  "sona masoori rice Hosur",
+  "ponni rice online Hosur",
+  "idli rice delivery Hosur",
+  "wheat flour online Hosur",
+  "atta delivery Hosur",
+  "maida online Hosur",
+  "rava online Hosur",
+  "sooji delivery Hosur",
+  "toor dal online Hosur",
+  "urad dal delivery Hosur",
+  "moong dal online Hosur",
+  "chana dal Hosur",
+  "green gram online Hosur",
+  "black gram delivery Hosur",
+  "pulses online shopping Hosur",
+  "grains and pulses Hosur",
+  "rice and dal delivery Hosur",
 
-  // =====================================
-  // 7. HOUSEHOLD ESSENTIALS
-  // =====================================
-  "household essentials Hosur",
-  "household items online Hosur",
-  "home essentials delivery Hosur",
-  "cleaning products Hosur",
-  "cleaning supplies online Hosur",
-  "dishwash products Hosur",
-  "detergent online Hosur",
-  "floor cleaner Hosur",
-  "kitchen essentials Hosur",
-  "home care products Hosur",
-  "household products delivery Hosur",
-  "daily home essentials Hosur",
+  // ==========================================
+  // 6. OIL, MASALA AND SPICES
+  // ==========================================
+  "cooking oil delivery Hosur",
+  "sunflower oil online Hosur",
+  "groundnut oil Hosur",
+  "coconut oil online Hosur",
+  "gingelly oil delivery Hosur",
+  "mustard oil Hosur",
+  "ghee online shopping Hosur",
+  "masala online shopping Hosur",
+  "spice powder delivery Hosur",
+  "chilli powder online Hosur",
+  "turmeric powder Hosur",
+  "coriander powder Hosur",
+  "pepper powder online Hosur",
+  "cumin seeds delivery Hosur",
+  "mustard seeds online Hosur",
+  "cooking spices Hosur",
+  "Indian spices online Hosur",
+  "kitchen masala products Hosur",
+  "traditional spices Hosur",
+  "spices and seasoning Hosur",
 
-  // =====================================
-  // 8. PERSONAL CARE
-  // =====================================
-  "personal care products Hosur",
-  "personal care online shopping Hosur",
-  "beauty products Hosur",
-  "skin care products Hosur",
-  "hair care products Hosur",
-  "bath products online Hosur",
-  "personal hygiene products Hosur",
-  "daily personal care essentials Hosur",
+  // ==========================================
+  // 7. DAIRY AND BREAKFAST PRODUCTS
+  // ==========================================
+  "dairy products delivery Hosur",
+  "milk products online Hosur",
+  "curd delivery Hosur",
+  "butter online Hosur",
+  "cheese delivery Hosur",
+  "paneer online Hosur",
+  "milk powder Hosur",
+  "breakfast cereals Hosur",
+  "cornflakes online Hosur",
+  "oats delivery Hosur",
+  "bread delivery Hosur",
+  "jam online Hosur",
+  "honey delivery Hosur",
+  "peanut butter Hosur",
+  "breakfast essentials Hosur",
+  "morning grocery delivery Hosur",
 
-  // =====================================
-  // 9. DAILY NEEDS AND MONTHLY SHOPPING
-  // =====================================
-  "daily needs Hosur",
-  "daily essentials delivery Hosur",
-  "monthly groceries Hosur",
-  "monthly grocery shopping Hosur",
-  "daily household shopping Hosur",
-  "family grocery shopping Hosur",
-  "everyday supermarket Hosur",
-  "daily shopping online Hosur",
-  "essential products delivery Hosur",
-  "home shopping online Hosur",
-  "daily needs online shopping Hosur",
-  "all in one supermarket Hosur",
+  // ==========================================
+  // 8. BAKERY AND PACKAGED FOOD
+  // ==========================================
+  "bakery products online Hosur",
+  "bread and bakery delivery Hosur",
+  "cake products Hosur",
+  "cookies online Hosur",
+  "biscuits delivery Hosur",
+  "rusk online Hosur",
+  "packaged food online Hosur",
+  "ready to eat food Hosur",
+  "instant noodles delivery Hosur",
+  "pasta online Hosur",
+  "vermicelli delivery Hosur",
+  "sauce and ketchup Hosur",
+  "food packets online Hosur",
+  "instant breakfast products Hosur",
+  "ready mix products Hosur",
 
-  // =====================================
-  // 10. LOCAL SEO – HOSUR
-  // =====================================
-  "Avalapalli Road Hosur",
-  "grocery delivery Avalapalli Road",
-  "supermarket Avalapalli Road Hosur",
-  "grocery shop Avalapalli Road",
-  "GKD Nagar grocery delivery",
-  "grocery shop near GKD Nagar",
-  "supermarket near GKD Nagar",
-  "fruits and vegetables GKD Nagar",
-  "grocery delivery Hosur Tamil Nadu",
-  "online supermarket Hosur Tamil Nadu",
-  "grocery delivery Hosur 635109",
-  "supermarket near Avalapalli Road",
-  "local supermarket Hosur",
-  "nearby grocery store Hosur",
-  "grocery store near me Hosur",
-  "supermarket near me Hosur",
-  "vegetable shop near me Hosur",
-  "fruit shop near me Hosur",
+  // ==========================================
+  // 9. HOME CLEANING AND HOUSEHOLD
+  // ==========================================
+  "home cleaning essentials Hosur",
+  "bathroom cleaning products Hosur",
+  "toilet cleaner online Hosur",
+  "laundry products Hosur",
+  "washing powder delivery Hosur",
+  "fabric softener Hosur",
+  "dishwashing liquid Hosur",
+  "dishwash bar online Hosur",
+  "garbage bags Hosur",
+  "tissue paper delivery Hosur",
+  "paper napkins online Hosur",
+  "room freshener Hosur",
+  "house cleaning supplies Hosur",
+  "kitchen cleaning products Hosur",
+  "home hygiene products Hosur",
+  "cleaning essentials online Hosur",
 
-  // =====================================
-  // 11. CUSTOMER BUYING INTENT
-  // =====================================
-  "order groceries online in Hosur",
-  "shop groceries online Hosur",
-  "get groceries delivered Hosur",
-  "buy daily essentials online Hosur",
-  "best online supermarket near me",
-  "affordable groceries online Hosur",
-  "fresh fruits and vegetables home delivery Hosur",
-  "order fresh vegetables online Hosur",
-  "order fresh fruits online Hosur",
-  "online grocery shopping offers Hosur",
-  "grocery discounts Hosur",
-  "supermarket offers Hosur",
-  "grocery shopping deals Hosur",
-  "convenient grocery shopping Hosur",
-  "quick grocery delivery Hosur",
-  "easy grocery shopping Hosur",
+  // ==========================================
+  // 10. PERSONAL CARE AND HYGIENE
+  // ==========================================
+  "soap online shopping Hosur",
+  "shampoo delivery Hosur",
+  "toothpaste online Hosur",
+  "toothbrush delivery Hosur",
+  "face wash online Hosur",
+  "body lotion Hosur",
+  "hair oil online Hosur",
+  "deodorant delivery Hosur",
+  "sanitary products Hosur",
+  "handwash online Hosur",
+  "sanitizer delivery Hosur",
+  "personal hygiene online Hosur",
+  "daily grooming products Hosur",
+  "beauty and personal care Hosur",
+  "bathroom essentials online Hosur",
 
-  // =====================================
-  // 12. TAMIL AND REGIONAL KEYWORDS
-  // =====================================
-  "Hosur grocery kadai",
-  "Hosur vegetables online",
-  "Hosur fruits delivery",
-  "Maligai porul delivery Hosur",
-  "Kaikari delivery Hosur",
-  "Pazham delivery Hosur",
-  "Hosur online kadai",
-  "Hosur maligai kadai",
-  "Hosur kaikari kadai",
-  "Hosur pazham kadai",
-  "மளிகை பொருட்கள் ஹோசூர்",
-  "காய்கறி டெலிவரி ஓசூர்",
-  "பழங்கள் டெலிவரி ஓசூர்",
-  "ஆன்லைன் மளிகை கடை ஓசூர்"
-],
+  // ==========================================
+  // 11. BABY AND FAMILY ESSENTIALS
+  // ==========================================
+  "baby care products Hosur",
+  "baby essentials online Hosur",
+  "baby diapers delivery Hosur",
+  "baby wipes online Hosur",
+  "baby hygiene products Hosur",
+  "baby food products Hosur",
+  "family essentials shopping Hosur",
+  "kids daily essentials Hosur",
+  "family shopping online Hosur",
+  "mother and baby products Hosur",
+
+  // ==========================================
+  // 12. PET CARE PRODUCTS
+  // ==========================================
+  "pet food online Hosur",
+  "dog food delivery Hosur",
+  "cat food online Hosur",
+  "pet care products Hosur",
+  "pet essentials shopping Hosur",
+  "pet supplies online Hosur",
+  "pet hygiene products Hosur",
+  "pet products delivery Hosur",
+
+  // ==========================================
+  // 13. ONLINE SHOPPING AND DELIVERY INTENT
+  // ==========================================
+  "order daily needs online Hosur",
+  "shop daily essentials online Hosur",
+  "online home shopping Hosur",
+  "grocery delivery to doorstep Hosur",
+  "order supermarket products online Hosur",
+  "online shopping for groceries Hosur",
+  "get fresh groceries at home Hosur",
+  "home delivery supermarket products Hosur",
+  "grocery ordering app Tamil Nadu",
+  "online grocery shopping Tamil Nadu",
+  "grocery delivery service Tamil Nadu",
+  "supermarket online shopping Tamil Nadu",
+  "fresh vegetables online Tamil Nadu",
+  "fresh fruits online Tamil Nadu",
+  "daily essentials online Tamil Nadu",
+  "online grocery website Tamil Nadu",
+
+  // ==========================================
+  // 14. PRICE AND OFFER SEARCHES
+  // ==========================================
+  "cheap groceries online Hosur",
+  "low price groceries Hosur",
+  "affordable supermarket Hosur",
+  "grocery offers online Hosur",
+  "best grocery prices Hosur",
+  "daily grocery offers Hosur",
+  "supermarket discounts Hosur",
+  "fruits and vegetables offers Hosur",
+  "online shopping discounts Hosur",
+  "grocery deals Tamil Nadu",
+  "budget grocery shopping Hosur",
+  "monthly grocery budget shopping Hosur",
+  "value for money supermarket Hosur",
+  "grocery sale online Hosur",
+  "supermarket special offers Hosur",
+
+  // ==========================================
+  // 15. REGIONAL SEARCH VARIATIONS
+  // ==========================================
+  "Hosur online supermarket Tamil Nadu",
+  "Hosur daily grocery shop",
+  "Hosur grocery home delivery service",
+  "Hosur fresh produce store",
+  "Hosur online fruits shop",
+  "Hosur online vegetables shop",
+  "Hosur grocery ordering",
+  "Hosur supermarket online delivery",
+  "Hosur household shopping",
+  "Hosur daily essentials shop",
+  "Hosur local grocery service",
+  "Hosur fresh food shopping",
+  "Hosur grocery shopping website",
+  "Hosur supermarket delivery app",
+  "Hosur online provision shop",
+
+  // ==========================================
+  // 16. NEARBY LOCATION SEARCH VARIATIONS
+  // ==========================================
+  "grocery delivery near Hosur bus stand",
+  "supermarket near Hosur bus stand",
+  "grocery delivery near Bagalur Road",
+  "supermarket near Bagalur Road Hosur",
+  "grocery store near Mathigiri",
+  "online grocery delivery Mathigiri",
+  "fruits delivery Mathigiri",
+  "vegetable delivery Mathigiri",
+  "grocery shop near Mookandapalli",
+  "online grocery Mookandapalli",
+  "grocery delivery near SIPCOT Hosur",
+  "supermarket near SIPCOT Hosur",
+  "grocery delivery near Denkanikottai Road",
+  "supermarket near Rayakottai Road",
+  "grocery delivery near Old Bangalore Road",
+  "supermarket near New ASTC Hudco",
+
+  // ==========================================
+  // 17. TAMIL SEARCH VARIATIONS
+  // ==========================================
+  "Hosur maligai porutkal",
+  "Hosur kaikari delivery",
+  "Hosur pazhangal delivery",
+  "Hosur grocery online Tamil",
+  "Hosur daily maligai",
+  "Hosur fresh kaikari",
+  "Hosur fresh pazhangal",
+  "Hosur supermarket online",
+  "ஓசூர் ஆன்லைன் மளிகை கடை",
+  "ஓசூர் சூப்பர் மார்க்கெட்",
+  "ஓசூர் பழங்கள்",
+  "ஓசூர் காய்கறிகள்",
+  "ஓசூர் மளிகை பொருட்கள் டெலிவரி",
+  "ஓசூர் வீட்டிற்கு மளிகை டெலிவரி",
+  "ஓசூர் ஆன்லைன் காய்கறி கடை",
+  "ஓசூர் ஆன்லைன் பழக்கடை"
+
+];
 
   other: { "geo.region": "IN-TN", "geo.placename": "Hosur" },
   twitter: { card: "summary_large_image", images: ["/og-image.png"] },
