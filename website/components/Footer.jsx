@@ -36,6 +36,8 @@ export default function Footer({ categories = [] }) {
             <h4>Customer Care</h4>
             <ul>
               <li><Link href="/help">Help Center</Link></li>
+              <li><Link href="/delivery-areas">Delivery Areas</Link></li>
+              <li><Link href="/blog">Blog</Link></li>
               <li><Link href="/track-order">Track Order</Link></li>
               <li><Link href="/returns">Returns &amp; Refunds</Link></li>
               <li><ContactUs /></li>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { discountPct, img, offerLabel, productMedia, rupees } from "@/lib/format";
+import { discountPct, img, offerLabel, placeholderArt, productMedia, rupees } from "@/lib/format";
 import AddToCart from "./AddToCart";
 import WishlistButton from "./WishlistButton";
 
@@ -43,7 +43,12 @@ export default function ProductCard({ product }) {
               decoding="async"
               style={{ objectPosition }}
             />
-          ) : null}
+          ) : (
+            <span className="card-noimg">
+              <span className="card-noimg-art" aria-hidden="true">{placeholderArt(product)}</span>
+              <span>No Image Available</span>
+            </span>
+          )}
           {off > 0 && !outOfStock ? <span className="badge">{off}%<br />OFF</span> : null}
           {outOfStock ? (
             <span className="out-overlay">

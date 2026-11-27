@@ -61,5 +61,13 @@ export const getBanners = (placement) =>
 
 export const getStores = () => get("/stores/public", { revalidate: 60 });
 
+// Blog: published posts only (the API never returns drafts or scheduled posts here).
+export const getPosts = (query) => get("/blog/public", { query, revalidate: 30 });
+
+// Blog categories that have at least one live post, with counts (the filter chips).
+export const getPostCategories = () => get("/blog/public/categories", { revalidate: 30 });
+
+export const getPost = (slug) => get(`/blog/public/${encodeURIComponent(slug)}`, { revalidate: 30 });
+
 export const checkPincode = (pincode) =>
   get("/storefront/serviceability", { query: { pincode }, revalidate: 0 });

@@ -48,6 +48,7 @@ const models = [
   require("../modules/maintenance/maintenanceAsset.model"),
   require("../modules/maintenance/maintenanceRequest.model"),
   require("../modules/marketing/banner.model"),
+  require("../modules/blog/post.model"),
   require("../modules/customers/customerGroup.model"),
 ];
 

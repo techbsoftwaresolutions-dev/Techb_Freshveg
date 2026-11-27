@@ -20,6 +20,7 @@ const emptyProduct = {
   brand: "",
   shortDescription: "",
   description: "",
+  seo: { title: "", description: "" }, // what Google shows; empty = generated from the name and price
   tags: [],
   status: "draft",
   isFeatured: false,
@@ -238,6 +239,7 @@ export default function ProductForm() {
       brand: product.brand || null,
       shortDescription: product.shortDescription,
       description: product.description,
+      seo: { title: (product.seo?.title || "").trim(), description: (product.seo?.description || "").trim() },
       tags: product.tags,
       isFeatured: product.isFeatured,
       offer: offerPayload(product.offer),
@@ -560,6 +562,25 @@ export default function ProductForm() {
               <textarea
                 value={product.description}
                 onChange={(e) => setProduct({ ...product, description: e.target.value })}
+                disabled={!editable}
+              />
+            </Field>
+            <Field label="Google search title" help={`${(product.seo?.title || "").length}/60 characters. Leave empty to use \"Buy ${product.name || "this product"} online in Hosur\".`}>
+              <input
+                type="text"
+                maxLength={70}
+                value={product.seo?.title || ""}
+                placeholder={`Buy ${product.name || "…"} online in Hosur`}
+                onChange={(e) => setProduct({ ...product, seo: { ...(product.seo || {}), title: e.target.value } })}
+                disabled={!editable}
+              />
+            </Field>
+            <Field label="Google search description" help={`${(product.seo?.description || "").length}/160 characters. Leave empty to use the short description with the price and delivery line. Write it yourself, not copied from another site.`}>
+              <textarea
+                rows={2}
+                maxLength={200}
+                value={product.seo?.description || ""}
+                onChange={(e) => setProduct({ ...product, seo: { ...(product.seo || {}), description: e.target.value } })}
                 disabled={!editable}
               />
             </Field>

@@ -113,3 +113,23 @@ export function offerLabel(offer) {
   if (offer.kind === "combo") return "Combo offer";
   return "Special offer";
 }
+
+// Stand-in picture for a product with no photo: an emoji picked from its name and tags.
+const PLACEHOLDER_ART = [
+  [/chips|snack|namkeen|mixture|puff|biscuit|cookie|chocolate|wafer/, "🍿"],
+  [/milk|curd|paneer|cheese|butter|ghee|yogh?urt|dairy/, "🥛"],
+  [/apple|banana|orange|mango|grape|papaya|melon|fruit|berry|pomegranate/, "🍎"],
+  [/tomato|onion|potato|carrot|cabbage|spinach|beans|peas|leaf|leaves|vegetable|capsicum|brinjal|okra|gourd|beet|radish|gourd/, "🥕"],
+  [/rice|atta|flour|dal|lentil|pulse|wheat|sugar|salt|grain|millet/, "🌾"],
+  [/oil/, "🛢️"],
+  [/masala|spice|powder|chilli|turmeric|pepper|seed/, "🌶️"],
+  [/tea|coffee|juice|drink|water|beverage/, "🥤"],
+  [/soap|shampoo|face|hair|lip|nail|cream|lotion|clip|headband|scrunch|personal|beauty/, "🧴"],
+  [/detergent|clean|wash|scrub|dish|broom|mop|peeler|household|bleach|stain/, "🧽"],
+  [/pooja|incense|diya|camphor|agarbatti|kumkum|lamp/, "🪔"],
+];
+
+export function placeholderArt(product) {
+  const text = `${product?.name || ""} ${(product?.tags || []).join(" ")}`.toLowerCase();
+  return (PLACEHOLDER_ART.find(([re]) => re.test(text)) || [null, "🛒"])[1];
+}

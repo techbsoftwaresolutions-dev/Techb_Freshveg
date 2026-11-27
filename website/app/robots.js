@@ -6,7 +6,7 @@ export default function robots() {
       userAgent: "*",
       allow: "/",
       // Nothing behind a sign-in, and nothing per-session, belongs in an index.
-      disallow: ["/cart", "/checkout", "/account", "/orders", "/login", "/search"],
+      disallow: ["/cart", "/checkout", "/account", "/orders", "/login", "/search", "/wishlist"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };

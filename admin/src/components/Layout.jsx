@@ -160,6 +160,12 @@ const NAV = [
         icon: IconBanners,
       },
       {
+        to: "/blog",
+        label: "Blog",
+        permission: "marketing.view",
+        icon: IconReviews,
+      },
+      {
         to: "/marketing/notifications",
         label: "Notifications",
         permission: "marketing.view",
@@ -397,7 +403,6 @@ export default function Layout() {
             <strong>
               Hosur<span>Basket</span>
             </strong>
-            <small>Your everyday supermarket</small>
           </div>
         </div>
         <nav>
@@ -624,6 +629,7 @@ function titleFor(pathname) {
     "/customers": "Customers",
     "/marketing/offers": "Offers & Coupons",
     "/marketing/banners": "Banners",
+    "/blog": "Blog",
     "/marketing/notifications": "Notifications",
     "/reports": "Reports",
     "/settings/stores": "Stores",

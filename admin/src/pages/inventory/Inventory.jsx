@@ -1,3 +1,4 @@
+import DatePicker from "../../components/DatePicker";
 import Select from "../../components/Select";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -541,7 +542,7 @@ function StockModal({ row, initialMode = "adjust", onClose, onSave }) {
             <input type="text" value={batchNo} onChange={(e) => setBatchNo(e.target.value)} />
           </Field>
           <Field label="Expiry date" help="Optional — feeds Expiring soon">
-            <input type="date" value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} />
+            <DatePicker value={expiresOn} onChange={setExpiresOn} />
           </Field>
           <Field label="Cost per unit (₹)" help="Optional">
             <input type="number" min="0" step="0.01" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />

@@ -46,6 +46,7 @@ router.use("/customers", require("../modules/customers/customer.routes"));
 router.use("/staff", require("../modules/staff/staff.routes"));
 router.use("/marketing/offers", require("../modules/pricing/offer.routes"));
 router.use("/pos", require("../modules/pos/pos.routes"));
+router.use("/blog", require("../modules/blog/blog.routes"));
 router.use("/maintenance", require("../modules/maintenance/maintenance.routes"));
 
 // --- Oversight ------------------------------------------------------------

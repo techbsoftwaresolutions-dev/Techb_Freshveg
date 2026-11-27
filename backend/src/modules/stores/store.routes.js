@@ -103,6 +103,8 @@ router.get(
         address: s.address, isOpen: s.isOpenNow(), settings: s.settings,
         // Lets a shopper who never typed a pincode still be asked which area they are in.
         servicePincodes: s.servicePincodes || [],
+        // The named areas each pincode covers (no charges), for the public delivery-areas page.
+        pincodeAreas: (s.pincodeAreas || []).map((a) => ({ pincode: a.pincode, area: a.area })),
       })),
     });
   })
