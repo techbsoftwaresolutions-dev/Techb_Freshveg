@@ -584,7 +584,9 @@ export default function ProductForm() {
             requiredError={formErrors.photos}
             name={product.name}
             editable={editable}
-            onChange={(media) => setProduct((p) => ({ ...p, media }))}
+            onChange={(next) =>
+              setProduct((p) => ({ ...p, media: typeof next === "function" ? next(p.media || []) : next }))
+            }
           />
 
           {schema && (
@@ -901,6 +903,7 @@ function OfferField({ offer, editable, onChange }) {
 
 function MediaUploader({ media, name, editable, onChange, requiredError }) {
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(null);
   const [error, setError] = useState("");
   // Index of the photo whose options popup is open, or null.
   const [picked, setPicked] = useState(null);
@@ -934,29 +937,59 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [picked]);
 
+  // Any number of photos at once. Each file is checked and uploaded on its own,
+  // a few at a time, so one bad file (wrong type, too big, a failed upload) is
+  // reported by name and the rest are still added — it no longer throws away
+  // the whole selection.
   async function handleFiles(fileList) {
     const files = Array.from(fileList || []);
     if (!files.length) return;
 
     setError("");
     setUploading(true);
-    const uploaded = [];
-    try {
-      for (const file of files) {
-        if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-          throw new Error(`${file.name}: only JPEG, PNG, WebP and GIF images are accepted`);
+    setProgress({ done: 0, total: files.length });
+
+    const slots = new Array(files.length).fill(null);
+    const problems = [];
+    let done = 0;
+    let next = 0;
+
+    async function worker() {
+      while (next < files.length) {
+        const index = next;
+        next += 1;
+        const file = files[index];
+        try {
+          if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+            throw new Error("only JPEG, PNG, WebP and GIF images are accepted");
+          }
+          if (file.size > MAX_UPLOAD_BYTES) throw new Error("larger than 5 MB");
+          const result = await api.upload(file, "products");
+          slots[index] = { url: result.url, alt: name || "", type: "image" };
+        } catch (err) {
+          problems.push(`${file.name}: ${err.message}`);
+        } finally {
+          done += 1;
+          setProgress({ done, total: files.length });
         }
-        if (file.size > MAX_UPLOAD_BYTES) {
-          throw new Error(`${file.name}: file is larger than 5 MB`);
-        }
-        const result = await api.upload(file, "products");
-        uploaded.push({ url: result.url, alt: name || "", type: "image" });
       }
-      onChange([...media, ...uploaded]);
-    } catch (err) {
-      setError(err.message);
+    }
+
+    try {
+      await Promise.all(Array.from({ length: Math.min(3, files.length) }, worker));
+      const uploaded = slots.filter(Boolean);
+      // Functional update: add to whatever is there now, in the order picked.
+      if (uploaded.length) onChange((current) => [...current, ...uploaded]);
+      if (problems.length) {
+        setError(
+          `${uploaded.length ? `${uploaded.length} photo${uploaded.length === 1 ? "" : "s"} added. ` : ""}Not added — ${problems.join("; ")}`
+        );
+      } else if (uploaded.length > 1) {
+        toast.success(`${uploaded.length} photos added`);
+      }
     } finally {
       setUploading(false);
+      setProgress(null);
     }
   }
 
@@ -1179,7 +1212,7 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
               }}
             >
               <span>{uploading ? "…" : addOver ? "⤓" : "＋"}</span>
-              {uploading ? "Uploading" : addOver ? (dragIndex !== null ? "Move to end" : "Drop to add") : "Add"}
+              {uploading ? (progress ? `${progress.done}/${progress.total}` : "Uploading") : addOver ? (dragIndex !== null ? "Move to end" : "Drop to add") : "Add"}
               <input
                 type="file"
                 accept={ACCEPTED_IMAGE_TYPES.join(",")}
@@ -1201,7 +1234,7 @@ function MediaUploader({ media, name, editable, onChange, requiredError }) {
             <rect x="3" y="4" width="18" height="16" rx="3" />
             <circle cx="9" cy="9" r="1.3" />
           </svg>
-          <strong>{uploading ? "Uploading…" : "Drag photos here, or click to choose"}</strong>
+          <strong>{uploading ? `Uploading${progress ? ` ${progress.done} of ${progress.total}` : ""}…` : "Drag photos here, or click to choose (you can select many)"}</strong>
           <span>JPEG, PNG, WebP or GIF · the first photo is the primary one</span>
           <input
             type="file"

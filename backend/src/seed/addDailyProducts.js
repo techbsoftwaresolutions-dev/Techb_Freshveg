@@ -375,4 +375,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { mediaForProduct };
+module.exports = { mediaForProduct, CATALOG, normalize, productAttributes, variantFor, OPENING_STOCK };
